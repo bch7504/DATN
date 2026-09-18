@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Blueprint đồ án tốt nghiệp — nền tảng quản lý học tập và hỗ trợ ôn thi thông minh tích hợp AI.">
+  <title>StudyFlow — Blueprint đồ án tốt nghiệp</title>
+  <style>
+    :root {
+      --ink: #14201b;
+      --muted: #68736d;
+      --paper: #f5f3ec;
+      --surface: rgba(255, 255, 255, .82);
+      --solid: #ffffff;
+      --line: rgba(20, 32, 27, .12);
+      --green: #155f4a;
+      --green-2: #227b60;
+      --mint: #dcece4;
+      --lime: #d9f08d;
+      --amber: #f0a83e;
+      --amber-soft: #fff1d6;
+      --red: #bf5c4c;
+      --blue: #426b8f;
+      --shadow: 0 18px 60px rgba(30, 48, 40, .10);
+      --radius: 22px;
+      --radius-sm: 14px;
+      --max: 1180px;
+    }
+
+    [data-theme="dark"] {
+      --ink: #edf4ef;
+      --muted: #9caaa2;
+      --paper: #101713;
+      --surface: rgba(25, 35, 30, .86);
+      --solid: #19231e;
+      --line: rgba(238, 246, 241, .12);
+      --green: #63c39c;
+      --green-2: #8ed5b7;
+      --mint: #213d31;
+      --lime: #b7d764;
+      --amber-soft: #3b3021;
+      --shadow: 0 18px 60px rgba(0, 0, 0, .28);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 96px; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 7%, rgba(217, 240, 141, .24), transparent 24rem),
+        radial-gradient(circle at 92% 26%, rgba(64, 140, 109, .13), transparent 28rem),
+        var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+      transition: color .25s ease, background-color .25s ease;
+    }
+
+    button, a { font: inherit; }
+    button { color: inherit; }
+    a { color: inherit; text-decoration: none; }
+    svg { display: block; }
+
+    .shell { width: min(calc(100% - 40px), var(--max)); margin-inline: auto; }
+    .nav {
+      position: sticky;
+      z-index: 50;
+      top: 0;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--paper) 82%, transparent);
+      backdrop-filter: blur(18px);
+    }
+
+    .nav-inner { min-height: 74px; display: flex; align-items: center; gap: 26px; }
+    .brand { display: inline-flex; align-items: center; gap: 11px; font-weight: 820; letter-spacing: -.02em; white-space: nowrap; }
+    .brand-mark { width: 38px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 12px; background: var(--green); color: white; box-shadow: 0 8px 22px rgba(21, 95, 74, .24); }
+    .brand-mark svg { width: 21px; height: 21px; }
+    .brand small { display: block; color: var(--muted); font-size: 9px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+    .nav-links { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+    .nav-links a { padding: 9px 11px; border-radius: 10px; color: var(--muted); font-size: 13px; font-weight: 650; transition: .2s ease; }
+    .nav-links a:hover, .nav-links a.active { color: var(--ink); background: var(--surface); }
+    .icon-btn { width: 39px; height: 39px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer; }
+    .icon-btn svg { width: 18px; height: 18px; }
+    .menu-btn { display: none; }
+
+    .hero { padding: 82px 0 52px; overflow: clip; }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(360px, .92fr); gap: 68px; align-items: center; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--green); font-size: 12px; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+    .eyebrow::before { content: ""; width: 24px; height: 2px; background: currentColor; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin: 22px 0 22px; max-width: 720px; font-family: Cambria, "Times New Roman", serif; font-size: clamp(46px, 6.2vw, 79px); font-weight: 500; line-height: .99; letter-spacing: -.045em; }
+    h1 em { color: var(--green); font-style: italic; }
+    .hero-copy > p { max-width: 670px; color: var(--muted); font-size: 17px; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 30px 0 34px; }
+    .btn { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 17px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); cursor: pointer; font-size: 13px; font-weight: 780; transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(20, 32, 27, .1); }
+    .btn.primary { border-color: var(--green); background: var(--green); color: white; }
+    .btn svg { width: 17px; height: 17px; }
+    .meta-row { display: flex; flex-wrap: wrap; gap: 22px; }
+    .meta { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
+    .meta b { display: block; color: var(--ink); font-size: 14px; }
+    .meta-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: var(--mint); color: var(--green); }
+    .meta-icon svg { width: 17px; height: 17px; }
+
+    .hero-board { position: relative; min-height: 485px; }
+    .orbit { position: absolute; inset: 2% 0 0 3%; border: 1px dashed color-mix(in srgb, var(--green) 35%, transparent); border-radius: 50%; transform: rotate(-8deg); }
+    .board-main { position: absolute; inset: 44px 10px 28px 36px; padding: 22px; border: 1px solid rgba(255,255,255,.4); border-radius: 30px; background: var(--green); color: white; box-shadow: 0 32px 80px rgba(21, 95, 74, .26); transform: rotate(2deg); }
+    .board-top { display: flex; justify-content: space-between; align-items: center; }
+    .board-dots { display: flex; gap: 5px; }
+    .board-dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.4); }
+    .status { padding: 6px 9px; border-radius: 99px; background: rgba(255,255,255,.13); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+    .board-main h3 { margin: 38px 0 8px; max-width: 280px; font-family: Cambria, "Times New Roman", serif; font-size: 29px; font-weight: 500; line-height: 1.08; }
+    .board-main > p { color: rgba(255,255,255,.7); font-size: 11px; }
+    .pipeline { margin-top: 25px; display: grid; gap: 9px; }
+    .pipeline-item { display: grid; grid-template-columns: 29px 1fr auto; align-items: center; gap: 10px; padding: 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: rgba(255,255,255,.08); }
+    .pipeline-item span:first-child { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 9px; background: rgba(255,255,255,.14); font-size: 10px; font-weight: 900; }
+    .pipeline-item strong { font-size: 11px; }
+    .pipeline-item small { display: block; color: rgba(255,255,255,.62); font-size: 8px; }
+    .pipeline-item b { color: var(--lime); font-size: 9px; }
+    .float-card { position: absolute; z-index: 2; padding: 13px 15px; border: 1px solid var(--line); border-radius: 15px; background: var(--solid); box-shadow: var(--shadow); }
+    .float-card strong { display: block; font-size: 12px; }
+    .float-card span { color: var(--muted); font-size: 9px; }
+    .float-a { top: 8px; right: -8px; transform: rotate(-4deg); }
+    .float-b { left: 0; bottom: 7px; transform: rotate(4deg); }
+    .progress-mini { width: 128px; height: 5px; margin-top: 9px; overflow: hidden; border-radius: 5px; background: var(--line); }
+    .progress-mini i { display: block; width: 72%; height: 100%; background: var(--amber); }
+
+    section { padding: 68px 0; }
+    .section-head { display: grid; grid-template-columns: minmax(0, .85fr) minmax(280px, .55fr); justify-content: space-between; gap: 60px; align-items: end; margin-bottom: 30px; }
+    .section-head h2 { margin: 11px 0 0; font-family: Cambria, "Times New Roman", serif; font-size: clamp(34px, 4.2vw, 52px); font-weight: 500; line-height: 1.05; letter-spacing: -.025em; }
+    .section-head p { margin-bottom: 3px; color: var(--muted); font-size: 14px; }
+    .panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: 0 8px 30px rgba(30, 48, 40, .045); }
+
+    .north-star { padding-top: 35px; }
+    .statement { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 25px; padding: 28px 30px; }
+    .statement p { margin: 0; font-family: Cambria, "Times New Roman", serif; font-size: clamp(22px, 3vw, 34px); line-height: 1.25; letter-spacing: -.01em; }
+    .statement p span { color: var(--green); }
+    .seal { width: 112px; aspect-ratio: 1; display: grid; place-items: center; border: 1px dashed var(--green); border-radius: 50%; color: var(--green); font-size: 10px; font-weight: 850; letter-spacing: .12em; text-align: center; transform: rotate(7deg); }
+
+    .flow-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .flow-card { position: relative; min-height: 205px; padding: 22px; overflow: hidden; }
+    .flow-no { display: inline-grid; width: 31px; height: 31px; place-items: center; border-radius: 9px; background: var(--mint); color: var(--green); font-size: 11px; font-weight: 900; }
+    .flow-card h3 { margin: 28px 0 8px; font-size: 16px; }
+    .flow-card p { color: var(--muted); font-size: 11px; }
+    .flow-tag { position: absolute; right: 15px; bottom: 15px; color: var(--green); font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+    .flow-card::after { content: "→"; position: absolute; right: -10px; top: 30px; z-index: 2; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: var(--lime); color: #213015; font-size: 12px; font-weight: 900; }
+    .flow-card:last-child::after { display: none; }
+    .flow-loop { margin-top: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+    .flow-loop b { color: var(--green); }
+
+    .tabs { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 20px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); }
+    .tab { padding: 9px 16px; border: 0; border-radius: 9px; color: var(--muted); background: transparent; cursor: pointer; font-size: 12px; font-weight: 800; }
+    .tab.active { color: white; background: var(--green); }
+    .modules { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .module { min-height: 165px; padding: 19px; transition: transform .2s ease, border-color .2s ease; }
+    .module:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+    .module-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 11px; background: var(--mint); color: var(--green); }
+    .module-icon svg { width: 18px; height: 18px; }
+    .module h3 { margin: 22px 0 7px; font-size: 14px; }
+    .module p { margin: 0; color: var(--muted); font-size: 10px; }
+    .module[data-accent="ai"] .module-icon { background: var(--amber-soft); color: var(--amber); }
+
+    .arch-shell { padding: 26px; }
+    .arch-map { display: grid; grid-template-columns: 1fr 52px 1fr 52px 1.25fr; align-items: stretch; }
+    .arch-col { display: grid; gap: 10px; }
+    .arch-col > strong { margin-bottom: 2px; color: var(--muted); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
+    .arch-box { min-height: 78px; padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--solid); }
+    .arch-box b { display: block; font-size: 12px; }
+    .arch-box span { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
+    .arch-box.primary { border-color: var(--green); background: var(--green); color: white; }
+    .arch-box.primary span { color: rgba(255,255,255,.64); }
+    .arch-box.ai { border-color: color-mix(in srgb, var(--amber) 42%, transparent); background: var(--amber-soft); }
+    .arch-arrow { display: grid; place-items: center; color: var(--green); font-weight: 900; }
+    .arch-arrow span { width: 34px; height: 1px; position: relative; background: currentColor; }
+    .arch-arrow span::after { content: ""; position: absolute; right: 0; top: -3px; width: 6px; height: 6px; border-top: 1px solid; border-right: 1px solid; transform: rotate(45deg); }
+    .boundary-note { display: flex; align-items: center; gap: 12px; margin-top: 17px; padding: 14px 17px; border-radius: 13px; background: var(--mint); color: var(--green); font-size: 11px; }
+    .boundary-note b { white-space: nowrap; }
+
+    .logic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .logic-card { padding: 24px; }
+    .logic-card h3 { margin-bottom: 8px; font-family: Cambria, "Times New Roman", serif; font-size: 23px; font-weight: 500; }
+    .logic-card p { color: var(--muted); font-size: 11px; }
+    .meter { margin-top: 20px; }
+    .meter-head { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 10px; }
+    .meter-track { height: 8px; overflow: hidden; border-radius: 8px; background: var(--line); }
+    .meter-track i { display: block; height: 100%; border-radius: inherit; background: var(--green); }
+    .formula { margin-top: 17px; padding: 16px; border: 1px dashed color-mix(in srgb, var(--green) 38%, transparent); border-radius: 13px; background: color-mix(in srgb, var(--mint) 56%, transparent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--green); font-size: 11px; line-height: 1.8; }
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 15px; }
+    .chip { padding: 6px 9px; border: 1px solid var(--line); border-radius: 99px; color: var(--muted); background: var(--solid); font-size: 9px; font-weight: 750; }
+
+    .roadmap-wrap { display: grid; grid-template-columns: 260px 1fr; overflow: hidden; }
+    .week-list { padding: 13px; border-right: 1px solid var(--line); }
+    .week-btn { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px; border: 0; border-radius: 11px; background: transparent; color: var(--muted); cursor: pointer; text-align: left; font-size: 11px; font-weight: 700; }
+    .week-btn span { width: 27px; height: 27px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--line); color: var(--ink); font-size: 9px; }
+    .week-btn.active { color: var(--ink); background: var(--mint); }
+    .week-btn.active span { border-color: var(--green); background: var(--green); color: white; }
+    .week-content { min-height: 515px; padding: 38px; display: flex; flex-direction: column; }
+    .week-content .week-label { color: var(--green); font-size: 11px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    .week-content h3 { margin: 13px 0 12px; font-family: Cambria, "Times New Roman", serif; font-size: 35px; font-weight: 500; line-height: 1.1; }
+    .week-content > p { max-width: 650px; color: var(--muted); font-size: 13px; }
+    .deliverables { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
+    .deliverable { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--solid); }
+    .deliverable b { font-size: 11px; }
+    .deliverable span { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
+    .phase-bar { display: flex; gap: 5px; margin-top: auto; padding-top: 30px; }
+    .phase-bar i { height: 6px; flex: 1; border-radius: 6px; background: var(--line); }
+    .phase-bar i.done { background: var(--green); }
+    .phase-bar i.now { background: var(--lime); box-shadow: 0 0 0 3px color-mix(in srgb, var(--lime) 30%, transparent); }
+
+    .team-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; }
+    .person { padding: 24px; }
+    .person-top { display: flex; justify-content: space-between; align-items: start; }
+    .avatar { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 15px; background: var(--green); color: white; font-family: Cambria, "Times New Roman", serif; font-size: 17px; }
+    .load { color: var(--green); font-size: 9px; font-weight: 850; }
+    .person h3 { margin: 23px 0 5px; font-size: 15px; }
+    .role { color: var(--muted); font-size: 10px; }
+    .person ul { margin: 18px 0 0; padding: 0; list-style: none; }
+    .person li { position: relative; padding: 6px 0 6px 17px; color: var(--muted); font-size: 10px; }
+    .person li::before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 900; }
+    .shared { margin-top: 13px; padding: 18px 22px; display: flex; justify-content: space-between; gap: 20px; align-items: center; }
+    .shared p { margin: 0; color: var(--muted); font-size: 11px; }
+    .shared b { color: var(--ink); }
+
+    .demo-grid { display: grid; grid-template-columns: minmax(280px, .65fr) 1fr; gap: 14px; }
+    .demo-steps { padding: 12px; }
+    .demo-step { width: 100%; display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 11px; padding: 13px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); cursor: pointer; text-align: left; }
+    .demo-step span:first-child { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--solid); color: var(--ink); font-size: 9px; font-weight: 850; }
+    .demo-step b { color: inherit; font-size: 11px; }
+    .demo-step small { display: block; margin-top: 3px; font-size: 8px; }
+    .demo-step svg { width: 14px; height: 14px; opacity: 0; }
+    .demo-step.active { background: var(--mint); color: var(--green); }
+    .demo-step.active span:first-child { border-color: var(--green); background: var(--green); color: white; }
+    .demo-step.active svg { opacity: 1; }
+    .demo-screen { position: relative; min-height: 500px; padding: 30px; overflow: hidden; background: var(--green); color: white; }
+    .demo-screen::after { content: ""; position: absolute; right: -100px; bottom: -130px; width: 330px; height: 330px; border: 1px solid rgba(255,255,255,.16); border-radius: 50%; box-shadow: 0 0 0 60px rgba(255,255,255,.025), 0 0 0 120px rgba(255,255,255,.02); }
+    .demo-kicker { color: var(--lime); font-size: 9px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    .demo-screen h3 { max-width: 500px; margin: 14px 0 10px; font-family: Cambria, "Times New Roman", serif; font-size: clamp(29px, 4vw, 42px); font-weight: 500; line-height: 1.08; }
+    .demo-screen > p { max-width: 520px; color: rgba(255,255,255,.7); font-size: 12px; }
+    .demo-evidence { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 27px; }
+    .evidence { padding: 15px; border: 1px solid rgba(255,255,255,.14); border-radius: 13px; background: rgba(255,255,255,.08); }
+    .evidence b { font-size: 10px; }
+    .evidence span { display: block; margin-top: 5px; color: rgba(255,255,255,.6); font-size: 8px; }
+
+    .tree-wrap { display: grid; grid-template-columns: 1fr 330px; gap: 14px; }
+    .tree { padding: 25px; overflow: auto; }
+    .tree pre { margin: 0; min-width: 610px; color: var(--muted); font: 11px/1.75 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .tree .folder { color: var(--green); font-weight: 800; }
+    .tree .file { color: var(--ink); }
+    .tree-side { padding: 23px; }
+    .tree-side h3 { font-family: Cambria, "Times New Roman", serif; font-size: 23px; font-weight: 500; }
+    .tree-side p { color: var(--muted); font-size: 11px; }
+    .rule-list { display: grid; gap: 9px; margin-top: 20px; }
+    .rule { display: flex; gap: 10px; padding: 11px; border: 1px solid var(--line); border-radius: 11px; background: var(--solid); font-size: 9px; }
+    .rule i { width: 21px; height: 21px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 7px; background: var(--mint); color: var(--green); font-style: normal; font-weight: 900; }
+
+    .finale { padding-bottom: 85px; }
+    .finale-card { position: relative; padding: 50px; overflow: hidden; background: var(--green); color: white; }
+    .finale-card::before { content: ""; position: absolute; width: 420px; height: 420px; right: -170px; top: -220px; border-radius: 50%; background: var(--lime); opacity: .14; }
+    .finale-card h2 { max-width: 720px; margin: 13px 0 16px; font-family: Cambria, "Times New Roman", serif; font-size: clamp(35px, 5vw, 58px); font-weight: 500; line-height: 1.04; letter-spacing: -.025em; }
+    .finale-card p { max-width: 680px; color: rgba(255,255,255,.7); font-size: 13px; }
+    .finale-card .eyebrow { color: var(--lime); }
+    .finale-path { position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 30px; }
+    .finale-path span { padding: 7px 10px; border-radius: 99px; background: rgba(255,255,255,.1); font-size: 9px; font-weight: 750; }
+    .finale-path i { color: var(--lime); font-style: normal; }
+
+    footer { padding: 22px 0 35px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    .footer-inner { display: flex; justify-content: space-between; gap: 20px; }
+    .toast { position: fixed; right: 22px; bottom: 22px; z-index: 100; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--solid); box-shadow: var(--shadow); font-size: 11px; font-weight: 750; transform: translateY(20px); opacity: 0; pointer-events: none; transition: .25s ease; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .reveal { opacity: 1; transform: none; }
+    .reveal.visible { animation: revealIn .55s ease both; }
+    @keyframes revealIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+    @media (max-width: 980px) {
+      .nav-links { position: absolute; top: 74px; left: 20px; right: 20px; display: none; padding: 10px; border: 1px solid var(--line); border-radius: 15px; background: var(--solid); box-shadow: var(--shadow); }
+      .nav-links.open { display: grid; }
+      .menu-btn { display: grid; margin-left: auto; }
+      .hero-grid { grid-template-columns: 1fr; gap: 35px; }
+      .hero-copy { max-width: 780px; }
+      .hero-board { width: min(100%, 590px); margin-inline: auto; }
+      .flow-grid, .modules { grid-template-columns: repeat(2, 1fr); }
+      .flow-card:nth-child(2)::after { display: none; }
+      .arch-map { grid-template-columns: 1fr; gap: 11px; }
+      .arch-arrow { height: 28px; transform: rotate(90deg); }
+      .team-grid { grid-template-columns: 1fr; }
+      .tree-wrap { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 700px) {
+      .shell { width: min(calc(100% - 26px), var(--max)); }
+      .nav-inner { min-height: 66px; }
+      .nav-links { top: 66px; left: 13px; right: 13px; }
+      .brand small { display: none; }
+      .hero { padding-top: 54px; }
+      .hero-grid { gap: 18px; }
+      h1 { font-size: clamp(43px, 14vw, 61px); }
+      .hero-board { min-height: 435px; }
+      .board-main { inset: 35px 4px 22px 15px; }
+      .float-a { right: 0; }
+      .float-b { left: -2px; }
+      section { padding: 50px 0; }
+      .section-head { grid-template-columns: 1fr; gap: 13px; }
+      .statement { grid-template-columns: 1fr; }
+      .seal { width: 88px; }
+      .flow-grid, .modules, .logic-grid { grid-template-columns: 1fr; }
+      .flow-card::after { display: none; }
+      .arch-shell { padding: 15px; }
+      .roadmap-wrap { grid-template-columns: 1fr; }
+      .week-list { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .week-btn { min-width: 115px; }
+      .week-content { min-height: 500px; padding: 24px; }
+      .deliverables { grid-template-columns: 1fr; }
+      .shared { align-items: flex-start; flex-direction: column; }
+      .demo-grid { grid-template-columns: 1fr; }
+      .demo-steps { display: flex; overflow-x: auto; }
+      .demo-step { min-width: 180px; }
+      .demo-screen { min-height: 480px; padding: 24px; }
+      .demo-evidence { grid-template-columns: 1fr; }
+      .finale-card { padding: 31px 24px; }
+      .footer-inner { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute">
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-1a3 3 0 0 0 0-6m5 17v-2a4 4 0 0 0-3-3.87" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Zm-9 10 9 5 9-5M3 17l9 5 9-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M14 2v6h6M8 13h8M8 17h5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3Zm7 12 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15ZM5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8L5 14Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 3v4M8 3v4M3 10h18" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  </svg>
+
+  <nav class="nav">
+    <div class="shell nav-inner">
+      <a class="brand" href="#top" aria-label="Về đầu trang">
+        <span class="brand-mark"><svg><use href="#i-book"></use></svg></span>
+        <span>StudyFlow<small>Graduation blueprint</small></span>
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="#flow">Luồng chính</a>
+        <a href="#modules">Phạm vi</a>
+        <a href="#architecture">Kiến trúc</a>
+        <a href="#roadmap">12 tuần</a>
+        <a href="#demo">Demo</a>
+        <a href="#structure">Cấu trúc</a>
+      </div>
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="Mở menu"><svg><use href="#i-menu"></use></svg></button>
+      <button class="icon-btn" id="themeBtn" aria-label="Đổi giao diện sáng tối"><svg><use href="#i-moon"></use></svg></button>
+    </div>
+  </nav>
+
+  <main id="top">
+    <header class="hero">
+      <div class="shell hero-grid">
+        <div class="hero-copy reveal">
+          <span class="eyebrow">Kế hoạch đồ án tốt nghiệp · 2026</span>
+          <h1>Học có hệ thống.<br><em>Ôn thi có chiến lược.</em></h1>
+          <p>Blueprint cho nền tảng quản lý học tập và hỗ trợ ôn thi thông minh: kết nối tài liệu, hoạt động học, quiz, tiến độ, kế hoạch và kỳ thi trong một luồng thống nhất.</p>
+          <div class="hero-actions">
+            <a class="btn primary" href="#roadmap">Xem lộ trình 12 tuần <svg><use href="#i-arrow"></use></svg></a>
+            <a class="btn" href="#structure">Khám phá cấu trúc dự án</a>
+          </div>
+          <div class="meta-row">
+            <div class="meta"><span class="meta-icon"><svg><use href="#i-clock"></use></svg></span><span><b>12 tuần</b>Thời gian triển khai</span></div>
+            <div class="meta"><span class="meta-icon"><svg><use href="#i-users"></use></svg></span><span><b>03 thành viên</b>AI · Backend · Frontend</span></div>
+            <div class="meta"><span class="meta-icon"><svg><use href="#i-layers"></use></svg></span><span><b>02 vai trò</b>Student & Admin</span></div>
+          </div>
+        </div>
+
+        <div class="hero-board reveal">
+          <div class="orbit"></div>
+          <div class="board-main">
+            <div class="board-top"><div class="board-dots"><i></i><i></i><i></i></div><span class="status">MVP BLUEPRINT</span></div>
+            <h3>Một vòng lặp học tập có thể đo lường</h3>
+            <p>Backend giữ logic cốt lõi · AI hỗ trợ đúng điểm cần thiết</p>
+            <div class="pipeline">
+              <div class="pipeline-item"><span>01</span><div><strong>Document Learning</strong><small>PDF · PPTX · DOCX</small></div><b>INPUT</b></div>
+              <div class="pipeline-item"><span>02</span><div><strong>AI Tutor & Quiz</strong><small>RAG · Citation · Assessment</small></div><b>LEARN</b></div>
+              <div class="pipeline-item"><span>03</span><div><strong>Progress & Mastery</strong><small>Rules · Statistics · Evidence</small></div><b>MEASURE</b></div>
+              <div class="pipeline-item"><span>04</span><div><strong>Plan & Exam</strong><small>Calendar · Recommendation</small></div><b>IMPROVE</b></div>
+            </div>
+          </div>
+          <div class="float-card float-a"><strong>AI có kiểm soát</strong><span>Grounded answer + citation</span></div>
+          <div class="float-card float-b"><strong>MVP readiness · 72%</strong><span>Phạm vi đã được định nghĩa</span><div class="progress-mini"><i></i></div></div>
+        </div>
+      </div>
+    </header>
+
+    <section class="north-star">
+      <div class="shell">
+        <div class="panel statement reveal">
+          <p>Giá trị chính không nằm ở một chatbot riêng lẻ, mà ở việc biến mọi hoạt động học thành <span>dữ liệu tiến trình có thể hành động.</span></p>
+          <div class="seal">PRODUCT<br>NORTH STAR</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><span class="eyebrow">01 · Core workflow</span><h2>Từ tài liệu đến năng lực thực</h2></div>
+          <p>Mỗi thao tác của sinh viên đi vào một vòng lặp rõ ràng: học, đánh giá, đo lường, ưu tiên và học lại.</p>
+        </div>
+        <div class="flow-grid reveal">
+          <article class="panel flow-card"><span class="flow-no">01</span><h3>Tổ chức nội dung</h3><p>Chọn Subject/Topic, đọc tài liệu chính thức hoặc tải tài liệu cá nhân.</p><span class="flow-tag">Subject → Document</span></article>
+          <article class="panel flow-card"><span class="flow-no">02</span><h3>Học có ngữ cảnh</h3><p>Ghi Note, Bookmark, Study Session và hỏi AI Tutor ngay tại page/slide.</p><span class="flow-tag">Learn → Ask</span></article>
+          <article class="panel flow-card"><span class="flow-no">03</span><h3>Đánh giá hiểu biết</h3><p>Tạo quiz từ tài liệu, làm bài và để backend chấm điểm, lưu lịch sử.</p><span class="flow-tag">Quiz → Score</span></article>
+          <article class="panel flow-card"><span class="flow-no">04</span><h3>Điều chỉnh kế hoạch</h3><p>Cập nhật Progress/Mastery, xem gợi ý rồi tự đưa vào Calendar hoặc Exam.</p><span class="flow-tag">Measure → Plan</span></article>
+        </div>
+        <div class="panel flow-loop reveal"><b>Vòng phản hồi:</b> kết quả mới từ quiz, phiên học và mock exam tiếp tục cập nhật dữ liệu tiến trình — không giao quyền điều phối lịch cho LLM.</div>
+      </div>
+    </section>
+
+    <section id="modules">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><span class="eyebrow">02 · Product scope</span><h2>Hai không gian, một nền tảng</h2></div>
+          <p>Student tự quản lý việc học. Admin vận hành hệ thống và nội dung chuẩn, không can thiệp tiến độ cá nhân.</p>
+        </div>
+        <div class="tabs reveal" role="tablist">
+          <button class="tab active" data-role="student" role="tab" aria-selected="true">Student · 14 modules</button>
+          <button class="tab" data-role="admin" role="tab" aria-selected="false">Admin · 7 modules</button>
+        </div>
+        <div class="modules reveal" id="moduleGrid"></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><span class="eyebrow">03 · System design</span><h2>Kiến trúc tách trách nhiệm</h2></div>
+          <p>Next.js phục vụ trải nghiệm; Spring Boot giữ nghiệp vụ và dữ liệu; Python AI Service xử lý tài liệu, RAG và sinh quiz qua internal API.</p>
+        </div>
+        <div class="panel arch-shell reveal">
+          <div class="arch-map">
+            <div class="arch-col"><strong>Experience layer</strong><div class="arch-box primary"><b>Next.js Web</b><span>Student UI · Admin UI · Viewer · Quiz · Calendar</span></div><div class="arch-box"><b>RBAC Client</b><span>USER / ADMIN routes & guards</span></div></div>
+            <div class="arch-arrow"><span></span></div>
+            <div class="arch-col"><strong>Application services</strong><div class="arch-box primary"><b>Java Spring Boot</b><span>Auth · CRUD · Scoring · Progress · Exam · Logs</span></div><div class="arch-box ai"><b>Python AI Service</b><span>Parse · Chunk · Embed · RAG · Quiz Generator</span></div><div class="arch-box"><b>Internal API Contract</b><span>Authorized scope · Request ID · Result · Citation</span></div></div>
+            <div class="arch-arrow"><span></span></div>
+            <div class="arch-col"><strong>Data & external layer</strong><div class="arch-box"><b>PostgreSQL</b><span>User · Learning · Quiz · Progress · Events</span></div><div class="arch-box"><b>Object Storage</b><span>Original PDF / PPTX / DOCX</span></div><div class="arch-box"><b>Qdrant Vector DB</b><span>Chunks · Embeddings · Retrieval metadata</span></div><div class="arch-box"><b>LLM / Embedding API</b><span>Gemini hoặc OpenAI theo quota</span></div></div>
+          </div>
+          <div class="boundary-note"><svg width="20" height="20"><use href="#i-shield"></use></svg><b>Ranh giới service:</b><span>Python AI không truy cập nghiệp vụ tùy ý và không tự ghi điểm/mastery; Java backend xác thực, cấp scope, validate kết quả và lưu dữ liệu.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><span class="eyebrow">04 · Learning intelligence</span><h2>Đo “đã học” và “đã hiểu” riêng biệt</h2></div>
+          <p>Hai chỉ số trả lời hai câu hỏi khác nhau, giúp recommendation có căn cứ và tránh kết luận vội khi thiếu dữ liệu.</p>
+        </div>
+        <div class="logic-grid reveal">
+          <article class="panel logic-card"><h3>Content Progress</h3><p>Sinh viên đã đi đến đâu trong tài liệu, dựa trên page/slide đã xem, trạng thái hoàn thành và Study Session.</p><div class="meter"><div class="meter-head"><b>Database Systems · Chapter 4</b><span>68%</span></div><div class="meter-track"><i style="width:68%"></i></div></div><div class="chips"><span class="chip">VIEW_PAGE</span><span class="chip">DOCUMENT_COMPLETED</span><span class="chip">SESSION_FINISHED</span></div></article>
+          <article class="panel logic-card"><h3>Topic Mastery</h3><p>Sinh viên nắm kiến thức đến mức nào, ưu tiên bằng chứng từ Quiz/Assessment và hiệu suất gần đây.</p><div class="formula">Mastery = quiz performance + recent performance<br>+ content completion + study activity</div><div class="chips"><span class="chip">NO_DATA</span><span class="chip">LEARNING</span><span class="chip">MASTERED</span></div></article>
+          <article class="panel logic-card"><h3>Study Recommendation</h3><p>Xếp thứ tự topic nên ôn trước; sinh viên là người quyết định thêm hoặc chỉnh sửa kế hoạch.</p><div class="formula">Score(topic) = w₁·deadline urgency<br>+ w₂·(1 − mastery) + w₃·importance<br>+ w₄·quiz weakness</div></article>
+          <article class="panel logic-card"><h3>Grounded AI Tutor</h3><p>Retrieval theo user, subject, topic, document và page/slide hiện tại; câu trả lời luôn kèm nguồn.</p><div class="formula">Question + current context → retrieve chunks<br>→ LLM answer → page/slide citations</div><div class="chips"><span class="chip">PDF PAGE</span><span class="chip">PPTX SLIDE</span><span class="chip">DOCX SECTION</span></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><span class="eyebrow">05 · Delivery plan</span><h2>12 tuần, 4 chặng bàn giao</h2></div>
+          <p>Chọn từng tuần để xem mục tiêu và đầu ra cần chứng minh. Kế hoạch ưu tiên tích hợp sớm thay vì dồn vào cuối kỳ.</p>
+        </div>
+        <div class="panel roadmap-wrap reveal">
+          <div class="week-list" id="weekList"></div>
+          <div class="week-content" id="weekContent"></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><span class="eyebrow">06 · Team ownership</span><h2>Ba trục chuyên môn, một chuẩn tích hợp</h2></div>
+          <p>Mỗi thành viên có vùng sở hữu rõ ràng; hợp đồng API, dữ liệu seed, test và deployment là trách nhiệm chung.</p>
+        </div>
+        <div class="team-grid reveal">
+          <article class="panel person"><div class="person-top"><span class="avatar">01</span><span class="load">AI & DOCUMENTS</span></div><h3>Thành viên 1</h3><span class="role">Retrieval & document intelligence</span><ul><li>Parsing PDF/PPTX/DOCX</li><li>Embedding & Qdrant retrieval</li><li>AI Tutor RAG + citation</li><li>Quiz Generator & evaluation</li></ul></article>
+          <article class="panel person"><div class="person-top"><span class="avatar">02</span><span class="load">BACKEND & DATA</span></div><h3>Thành viên 2</h3><span class="role">Business logic & persistence</span><ul><li>Spring Boot, PostgreSQL, RBAC</li><li>Quiz scoring & attempts</li><li>Progress, mastery, sessions</li><li>Exam, recommendation & logs</li></ul></article>
+          <article class="panel person"><div class="person-top"><span class="avatar">03</span><span class="load">FRONTEND</span></div><h3>Thành viên 3</h3><span class="role">Product experience</span><ul><li>Next.js Student/Admin UI</li><li>Document Viewer & Notes</li><li>Quiz, Progress & Calendar</li><li>Exam Workspace & Mock Exam</li></ul></article>
+        </div>
+        <div class="panel shared reveal"><p><b>Cả nhóm cùng chịu trách nhiệm:</b> integration · testing · deployment · seed/mock data · tài liệu · kịch bản demo</p><span class="chip">Definition of done chung</span></div>
+      </div>
+    </section>
+
+    <section id="demo">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><span class="eyebrow">07 · Defense story</span><h2>Một luồng demo xuyên suốt</h2></div>
+          <p>Buổi bảo vệ kể một câu chuyện người dùng duy nhất và chứng minh được cả frontend, backend, dữ liệu lẫn AI.</p>
+        </div>
+        <div class="demo-grid reveal">
+          <div class="panel demo-steps" id="demoSteps"></div>
+          <div class="panel demo-screen" id="demoScreen"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="structure">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div><span class="eyebrow">08 · Repository map</span><h2>Cấu trúc sẵn sàng để phát triển</h2></div>
+          <p>Monorepo chia theo deployable unit và domain. Mock này đứng độc lập ở root, không trộn với mã sản phẩm.</p>
+        </div>
+        <div class="tree-wrap reveal">
+          <div class="panel tree"><pre id="treeText"><span class="folder">DATN/</span>
+├── <span class="file">index.html</span>                 # blueprint HTML độc lập
+├── <span class="file">README.md</span>                  # hướng dẫn và quy ước
+├── <span class="file">AGENTS.md</span>                  # phạm vi đọc/sửa của AI agents
+├── <span class="file">PROJECT_STRUCTURE.md</span>       # bản đồ repository chi tiết
+├── <span class="folder">apps/web/</span>                  # Next.js Student + Admin
+│   ├── <span class="folder">src/app/</span>               # route groups theo vai trò
+│   ├── <span class="folder">src/components/</span>        # UI + feature components
+│   ├── <span class="folder">src/lib/</span>               # API client, auth, helpers
+│   └── <span class="folder">tests/</span>
+├── <span class="folder">services/backend/</span>          # Java Spring Boot nghiệp vụ lõi
+│   └── <span class="folder">src/main/java/com/studyflow/</span>
+│       ├── <span class="folder">auth/ · user/ · subject/</span>
+│       ├── <span class="folder">document/ · note/ · quiz/</span>
+│       ├── <span class="folder">progress/ · study/ · exam/</span>
+│       ├── <span class="folder">admin/ · event/</span>
+│       └── <span class="folder">integration/ai/</span>     # client gọi Python AI
+├── <span class="folder">services/ai/</span>               # Python AI service độc lập
+│   ├── <span class="folder">app/api/routes/</span>         # internal endpoints
+│   ├── <span class="folder">app/pipelines/</span>          # parse · chunk · index
+│   ├── <span class="folder">app/services/</span>           # RAG · quiz generation
+│   ├── <span class="folder">app/clients/</span>            # Qdrant · storage · LLM
+│   ├── <span class="folder">evals/</span>                  # RAG/quiz evaluation
+│   └── <span class="folder">tests/</span>
+├── <span class="folder">docs/</span>                      # kiến trúc, API, DB, demo
+├── <span class="folder">infrastructure/</span>            # Docker, CI/CD, deploy
+└── <span class="folder">scripts/</span>                   # seed, setup, smoke test</pre></div>
+          <aside class="panel tree-side"><h3>Nguyên tắc phân lớp</h3><p>Java giữ domain logic và database; Python AI là service chuyên biệt, giao tiếp qua hợp đồng nội bộ.</p><div class="rule-list"><div class="rule"><i>1</i><span>Web chỉ gọi Java backend, không gọi thẳng AI service.</span></div><div class="rule"><i>2</i><span>Spring service chứa luật nghiệp vụ có thể unit test.</span></div><div class="rule"><i>3</i><span>Python AI chỉ trả kết quả/citation, không cập nhật mastery.</span></div><div class="rule"><i>4</i><span>Request ID nối log xuyên suốt Web → Java → Python.</span></div></div><button class="btn" id="copyTree" style="margin-top:20px"><svg><use href="#i-copy"></use></svg>Sao chép cấu trúc</button></aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="finale">
+      <div class="shell">
+        <div class="panel finale-card reveal">
+          <span class="eyebrow">Kết quả kỳ vọng</span>
+          <h2>Một sản phẩm end-to-end có thể giải thích, đo lường và demo.</h2>
+          <p>Sau 12 tuần, hệ thống phải chứng minh được một chu trình học hoàn chỉnh trên môi trường deploy — không chỉ là tập hợp màn hình hoặc một chatbot hỏi đáp.</p>
+          <div class="finale-path"><span>Document</span><i>→</i><span>Notes / Session</span><i>→</i><span>AI Tutor / Quiz</span><i>→</i><span>Assessment</span><i>→</i><span>Progress & Mastery</span><i>→</i><span>Plan / Exam</span><i>→</i><span>Re-assessment</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="shell footer-inner"><span>StudyFlow · Graduation Project Blueprint</span><span>Nguồn: Plan_do_an_tot_nghiep_hoan_chinh_theo_chuc_nang.docx</span></div></footer>
+  <div class="toast" id="toast" role="status" aria-live="polite">Đã sao chép cấu trúc dự án</div>
+
+  <script>
+    const moduleData = {
+      student: [
+        ['Dashboard','Việc hôm nay, deadline, kỳ thi, study time và tiến độ.','chart'],
+        ['Subjects & Topics','Tổ chức môn học và topic chuẩn hoặc cá nhân.','layers'],
+        ['Documents','Official/Personal PDF, PPTX, DOCX theo topic.','file'],
+        ['Document Viewer','Đọc tài liệu và ghi nhận page/slide đã xem.','book'],
+        ['AI Tutor','RAG theo current page/slide, trả lời có citation.','spark','ai'],
+        ['Notes & Bookmarks','Ghi chú, đánh dấu và danh sách cần xem lại.','book'],
+        ['Quiz & Assessment','Tạo, làm, chấm và xem lịch sử quiz.','check','ai'],
+        ['Learning Progress','Content Progress, Quiz Average, Topic Mastery.','chart'],
+        ['Study Sessions','Start, pause, finish và ghi thời gian học thực.','clock'],
+        ['Tasks & Calendar','Task, deadline, lịch học và lịch cá nhân.','calendar'],
+        ['Study Plan','Tự lập kế hoạch từ gợi ý ưu tiên rule-based.','calendar'],
+        ['Exam Workspace','Countdown, phạm vi topic và tiến độ ôn thi.','layers'],
+        ['Mock Exam','Thi thử có thời gian và phân tích theo topic.','check'],
+        ['Statistics','Xu hướng study time, session và quiz score.','chart']
+      ],
+      admin: [
+        ['System Dashboard','Users, documents, AI requests, storage và lỗi.','chart'],
+        ['User Management','Tìm kiếm, khóa/mở khóa và quản lý role.','users'],
+        ['Subject & Topic','CRUD danh mục nội dung chuẩn dùng chung.','layers'],
+        ['Official Documents','Upload, gắn topic và theo dõi indexing.','file'],
+        ['AI & RAG','Model, retrieval config, latency và trạng thái.','spark','ai'],
+        ['Feedback & Reports','Helpful/Not Helpful và báo cáo nội dung.','check'],
+        ['System Logs','Health, login, upload, indexing và lỗi hệ thống.','shield']
+      ]
+    };
+
+    const weeks = [
+      {range:'Tuần 01', phase:'Khám phá', title:'Chốt bài toán và phạm vi MVP', desc:'Khảo sát use case, xác định actor, functional requirements và ranh giới giữa business logic với AI.', items:[['Use case map','Student / Admin và luồng cốt lõi'],['MVP backlog','Ưu tiên Must / Should / Future'],['Acceptance criteria','Điều kiện demo được từng module'],['Risk register','Quota, parsing, deployment']]},
+      {range:'Tuần 02', phase:'Thiết kế', title:'UI/UX, kiến trúc và hợp đồng dữ liệu', desc:'Thiết kế luồng màn hình, database schema, API contract, repository và Docker development.', items:[['Wireflow','Student + Admin navigation'],['ERD v1','Entity và relationship lõi'],['OpenAPI draft','Request / response thống nhất'],['Dev environment','Repository + Docker']]},
+      {range:'Tuần 03', phase:'Nền móng', title:'Auth, RBAC và content foundation', desc:'Xây Auth/RBAC, Dashboard, Subject/Topic; mở đầu Admin User/Content Management.', items:[['Authentication','Register / login / refresh'],['Authorization','USER / ADMIN policies'],['Content CRUD','Subject và Topic'],['Dashboard shell','Student/Admin base layout']]},
+      {range:'Tuần 04', phase:'Tài liệu', title:'Documents, Viewer, Notes và Bookmarks', desc:'Hoàn thiện upload và quản lý Official/Personal Documents, Object Storage và trải nghiệm đọc.', items:[['Upload pipeline','PDF / PPTX / DOCX validation'],['Document Viewer','Page / slide navigation'],['Annotations','Notes + Bookmarks'],['Progress draft','Current page / viewed list']]},
+      {range:'Tuần 05', phase:'AI foundation', title:'Parsing, chunking và vector indexing', desc:'Tạo pipeline xử lý tài liệu, embedding và indexing vào Qdrant theo metadata page/slide.', items:[['Parsers','PDF / PPTX / DOCX'],['Chunk strategy','Preserve page / slide context'],['Vector index','Qdrant collections'],['Job states','Pending / processing / ready / failed']]},
+      {range:'Tuần 06', phase:'AI feature', title:'AI Tutor RAG có citation', desc:'Hỏi đáp theo current page/slide, document hoặc subject; đo relevance, faithfulness và latency.', items:[['Scoped retrieval','User + document filters'],['Tutor API','Answer + citations'],['Viewer integration','Ask current page / slide'],['RAG evaluation','Golden questions + metrics']]},
+      {range:'Tuần 07', phase:'Assessment', title:'Quiz và AI Quiz Generator', desc:'Sinh câu hỏi theo topic/tài liệu, validate cấu trúc; backend lưu attempt, chấm điểm và giải thích.', items:[['Quiz generator','Count + difficulty + mapping'],['Quiz engine','Start / submit / result'],['Backend scoring','Deterministic grading'],['History','Attempts and answers']]},
+      {range:'Tuần 08', phase:'Intelligence', title:'Progress, Mastery và Statistics', desc:'Chuẩn hóa Learning Events, Study Sessions, Content Progress, Topic Mastery và dashboard statistics.', items:[['Event model','Activity audit trail'],['Study timer','Start / pause / finish'],['Mastery rules','Weighted evidence'],['Statistics','Time, score, sessions, trends']]},
+      {range:'Tuần 09', phase:'Planning', title:'Tasks, Calendar và Recommendation', desc:'Tạo kế hoạch học do sinh viên quản lý, gợi ý topic theo deadline, mastery, importance và quiz weakness.', items:[['Task CRUD','Deadline + priority'],['Calendar','Tasks + sessions'],['Study Plan','Manual planning UX'],['Recommendation','Explainable ranking rules']]},
+      {range:'Tuần 10', phase:'Exam', title:'Exam Workspace và Mock Exam', desc:'Tạo kỳ thi cá nhân, countdown, phạm vi topic, tiến độ ôn và thi thử có phân tích.', items:[['Exam setup','Date + target + topics'],['Exam progress','Aggregated readiness'],['Mock Exam','Timer + submission'],['Topic analysis','Weakness after exam']]},
+      {range:'Tuần 11', phase:'Hardening', title:'Admin, security và deployment', desc:'Hoàn thiện AI/RAG dashboard, feedback, logs, error handling, test, CI/CD và môi trường public.', items:[['Admin operations','AI, feedback, logs'],['Security','Upload + secrets + RBAC'],['CI pipeline','Lint / test / build'],['Deployment','Vercel + Render + cloud data']]},
+      {range:'Tuần 12', phase:'Release', title:'Regression, dữ liệu demo và bảo vệ', desc:'Khóa phạm vi, chạy kiểm thử end-to-end, sửa lỗi, chuẩn hóa seed data, báo cáo và rehearsal.', items:[['Regression','Critical path checklist'],['Demo data','Stable seeded scenario'],['Observability','Logs + health checks'],['Defense pack','Report + slides + rehearsal']]}
+    ];
+
+    const demos = [
+      {title:'Tổ chức môn học & tài liệu', short:'Subject → Upload', desc:'Student đăng nhập, chọn hoặc tạo Subject/Topic, mở Official Document hoặc upload Personal Document.', evidence:[['RBAC hoạt động','Route và dữ liệu đúng quyền'],['Upload pipeline','File có processing status'],['Content mapping','Document gắn đúng topic'],['Ownership','Personal document tách biệt']]},
+      {title:'Đọc và hỏi AI theo ngữ cảnh', short:'Viewer → AI Tutor', desc:'Mở PDF/PPTX, đọc một số page/slide, ghi Note/Bookmark rồi hỏi AI Tutor về đúng nội dung đang xem.', evidence:[['Viewer progress','Page/slide được ghi nhận'],['Scoped retrieval','Đúng document và vị trí'],['Grounded answer','Câu trả lời bám tài liệu'],['Citation','Nguồn page/slide có thể mở lại']]},
+      {title:'Quiz và cập nhật năng lực', short:'Quiz → Mastery', desc:'Tạo quiz từ tài liệu, làm bài, để backend chấm điểm và xem Topic Mastery thay đổi từ bằng chứng mới.', evidence:[['Generated quiz','Đúng topic và difficulty'],['Backend scoring','AI không tự ghi điểm'],['Attempt history','Lưu answer + result'],['Mastery update','Có nguyên nhân cập nhật']]},
+      {title:'Lập kế hoạch và ôn thi', short:'Plan → Exam', desc:'Xem Statistics/Recommendation, tạo Study Session hoặc Task, đưa vào Calendar và chuẩn bị Exam Workspace.', evidence:[['Statistics','Time + score + trend'],['Recommendation','Xếp hạng giải thích được'],['Study plan','Student toàn quyền chỉnh sửa'],['Exam readiness','Countdown + topic progress']]},
+      {title:'Thi thử và vận hành Admin', short:'Mock → Admin', desc:'Làm Mock Exam, xem phân tích theo topic; chuyển sang Admin để kiểm tra user, indexing, AI usage, feedback và logs.', evidence:[['Mock result','Điểm + topic analysis'],['Index health','Trạng thái tài liệu'],['AI observability','Latency + status'],['System logs','Luồng end-to-end có dấu vết']]}
+    ];
+
+    const icon = name => `<svg aria-hidden="true"><use href="#i-${name}"></use></svg>`;
+    const moduleGrid = document.getElementById('moduleGrid');
+
+    function renderModules(role) {
+      moduleGrid.innerHTML = moduleData[role].map(item => `<article class="panel module" ${item[3] ? `data-accent="${item[3]}"` : ''}><span class="module-icon">${icon(item[2])}</span><h3>${item[0]}</h3><p>${item[1]}</p></article>`).join('');
+    }
+
+    document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+      tab.classList.add('active'); tab.setAttribute('aria-selected','true'); renderModules(tab.dataset.role);
+    }));
+    renderModules('student');
+
+    const weekList = document.getElementById('weekList');
+    const weekContent = document.getElementById('weekContent');
+    function selectWeek(index) {
+      const week = weeks[index];
+      document.querySelectorAll('.week-btn').forEach((button, i) => button.classList.toggle('active', i === index));
+      weekContent.innerHTML = `<span class="week-label">${week.range} · ${week.phase}</span><h3>${week.title}</h3><p>${week.desc}</p><div class="deliverables">${week.items.map(x => `<div class="deliverable"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('')}</div><div class="phase-bar">${weeks.map((_, i) => `<i class="${i < index ? 'done' : i === index ? 'now' : ''}"></i>`).join('')}</div>`;
+    }
+    weekList.innerHTML = weeks.map((week, i) => `<button class="week-btn" data-week="${i}"><span>${String(i+1).padStart(2,'0')}</span>${week.phase}</button>`).join('');
+    weekList.addEventListener('click', e => { const btn = e.target.closest('.week-btn'); if (btn) selectWeek(Number(btn.dataset.week)); });
+    selectWeek(0);
+
+    const demoSteps = document.getElementById('demoSteps');
+    const demoScreen = document.getElementById('demoScreen');
+    function selectDemo(index) {
+      const demo = demos[index];
+      document.querySelectorAll('.demo-step').forEach((button, i) => button.classList.toggle('active', i === index));
+      demoScreen.innerHTML = `<span class="demo-kicker">Demo step ${String(index+1).padStart(2,'0')} / ${String(demos.length).padStart(2,'0')}</span><h3>${demo.title}</h3><p>${demo.desc}</p><div class="demo-evidence">${demo.evidence.map(x => `<div class="evidence"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('')}</div>`;
+    }
+    demoSteps.innerHTML = demos.map((demo, i) => `<button class="demo-step" data-demo="${i}"><span>${String(i+1).padStart(2,'0')}</span><span><b>${demo.title}</b><small>${demo.short}</small></span>${icon('arrow')}</button>`).join('');
+    demoSteps.addEventListener('click', e => { const btn = e.target.closest('.demo-step'); if (btn) selectDemo(Number(btn.dataset.demo)); });
+    selectDemo(0);
+
+    const themeBtn = document.getElementById('themeBtn');
+    themeBtn.addEventListener('click', () => {
+      const html = document.documentElement;
+      const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+      html.dataset.theme = next;
+      localStorage.setItem('studyflow-theme', next);
+    });
+    const savedTheme = localStorage.getItem('studyflow-theme');
+    if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+
+    const menuBtn = document.getElementById('menuBtn');
+    const navLinks = document.getElementById('navLinks');
+    menuBtn.addEventListener('click', () => navLinks.classList.toggle('open'));
+    navLinks.addEventListener('click', () => navLinks.classList.remove('open'));
+
+    const toast = document.getElementById('toast');
+    document.getElementById('copyTree').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(document.getElementById('treeText').innerText);
+        toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 1800);
+      } catch { toast.textContent = 'Không thể sao chép tự động'; toast.classList.add('show'); }
+    });
+
+    const revealObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) { entry.target.classList.add('visible'); revealObserver.unobserve(entry.target); }
+    }), { threshold: .08 });
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    const sections = [...document.querySelectorAll('section[id]')];
+    const links = [...document.querySelectorAll('.nav-links a')];
+    const sectionObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) links.forEach(link => link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`));
+    }), { rootMargin: '-30% 0px -62% 0px' });
+    sections.forEach(section => sectionObserver.observe(section));
+  </script>
+</body>
+</html>

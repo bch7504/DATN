@@ -1,0 +1,29 @@
+# Frontend
+node_modules/
+.next/
+out/
+
+# Java
+target/
+.gradle/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime
+logs/
+uploads/
+qdrant_storage/
+
+# OS
+.DS_Store
+Thumbs.db
+
