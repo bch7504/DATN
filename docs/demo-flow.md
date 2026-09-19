@@ -2,7 +2,7 @@
 
 1. Student đăng nhập, chọn/tạo Subject và Topic, mở Official Document hoặc upload Personal Document.
 2. Mở PDF/PPTX, đọc page/slide, ghi Note/Bookmark và hỏi AI Tutor về nội dung hiện tại; mở được citation.
-3. Tạo Quiz từ topic/tài liệu, làm bài, backend chấm điểm; Content Progress và Topic Mastery cập nhật.
+3. Tạo Quiz từ topic/tài liệu và làm bài; backend chấm điểm, cập nhật Topic Mastery từ kết quả Quiz. Content Progress cập nhật từ sự kiện đọc tài liệu ở bước trước.
 4. Xem Statistics và Study Recommendation, chứng minh lý do topic được ưu tiên.
 5. Tạo Study Session/Task và đưa vào Calendar/Study Plan.
 6. Tạo Exam, chọn phạm vi topic, xem countdown/readiness, làm Mock Exam và xem phân tích.
@@ -25,4 +25,3 @@
 - Warm up backend trước buổi bảo vệ nếu dùng free tier.
 - Có response demo dự phòng nhưng phải phân biệt rõ với kết quả live.
 - Ghi lại video luồng hoàn chỉnh để dự phòng sự cố mạng/deployment.
-
