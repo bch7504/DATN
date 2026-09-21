@@ -8,23 +8,24 @@ StudyFlow là nền tảng quản lý học tập và hỗ trợ ôn thi cho sin
 
 ```text
 Document → Notes/Study Session → AI Tutor/Quiz → Assessment
-         → Content Progress/Topic Mastery → Statistics/Recommendation
-         → Study Plan/Exam Workspace → Re-assessment
+         → Content Progress/Statistics → Study Plan/Review
+         → Re-assessment
 ```
 
 Kiến trúc đã chốt:
 
 ```text
 Next.js Web → Java Spring Boot Backend → Python AI Service
-                          │                    ├→ Qdrant
-                          ├→ PostgreSQL        └→ LLM/Embedding API
-                          └→ Object Storage
+                          ├→ PostgreSQL        ├→ PostgreSQL + pgvector
+                          │   schema app       │   schema ai
+                          └→ Object Storage    └→ LLM/Embedding API
 ```
 
 - Frontend chỉ gọi Java backend.
 - Java backend là system of record và sở hữu toàn bộ luật nghiệp vụ.
 - Python AI service xử lý parsing/chunking/embedding, RAG, citation, sinh quiz và evaluation.
-- Python không tự chấm điểm, cập nhật mastery, recommendation hoặc exam progress.
+- Python không tự chấm điểm, cập nhật progress, study plan hoặc Quiz lifecycle.
+- PostgreSQL dùng chung một cluster nhưng tách schema/role: Java sở hữu `app`, Python sở hữu `ai` và dùng pgvector; Java không đọc/ghi vector trực tiếp.
 
 ## 2. Trình tự bắt buộc trước khi làm việc
 
@@ -65,7 +66,7 @@ KHÔNG ĐƯỢC ĐỌC HOẶC SỬA:
 - `services/ai/**`
 - Database migration, secret, log, upload hoặc tài liệu cá nhân
 
-Luồng làm việc: UI → public Java API. Không gọi Python AI service, Qdrant, database hoặc model API trực tiếp.
+Luồng làm việc: UI → public Java API. Không gọi Python AI service, pgvector, database hoặc model API trực tiếp.
 
 ### BACKEND_AGENT
 
@@ -108,7 +109,7 @@ Mục tiêu: Python AI service, document intelligence và evaluation.
 - `docs/api-plan.md`, phần internal API
 - `docs/architecture.md`, phần Python AI service
 - `PROJECT_STRUCTURE.md`
-- `.env.example` chỉ để biết tên biến AI/Qdrant/Storage, không dùng giá trị thật
+- `.env.example` chỉ để biết tên biến AI/pgvector/Storage, không dùng giá trị thật
 
 ĐƯỢC SỬA:
 
@@ -122,7 +123,7 @@ KHÔNG ĐƯỢC ĐỌC HOẶC SỬA:
 - PostgreSQL dump, production log, user upload hoặc Personal Document thật
 - File chứa secret/token thật
 
-Luồng làm việc: nhận authorized scope từ Java → xử lý/retrieval/generation → trả structured result + citation. Không truy cập trực tiếp bảng user, quiz attempt, mastery, study plan hoặc exam.
+Luồng làm việc: nhận authorized scope từ Java → xử lý/retrieval/generation → trả structured result + citation. Không truy cập trực tiếp bảng user, membership, Quiz attempt/result hoặc study plan.
 
 ### QA_AGENT
 
@@ -183,7 +184,7 @@ private-documents/**
 backups/**
 dumps/**
 logs/**
-qdrant_storage/**
+postgres_data/**
 node_modules/**
 .next/**
 target/**
@@ -191,7 +192,7 @@ build/**
 .git/**
 ```
 
-`Plan_do_an_tot_nghiep_hoan_chinh_theo_chuc_nang.docx` chỉ ARCHITECT_OR_INTEGRATION_AGENT được đọc, và chỉ khi prompt yêu cầu đối chiếu tài liệu gốc. Các agent khác dùng tài liệu đã chuẩn hóa trong `docs/**`.
+`Plan_do_an_tot_nghiep_dong_bo_toan_bo_kien_truc_CSDL_API.docx` chỉ ARCHITECT_OR_INTEGRATION_AGENT được đọc, và chỉ khi prompt yêu cầu đối chiếu tài liệu gốc. Các agent khác dùng tài liệu đã chuẩn hóa trong `docs/**`.
 
 Nếu công cụ tìm kiếm trả về đường dẫn cấm, bỏ qua kết quả và không mở file. Không dùng lệnh đệ quy không có exclude khi nó có thể quét vào các vùng cấm.
 
@@ -200,8 +201,10 @@ Nếu công cụ tìm kiếm trả về đường dẫn cấm, bỏ qua kết qu
 Java gọi Python qua internal HTTP API:
 
 - `POST /internal/v1/documents/index`
+- `POST /internal/v1/documents/deindex`
 - `GET /internal/v1/jobs/{jobId}`
-- `POST /internal/v1/rag/ask`
+- `POST /internal/v1/personal-rag/ask`
+- `POST /internal/v1/slides/ask`
 - `POST /internal/v1/quizzes/generate`
 - `GET /internal/v1/health`
 
@@ -209,7 +212,7 @@ Mỗi request phải có:
 
 - `requestId` để trace xuyên service.
 - Service credential; không chuyển tiếp JWT người dùng nếu không cần.
-- Authorized scope tối thiểu như user/document/subject/topic/page/slide.
+- Authorized scope tối thiểu như user/document/ClassSubject/page/slide.
 - Timeout; retry chỉ cho thao tác an toàn hoặc có idempotency key.
 - Schema version khi contract bắt đầu thay đổi.
 
@@ -217,13 +220,15 @@ Python trả structured data; Java validate trước khi lưu. Mọi thay đổi
 
 ## 6. Quy tắc nghiệp vụ không được phá vỡ
 
-- `Content Progress` trả lời “đã học đến đâu”; `Topic Mastery` trả lời “đã hiểu đến đâu”. Không gộp hai chỉ số.
-- Khi thiếu bằng chứng, topic dùng `NO_DATA` hoặc `LEARNING`, không tự gắn `WEAK`.
-- Backend Java chấm quiz và cập nhật mastery; LLM không thực hiện hai việc này.
-- Recommendation chỉ xếp ưu tiên theo rule; Student quyết định Study Plan.
+- MVP chỉ tính `Content Progress` từ hoạt động học; không triển khai hoặc suy luận `Topic Mastery`.
+- Khi thiếu bằng chứng, RAG/Tutor trả `NO_EVIDENCE`; không tự tạo câu trả lời không có nguồn.
+- Backend Java sở hữu Quiz lifecycle và chấm điểm; LLM không chấm Quiz.
+- Quiz dùng `MCQ_SINGLE`: mỗi câu có nhiều lựa chọn nhưng chỉ một đáp án đúng; Quiz AI phải được Student chấp nhận trước khi làm.
+- Recommendation tự động ngoài phạm vi MVP; Student chủ động quyết định Study Plan.
 - Personal Document thuộc owner; Admin không mặc định được dùng làm Official Content.
 - AI Tutor phải trả citation theo page/slide/document và retrieval phải filter đúng scope.
-- Admin không quản lý Quiz, Exam hoặc Progress cá nhân của Student trong MVP.
+- PPTX Teacher public chỉ xem web; PDF/DOCX Teacher public chỉ tải xuống.
+- Admin không quản lý Quiz hoặc Progress cá nhân của Student trong MVP.
 
 ## 7. Contract bắt buộc cho function và tool
 

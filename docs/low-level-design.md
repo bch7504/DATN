@@ -83,8 +83,7 @@ student_id
 ```
 
 - PPTX: list slides, view artifact, Note, view event, Slide Tutor.
-- PDF: download only.
-- DOCX Teacher: nằm trong Teacher Library; không phải format Student viewer trong MVP.
+- PDF/DOCX: download only; không có Viewer, Note, Tutor hoặc page progress.
 
 ### Teacher publication
 
@@ -141,7 +140,7 @@ Re-public cùng document/ClassSubject cập nhật quan hệ cũ, không tạo d
 
 ```text
 GENERATING → REVIEW_REQUIRED → READY → ARCHIVED
-                           ↘ REJECTED
+          ↘ GENERATION_FAILED  ↘ REJECTED
 ```
 
 Chỉ owner được accept/reject. Chỉ Quiz `READY` được bắt đầu.
@@ -231,9 +230,9 @@ Statistics là read model/projection, có thể cache ngắn hạn. Event consum
 
 ## 7. Quiz validation và scoring
 
-- Java validate tối thiểu hai option, option không trùng, đáp án nằm trong options và source thuộc authorized documents trước khi lưu bản nháp.
+- Java validate `MCQ_SINGLE`: tối thiểu hai option không trùng, đúng một `correctOptionIndex` nằm trong options và source thuộc authorized documents trước khi lưu bản nháp.
 - Student phải duyệt toàn bộ bản nháp; MVP không chỉnh từng đáp án sau khi accept.
-- Multiple choice: Java so sánh answer key đã lưu.
+- Multiple choice: Answer API nhận một `selectedOptionId`; Java so sánh với answer key đã lưu. Câu bỏ trống/sai nhận 0 điểm.
 - Transaction submit: khóa attempt, validate ownership/status, ghi answers, tính score, cập nhật attempt.
 - Kết quả chỉ Student owner xem; Admin không mặc định đọc kết quả cá nhân.
 
@@ -264,7 +263,7 @@ Không audit nội dung Note/chat/document dưới dạng plain text.
 - Student A không thấy Class/Personal Document của Student B.
 - Teacher không public ngoài assignment.
 - Publication bị revoke lập tức mất quyền.
-- PPTX không download; PDF lớp không mở viewer/Tutor/Note.
+- PPTX không download; PDF/DOCX lớp không mở viewer/Tutor/Note.
 - Personal upload từ chối PPTX.
 - Personal RAG không nhận Teacher Document và không rò dữ liệu owner khác.
 - Slide citation sai document/slide bị Java từ chối.

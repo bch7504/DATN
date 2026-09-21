@@ -112,7 +112,7 @@ Trạng thái: `UPLOADING → PENDING_PROCESSING → PROCESSING → READY|FAILED
 - Unique: `(document_id, document_version, chunk_index)`.
 - B-tree index cho document/version/owner/source/location.
 - Vector index chỉ thêm sau khi đo dữ liệu; MVP có thể dùng exact cosine search.
-- PDF Teacher public không cần index.
+- PDF/DOCX Teacher public không cần index.
 
 ### Chat metadata
 
@@ -129,7 +129,7 @@ Nếu lưu hội thoại, Java sở hữu bảng và áp dụng retention. Khôn
 `id`, `student_id`, `class_subject_id`, `document_id`, `last_slide`, `viewed_slide_count`, `progress_percent`, `completed_at`, `updated_at`.
 
 - Unique: `(student_id, document_id)`.
-- Chỉ PPTX/Slide có document progress; PDF Teacher không có page progress.
+- Chỉ PPTX/Slide có document progress; PDF/DOCX Teacher không có page progress.
 
 ### `learning_events`
 
@@ -150,7 +150,7 @@ Không có bảng recommendation trong MVP.
 
 ### `quizzes`
 
-`id`, `student_id`, `title`, `description`, `generation_type` (`AI_PERSONAL_RAG|MANUAL`), `status` (`GENERATING|REVIEW_REQUIRED|READY|REJECTED|ARCHIVED`), `question_count`, timestamps.
+`id`, `student_id`, `title`, `description`, `generation_type` (`AI_PERSONAL_RAG`), `status` (`GENERATING|REVIEW_REQUIRED|READY|REJECTED|GENERATION_FAILED|ARCHIVED`), `question_count`, timestamps.
 
 - Quiz AI luôn thuộc Student đã yêu cầu tạo.
 - Sau khi Java validate kết quả Python, Quiz ở `REVIEW_REQUIRED`.
@@ -167,7 +167,10 @@ Không có bảng recommendation trong MVP.
 
 ### `quiz_questions`
 
-`id`, `quiz_id`, `content`, `question_type`, `options`, `correct_answer`, `explanation`, `display_order`.
+`id`, `quiz_id`, `content`, `question_type` (`MCQ_SINGLE`), `options`, `correct_option_index`, `explanation`, `display_order`.
+
+- Mỗi câu có tối thiểu hai options khác nhau và đúng một `correct_option_index` hợp lệ.
+- MVP chưa có câu tự luận, nhiều đáp án đúng hoặc partial scoring.
 
 ### `quiz_question_sources`
 
@@ -178,7 +181,7 @@ Java đối chiếu document/version với authorized scope trước khi lưu.
 ### `quiz_attempts` và `quiz_answers`
 
 - Attempt: quiz, student, start/submit time, total score, status, duration.
-- Answer: attempt, question, selected/text answer, correctness và awarded score.
+- Answer: attempt, question, `selected_option_id`, correctness và awarded score.
 - Unique: `(attempt_id, question_id)`.
 - Java chấm điểm trong transaction; Python/LLM không chấm attempt.
 

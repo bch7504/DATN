@@ -2,6 +2,7 @@
 
 > Nguồn yêu cầu: `Plan_do_an_tot_nghiep_dong_bo_toan_bo_kien_truc_CSDL_API.docx`.
 > Tài liệu này mô tả kiến trúc mục tiêu của MVP Student–Teacher–Admin.
+> Product requirements và acceptance criteria: `specification.md` và `specs/`.
 
 ## 1. Mục tiêu và phạm vi
 
@@ -32,7 +33,7 @@ Class
 | Ngữ cảnh | Loại file | Student được làm gì | AI |
 |---|---|---|---|
 | Tài liệu lớp/môn | PPTX/Slide | Xem trên web, lưu Note theo slide; không tải file gốc | Slide AI Tutor |
-| Tài liệu lớp/môn | PDF | Chỉ tải xuống | Không Note, không AI Tutor |
+| Tài liệu lớp/môn | PDF/DOCX | Chỉ tải xuống | Không Note, không AI Tutor |
 | Kho Teacher | PDF/PPTX/DOCX | Teacher quản lý và public | Chỉ PPTX cần xử lý cho Slide Tutor |
 | Tài liệu cá nhân | PDF/DOCX | Owner upload, quản lý, chọn một/nhiều file để hỏi | Personal RAG |
 
@@ -104,7 +105,7 @@ Personal RAG không truy xuất tài liệu lớp/môn. Slide Tutor không truy 
 
 ### 5.4 Tiến độ, kế hoạch và ôn tập
 
-- Tiến độ dựa trên slide đã xem và hoạt động đã hoàn thành; PDF Teacher chỉ tải xuống nên không có page progress.
+- Tiến độ dựa trên slide đã xem và hoạt động đã hoàn thành; PDF/DOCX Teacher chỉ tải xuống nên không có page progress.
 - Thống kê gồm slide đã xem, tài liệu cá nhân, kế hoạch hoàn thành và lịch sử làm Quiz.
 - Student tự tạo Study Plan, task, deadline và lịch. Recommendation nâng cao để Future Work.
 - Ôn tập gồm quản lý Quiz và làm Quiz. Quiz AI mới sinh ở trạng thái `REVIEW_REQUIRED`; Student xem lại, chấp nhận để chuyển `READY`, rồi mới tạo attempt. Java chấm điểm và lưu answer/result.
@@ -114,7 +115,7 @@ Personal RAG không truy xuất tài liệu lớp/môn. Slide Tutor không truy 
 | Vai trò | Phạm vi |
 |---|---|
 | Student | Lớp mình tham gia, học liệu đã public, Note/progress/plan/Quiz của chính mình và Personal Document của mình |
-| Teacher | ClassSubject được phân công, kho tài liệu của mình, publication do mình quản lý |
+| Teacher | ClassSubject được phân công, danh sách Student read-only, kho tài liệu của mình và publication do mình quản lý |
 | Admin | User/role, Class, Subject, membership, Teacher assignment, feedback/report, audit và settings |
 
 Admin không mặc định có quyền xem Personal Document, lịch sử chat, kế hoạch hoặc kết quả cá nhân. Admin không thay Teacher để public học liệu nếu chưa có nghiệp vụ ủy quyền.

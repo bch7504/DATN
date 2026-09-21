@@ -49,7 +49,7 @@ Kỳ vọng:
 
 - Không có nút tải file PPTX gốc.
 - Tutor citation trỏ đúng document/slide.
-- PDF Teacher không mở viewer, không có Note/Tutor.
+- PDF/DOCX Teacher không mở viewer, không có Note/Tutor.
 
 ### Bước 4 — Student: Tiến độ & Thống kê
 
@@ -86,9 +86,11 @@ Quiz chỉ được làm sau khi Student chấp nhận. Python sinh bản nháp 
 
 1. Chuyển sang Teacher.
 2. Xem ClassSubject được Admin phân công.
-3. Upload PDF/PPTX/DOCX vào **Kho tài liệu**.
-4. Chọn một tài liệu READY, chọn đúng Lớp + Môn và public.
-5. Xem nơi đã public rồi thực hiện thu hồi.
+3. Mở danh sách Student read-only của một ClassSubject được phân công.
+4. Upload PDF/PPTX/DOCX vào **Kho tài liệu**.
+5. Chọn một tài liệu READY, chọn đúng Lớp + Môn và public.
+6. Public một DOCX và xác minh Student chỉ có action tải xuống.
+7. Xem nơi đã public rồi thực hiện thu hồi.
 
 Kỳ vọng:
 
@@ -118,7 +120,7 @@ Thực hiện các bước chính trên URL public, chỉ ra:
 
 - 1 Student, 1 Teacher, 1 Admin.
 - 1 lớp chính và ít nhất 2 môn; mỗi môn có Teacher assignment.
-- 1 PPTX Teacher đã READY/public, 1 PDF Teacher đã public.
+- 1 PPTX Teacher đã READY/public, 1 PDF và 1 DOCX Teacher đã public.
 - 1 Teacher Document chưa public và 1 job FAILED có thể retry.
 - 2 Personal Documents READY, 1 Personal Document PROCESSING.
 - Slide Note và learning progress mẫu.
@@ -138,7 +140,7 @@ Thực hiện các bước chính trên URL public, chỉ ra:
 - [ ] Ba role Student/Teacher/Admin.
 - [ ] Không có Topic, Quiz do Teacher tạo, Topic Mastery, Exam/Mock Exam hoặc recommendation.
 - [ ] PPTX lớp: xem web + Note + Tutor, không download.
-- [ ] PDF lớp: download, không viewer/Note/Tutor.
+- [ ] PDF/DOCX lớp: download, không viewer/Note/Tutor.
 - [ ] Personal: PDF/DOCX, owner isolation, multi-document RAG.
 - [ ] Quiz sinh từ Personal RAG phải được Student chấp nhận trước khi làm; Java chấm điểm.
 - [ ] Kế hoạch & Lịch hiển thị bảng tuần và cảnh báo trùng giờ.

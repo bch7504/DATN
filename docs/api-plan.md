@@ -25,7 +25,7 @@
 
 | Method | Endpoint | Vai trò | Mục đích |
 |---|---|---|---|
-| POST | `/api/v1/auth/register` | Public | Đăng ký Student theo chính sách |
+| POST | `/api/v1/auth/register` | Public | Tự đăng ký tài khoản Student; không nhận role từ client |
 | POST | `/api/v1/auth/login` | Public | Đăng nhập |
 | POST | `/api/v1/auth/refresh` | Session | Rotate refresh token |
 | POST | `/api/v1/auth/logout` | Authenticated | Thu hồi phiên |
@@ -42,9 +42,9 @@
 | GET | `/api/v1/student/class-subjects/{id}/materials` | Chỉ publication hiệu lực; PPTX trước PDF |
 | GET | `/api/v1/student/materials/{documentId}/slides` | Chỉ PPTX đã public và READY |
 | GET | `/api/v1/student/materials/{documentId}/slides/{number}` | Artifact xem có kiểm quyền |
-| GET | `/api/v1/student/materials/{documentId}/download` | Chỉ PDF public; không cung cấp download PPTX |
+| GET | `/api/v1/student/materials/{documentId}/download` | Chỉ PDF/DOCX public; không cung cấp download PPTX |
 
-PDF Teacher không có viewer API, Note hoặc Tutor API.
+PDF/DOCX Teacher không có viewer API, Note hoặc Tutor API.
 
 ### 3.2 Slide Note và Tutor
 
@@ -80,7 +80,7 @@ Tutor response:
 | POST | `/api/v1/personal-rag/conversations` | Tạo hội thoại với selectedDocumentIds |
 | POST | `/api/v1/personal-rag/conversations/{id}/messages` | Hỏi đáp có citation |
 | GET | `/api/v1/personal-rag/conversations/{id}` | Lịch sử của owner |
-| POST | `/api/v1/personal-rag/conversations/{id}/quizzes` | Yêu cầu sinh bản nháp Quiz từ document đã chọn |
+| POST | `/api/v1/personal-rag/conversations/{id}/quizzes` | Trả `202` và Quiz `GENERATING`; sinh bản nháp từ document đã chọn |
 
 Java bắt buộc xác minh mọi `selectedDocumentIds` thuộc Student và `READY`. Danh sách rỗng hoặc có document không thuộc owner bị từ chối. API này không nhận Teacher Document.
 
@@ -114,12 +114,14 @@ Web hiển thị calendar theo bảng tuần (cột ngày, hàng khung giờ). T
 
 Request tạo Quiz không trả Quiz làm được ngay: Java kiểm ownership/scope, gọi Python, validate structured questions/sources và lưu `REVIEW_REQUIRED`. Student phải chấp nhận. Java chấm attempt; LLM không chấm điểm.
 
+Quiz dùng `MCQ_SINGLE`: mỗi câu có nhiều lựa chọn và đúng một `correctOptionIndex`. Sinh thành công chuyển `GENERATING → REVIEW_REQUIRED`; lỗi chuyển `GENERATION_FAILED`. Answer API nhận một `selectedOptionId`; Java so sánh trực tiếp với answer key.
+
 ## 4. Teacher API
 
 ### 4.1 Phạm vi giảng dạy
 
 - `GET /api/v1/teacher/class-subjects`
-- `GET /api/v1/teacher/class-subjects/{id}/students` nếu nghiệp vụ cho phép xem danh sách lớp.
+- `GET /api/v1/teacher/class-subjects/{id}/students`: danh sách Student read-only của ClassSubject được phân công; không trả dữ liệu học tập cá nhân.
 
 Teacher chỉ nhận ClassSubject đang được phân công.
 
@@ -139,7 +141,7 @@ Upload response trả `documentId`, `processingStatus`, `fileType`; không trả
 - `GET /api/v1/teacher/documents/{documentId}/publications`
 - `DELETE /api/v1/teacher/publications/{publicationId}`
 
-Request public chứa `classSubjectIds`. Java kiểm document owner, trạng thái và Teacher assignment cho từng ID. PPTX chưa READY không được public.
+Request public chứa `classSubjectIds`. Java kiểm document owner, trạng thái và Teacher assignment cho từng ID. PPTX chưa READY không được public. PDF/DOCX public để Student tải xuống; chỉ PPTX có Viewer/Note/Tutor.
 
 ## 5. Admin API
 
@@ -171,7 +173,7 @@ Idempotency-Key: ...   # với job mutation
 | POST `/internal/v1/documents/deindex` | document/version/pipelineType | Job idempotent |
 | GET `/internal/v1/jobs/{jobId}` | Job ID | status, attempts, errorCode |
 | POST `/internal/v1/personal-rag/ask` | userId, authorizedDocumentIds, question, conversationId? | answer/NO_EVIDENCE, citations |
-| POST `/internal/v1/quizzes/generate` | userId, authorizedDocumentIds, questionCount, difficulty? | structured questions + sources |
+| POST `/internal/v1/quizzes/generate` | userId, authorizedDocumentIds, questionCount, difficulty? | `MCQ_SINGLE` questions, options, `correctOptionIndex`, explanation + sources |
 | POST `/internal/v1/slides/ask` | userId, documentId, allowedSlideNumbers/currentSlide, question | answer/NO_EVIDENCE, slide citations |
 | GET `/internal/v1/health` | Header chung | Liveness/readiness rút gọn |
 
@@ -179,7 +181,7 @@ Idempotency-Key: ...   # với job mutation
 
 - `PERSONAL_RAG`: chỉ PDF/DOCX Personal; ownerId bắt buộc.
 - `TEACHER_SLIDE`: chỉ PPTX Teacher; tạo render/extracted text/chunk cho viewer và Tutor.
-- PDF Teacher không gọi AI indexing.
+- PDF/DOCX Teacher không gọi AI indexing.
 
 ### Citation và scope
 
