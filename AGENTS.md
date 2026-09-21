@@ -225,7 +225,29 @@ Python trả structured data; Java validate trước khi lưu. Mọi thay đổi
 - AI Tutor phải trả citation theo page/slide/document và retrieval phải filter đúng scope.
 - Admin không quản lý Quiz, Exam hoặc Progress cá nhân của Student trong MVP.
 
-## 7. Chất lượng và bàn giao
+## 7. Contract bắt buộc cho function và tool
+
+Mọi function, method, constructor, API handler, background job, CLI command hoặc AI tool được tạo mới hay chỉnh sửa đều phải mô tả rõ contract trước khi hoàn tất implementation.
+
+Contract bắt buộc gồm:
+
+- `args`: tên từng tham số, kiểu dữ liệu, bắt buộc/tùy chọn, giá trị mặc định và constraint nếu có.
+- `input`: nguồn và cấu trúc dữ liệu đầu vào, precondition, authorized scope hoặc context được phép sử dụng.
+- `output`: kiểu/cấu trúc dữ liệu trả về, trạng thái có thể trả về và side effect nếu có. Hàm không trả dữ liệu phải ghi rõ `void`/`None`.
+- `errors`: lỗi nghiệp vụ, lỗi validation hoặc exception có thể phát sinh và cách caller xử lý.
+
+Quy ước theo loại implementation:
+
+- Java: khai báo kiểu đầy đủ trong signature; public/application service phải có Javadoc hoặc contract DTO thể hiện `args`, input, output và exception.
+- Python: mọi function phải có type hint cho toàn bộ tham số và return type; function/service public phải có docstring mô tả `Args`, `Returns` và `Raises`.
+- TypeScript/JavaScript: ưu tiên TypeScript; function phải có type cho params và return. Nếu buộc dùng JavaScript, dùng JSDoc với `@param`, `@returns` và `@throws`.
+- REST/internal API: request DTO/schema là input, response DTO/schema là output; phải ghi status code và error schema trong `docs/api-plan.md`.
+- AI tool/function calling: phải có tên, mô tả, JSON Schema cho `args`/input và output schema có cấu trúc; không trả chuỗi tự do khi caller cần parse.
+- CLI/background job: phải ghi command arguments hoặc job payload, exit/result status, retry/idempotency và side effect.
+
+Không dùng tham số hoặc output mơ hồ như `Any`, `Object`, map/dict không schema tại service boundary. Test contract phải có ít nhất một trường hợp input hợp lệ, input không hợp lệ và kiểm tra output schema đối với public/internal boundary.
+
+## 8. Chất lượng và bàn giao
 
 - Không thêm dependency production khi chưa nêu lý do và tác động.
 - Không đổi public/internal API âm thầm.
@@ -235,11 +257,10 @@ Python trả structured data; Java validate trước khi lưu. Mọi thay đổi
 - Test phải dùng dữ liệu tổng hợp.
 - Hoàn tất task phải ghi rõ: scope, file đổi, test đã chạy, rủi ro/công việc còn lại.
 
-## 8. Prompt khởi động đề xuất
+## 9. Prompt khởi động đề xuất
 
 Dùng mẫu sau khi giao việc cho agent khác:
 
 ```text
 Trước khi làm, hãy đọc AGENTS.md ở root, tự xác định đúng vai trò cho task này và chỉ đọc/sửa các file được phép của vai trò đó. Nếu cần vượt phạm vi, dừng lại hỏi tôi. Nhiệm vụ: <mô tả cụ thể>.
 ```
-
