@@ -1,68 +1,151 @@
 # StudyFlow — High-level architecture
 
-> Tài liệu này mô tả kiến trúc mục tiêu cho toàn bộ luồng trong [demo-flow.md](demo-flow.md). Chi tiết module, job và truy vấn nằm ở [low-level-design.md](low-level-design.md); công nghệ và phiên bản ở [tech-stack.md](tech-stack.md).
+> Nguồn yêu cầu: `Plan_do_an_tot_nghiep_dong_bo_toan_bo_kien_truc_CSDL_API.docx`.
+> Tài liệu này mô tả kiến trúc mục tiêu của MVP Student–Teacher–Admin.
 
-## 1. Bối cảnh và ranh giới
+## 1. Mục tiêu và phạm vi
 
-StudyFlow phục vụ Student học từ tài liệu, hỏi AI Tutor, làm Quiz, theo dõi tiến độ và chuẩn bị kỳ thi; Admin quản lý user, Official Content và vận hành. Frontend chỉ gọi Java. Java xác thực người dùng, quyết định authorized scope và sở hữu dữ liệu nghiệp vụ. Python xử lý parsing, embeddings, retrieval và generation theo scope Java cung cấp.
+StudyFlow gom lớp học, môn học, học liệu, tài liệu cá nhân, tiến độ, kế hoạch và ôn tập vào một hệ thống. AI chỉ xuất hiện tại các điểm cần hiểu nội dung:
+
+1. **Personal Document RAG:** Student chọn một hoặc nhiều PDF/DOCX do chính mình upload và hỏi đáp có citation.
+2. **Slide AI Tutor:** Student đang xem Slide/PPTX do Teacher public và hỏi trong đúng tài liệu/slide được phép.
+3. **Personal Quiz Generator:** từ cùng các Personal Documents đã chọn trong chatbot, Student yêu cầu AI sinh bản nháp Quiz có nguồn; Java validate và lưu để Student duyệt.
+
+MVP không có Chapter/Topic, Quiz do Teacher tạo/giao, Topic Mastery, Exam/Mock Exam hoặc recommendation nâng cao. Quiz trong MVP do chính Student yêu cầu tạo từ chatbot Personal Documents và chỉ được làm sau khi Student chấp nhận bản nháp.
+
+## 2. Mô hình nghiệp vụ
+
+```text
+Class
+└── ClassSubject (Class + Subject + Teacher + semester/year)
+    └── DocumentPublication
+        └── Teacher Document
+```
+
+- Admin tạo Class, Subject, thêm Student vào Class và phân công Teacher cho ClassSubject.
+- Teacher có kho tài liệu riêng, public một file cho một hoặc nhiều ClassSubject được phân công.
+- Student chỉ thấy tài liệu đã public cho lớp mình tham gia.
+- Một file vật lý chỉ lưu một lần; publication là quan hệ riêng và có thể bị thu hồi.
+
+### Quy tắc theo loại tài liệu
+
+| Ngữ cảnh | Loại file | Student được làm gì | AI |
+|---|---|---|---|
+| Tài liệu lớp/môn | PPTX/Slide | Xem trên web, lưu Note theo slide; không tải file gốc | Slide AI Tutor |
+| Tài liệu lớp/môn | PDF | Chỉ tải xuống | Không Note, không AI Tutor |
+| Kho Teacher | PDF/PPTX/DOCX | Teacher quản lý và public | Chỉ PPTX cần xử lý cho Slide Tutor |
+| Tài liệu cá nhân | PDF/DOCX | Owner upload, quản lý, chọn một/nhiều file để hỏi | Personal RAG |
+
+## 3. Sơ đồ hệ thống
 
 ```mermaid
 flowchart LR
-    U[Student / Admin] -->|HTTPS| C[Caddy]
-    
-    C -->|/api/v1| J[Spring Boot Backend]
-    J -->|Business data| B[(PostgreSQL nghiệp vụ)]
-    J -->|Original / viewer artifact| S[SeaweedFS S3]
-    J -->|Internal HTTP / service token| A[FastAPI AI Service]
-    A -->|Jobs / chunks / embeddings| V[(PostgreSQL + pgvector)]
-    A -->|Signed URL| S
-    A -->|Model API| O[OpenAI]
+    U[Student / Teacher / Admin] -->|HTTPS| W[Next.js Web]
+    W -->|/api/v1| J[Java Spring Boot]
+
+    J -->|JPA / transaction| P[(PostgreSQL)]
+    J -->|file + render artifact| O[Object Storage]
+    J -->|internal REST + service credential| A[Python FastAPI]
+
+    A -->|AI schema / pgvector| P
+    A -->|signed object URL| O
+    A -->|LLM / Embedding API| M[Model Provider]
 ```
 
-Hai PostgreSQL là hai instance/container và volume riêng **trên cùng một VPS**. Java chỉ có credential vào PostgreSQL nghiệp vụ; Python chỉ có credential vào PostgreSQL vector. Không có foreign key hoặc transaction xuyên hai database. Caddy chỉ public Web và Java API; AI, hai database và S3 endpoint ở mạng Compose nội bộ.
+Frontend chỉ gọi Java. Java là cổng xác thực, RBAC, ownership và scope. Python không nhận JWT người dùng cuối và không CRUD lớp/môn, publication, Note, progress, plan, Quiz lifecycle hoặc attempt.
 
-## 2. Sở hữu trách nhiệm
+PostgreSQL là một cụm dữ liệu trung tâm có extension pgvector. Nên tách schema và database role:
 
-| Thành phần | Sở hữu | Không sở hữu |
-|---|---|---|
-| Next.js | Student/Admin UI, viewer, form, trạng thái tương tác, gọi Java API | Scoring, mastery, recommendation, truy cập Python/vector/LLM |
-| Java backend | Auth/RBAC, owner/publish policy, metadata và file access, public API, Quiz scoring, Content Progress, Topic Mastery, Statistics, Study Plan, Exam, Learning Events | Parsing, embeddings, RAG và sinh câu hỏi bằng model |
-| Python AI API + worker | Parse PDF/PPTX/DOCX, chunk/index, retrieval có filter, Tutor với citation, sinh Quiz có cấu trúc, evaluation | Quyền user cuối, dữ liệu quiz attempt, scoring, mastery, recommendation, exam progress |
-| PostgreSQL nghiệp vụ | System of record cho user, tài liệu, học tập, kết quả đánh giá | Chunk/embedding |
-| PostgreSQL vector | Job AI, chunk, embedding, active index version | User/quiz attempt/study plan hoặc nghiệp vụ nguồn |
-| SeaweedFS | Bản gốc tài liệu và artifact xem | Quyết định quyền truy cập người dùng |
+- `app`: bảng nghiệp vụ do Java/Flyway sở hữu.
+- `ai`: job, chunk và embedding do Python/Alembic sở hữu.
+- Java không đọc/ghi vector trực tiếp.
+- Python chỉ đọc metadata tối thiểu qua payload Java hoặc view/contract được cấp; không truy cập tùy ý dữ liệu cá nhân.
 
-`Content Progress` đo phần nội dung đã học; `Topic Mastery` đo mức hiểu dựa trên bằng chứng đánh giá. Thiếu bằng chứng dùng `NO_DATA` hoặc `LEARNING`, không tự gắn `WEAK`. Recommendation chỉ xếp ưu tiên; Student quyết định Study Plan. Admin không quản lý Quiz, Exam hoặc Progress cá nhân trong MVP.
+## 4. Trách nhiệm từng thành phần
 
-## 3. Các luồng chính
+| Thành phần | Sở hữu |
+|---|---|
+| Next.js | UI Student/Teacher/Admin, Slide Viewer, form, loading/error, gọi Java API |
+| Spring Boot | Auth/JWT/RBAC, user, class, subject, assignment, document/publication, Note, progress/statistics, plan/calendar, Quiz review/attempt/scoring, audit và public API |
+| FastAPI | Parse/render tài liệu cần AI, chunk, embedding, retrieval, RAG, Slide Tutor, sinh bản nháp Quiz và citation |
+| PostgreSQL + pgvector | Dữ liệu nghiệp vụ, AI job/chunk/embedding trong schema tách biệt |
+| Object Storage | File gốc, slide render/preview và tài nguyên lớn |
 
-### Document → index → viewer
+## 5. Luồng chính
 
-1. Web gửi upload tới Java. Java kiểm tra loại file, owner và quyền; lưu bản gốc vào SeaweedFS cùng metadata/trạng thái trong PostgreSQL nghiệp vụ.
-2. Java gọi Python để tạo job index, gửi document ID, phiên bản, scope metadata và signed URL ngắn hạn. Python worker parse theo PAGE/SLIDE/SECTION, tạo chunk, gọi embedding API và ghi pgvector.
-3. Python kích hoạt phiên bản index mới sau khi ghi đủ chunks. Java poll job, cập nhật `READY` hoặc `FAILED`; tài liệu chỉ được hỏi AI khi `READY`.
-4. Java phục vụ bản PDF/artifact xem qua endpoint có kiểm quyền. PPTX/DOCX được chuyển thành artifact xem nhưng citation vẫn trỏ về slide/section nguồn.
+### 5.1 Teacher public tài liệu
 
-Job bền vững và idempotent; retry có giới hạn. Xóa tài liệu phải ẩn khỏi truy vấn trước, rồi deindex và xóa file theo tiến trình có thể retry. Không coi thao tác qua nhiều kho là một transaction.
+1. Teacher upload PDF/PPTX/DOCX vào kho; Java kiểm MIME, kích thước và owner rồi lưu Object Storage.
+2. Với PPTX, Java tạo job để Python extract text và render slide; tài liệu chuyển `PROCESSING → READY` hoặc `FAILED`.
+3. Teacher chọn file và ClassSubject được phân công để public.
+4. Java kiểm assignment, tạo `document_publications`.
+5. Student thuộc Class thấy tài liệu; PPTX xếp trước PDF. Thu hồi publication làm tài liệu biến mất khỏi phạm vi Student.
 
-### Tutor và Quiz → đánh giá
+### 5.2 Student xem Slide
 
-1. Java xác thực Student, liệt kê document được phép dùng cho câu hỏi/topic và gửi **danh sách document ID được phép** sang Python; không chuyển tiếp JWT người dùng.
-2. Python chỉ truy vấn chunks thuộc danh sách đó, trả answer và citation theo document/page/slide/section. Nếu không đủ bằng chứng, trả trạng thái không đủ dữ liệu thay vì câu trả lời khẳng định.
-3. Với Quiz, Python sinh câu hỏi có cấu trúc; Java kiểm tra dữ liệu trước khi lưu. Java chấm attempt, ghi Learning Event và cập nhật Topic Mastery. Sự kiện đọc tài liệu cập nhật Content Progress riêng. Java tính Statistics/Recommendation theo rule.
-4. Student đưa recommendation vào Study Plan, tạo Task/Session/Exam và làm Mock Exam để đánh giá lại.
+1. Java kiểm Student thuộc Class và publication còn hiệu lực.
+2. Web nhận slide artifact qua Java hoặc URL ký ngắn hạn, không nhận file PPTX gốc.
+3. Sự kiện `VIEW_SLIDE` cập nhật Learning Progress.
+4. Note lưu theo `student + document + slide_number`.
+5. Câu hỏi Slide Tutor đi qua Java; Java gửi đúng document/slide scope sang Python. Citation phải trỏ về slide thuộc cùng tài liệu.
 
-## 4. Giao tiếp và an toàn
+### 5.3 Personal Document RAG
 
-- Java public API: `/api/v1`; Python internal API: `/internal/v1`. Contract chi tiết nằm ở [api-plan.md](api-plan.md).
-- Internal request có `requestId`, `schemaVersion`, service token, authorized scope tối thiểu, timeout; retry chỉ cho thao tác đọc an toàn hoặc thao tác có idempotency key.
-- Java kiểm tra lại citation/document ID và câu hỏi AI trước khi trả hoặc lưu. Personal Document chỉ owner được dùng; Official Content chỉ Student được xem sau khi publish.
-- Dùng error envelope thống nhất và log metadata để trace; không log document content, prompt nhạy cảm, token hay mật khẩu.
+1. Student upload PDF/DOCX; Java kiểm owner và định dạng.
+2. Java lưu file và enqueue indexing idempotent.
+3. Python extract, chunk, embed và ghi `ai.document_chunks` với owner/scope.
+4. Student chọn một hoặc nhiều document `READY`.
+5. Java xác minh toàn bộ document thuộc Student rồi gửi `authorizedDocumentIds` sang Python.
+6. Python filter đúng danh sách, trả `ANSWERED` hoặc `NO_EVIDENCE` cùng citation.
 
-## 5. Triển khai một VPS
+Từ cùng context đã chọn, Student có thể yêu cầu tạo Quiz. Java gửi scope hợp lệ sang Python, validate câu hỏi/đáp án/source rồi lưu Quiz ở `REVIEW_REQUIRED`; Quiz chưa được dùng để làm bài cho tới khi Student chấp nhận.
 
-Docker Compose chạy Caddy, Next.js, Java, Python API, Python worker, PostgreSQL nghiệp vụ, PostgreSQL vector/pgvector và SeaweedFS. Dùng health check, restart policy và volume riêng. Chỉ mở cổng 80/443; Caddy cấp HTTPS. Đây là một node nên không có high availability; backup ngoài VPS và thử restore là điều kiện trước demo. Cấu hình 4 vCPU/8 GB RAM là điểm bắt đầu để đo tải, không phải thông số đã kiểm chứng. [Caddy](https://caddyserver.com/docs/quick-starts/reverse-proxy) và [Docker Compose](https://docs.docker.com/compose/how-tos/startup-order/) có hướng dẫn chính thức cho reverse proxy, HTTPS và health check.
+Personal RAG không truy xuất tài liệu lớp/môn. Slide Tutor không truy xuất Personal Document.
 
-## 6. Trạng thái quyết định
+### 5.4 Tiến độ, kế hoạch và ôn tập
 
-Đây là kiến trúc mục tiêu; repo hiện có prototype HTML phía web và khung FastAPI health/contract, chưa có backend Java hoàn chỉnh. Theo yêu cầu mới, pgvector thay Qdrant **trong giai đoạn đầu**. Các tham chiếu Qdrant cũ ngoài `docs/` cần được đồng bộ trước khi giao coding agent triển khai; phạm vi thay đổi tài liệu lần này chỉ nằm trong `docs/`.
+- Tiến độ dựa trên slide đã xem và hoạt động đã hoàn thành; PDF Teacher chỉ tải xuống nên không có page progress.
+- Thống kê gồm slide đã xem, tài liệu cá nhân, kế hoạch hoàn thành và lịch sử làm Quiz.
+- Student tự tạo Study Plan, task, deadline và lịch. Recommendation nâng cao để Future Work.
+- Ôn tập gồm quản lý Quiz và làm Quiz. Quiz AI mới sinh ở trạng thái `REVIEW_REQUIRED`; Student xem lại, chấp nhận để chuyển `READY`, rồi mới tạo attempt. Java chấm điểm và lưu answer/result.
+
+## 6. Phân quyền
+
+| Vai trò | Phạm vi |
+|---|---|
+| Student | Lớp mình tham gia, học liệu đã public, Note/progress/plan/Quiz của chính mình và Personal Document của mình |
+| Teacher | ClassSubject được phân công, kho tài liệu của mình, publication do mình quản lý |
+| Admin | User/role, Class, Subject, membership, Teacher assignment, feedback/report, audit và settings |
+
+Admin không mặc định có quyền xem Personal Document, lịch sử chat, kế hoạch hoặc kết quả cá nhân. Admin không thay Teacher để public học liệu nếu chưa có nghiệp vụ ủy quyền.
+
+## 7. Giao tiếp và an toàn
+
+- Public API: `/api/v1`; internal AI API: `/internal/v1`.
+- Internal request có service credential, `X-Request-Id`, `X-Schema-Version`, timeout và scope tối thiểu.
+- Upload kiểm extension, MIME thực, kích thước và tên file; file không được thực thi.
+- Log chỉ chứa ID, action, trạng thái, latency và error code; không log nội dung tài liệu, prompt, token hoặc secret.
+- Indexing dùng idempotency key. Xóa Personal Document phải loại khỏi authorized scope trước, sau đó xóa chunk và object bằng tiến trình có retry.
+
+## 8. Triển khai
+
+```text
+Vercel / Web host
+        ↓ HTTPS
+Render/Railway: Spring Boot
+        ↓ internal HTTPS
+Render/Railway: FastAPI + worker
+        ├── PostgreSQL + pgvector
+        ├── Object Storage
+        └── LLM/Embedding API
+```
+
+Mỗi service có health check, CORS đúng origin và secret qua environment variables. CI tối thiểu chạy lint/test/build. Chuẩn bị seed data, tài liệu đã xử lý và response dự phòng được gắn nhãn rõ cho buổi demo.
+
+## 9. Ngoài phạm vi MVP
+
+- Chapter/Topic taxonomy.
+- Quiz do Teacher tạo/giao, Topic Mastery và Exam/Mock Exam.
+- Recommendation tự động nâng cao.
+- Flashcard, spaced repetition, notification/calendar sync.
+- OCR/vision nâng cao, group/discussion, gamification, billing và multi-agent.

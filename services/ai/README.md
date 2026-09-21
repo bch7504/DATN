@@ -1,47 +1,47 @@
-# Python AI service
+# StudyFlow Python AI service
 
-Service riêng cho document intelligence và các tác vụ AI. Public web không gọi trực tiếp service này; chỉ Java backend gọi qua internal API.
+Internal service cho hai pipeline tài liệu và một tác vụ sinh nội dung:
 
-## Trách nhiệm
+1. `PERSONAL_RAG`: PDF/DOCX của Student → extract/chunk/embed → pgvector → answer + citation.
+2. `TEACHER_SLIDE`: PPTX của Teacher → extract/render/index → Slide Tutor + slide citation.
+3. `QUIZ_GENERATION`: các Personal Document đã được Java cấp quyền → câu hỏi có đáp án, giải thích và nguồn.
 
-- Parse PDF/PPTX/DOCX theo page/slide/section.
-- Chunk, embedding và index vào Qdrant.
-- RAG retrieval, prompt, answer và citation.
-- Sinh quiz có options, answer, explanation, difficulty và topic mapping.
-- RAG/quiz evaluation.
-
-## Không thuộc trách nhiệm
-
-- Auth/RBAC người dùng cuối.
-- Quiz scoring và attempt history.
-- Content Progress hoặc Topic Mastery.
-- Recommendation, Study Plan hoặc Exam Progress.
-- Ghi trực tiếp dữ liệu nghiệp vụ vào PostgreSQL.
+PDF Teacher public không index AI. Service không xử lý Class/Subject/publication, Note, progress, plan, vòng đời Quiz hoặc scoring.
 
 ## Cấu trúc
 
 ```text
 app/
 ├── main.py
-├── api/routes/       # health, documents, rag, quizzes
-├── core/             # settings, security, logging
-├── schemas/          # internal request/response contracts
-├── services/         # RAG và quiz generation use cases
+├── api/routes/
+│   ├── health.py
+│   ├── documents.py
+│   ├── personal_rag.py
+│   ├── slides.py
+│   └── quizzes.py
+├── core/
+├── schemas/
 ├── pipelines/
-│   └── parsers/      # PDF, PPTX, DOCX parsing
-└── clients/          # LLM, embedding, Qdrant, storage
+│   └── parsers/
+├── services/
+├── workers/
+└── clients/
 evals/
-└── datasets/         # bộ dữ liệu tổng hợp để đánh giá
 tests/
 ```
 
-## API nội bộ
+## Contract
 
 - `POST /internal/v1/documents/index`
+- `POST /internal/v1/documents/deindex`
 - `GET /internal/v1/jobs/{jobId}`
-- `POST /internal/v1/rag/ask`
+- `POST /internal/v1/personal-rag/ask`
+- `POST /internal/v1/slides/ask`
 - `POST /internal/v1/quizzes/generate`
 - `GET /internal/v1/health`
 
-Mọi request cần service token và request ID. Dữ liệu test/evaluation phải là dữ liệu tổng hợp hoặc đã được phép sử dụng.
+Chỉ health endpoint đã được implement trong scaffold hiện tại. Các route còn lại là boundary cho implementation sau; không có response mock giả production.
 
+## Data
+
+Python/Alembic sở hữu schema `ai` trong PostgreSQL và dùng pgvector. Mọi retrieval và Quiz generation phải filter theo document/version/source/owner scope Java đã cấp. Test/eval chỉ dùng dữ liệu tổng hợp.

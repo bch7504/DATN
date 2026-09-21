@@ -1,31 +1,34 @@
-# Spring Boot backend
+# StudyFlow Spring Boot backend
 
-Backend Java theo hướng modular monolith. AI/RAG chạy ở Python service riêng; Java gọi qua internal API và vẫn giữ quyền quyết định nghiệp vụ.
+Java backend là system of record và public API duy nhất cho Web.
 
-## Stack đề xuất
+## Module
 
-- Spring Boot + Spring Web.
-- Spring Security cho JWT/session và RBAC.
-- Spring Data JPA + PostgreSQL.
-- Flyway cho database migration.
-- Object storage qua S3-compatible client.
-- HTTP client cho giao tiếp nội bộ với Python AI service.
+| Package | Trách nhiệm |
+|---|---|
+| `auth`, `user` | JWT/session, RBAC STUDENT/TEACHER/ADMIN, account status |
+| `classroom` | Class và Student membership |
+| `subject` | Subject, ClassSubject và Teacher assignment |
+| `document` | Teacher Library, Personal Document, upload/status/delete |
+| `publication` | Public/revoke theo ClassSubject |
+| `slide`, `note` | Slide artifact access, view event và Note |
+| `progress` | Learning Progress và Statistics; không có Topic Mastery |
+| `study` | Study Plan, item và Calendar tuần |
+| `review` | Quiz draft review, accept/reject, attempt/answer/scoring |
+| `feedback`, `audit`, `settings` | Admin operation |
+| `integration.ai`, `integration.storage` | Outbound adapter |
 
-## Package rule
+## Rule
 
-Mỗi feature giữ controller, application service, domain model, repository port/adapter và DTO ở gần nhau. Các tích hợp bên ngoài đi qua interface/adapter trong `integration`; domain không phụ thuộc trực tiếp SDK của nhà cung cấp.
+- Teacher chỉ public document của mình vào ClassSubject được phân công.
+- PPTX Teacher: viewer + Note + Tutor, không download file gốc.
+- PDF Teacher: download, không viewer/Note/Tutor.
+- Personal Document: Student owner, PDF/DOCX, Personal RAG riêng.
+- Java xác minh scope trước khi gọi Python và kiểm lại citation khi nhận.
+- Java lưu vòng đời Quiz, chỉ cho làm Quiz `READY`, tính progress và chấm Quiz.
 
-## Luồng tích hợp AI
+## Database
 
-1. `document` nhận file, kiểm tra quyền, lưu metadata và object storage.
-2. Java gọi internal endpoint của Python với document ID và signed file URL.
-3. Python parse/chunk/embed/index rồi trả trạng thái; Java cập nhật processing status.
-4. Khi hỏi Tutor, Java xác thực scope rồi gọi Python RAG endpoint.
-5. Python trả answer/citations; Java lưu `ai_requests`, trả response và ghi `ASK_AI`.
+Spring Data JPA + Flyway sở hữu schema `app` trong PostgreSQL. Python sở hữu schema `ai`; Java không đọc/ghi vector trực tiếp.
 
-## Quy tắc an toàn nghiệp vụ
-
-- Python chỉ sinh câu hỏi; module Java `quiz` validate, lưu và chấm điểm.
-- `progress` là module duy nhất cập nhật mastery.
-- `study` tính recommendation bằng rule có thể test.
-- API key chỉ tồn tại ở server-side configuration.
+Project Spring Boot chưa được scaffold dependency trong repository. Các thư mục package hiện đánh dấu boundary để implementation sau bám đúng [API plan](../../docs/api-plan.md).

@@ -1,51 +1,199 @@
 # StudyFlow — API plan
 
-Đây là **contract mục tiêu** cho kiến trúc trong [architecture.md](architecture.md), chưa phải mô tả endpoint đã triển khai. Public API thuộc Java với base path `/api/v1`. Python chỉ có internal API `/internal/v1`, không public cho browser.
+Đây là contract mục tiêu. Browser chỉ gọi Java Spring Boot tại `/api/v1`. Python FastAPI chỉ mở internal API cho Java tại `/internal/v1`.
 
-## 1. Public Java API
+## 1. Quy ước chung
 
-| Nhóm | Hành vi cần có |
-|---|---|
-| Auth & Users | Register/login/refresh/logout/profile; Admin lock/unlock user và quản lý role. |
-| Subjects & Topics | CRUD subject/topic chuẩn và cá nhân, kiểm tra owner/type/publish. |
-| Documents | Upload, list/detail, xóa, processing status, nội dung viewer có kiểm quyền, document progress. |
-| AI Tutor | Ask theo document/subject/topic/page/slide; trả answer hoặc `NO_EVIDENCE` và citation mở được trong viewer. |
-| Quiz | Generate, create, start, submit, result và history; Java chấm điểm. |
-| Progress & Statistics | Content Progress, Topic Mastery/history, thời gian học, điểm Quiz và xu hướng dashboard. |
-| Study & Exam | Task, Calendar, Study Plan, Session, recommendation có lý do, Exam, countdown/readiness và Mock Exam. |
-| Admin | Dashboard, Official Content, trạng thái AI/RAG, feedback và system logs; không quản lý Quiz/Exam/Progress cá nhân. |
+- Auth: access JWT ngắn hạn; refresh token luân phiên trong cookie HttpOnly/Secure/SameSite.
+- Role: `STUDENT`, `TEACHER`, `ADMIN`.
+- List API có `page`, `size`, `sort` và filter tường minh.
+- Error envelope:
 
-Các endpoint quan trọng để nối demo: `POST /api/v1/documents` trả `documentId` và `processingStatus`; `GET /api/v1/documents/{documentId}/status` để poll; `GET /api/v1/documents/{documentId}/content` phục vụ viewer qua Java; `POST /api/v1/tutor/ask` trả answer/citations; `POST /api/v1/quizzes/generate` tạo Quiz qua Python nhưng Java validate/lưu; `POST /api/v1/quizzes/{quizId}/attempts` và `POST /api/v1/attempts/{attemptId}/submit` do Java chấm.
+```json
+{
+  "code": "DOCUMENT_NOT_READY",
+  "message": "Tài liệu đang được xử lý",
+  "details": {},
+  "traceId": "req_..."
+}
+```
 
-### Quy ước chung
+- Java kiểm RBAC, membership, assignment, ownership và publication trong application service.
+- Không trả object key, service token, provider payload hoặc raw internal error cho browser.
 
-- Spring Security xác thực người dùng. Access JWT ngắn hạn; refresh token luân phiên trong cookie HttpOnly/Secure/SameSite. Java kiểm RBAC, owner và publish ở application service, không tin document scope client tự khai.
-- Endpoint danh sách dùng pagination và filter rõ ràng. Không trả raw provider payload, signed URL nội bộ hoặc object key cho browser.
-- Lỗi dùng envelope `{ "code", "message", "details", "traceId" }`; `traceId` nối với `requestId` xuyên service. Truy cập Personal Document không có quyền không tiết lộ nội dung/metadata.
-- `USER` chỉ dùng dữ liệu cá nhân và Official Content đã publish. `ADMIN` quản lý vận hành/Official Content, không tự có quyền biến Personal Document thành Official Content.
+## 2. Auth và profile
 
-## 2. Internal Java → Python API
+| Method | Endpoint | Vai trò | Mục đích |
+|---|---|---|---|
+| POST | `/api/v1/auth/register` | Public | Đăng ký Student theo chính sách |
+| POST | `/api/v1/auth/login` | Public | Đăng nhập |
+| POST | `/api/v1/auth/refresh` | Session | Rotate refresh token |
+| POST | `/api/v1/auth/logout` | Authenticated | Thu hồi phiên |
+| GET/PATCH | `/api/v1/me` | Authenticated | Xem/cập nhật profile |
 
-Mọi request cần `Authorization: Bearer <service-token>`, `X-Request-Id` và `X-Schema-Version: 1`; job mutation cần thêm `Idempotency-Key`. Java đặt timeout theo thao tác, không chuyển JWT của Student. Python echo `requestId` trong response và trả lỗi chuẩn hóa, không đưa lỗi OpenAI hoặc nội dung file vào response. Internal health cũng chỉ truy cập trong mạng Compose.
+## 3. Student API
+
+### 3.1 Lớp học và học liệu
+
+| Method | Endpoint | Quy tắc |
+|---|---|---|
+| GET | `/api/v1/student/classes` | Chỉ lớp Student đang tham gia |
+| GET | `/api/v1/student/classes/{classId}/subjects` | Trả ClassSubject và Teacher |
+| GET | `/api/v1/student/class-subjects/{id}/materials` | Chỉ publication hiệu lực; PPTX trước PDF |
+| GET | `/api/v1/student/materials/{documentId}/slides` | Chỉ PPTX đã public và READY |
+| GET | `/api/v1/student/materials/{documentId}/slides/{number}` | Artifact xem có kiểm quyền |
+| GET | `/api/v1/student/materials/{documentId}/download` | Chỉ PDF public; không cung cấp download PPTX |
+
+PDF Teacher không có viewer API, Note hoặc Tutor API.
+
+### 3.2 Slide Note và Tutor
+
+| Method | Endpoint | Mục đích |
+|---|---|---|
+| GET/PUT | `/api/v1/student/materials/{documentId}/slides/{number}/note` | Note của Student hiện tại |
+| POST | `/api/v1/student/materials/{documentId}/slides/{number}/view-events` | Ghi nhận xem slide idempotent |
+| POST | `/api/v1/student/materials/{documentId}/slides/{number}/tutor` | Hỏi đúng Slide/PPTX đang xem |
+
+Tutor response:
+
+```json
+{
+  "status": "ANSWERED",
+  "answer": "...",
+  "citations": [
+    {"documentId": "doc_1", "slideNumber": 12, "excerpt": "..."}
+  ],
+  "traceId": "req_..."
+}
+```
+
+`NO_EVIDENCE` được dùng khi không đủ nguồn.
+
+### 3.3 Personal Documents và RAG
+
+| Method | Endpoint | Mục đích |
+|---|---|---|
+| POST | `/api/v1/personal-documents` | Upload PDF/DOCX |
+| GET | `/api/v1/personal-documents` | Danh sách của owner |
+| GET | `/api/v1/personal-documents/{id}/status` | Poll processing |
+| DELETE | `/api/v1/personal-documents/{id}` | Xóa theo lifecycle |
+| POST | `/api/v1/personal-rag/conversations` | Tạo hội thoại với selectedDocumentIds |
+| POST | `/api/v1/personal-rag/conversations/{id}/messages` | Hỏi đáp có citation |
+| GET | `/api/v1/personal-rag/conversations/{id}` | Lịch sử của owner |
+| POST | `/api/v1/personal-rag/conversations/{id}/quizzes` | Yêu cầu sinh bản nháp Quiz từ document đã chọn |
+
+Java bắt buộc xác minh mọi `selectedDocumentIds` thuộc Student và `READY`. Danh sách rỗng hoặc có document không thuộc owner bị từ chối. API này không nhận Teacher Document.
+
+### 3.4 Tiến độ & Thống kê
+
+- `GET /api/v1/student/progress/overview`
+- `GET /api/v1/student/progress/class-subjects/{id}`
+- `GET /api/v1/student/statistics?from=&to=`
+
+Chỉ số: slide đã xem, tỷ lệ tài liệu Slide, Personal Document, plan item hoàn thành, thời gian/hoạt động và lịch sử Quiz. Không trả Topic Mastery.
+
+### 3.5 Kế hoạch & Lịch
+
+- CRUD `/api/v1/study-plans`
+- CRUD `/api/v1/study-plans/{planId}/items`
+- `GET /api/v1/calendar?from=&to=`
+- `PATCH /api/v1/study-plan-items/{id}/status`
+
+Web hiển thị calendar theo bảng tuần (cột ngày, hàng khung giờ). Tạo item gửi `scheduledStart`, `scheduledEnd` hoặc `durationMinutes`; Java validate thời gian và trả cảnh báo conflict nếu trùng lịch. Student là người tạo và chỉnh kế hoạch. Không có endpoint recommendation trong MVP.
+
+### 3.6 Ôn tập và Quiz
+
+- `GET /api/v1/review/quizzes`: danh sách Quiz theo status/history của Student.
+- `GET /api/v1/review/quizzes/{quizId}`: bản nháp, câu hỏi và nguồn.
+- `POST /api/v1/review/quizzes/{quizId}/accept`: `REVIEW_REQUIRED → READY`.
+- `POST /api/v1/review/quizzes/{quizId}/reject`: từ chối bản nháp.
+- `POST /api/v1/review/quizzes/{quizId}/attempts`: chỉ Quiz `READY`.
+- `PUT /api/v1/review/attempts/{attemptId}/answers/{questionId}`.
+- `POST /api/v1/review/attempts/{attemptId}/submit`.
+- `GET /api/v1/review/attempts/{attemptId}/result`.
+
+Request tạo Quiz không trả Quiz làm được ngay: Java kiểm ownership/scope, gọi Python, validate structured questions/sources và lưu `REVIEW_REQUIRED`. Student phải chấp nhận. Java chấm attempt; LLM không chấm điểm.
+
+## 4. Teacher API
+
+### 4.1 Phạm vi giảng dạy
+
+- `GET /api/v1/teacher/class-subjects`
+- `GET /api/v1/teacher/class-subjects/{id}/students` nếu nghiệp vụ cho phép xem danh sách lớp.
+
+Teacher chỉ nhận ClassSubject đang được phân công.
+
+### 4.2 Kho tài liệu
+
+- `POST /api/v1/teacher/documents`: upload PDF/PPTX/DOCX.
+- `GET /api/v1/teacher/documents`
+- `GET /api/v1/teacher/documents/{id}`
+- `GET /api/v1/teacher/documents/{id}/status`
+- `DELETE /api/v1/teacher/documents/{id}`
+
+Upload response trả `documentId`, `processingStatus`, `fileType`; không trả storage key.
+
+### 4.3 Public và thu hồi
+
+- `POST /api/v1/teacher/documents/{documentId}/publications`
+- `GET /api/v1/teacher/documents/{documentId}/publications`
+- `DELETE /api/v1/teacher/publications/{publicationId}`
+
+Request public chứa `classSubjectIds`. Java kiểm document owner, trạng thái và Teacher assignment cho từng ID. PPTX chưa READY không được public.
+
+## 5. Admin API
+
+- Dashboard: `GET /api/v1/admin/dashboard`.
+- Users/roles: CRUD/status dưới `/api/v1/admin/users`.
+- Classes/membership: `/api/v1/admin/classes`, `/students`.
+- Subjects: `/api/v1/admin/subjects`.
+- ClassSubjects/assignment: `/api/v1/admin/class-subjects`, `PATCH .../{id}/teacher`.
+- Feedback/reports: `/api/v1/admin/feedback-reports`.
+- Audit: `GET /api/v1/admin/system-logs`.
+- Settings: `GET/PATCH /api/v1/admin/system-settings`.
+
+Admin API không có màn quản trị pgvector/RAG và không mặc định đọc Personal Document, chat, plan hoặc kết quả Quiz cá nhân.
+
+## 6. Internal Java → Python API
+
+Header chung:
+
+```text
+Authorization: Bearer <service-token>
+X-Request-Id: req_...
+X-Schema-Version: 1
+Idempotency-Key: ...   # với job mutation
+```
 
 | Endpoint | Request chính | Response chính |
 |---|---|---|
-| `POST /internal/v1/documents/index` | `documentId`, `documentVersion`, `sourceType`, `ownerId?`, `subjectId`, `topicIds?`, `signedFileUrl`, `mimeType` | `202 {requestId, jobId, status: QUEUED}`. |
-| `POST /internal/v1/documents/deindex` | `documentId`, `documentVersion` | `202 {requestId, jobId, status: QUEUED}`; thao tác idempotent. |
-| `GET /internal/v1/jobs/{jobId}` | Job ID | `{requestId, jobId, documentId, documentVersion, kind, status, attempts, errorCode?}`; status `QUEUED/RUNNING/SUCCEEDED/FAILED`. |
-| `POST /internal/v1/rag/ask` | `userId`, `authorizedDocumentIds`, `question`, `subjectId?`, `topicId?`, `location?` | `{requestId, status: ANSWERED/NO_EVIDENCE, answer?, citations[], usage?}`. |
-| `POST /internal/v1/quizzes/generate` | `userId`, `authorizedDocumentIds`, `subjectId`, `topicId`, `questionCount`, `difficulty` | `{requestId, questions[]}`; mỗi question có prompt, options, correctOptionIndex, explanation, topicId, difficulty và sources. |
-| `GET /internal/v1/health` | Header chung | Liveness/readiness và trạng thái phụ thuộc đã rút gọn. |
+| POST `/internal/v1/documents/index` | document/version, pipelineType, ownerId?, signedFileUrl, mimeType | `202 {requestId, jobId, status}` |
+| POST `/internal/v1/documents/deindex` | document/version/pipelineType | Job idempotent |
+| GET `/internal/v1/jobs/{jobId}` | Job ID | status, attempts, errorCode |
+| POST `/internal/v1/personal-rag/ask` | userId, authorizedDocumentIds, question, conversationId? | answer/NO_EVIDENCE, citations |
+| POST `/internal/v1/quizzes/generate` | userId, authorizedDocumentIds, questionCount, difficulty? | structured questions + sources |
+| POST `/internal/v1/slides/ask` | userId, documentId, allowedSlideNumbers/currentSlide, question | answer/NO_EVIDENCE, slide citations |
+| GET `/internal/v1/health` | Header chung | Liveness/readiness rút gọn |
 
-### Authorized scope và citation
+### Index pipeline
 
-- `authorizedDocumentIds` là danh sách ID **Java đã xác thực** cho request hiện tại. Python phải filter đúng danh sách đó và active index version; danh sách rỗng trả `NO_EVIDENCE` hoặc lỗi scope rỗng theo endpoint, không tìm toàn cục.
-- `location` là `{kind: PAGE|SLIDE|SECTION, value}`. Mỗi citation trả `chunkId`, `documentId`, `location`, `excerpt`; câu hỏi Quiz trả `sources` với document ID và location. Python chỉ xuất source từ chunk đã truy hồi. Java đối chiếu document ID với scope trước khi trả/lưu và tự bổ sung document name từ DB nghiệp vụ.
-- `sourceType` là `OFFICIAL` hoặc `PERSONAL`; `ownerId` bắt buộc cho Personal Document và có thể null cho Official Content. Python không tự quyết định publish status.
-- Indexing/deindexing dùng key `documentId:documentVersion:INDEX|DEINDEX`. Gọi lại cùng key trả cùng job; khi job retryable bị lỗi do URL hết hạn, request lặp có thể cập nhật URL mới và xếp lại job, không tạo bản index trùng.
+- `PERSONAL_RAG`: chỉ PDF/DOCX Personal; ownerId bắt buộc.
+- `TEACHER_SLIDE`: chỉ PPTX Teacher; tạo render/extracted text/chunk cho viewer và Tutor.
+- PDF Teacher không gọi AI indexing.
 
-### Timeout, retry và tương thích
+### Citation và scope
 
-- Java dùng timeout ngắn cho enqueue/poll job; Tutor/Quiz có timeout inference riêng. Không retry Tutor/Quiz tự động vì có thể phát sinh request model lặp. Retry GET an toàn và POST job có idempotency key với backoff giới hạn.
-- Thay đổi wire shape cần tăng `X-Schema-Version`, cập nhật tài liệu này và contract test ở cả Java/Python trong cùng task. Code scaffold Python hiện có `requestId` trong body, chưa có job/deindex/authorized document list; khi triển khai phải đưa schema về contract này trước khi tích hợp Java.
-- Java validate mọi field AI trước khi lưu. `correctOptionIndex` phải nằm trong `options`; topic/document/source phải thuộc scope; câu hỏi trùng hoặc malformed bị từ chối. Java là nơi duy nhất chấm Quiz và cập nhật Mastery.
+- Personal citation: `documentId`, `pageNumber|section`, `excerpt`.
+- Slide citation: `documentId`, `slideNumber`, `excerpt`.
+- Python filter active version và đúng source type.
+- Java đối chiếu mọi document/citation với scope đã cấp trước khi trả browser.
+- Personal RAG không nhận Teacher Document ID; Slide Tutor không nhận Personal Document ID.
+- Quiz generation chỉ nhận Personal Document ID đã được Java xác thực; mỗi câu hỏi phải có source thuộc scope.
+
+## 7. Timeout, retry và versioning
+
+- GET/poll retry với backoff giới hạn.
+- Index/deindex retry nhờ idempotency key `documentId:version:pipeline:operation`.
+- Không tự động retry request LLM sau timeout nếu có nguy cơ tạo request trùng.
+- Thay đổi wire shape cần tăng schema version, cập nhật tài liệu và contract test hai phía.
+- Internal error không chứa nội dung file, prompt hoặc provider payload.

@@ -1,38 +1,96 @@
 # StudyFlow — Tech stack mục tiêu
 
-> Trạng thái: thiết kế cho toàn bộ luồng demo, chưa phải danh sách dependency đã cài.
-> Quyết định ngày 2026-09-19: dùng PostgreSQL + pgvector cho vector search trong giai đoạn đầu, thay cho Qdrant được ghi trong tài liệu cũ.
+> Trạng thái: stack cho MVP Student–Teacher–Admin. Phiên bản cụ thể phải được khóa khi tạo project và kiểm tra compatibility trong CI.
 
-## Nguyên tắc chọn công nghệ
+## 1. Stack
 
-- Giữ ba deployable unit: Next.js Web, Java Spring Boot Backend và Python AI Service.
-- Java là nguồn dữ liệu nghiệp vụ và là public API duy nhất. Python chỉ xử lý AI, jobs và kho vector; browser không gọi Python hoặc database.
-- Chạy trên một VPS bằng Docker Compose. Hai PostgreSQL là **hai container và volume riêng trên cùng VPS**: một cho nghiệp vụ, một cho AI/vector. Cách tách này không tạo high availability hay cô lập phần cứng.
-- Chốt major/minor mục tiêu dưới đây; khi bắt đầu triển khai cần khóa phiên bản dependency và image bằng lockfile/tag hoặc digest, rồi chạy test tương thích.
-
-## Thành phần
-
-| Lớp | Lựa chọn mục tiêu | Lý do và trách nhiệm |
+| Lớp | Công nghệ | Mục đích |
 |---|---|---|
-| Web | Next.js 16 App Router, React, TypeScript, Node.js 24 LTS, Tailwind CSS | Student/Admin UI, viewer, form và API client; chỉ gọi Java qua `/api/v1`. |
-| Backend | Java 21, Spring Boot 3.5, Spring Web, Spring Security, Spring Data JPA, Flyway, Maven | Auth/RBAC, quyền sở hữu, nghiệp vụ, transaction, chấm Quiz, progress/mastery, recommendation và public API. |
-| AI API/worker | Python 3.11+, FastAPI, Pydantic, pydantic-settings; worker cùng codebase chạy thành process riêng | Internal API; parse/chunk/embed/index, RAG, citation, sinh Quiz và evaluation. |
-| Parser/viewer | `pypdf`, `python-pptx`, `python-docx`; LibreOffice headless để tạo bản xem PDF từ PPTX/DOCX | Giữ vị trí nguồn PAGE/SLIDE/SECTION; artifact xem được lưu cùng kho file. Chỉ thêm dependency này khi triển khai pipeline tương ứng. |
-| Dữ liệu nghiệp vụ | PostgreSQL 17; Flyway do Java quản lý | Users, documents, quiz attempts, Content Progress, Topic Mastery, Study Plan, Exam và audit events. |
-| Vector/jobs | PostgreSQL 17 + pgvector 0.8.x; Python dùng `psycopg`/pgvector adapter và Alembic | Chunks, embeddings, phiên bản index và job state; Python không có credential vào PostgreSQL nghiệp vụ. |
-| File | SeaweedFS `weed mini` qua S3 API | Lưu bản gốc và artifact xem; Java cấp quyền truy cập, Python đọc qua signed URL ngắn hạn. |
-| LLM/embedding | OpenAI Responses API với `gpt-5.6-terra` cho Tutor/Quiz; Embeddings API với `text-embedding-3-small` mặc định 1536 chiều | Python gọi qua adapter, Java không giữ prompt/provider response thô. Model ID là cấu hình server; đổi embedding model/dimension phải reindex. |
-| Triển khai | Docker Compose và Caddy | Caddy cấp HTTPS và định tuyến `/api/v1` tới Java, các đường web tới Next.js; AI, storage và database chỉ ở mạng nội bộ. |
+| Web | Next.js, TypeScript, Tailwind CSS | Student/Teacher/Admin UI, SSR/client interaction |
+| API nghiệp vụ | Java, Spring Boot, Spring Security, JPA/Hibernate | Public API, RBAC, transaction, business rules |
+| Migration nghiệp vụ | Flyway | Schema `app` |
+| AI API/worker | Python, FastAPI, Pydantic | Parsing, rendering, RAG, Slide Tutor |
+| Migration AI | Alembic | Schema `ai` |
+| Database | PostgreSQL | System of record |
+| Vector search | pgvector | Embedding cho Personal RAG và Slide Tutor |
+| Storage | S3-compatible Object Storage | PDF/PPTX/DOCX, slide render và preview |
+| Model | OpenAI hoặc Gemini theo quota | Chat/embedding qua Python adapter |
+| Container/CI | Docker, GitHub Actions | Local parity và quality gate |
+| Deploy | Vercel + Render/Railway hoặc nền tảng tương đương | Public demo end-to-end |
 
-Next.js nêu cấu hình App Router/TypeScript và yêu cầu Node.js; Node.js 24 đang thuộc nhánh LTS. Spring Boot 3.5 hỗ trợ Java 21. pgvector hỗ trợ PostgreSQL 17 và tìm kiếm chính xác mặc định. SeaweedFS mô tả `weed mini` cho một node. OpenAI Docs xác nhận model và kích thước embedding: [Next.js](https://nextjs.org/docs/app/getting-started/installation), [Node.js](https://nodejs.org/en/about/previous-releases), [Spring Boot](https://docs.spring.io/spring-boot/3.5/system-requirements.html), [pgvector](https://github.com/pgvector/pgvector), [SeaweedFS](https://github.com/seaweedfs/seaweedfs/blob/master/README.md), [OpenAI models](https://developers.openai.com/api/docs/models/gpt-5.6-terra), [OpenAI embeddings](https://developers.openai.com/api/docs/guides/embeddings).
+Không dùng Qdrant/Milvus trong thiết kế hiện tại.
 
-## Chiến lược vector search tạm thời
+## 2. Frontend
 
-MVP dùng truy vấn cosine **chính xác** trên các document ID Java đã cho phép, với B-tree index cho metadata lọc. Chưa tạo HNSW trong bản đầu để giữ kết quả truy hồi ổn định trên bộ dữ liệu demo nhỏ; chỉ đánh giá HNSW hoặc kho vector khác khi đo tải thực tế cho thấy cần thiết. Toàn bộ truy cập vector nằm sau adapter Python để lần đổi kho sau không làm đổi public API.
+Next.js có ba route group:
 
-## Tài nguyên và vận hành
+- `(student)`: dashboard, classes/subjects/materials, slide viewer, personal documents/RAG + Quiz generation, progress/statistics, plan/weekly calendar, review/Quiz.
+- `teacher`: dashboard, assignments, document library, publications.
+- `admin`: dashboard, users/roles, classes/subjects/assignments, feedback, logs, settings.
 
-- Mốc đánh giá VPS: 4 vCPU, 8 GB RAM, SSD; đây là giả định để kiểm tra tải, không phải cam kết đủ cho mọi quy mô. Giới hạn số worker và connection pool theo RAM đo được.
-- Compose cần health check, restart policy, volume riêng, backup và thử khôi phục cho cả hai PostgreSQL lẫn SeaweedFS. Bản backup phải có bản sao ngoài VPS vì một VPS là điểm lỗi chung.
-- Ghi `requestId`, trạng thái, độ trễ và mức dùng token; không log nội dung tài liệu, prompt nhạy cảm hoặc API key.
-- OpenAI model access, quota và chi phí thực tế phải kiểm tra bằng tài khoản triển khai trước buổi demo. Không tự thay model trong runtime nếu chưa chạy lại evaluation.
+Frontend chỉ gọi Java. Client không tự chấm Quiz, không tính progress và không tạo authorization scope cho AI.
+
+Nên dùng:
+
+- TanStack Query hoặc cơ chế tương đương cho server state.
+- React Hook Form + schema validation cho form.
+- PDF download qua Java; Slide Viewer dùng artifact, không expose PPTX gốc.
+- SSE chỉ khi cần cập nhật job; MVP có thể poll status.
+
+## 3. Spring Boot
+
+Module theo feature:
+
+```text
+auth, user, classroom, subject, assignment,
+document, publication, slide, note,
+progress, study, review, feedback, audit, settings,
+integration.ai, integration.storage
+```
+
+Spring Security xử lý JWT/RBAC. Application service kiểm ownership/membership/assignment. JPA/Flyway quản lý schema nghiệp vụ. Internal AI client có timeout, request ID, schema version và service credential.
+
+## 4. FastAPI và document processing
+
+Pipeline:
+
+- Personal PDF: extract text theo page → chunk → embed → pgvector.
+- Personal DOCX: extract text theo section/paragraph → chunk → embed.
+- Teacher PPTX: extract text + render slide → chunk/embed phần cần Tutor.
+- Teacher PDF: không AI index trong MVP.
+
+Thư viện parser/render phải được chọn sau spike với fixture tiếng Việt. LibreOffice headless có thể dùng để chuyển PPTX sang artifact, nhưng cần test font và layout. Adapter model giúp đổi OpenAI/Gemini mà không ảnh hưởng contract Java.
+
+## 5. PostgreSQL và pgvector
+
+- Một PostgreSQL cluster, schema `app` và `ai`.
+- Database role riêng cho Java và Python.
+- Exact cosine search đủ cho seed demo; thêm HNSW/IVFFlat sau benchmark.
+- Dimension gắn với embedding model trong index version; đổi model cần reindex.
+- Metadata filter theo document, owner/source type và location trước vector ranking.
+
+## 6. Object Storage
+
+- Bucket/object prefix tách Teacher Library, Personal Documents và slide artifacts.
+- Browser không nhận object key nội bộ.
+- Java phát download hoặc signed URL ngắn hạn sau kiểm quyền.
+- Python nhận signed URL ngắn hạn để xử lý; URL không được log/lưu lâu dài.
+
+## 7. Test và chất lượng
+
+| Phần | Kiểm tra tối thiểu |
+|---|---|
+| Web | route guard, role navigation, weekly timetable, Slide/Personal RAG → Quiz review flows |
+| Java | unit rule, repository integration, security/ownership, API contract |
+| Python | parser fixture, scope isolation, citation correctness, job idempotency |
+| E2E | Student → Teacher → Admin demo flow với dữ liệu tổng hợp |
+
+AI eval tập trung relevance, faithfulness, citation correctness, owner isolation và latency. Không dùng tài liệu người dùng thật trong test/eval.
+
+## 8. Observability và deployment
+
+- Structured log với `traceId/requestId`, actor ID, action, status, duration và safe error code.
+- Metric: processing backlog/failure, Tutor/RAG latency, `NO_EVIDENCE` rate, token usage tổng hợp.
+- Không log prompt, document text, token, password hoặc signed URL.
+- CI chạy lint/test/build cho phần thay đổi.
+- Deploy có health check, HTTPS, CORS đúng origin, migration forward và backup/restore PostgreSQL + Object Storage.

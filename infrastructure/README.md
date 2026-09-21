@@ -1,6 +1,8 @@
 # Infrastructure
 
-- `docker/`: Dockerfile và compose cho môi trường local.
-- `github/workflows/`: lint, test, build và deploy workflows.
+- `docker/`: local Docker/Compose cho Web, Java, FastAPI, worker, PostgreSQL + pgvector và Object Storage.
+- `github/workflows/`: CI lint/test/build và deploy.
 
-MVP triển khai Next.js, Java Spring Boot và Python AI thành ba deployable unit; PostgreSQL, Object Storage và Qdrant dùng managed service nếu phù hợp quota. Python AI service chỉ nên nhận traffic nội bộ từ Java backend.
+Mục tiêu demo: Next.js trên Vercel hoặc web host tương đương; Spring Boot và FastAPI/worker trên Render/Railway hoặc nền tảng tương đương; PostgreSQL + pgvector và Object Storage managed.
+
+Frontend chỉ public Java API. FastAPI, database và storage endpoint nội bộ không public trực tiếp. Cấu hình dùng environment variables; không commit secret.

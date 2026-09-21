@@ -1,2 +1,1 @@
-"""LLM, embedding, Qdrant and storage clients."""
-
+"""LLM, embedding, PostgreSQL/pgvector and storage clients."""

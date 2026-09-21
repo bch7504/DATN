@@ -1,2 +1,1 @@
-"""RAG and quiz-generation application services."""
-
+"""Personal RAG, Slide Tutor, citation and Quiz draft generation services."""

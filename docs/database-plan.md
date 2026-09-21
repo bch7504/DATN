@@ -1,51 +1,199 @@
 # StudyFlow — Database plan
 
-Thiết kế có **hai PostgreSQL riêng trên cùng VPS**. PostgreSQL nghiệp vụ do Java sở hữu và là system of record; PostgreSQL vector do Python sở hữu, bật extension `vector` cho pgvector. Không có foreign key, transaction hoặc kết nối ứng dụng đi xuyên hai database. Xem [low-level-design.md](low-level-design.md) cho luồng đồng bộ bất đồng bộ.
+PostgreSQL là nguồn dữ liệu trung tâm; pgvector là extension trong cùng cụm PostgreSQL. Java sở hữu schema `app`, Python sở hữu schema `ai`. Hai service dùng database role khác nhau và migration riêng.
 
-## 1. PostgreSQL nghiệp vụ — Java/Flyway
+## 1. Nguyên tắc
 
-### Identity và nội dung
+- Java/Flyway quản lý bảng nghiệp vụ, transaction và quyền.
+- Python/Alembic quản lý AI job, chunk và embedding.
+- File gốc, slide render và preview nằm ở Object Storage; database chỉ giữ metadata/path.
+- Không có Chapter/Topic trong MVP.
+- Personal Document bắt buộc có `owner_id`; retrieval luôn filter owner và danh sách document Java đã xác thực.
+- Teacher Document chỉ tới Student qua `document_publications → class_subjects → class_students`.
 
-- `users`: tài khoản, profile, role, status.
-- `subjects`: môn chuẩn hoặc cá nhân; owner, type, status.
-- `topics`: topic, subject, order, importance.
+## 2. Identity và RBAC
 
-### Documents và annotation
+### `users`
 
-- `documents`: ID, owner, loại `OFFICIAL`/`PERSONAL`, subject, object key, MIME, `document_version`, `processing_status` (`UPLOADING`, `PENDING_INDEX`, `INDEXING`, `READY`, `FAILED`, `DELETING`, `DELETED`), job ID, số page/slide và trạng thái publish. Official Content có thể không có owner cá nhân; Personal Document bắt buộc có owner.
-- `document_progress`: user/document, vị trí đọc hiện tại và phần đã xem.
-- `topic_content_progress`: user/topic, mức hoàn thành nội dung tính từ read events; **không** chứa mastery.
-- `notes`, `bookmarks`: ghi chú/đánh dấu theo subject/topic/document/PAGE/SLIDE/SECTION với owner rõ ràng.
+`id`, `email`, `username`, `password_hash`, `full_name`, `role` (`STUDENT|TEACHER|ADMIN`), `status`, timestamps.
 
-### Quiz và mức hiểu
+- Unique: `email`, `username`.
+- Khóa tài khoản phải thu hồi refresh session.
 
-- `quizzes`, `quiz_questions`: cấu hình, câu hỏi và đáp án đã được Java validate.
-- `quiz_attempts`, `quiz_answers`: lần làm, câu trả lời và điểm do Java chấm.
-- `topic_mastery`: user/topic, trạng thái `NO_DATA`, `LEARNING`, `WEAK` hoặc trạng thái mạnh hơn theo rule có bằng chứng; không suy từ tỷ lệ đã đọc.
-- `mastery_history`: lịch sử thay đổi và evidence; append-oriented.
-- `learning_events`: read, session, quiz, exam events để cập nhật progress/statistics và audit; append-oriented.
+### `refresh_tokens`
 
-### Study, Exam và vận hành
+`id`, `user_id`, `token_hash`, `expires_at`, `revoked_at`, `replaced_by_id`, metadata thiết bị tối thiểu.
 
-- `tasks`, `study_plans`, `study_sessions`: Task, lịch và kế hoạch do Student quản lý.
-- `exams`, `exam_topics`: ngày thi, target, phạm vi, countdown/readiness và Mock Exam liên quan.
-- `ai_requests`, `ai_feedback`, `system_logs`: loại request, scope ID, trạng thái, độ trễ, token usage, feedback và lỗi đã chuẩn hóa; không lưu prompt nhạy cảm, document content hoặc API key.
+Không lưu raw refresh token.
 
-Mọi bảng dữ liệu cá nhân có owner trực tiếp hoặc đường liên kết xác định owner. Tạo migration Flyway mới khi schema thay đổi; không sửa migration đã chạy. Java không lưu embedding.
+## 3. Lớp học, môn học và phân công
 
-## 2. PostgreSQL vector — Python/Alembic
+### `classes`
 
-| Bảng | Dữ liệu chính | Ghi chú |
-|---|---|---|
-| `document_indexes` | `document_id`, `active_version`, embedding model, dimensions, trạng thái | Chỉ một version active cho mỗi document. |
-| `document_chunks` | document ID/version/chunk number, owner/source type, subject/topic, PAGE/SLIDE/SECTION, chunk text, `embedding vector(1536)` | Unique `(document_id, document_version, chunk_no)`; chỉ active version được truy hồi. |
-| `index_jobs` | job ID, request ID, idempotency key, document/version, loại INDEX/DEINDEX, status, attempts, thời điểm retry và error code | Unique idempotency key; worker claim có khóa hàng. Signed URL đầu vào chỉ giữ tới khi tải xong, không log. |
+`id`, `code`, `name`, `cohort`, `academic_year`, `status`, timestamps.
 
-Bật `CREATE EXTENSION vector` bằng migration của Python chỉ trên vector DB. Tạo B-tree index cho document/version/scope metadata; giai đoạn đầu tìm kiếm cosine chính xác trên danh sách document Java đã cho phép. Chưa tạo HNSW cho bộ dữ liệu demo. Model embedding mặc định là `text-embedding-3-small` với 1536 chiều; đổi model hoặc chiều yêu cầu version mới và reindex, không trộn vector khác chiều. [pgvector](https://github.com/pgvector/pgvector) hỗ trợ tìm kiếm chính xác mặc định và các index gần đúng khi sau này cần đo tải.
+### `class_students`
 
-## 3. Tính nhất quán và vòng đời
+`class_id`, `student_id`, `joined_at`, `status`.
 
-- Java lưu document và job ID/trạng thái; Python lưu job/chunks. Java poll job để cập nhật `READY`/`FAILED`. Không giả định hai DB commit cùng lúc.
-- Khi reindex, Python ghi version mới rồi đổi `active_version` trong transaction vector DB; version cũ chỉ dọn sau đó. Java chỉ cho phép hỏi AI với tài liệu `READY`.
-- Khi xóa, Java chuyển `DELETING` để loại tài liệu khỏi authorized scope trước; Python deindex, Java xóa object và metadata sau khi job hoàn tất. Tác vụ dọn lỗi có retry.
-- Backup và thử restore **cả hai PostgreSQL và SeaweedFS**; lưu bản sao ngoài VPS. Xóa dữ liệu cá nhân phải đi qua cả metadata, object và chunks.
+- Unique: `(class_id, student_id)`.
+- Chỉ user role Student được thêm.
+
+### `subjects`
+
+`id`, `code`, `name`, `description`, `status`, timestamps.
+
+### `class_subjects`
+
+`id`, `class_id`, `subject_id`, `teacher_id`, `semester`, `academic_year`, `status`, timestamps.
+
+- Unique đề xuất: `(class_id, subject_id, semester, academic_year)`.
+- `teacher_id` phải có role Teacher.
+- Đây là authorization scope cho việc public tài liệu.
+
+## 4. Tài liệu và publication
+
+### `documents`
+
+`id`, `owner_id`, `owner_role`, `document_scope` (`TEACHER_LIBRARY|PERSONAL`), `file_name`, `file_type` (`PDF|PPTX|DOCX`), `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, `slide_count`, timestamps, soft-delete fields.
+
+Quy tắc:
+
+- Personal: owner là Student, chỉ `PDF|DOCX`.
+- Teacher Library: owner là Teacher, cho phép `PDF|PPTX|DOCX`.
+- PPTX muốn public phải `READY` để xem Slide.
+- Object key không trả trực tiếp cho browser.
+
+Trạng thái: `UPLOADING → PENDING_PROCESSING → PROCESSING → READY|FAILED`; xóa qua `DELETING → DELETED`.
+
+### `document_publications`
+
+`id`, `document_id`, `class_subject_id`, `published_by`, `status` (`PUBLISHED|REVOKED`), `published_at`, `revoked_at`.
+
+- Unique: `(document_id, class_subject_id)`.
+- Document phải thuộc Teacher thực hiện.
+- Teacher phải đang được phân công cho ClassSubject.
+- Một file có thể public cho nhiều ClassSubject mà không nhân bản.
+
+### `slides`
+
+`id`, `document_id`, `slide_number`, `rendered_key`, `preview_key`, `extracted_text`, `processing_status`.
+
+- Unique: `(document_id, slide_number)`.
+- Chỉ dùng cho PPTX Teacher.
+- Frontend không nhận file PPTX gốc.
+
+### `slide_notes`
+
+`id`, `user_id`, `document_id`, `slide_number`, `content`, timestamps.
+
+- Unique: `(user_id, document_id, slide_number)`.
+- Khi đọc/ghi phải kiểm publication và membership còn hiệu lực.
+
+## 5. AI data trong schema `ai`
+
+### `ai.index_jobs`
+
+`id`, `request_id`, `idempotency_key`, `document_id`, `document_version`, `pipeline_type` (`PERSONAL_RAG|TEACHER_SLIDE`), `status`, `attempts`, `next_retry_at`, `error_code`, timestamps.
+
+- Unique: `idempotency_key`.
+- Signed URL chỉ dùng lúc tải và không ghi log.
+
+### `ai.document_indexes`
+
+`document_id`, `document_version`, `pipeline_type`, `embedding_model`, `dimensions`, `status`, `activated_at`.
+
+- Chỉ một version active cho mỗi document/pipeline.
+
+### `ai.document_chunks`
+
+`id`, `document_id`, `document_version`, `owner_id`, `source_type` (`PERSONAL|TEACHER_SLIDE`), `slide_number` hoặc `page_number`, `chunk_index`, `content`, `embedding vector(n)`, timestamps.
+
+- Unique: `(document_id, document_version, chunk_index)`.
+- B-tree index cho document/version/owner/source/location.
+- Vector index chỉ thêm sau khi đo dữ liệu; MVP có thể dùng exact cosine search.
+- PDF Teacher public không cần index.
+
+### Chat metadata
+
+`chat_conversations`: user, type `PERSONAL_RAG|SLIDE_TUTOR`, context metadata.
+
+`chat_messages`: conversation, role, content, citation JSON, timestamps.
+
+Nếu lưu hội thoại, Java sở hữu bảng và áp dụng retention. Không log bản sao message ở system log.
+
+## 6. Tiến độ và kế hoạch
+
+### `learning_progress`
+
+`id`, `student_id`, `class_subject_id`, `document_id`, `last_slide`, `viewed_slide_count`, `progress_percent`, `completed_at`, `updated_at`.
+
+- Unique: `(student_id, document_id)`.
+- Chỉ PPTX/Slide có document progress; PDF Teacher không có page progress.
+
+### `learning_events`
+
+`id`, `student_id`, `event_type`, `target_type`, `target_id`, `metadata`, `occurred_at`.
+
+Event chính: `VIEW_SLIDE`, `NOTE_SAVED`, `PERSONAL_DOCUMENT_UPLOADED`, `PERSONAL_DOCUMENT_INDEXED`, `ASK_AI`, `QUIZ_GENERATED`, `QUIZ_ACCEPTED`, `QUIZ_COMPLETED`, `STUDY_PLAN_CREATED`, `STUDY_PLAN_COMPLETED`.
+
+### `study_plans` và `study_plan_items`
+
+- Plan: owner, title, description, start/end date, status.
+- Item: plan, title, `scheduled_start`, `scheduled_end`, deadline, duration, status, class_subject tham chiếu tùy chọn.
+- Calendar là projection của plan items, không cần bảng sự kiện trùng lặp.
+- Index theo `(student_id, scheduled_start)` thông qua quan hệ plan; Java kiểm thời gian hợp lệ và phát hiện lịch chồng nhau.
+
+Không có bảng recommendation trong MVP.
+
+## 7. Ôn tập và Quiz
+
+### `quizzes`
+
+`id`, `student_id`, `title`, `description`, `generation_type` (`AI_PERSONAL_RAG|MANUAL`), `status` (`GENERATING|REVIEW_REQUIRED|READY|REJECTED|ARCHIVED`), `question_count`, timestamps.
+
+- Quiz AI luôn thuộc Student đã yêu cầu tạo.
+- Sau khi Java validate kết quả Python, Quiz ở `REVIEW_REQUIRED`.
+- Chỉ Student owner được `ACCEPT`; thao tác này chuyển Quiz sang `READY`.
+- Quiz chưa `READY` không tạo attempt.
+
+### `quiz_sources`
+
+`quiz_id`, `document_id`, `document_version`, `source_type`, timestamps.
+
+- Source của Quiz AI chỉ là Personal Documents thuộc Student và đã được chọn khi sinh.
+- Unique: `(quiz_id, document_id)`.
+- Giữ version để audit câu hỏi được sinh từ bản tài liệu nào.
+
+### `quiz_questions`
+
+`id`, `quiz_id`, `content`, `question_type`, `options`, `correct_answer`, `explanation`, `display_order`.
+
+### `quiz_question_sources`
+
+`question_id`, `document_id`, `location_kind`, `location_value`, `excerpt`.
+
+Java đối chiếu document/version với authorized scope trước khi lưu.
+
+### `quiz_attempts` và `quiz_answers`
+
+- Attempt: quiz, student, start/submit time, total score, status, duration.
+- Answer: attempt, question, selected/text answer, correctness và awarded score.
+- Unique: `(attempt_id, question_id)`.
+- Java chấm điểm trong transaction; Python/LLM không chấm attempt.
+
+## 8. Admin và vận hành
+
+- `feedback_reports`: reporter, type, title, content, status, resolution timestamps.
+- `system_logs`: actor, action, target type/ID, safe metadata, timestamp.
+- `system_settings`: typed key/value, description, updated_by; không chứa secret.
+
+Audit các sự kiện: login, role/status change, membership, ClassSubject assignment, publication/revoke và settings.
+
+## 9. Xóa và tính nhất quán
+
+- Thu hồi publication không xóa file khỏi Teacher Library.
+- Xóa Teacher Document chỉ được thực hiện khi đã xử lý publication liên quan.
+- Xóa Personal Document: Java chuyển `DELETING`, lập tức loại khỏi authorized scope, yêu cầu Python deindex, sau đó xóa object và metadata.
+- Reindex ghi version mới, activate nguyên tử trong schema AI rồi dọn version cũ.
+- Backup PostgreSQL và Object Storage; phải thử restore trước demo.

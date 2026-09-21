@@ -1,21 +1,34 @@
-# Web application
+# StudyFlow Web
 
-Khu vực dành cho Next.js Student UI và Admin UI.
+Khu vực Next.js cho Student, Teacher và Admin.
 
-## HTML MVP tạm thời
+## Prototype HTML
 
-Mở trực tiếp `mvp.html` bằng trình duyệt để xem prototype Student UI. File chạy độc lập, dùng dữ liệu demo và chưa gọi backend thật.
+Mở `mvp.html` để chạy prototype độc lập:
 
-## Route groups dự kiến
+- Student: Class/Subject materials, Slide Viewer + Note + Tutor, Personal Documents + RAG, AI Quiz review/attempt, Progress & Statistics và lịch tuần.
+- Teacher: assignments, document library, public/revoke.
+- Admin: users/roles, classes/subjects, Teacher assignment, feedback, logs, settings.
 
-- `(auth)`: login, register, forgot password.
-- `(student)`: dashboard, subjects, documents, viewer, tutor, quiz, progress, study plan, calendar, exams, statistics.
-- `admin`: dashboard, users, subjects/topics, official documents, AI/RAG, feedback, logs.
+Prototype dùng fixture tổng hợp, không gọi backend. Có thể mở trực tiếp:
+
+- `mvp.html#student-dashboard`
+- `mvp.html#teacher-dashboard`
+- `mvp.html#admin-dashboard`
+
+## Route group
+
+- `(auth)`
+- `(student)`
+- `teacher`
+- `admin`
 
 ## Quy ước
 
-- `components/ui`: component dùng lại, không chứa nghiệp vụ.
-- `components/features`: component theo feature như quiz, viewer, exam.
-- `lib`: API client, auth session, query keys, formatter và helpers.
-- `types`: API DTO và kiểu dùng chung phía client.
-- Không tính scoring, mastery hoặc recommendation trong frontend.
+- Frontend chỉ gọi public Java API.
+- Không gọi Python, pgvector, Object Storage hoặc model provider trực tiếp.
+- Không tính progress hay chấm Quiz ở client.
+- PPTX lớp chỉ xem; PDF lớp chỉ download.
+- Personal upload chỉ nhận PDF/DOCX.
+- Personal RAG và Slide Tutor không dùng chung scope.
+- Quiz draft sinh từ Personal RAG phải được Student chấp nhận trước khi bắt đầu attempt.

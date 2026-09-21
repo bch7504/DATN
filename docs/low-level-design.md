@@ -1,87 +1,276 @@
 # StudyFlow — Low-level design
 
-> Đây là thiết kế triển khai, không mô tả tính năng đã chạy. Ranh giới service xem [architecture.md](architecture.md), bảng dữ liệu xem [database-plan.md](database-plan.md), HTTP contract xem [api-plan.md](api-plan.md).
+## 1. Module boundary
 
-## 1. Tổ chức module
-
-### Next.js
-
-- App Router tách `(auth)`, `(student)` và `admin`. `components/features` giữ UI theo nghiệp vụ; `lib/api` là nơi duy nhất gọi `/api/v1`, chuẩn hóa error/pagination và gắn `requestId` khi cần.
-- Viewer gọi endpoint Java đã kiểm quyền để lấy PDF hoặc artifact xem. Citation là liên kết tới document ID và PAGE/SLIDE/SECTION; web không tự suy ra quyền truy cập từ URL.
-- Web hiển thị trạng thái xử lý tài liệu và polling khi `PENDING_INDEX`/`INDEXING`. Chức năng `mvp.html` hiện tại là prototype, không được coi là tích hợp production.
-
-### Java modular monolith
-
-| Module | Vai trò |
-|---|---|
-| `auth`, `user`, `security` | Login/refresh, RBAC, owner policy, session và public identity. |
-| `subject`, `document`, `note` | Official/Personal content, upload/viewer, document status, Note/Bookmark và read events. |
-| `quiz`, `progress`, `event` | Validate câu hỏi AI, attempt/scoring, Content Progress, Topic Mastery, mastery history và Learning Events. |
-| `study`, `exam` | Task/Session/Plan, recommendation theo rule, Exam/Mock Exam/countdown/readiness. |
-| `admin` | User, Official Content, trạng thái AI/RAG, feedback và vận hành; không quản lý Quiz/Exam/Progress cá nhân. |
-| `integration.ai`, `integration.storage` | HTTP client có timeout và service token; S3 adapter. Domain không phụ thuộc SDK. |
-
-Mỗi module đi theo `controller → application service → domain/repository`; transaction nghiệp vụ chỉ nằm trong PostgreSQL của Java. `progress` là nơi duy nhất ghi Topic Mastery. Event đọc tài liệu cập nhật Content Progress; attempt đã được Java chấm mới cung cấp bằng chứng cho Mastery. Khi thiếu bằng chứng giữ `NO_DATA` hoặc `LEARNING`.
-
-### Python AI API và worker
-
-- `api/routes` nhận internal HTTP; `schemas` validate contract và schema version; `core` giữ cấu hình, service authentication và logging an toàn.
-- `pipelines/parsers` trả nội dung kèm vị trí nguồn: PDF = PAGE 1-based, PPTX = SLIDE 1-based, DOCX = SECTION. Chunk không băng qua ranh giới page/slide/section; khởi đầu 800 token/chunk và overlap tối đa 100 token trong cùng vị trí.
-- `services/rag` tạo embedding câu hỏi, truy hồi, xây context và tạo câu trả lời; `services/quiz` sinh câu hỏi theo schema. `clients` bọc OpenAI, PostgreSQL vector và S3.
-- `worker` là process riêng, đọc job bền vững từ PostgreSQL vector. Không dùng FastAPI background task làm nguồn job duy nhất vì restart có thể làm mất tác vụ.
-
-## 2. Quyền truy cập và nhận dạng
-
-- Java dùng Spring Security: access JWT ngắn hạn; refresh token luân phiên trong cookie HttpOnly, Secure, SameSite; role `USER`/`ADMIN`. Java kiểm tra quyền ở application service theo owner, trạng thái publish và quan hệ subject/document trước khi gọi AI hoặc phục vụ file.
-- Internal API chỉ nhận service token từ Java qua mạng Compose nội bộ; Python không nhận JWT người dùng. Request Tutor/Quiz chứa `authorizedDocumentIds` do Java liệt kê sau khi kiểm quyền. Danh sách rỗng trả `NO_EVIDENCE`, không truy vấn toàn kho.
-- Python áp dụng danh sách ID trong câu SQL **trước** khi sắp xếp theo cosine distance; chỉ lấy active index version. Python còn kiểm `sourceType` và `ownerId` của chunk như lớp bảo vệ phụ. Java kiểm lại mọi `documentId` trong citation/result trước khi trả client.
-- Personal Document chỉ owner sử dụng; Admin không mặc định được đọc hoặc đưa nó thành Official Content. Thay đổi publish/owner phải làm Java tính lại scope ở mỗi request, không tin scope client gửi.
-
-## 3. Dữ liệu và storage
-
-### PostgreSQL nghiệp vụ — Java sở hữu
-
-Giữ các nhóm bảng ở [database-plan.md](database-plan.md). `documents` chứa `id`, `owner_id` nullable cho Official Content, `source_type`, `subject_id`, object key, MIME, `document_version`, `processing_status`, `page_or_slide_count`, `published_at`, timestamps. Java giữ `ai_job_id`/lỗi đã chuẩn hóa để polling và audit, không lưu vector hoặc prompt thô.
-
-### PostgreSQL vector — Python sở hữu
-
-| Bảng | Trường/cấu trúc chính | Ràng buộc |
-|---|---|---|
-| `document_indexes` | `document_id`, `active_version`, `embedding_model`, `dimensions`, trạng thái | Một active version cho mỗi document. |
-| `document_chunks` | `document_id`, `document_version`, `chunk_no`, `source_type`, `owner_id`, `subject_id`, `topic_id`, `location_kind`, `location_value`, `content`, `embedding vector(1536)` | Unique `(document_id, document_version, chunk_no)`; index metadata để lọc trước similarity. |
-| `index_jobs` | `job_id`, `request_id`, `idempotency_key`, `document_id`, `document_version`, `kind`, `status`, `attempts`, `next_run_at`, `error_code`, `input_url` tạm thời, timestamps | Unique `idempotency_key`; worker claim bằng `FOR UPDATE SKIP LOCKED`. Xóa `input_url` sau khi tải file. |
-
-Vector DB chỉ lưu ID tham chiếu và metadata phục vụ filter, không sao chép user/quiz attempt/mastery/study plan. Không có foreign key qua PostgreSQL nghiệp vụ. Python quản lý migration tiến cho vector DB bằng Alembic; Java dùng Flyway cho DB nghiệp vụ. Thay model hoặc số chiều phải tạo phiên bản index mới và reindex, không trộn embeddings khác chiều trong cùng truy vấn.
-
-SeaweedFS dùng object key dạng `documents/{documentId}/v{version}/original` và `documents/{documentId}/v{version}/view.pdf`. Java giữ key trong DB nghiệp vụ; browser nhận nội dung qua endpoint Java kiểm quyền. Python tải bản gốc qua signed URL ngắn hạn trong mạng nội bộ, không giữ S3 credential quản trị.
-
-## 4. Trạng thái và luồng xử lý
-
-### Upload/index
+### Web
 
 ```text
-UPLOADING → PENDING_INDEX → INDEXING → READY
-                   │             └────→ FAILED
-                   └───────────────────→ FAILED
-READY/FAILED → DELETING → DELETED
+app/
+├── (auth)/
+├── (student)/
+│   ├── dashboard/
+│   ├── classes/[classId]/subjects/[classSubjectId]/
+│   ├── materials/[documentId]/slides/
+│   ├── personal-documents/
+│   ├── progress/
+│   ├── plan/
+│   └── review/
+├── teacher/
+│   ├── dashboard/
+│   ├── assignments/
+│   ├── documents/
+│   └── publications/
+└── admin/
+    ├── dashboard/
+    ├── users/
+    ├── academics/
+    ├── feedback/
+    ├── logs/
+    └── settings/
 ```
 
-1. Java tạo document ID, kiểm file/owner, ghi object vào SeaweedFS và metadata vào DB. Nếu một bước thất bại, đánh dấu `FAILED` và dọn object mồ côi bằng tác vụ có thể retry.
-2. Java gọi `POST /internal/v1/documents/index` với `idempotencyKey = documentId:documentVersion:INDEX`; Python lưu job và trả `202` + `jobId`. Worker claim job, parse, tạo artifact xem, chunk, gọi embedding theo batch rồi upsert chunks của version mới.
-3. Sau khi mọi chunk ghi thành công, Python chuyển `active_version` trong một transaction tại vector DB. Version cũ chỉ được dọn sau khi version mới active. Java poll `GET /jobs/{jobId}` và cập nhật `READY`/`FAILED` trong DB nghiệp vụ.
-4. Worker retry tối đa ba lần với backoff; lỗi không phục hồi được ghi `errorCode` không chứa nội dung file. Khi signed URL hết hạn, Java tạo URL mới và gửi lại cùng idempotency key; Python chỉ cập nhật `input_url` và xếp lại job đang ở trạng thái retryable. URL là dữ liệu nhạy cảm, không xuất hiện trong log và bị xóa khỏi job sau khi tải file. Không đánh dấu `READY` chỉ vì job đã được nhận.
-5. Khi xóa, Java chuyển `DELETING` để loại khỏi authorized scope, gọi deindex idempotent, rồi xóa object và metadata sau khi job hoàn tất. Reconciler của Java tiếp tục các bước lỗi; không cần distributed transaction.
+Route guard đọc session/role từ Java. Mọi server state đi qua API client; UI không gọi Python, PostgreSQL, pgvector, storage hoặc model provider.
 
-### RAG Tutor
+### Java
 
-Java kiểm quyền và gửi `authorizedDocumentIds`, question, scope hiện tại cùng `X-Request-Id` trong header. Python chỉ truy hồi chunks thuộc active version bằng cosine distance chính xác; lấy tối đa sáu chunk phù hợp rồi tạo câu trả lời với các chunk ID tham chiếu. Python chỉ xuất citation từ các chunk thực sự truy hồi, gồm document ID, vị trí và excerpt; nếu không có bằng chứng phù hợp trả `NO_EVIDENCE`. Java validate citation thuộc scope, lưu metadata request/usage và trả response. Ngưỡng liên quan, chất lượng tiếng Việt và top-k ban đầu được đánh giá trên fixtures tổng hợp trước demo.
+Mỗi feature có controller, DTO, application service, domain rule và repository adapter:
 
-### Quiz → Progress → Study/Exam
+- `classroom`: Class và membership.
+- `subject`: Subject, ClassSubject và Teacher assignment.
+- `document`: Teacher Library/Personal metadata, upload/status/delete.
+- `publication`: public/revoke theo assignment.
+- `slide`: artifact access và view event.
+- `note`: Note theo Student + Slide.
+- `progress`: Learning Progress và Statistics projection.
+- `study`: Plan, item và calendar.
+- `review`: Quiz review, acceptance, attempt, answer và Java scoring.
+- `admin`: feedback, audit, settings.
+- `integration.ai`, `integration.storage`: outbound adapter.
 
-Python trả câu hỏi với options, `correctOptionIndex`, explanation, difficulty và topic mapping theo structured output. Java kiểm số lượng, options không trùng, index đáp án hợp lệ, topic/document nằm trong scope rồi mới lưu Quiz. Java chấm attempt theo đáp án đã lưu, ghi Learning Event và cập nhật Topic Mastery/history. Read events cập nhật Content Progress riêng. `study` xếp recommendation bằng rule có giải thích; Student chọn đưa vào Study Plan. Mock Exam dùng cơ chế chấm Java và tạo evidence đánh giá lại.
+### Python
 
-## 5. Lỗi, quan sát và kiểm chứng
+```text
+api/routes/
+├── documents.py
+├── personal_rag.py
+├── quizzes.py
+├── slides.py
+└── health.py
+pipelines/
+├── personal_pdf.py
+├── personal_docx.py
+└── teacher_pptx.py
+services/
+├── indexing.py
+├── retrieval.py
+├── rag.py
+├── quiz_generation.py
+└── citation.py
+workers/
+└── index_worker.py
+```
 
-- Mọi internal request mang `requestId`, `schemaVersion`, service token và timeout. Chỉ retry GET hoặc POST có idempotency key. Lỗi trả `code`, `message`, `details`, `traceId`; không chuyển nguyên lỗi/provider payload ra web.
-- Theo dõi job backlog, tỷ lệ `FAILED`, thời gian index, độ trễ retrieval, độ trễ OpenAI, token usage và lỗi citation. Log chỉ có ID/trạng thái/độ trễ, không có nội dung tài liệu hoặc prompt nhạy cảm.
-- Test bằng dữ liệu tổng hợp: upload PDF/PPTX, reindex cùng version, xóa/deindex, worker restart, signed URL hết hạn, hai user có Personal Document khác nhau, Official Content chưa publish, câu hỏi thiếu bằng chứng, citation sai scope, Quiz malformed, Content Progress độc lập với Mastery và toàn bộ [demo flow](demo-flow.md).
+## 2. Authorization policy
+
+### Student material access
+
+```text
+student_id
+  → active class_students
+  → active class_subjects
+  → PUBLISHED document_publications
+  → document
+```
+
+- PPTX: list slides, view artifact, Note, view event, Slide Tutor.
+- PDF: download only.
+- DOCX Teacher: nằm trong Teacher Library; không phải format Student viewer trong MVP.
+
+### Teacher publication
+
+```text
+document.owner_id == teacher_id
+AND class_subject.teacher_id == teacher_id
+AND class_subject.status == ACTIVE
+AND document.status phù hợp
+```
+
+Teacher không public tài liệu của Teacher khác hoặc tới ClassSubject không được phân công.
+
+### Personal RAG
+
+Tất cả selected document phải:
+
+```text
+scope == PERSONAL
+AND owner_id == current_student
+AND file_type IN (PDF, DOCX)
+AND processing_status == READY
+```
+
+Java gửi danh sách đã xác minh. Python vẫn filter `owner_id`, `source_type=PERSONAL`, document IDs và active version.
+
+Cùng authorized scope này được dùng khi Student bấm **Tạo Quiz** trong chatbot. Java không cho client tự gửi thêm document ID ngoài conversation scope.
+
+## 3. State machine
+
+### Document processing
+
+```text
+UPLOADING
+  → PENDING_PROCESSING
+  → PROCESSING
+  → READY
+  ↘ FAILED → PENDING_PROCESSING (retry)
+READY|FAILED → DELETING → DELETED
+```
+
+- Personal PDF/DOCX luôn qua AI indexing.
+- Teacher PPTX qua render/extract/index.
+- Teacher PDF/DOCX có thể READY sau lưu/scan metadata; Teacher PDF không AI index.
+
+### Publication
+
+```text
+PUBLISHED ↔ REVOKED
+```
+
+Re-public cùng document/ClassSubject cập nhật quan hệ cũ, không tạo duplicate.
+
+### Quiz lifecycle và attempt
+
+```text
+GENERATING → REVIEW_REQUIRED → READY → ARCHIVED
+                           ↘ REJECTED
+```
+
+Chỉ owner được accept/reject. Chỉ Quiz `READY` được bắt đầu.
+
+```text
+IN_PROGRESS → SUBMITTED → SCORED
+           ↘ ABANDONED
+```
+
+Submit idempotent. Java khóa answer sau submit và tính score trong transaction.
+
+## 4. Sequence
+
+### Personal upload/index
+
+```mermaid
+sequenceDiagram
+    participant W as Web
+    participant J as Java
+    participant S as Storage
+    participant A as Python
+    participant P as PostgreSQL/pgvector
+
+    W->>J: POST personal-documents (PDF/DOCX)
+    J->>S: Store object
+    J->>P: Insert document PENDING_PROCESSING
+    J->>A: POST documents/index + signed URL
+    A->>P: Insert idempotent job
+    A-->>J: 202 jobId
+    loop poll
+      J->>A: GET jobs/{jobId}
+    end
+    A->>S: Read signed object
+    A->>P: Write chunks/vector and activate version
+    J->>P: Set document READY
+```
+
+### Personal RAG
+
+1. Java load selected documents bằng owner scope.
+2. Nếu một document không READY/không thuộc owner, từ chối toàn request.
+3. Python retrieval filter exact authorized IDs.
+4. Nếu score/evidence không đủ, trả `NO_EVIDENCE`.
+5. Citation builder chỉ dùng chunk đã retrieval.
+6. Java revalidate citation ID trước khi trả.
+
+### Personal RAG → Quiz draft → Ôn tập
+
+1. Web yêu cầu tạo Quiz từ conversation đang có selected documents.
+2. Java load lại conversation và xác minh owner/document `READY`.
+3. Python retrieval đúng authorized IDs và sinh questions/options/correct answer/explanation/sources.
+4. Java validate cấu trúc, đáp án và source; dữ liệu sai bị từ chối toàn bộ.
+5. Java lưu Quiz `REVIEW_REQUIRED` và phát event `QUIZ_GENERATED`.
+6. Trang Ôn tập hiển thị Quiz trong mục **Chờ duyệt**.
+7. Student xem câu hỏi rồi accept; Java chuyển `READY`.
+8. Student làm Quiz; Java chấm và lưu attempt/answers/result.
+
+### Slide Viewer/Tutor
+
+1. Java kiểm membership + publication.
+2. Java trả danh sách artifact slide, không trả PPTX gốc.
+3. `VIEW_SLIDE` upsert progress và append event có chống spam.
+4. Note upsert theo unique key.
+5. Tutor request chỉ chứa document ID, current slide/allowed slides và question.
+
+## 5. Progress và statistics
+
+Progress được tính tại Java:
+
+- Document slide progress = số slide distinct đã xem / tổng slide.
+- ClassSubject progress = aggregation có trọng số theo số slide.
+- Plan completion = item completed / tổng item.
+- Quiz statistics = số Quiz đã duyệt, attempt hoàn thành và điểm trung bình; không dùng để suy ra Topic Mastery.
+
+PDF download có thể ghi event nhưng không tạo page progress. Không có Topic Mastery hay suy luận mức hiểu trong MVP.
+
+Statistics là read model/projection, có thể cache ngắn hạn. Event consumer phải idempotent theo event ID.
+
+## 6. Calendar
+
+`study_plan_items.scheduled_start`, `scheduled_end` và `deadline` là nguồn cho calendar. API calendar truy vấn theo tuần và trả item đã normalize để Web vẽ bảng: cột Thứ 2–Chủ nhật, hàng là khung giờ.
+
+- Bấm ô trống tạo item với ngày/khung giờ đã chọn sẵn.
+- Form **Thêm lịch** chọn ngày, giờ bắt đầu, thời lượng, tiêu đề và liên kết ClassSubject tùy chọn.
+- Java kiểm `scheduled_end > scheduled_start` và cảnh báo xung đột lịch của cùng Student.
+- Không tạo bản ghi calendar trùng với task; timetable chỉ là projection của plan items.
+
+## 7. Quiz validation và scoring
+
+- Java validate tối thiểu hai option, option không trùng, đáp án nằm trong options và source thuộc authorized documents trước khi lưu bản nháp.
+- Student phải duyệt toàn bộ bản nháp; MVP không chỉnh từng đáp án sau khi accept.
+- Multiple choice: Java so sánh answer key đã lưu.
+- Transaction submit: khóa attempt, validate ownership/status, ghi answers, tính score, cập nhật attempt.
+- Kết quả chỉ Student owner xem; Admin không mặc định đọc kết quả cá nhân.
+
+## 8. Job và retry
+
+- Worker claim job bằng row lock/`SKIP LOCKED` hoặc queue tương đương.
+- Idempotency key: `documentId:version:pipeline:INDEX|DEINDEX`.
+- Retry có max attempts, backoff và error code chuẩn hóa.
+- Reindex ghi version mới, activate trong transaction rồi dọn version cũ.
+- Signed URL hết hạn là lỗi retryable; Java cấp URL mới nhưng giữ cùng logical job.
+
+## 9. Error và audit
+
+Error public: validation, forbidden/not-found không làm lộ metadata, conflict, not-ready, processing-failed và internal error có trace ID.
+
+Audit:
+
+- Login/logout và khóa/mở tài khoản.
+- Role, membership, ClassSubject assignment.
+- Publication/revoke.
+- Settings change.
+- Document lifecycle ở mức metadata.
+
+Không audit nội dung Note/chat/document dưới dạng plain text.
+
+## 10. Test trọng yếu
+
+- Student A không thấy Class/Personal Document của Student B.
+- Teacher không public ngoài assignment.
+- Publication bị revoke lập tức mất quyền.
+- PPTX không download; PDF lớp không mở viewer/Tutor/Note.
+- Personal upload từ chối PPTX.
+- Personal RAG không nhận Teacher Document và không rò dữ liệu owner khác.
+- Slide citation sai document/slide bị Java từ chối.
+- Retry không tạo chunk/publication trùng.
+- Quiz generation với source sai scope hoặc malformed answer bị Java từ chối.
+- Quiz `REVIEW_REQUIRED` không tạo được attempt; accept của user khác bị từ chối.
+- Submit attempt idempotent và frontend không tự chấm.
+- Progress slide độc lập với Quiz score; không có Topic Mastery.
+- Admin không đọc Personal chat/plan/Quiz result bằng API mặc định.

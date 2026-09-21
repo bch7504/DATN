@@ -1,4 +1,6 @@
-# Cấu trúc repository đề xuất
+# Cấu trúc repository StudyFlow
+
+Các thư mục boundary đã được tạo để code triển khai sau bám đúng kiến trúc hiện tại. Route con của Next.js sẽ được tạo trong các group tương ứng khi scaffold ứng dụng thật.
 
 ```text
 DATN/
@@ -6,58 +8,77 @@ DATN/
 ├── README.md
 ├── AGENTS.md
 ├── PROJECT_STRUCTURE.md
-├── Plan_do_an_tot_nghiep_hoan_chinh_theo_chuc_nang.docx
 ├── apps/
 │   └── web/
+│       ├── mvp.html
+│       ├── README.md
 │       ├── public/
 │       ├── src/
 │       │   ├── app/
 │       │   │   ├── (auth)/
 │       │   │   ├── (student)/
+│       │   │   │   ├── dashboard/
+│       │   │   │   ├── classes/
+│       │   │   │   ├── materials/
+│       │   │   │   ├── personal-documents/
+│       │   │   │   ├── progress/
+│       │   │   │   ├── plan/
+│       │   │   │   └── review/
+│       │   │   ├── teacher/
+│       │   │   │   ├── dashboard/
+│       │   │   │   ├── assignments/
+│       │   │   │   ├── documents/
+│       │   │   │   └── publications/
 │       │   │   └── admin/
+│       │   │       ├── dashboard/
+│       │   │       ├── users/
+│       │   │       ├── academics/
+│       │   │       ├── feedback/
+│       │   │       ├── logs/
+│       │   │       └── settings/
 │       │   ├── components/
-│       │   │   ├── ui/
-│       │   │   └── features/
 │       │   ├── lib/
 │       │   └── types/
 │       └── tests/
 ├── services/
 │   ├── backend/
-│       ├── src/main/java/com/studyflow/
-│       │   ├── common/
-│       │   ├── config/
-│       │   ├── security/
-│       │   ├── auth/
-│       │   ├── user/
-│       │   ├── subject/
-│       │   ├── document/
-│       │   ├── note/
-│       │   ├── quiz/
-│       │   ├── progress/
-│       │   ├── study/
-│       │   ├── exam/
-│       │   ├── event/
-│       │   ├── admin/
-│       │   └── integration/
-│       │       ├── ai/
-│       │       └── storage/
-│       ├── src/main/resources/
-│       │   └── db/migration/
-│       └── src/test/java/com/studyflow/
+│   │   ├── README.md
+│   │   ├── src/main/java/com/studyflow/
+│   │   │   ├── auth/
+│   │   │   ├── user/
+│   │   │   ├── classroom/
+│   │   │   ├── subject/
+│   │   │   ├── document/
+│   │   │   ├── publication/
+│   │   │   ├── slide/
+│   │   │   ├── note/
+│   │   │   ├── progress/
+│   │   │   ├── study/
+│   │   │   ├── review/
+│   │   │   ├── feedback/
+│   │   │   ├── audit/
+│   │   │   ├── settings/
+│   │   │   └── integration/
+│   │   │       ├── ai/
+│   │   │       └── storage/
+│   │   ├── src/main/resources/db/migration/
+│   │   └── src/test/java/com/studyflow/
 │   └── ai/
 │       ├── app/
-│       │   ├── api/routes/
-│       │   ├── core/
-│       │   ├── schemas/
+│       │   ├── api/routes/      # health, documents, personal_rag, slides, quizzes
+│       │   ├── pipelines/
 │       │   ├── services/
-│       │   ├── pipelines/parsers/
+│       │   ├── workers/
 │       │   └── clients/
-│       ├── evals/datasets/
+│       ├── evals/
 │       └── tests/
 ├── docs/
+│   ├── Plan_do_an_tot_nghiep_dong_bo_toan_bo_kien_truc_CSDL_API.docx
 │   ├── architecture.md
+│   ├── low-level-design.md
 │   ├── database-plan.md
 │   ├── api-plan.md
+│   ├── tech-stack.md
 │   └── demo-flow.md
 ├── infrastructure/
 │   ├── docker/
@@ -65,45 +86,18 @@ DATN/
 └── scripts/
 ```
 
-## Quy ước backend Java
+## Ranh giới
 
-Backend được chia theo feature/domain thay vì chia toàn cục thành `controller`, `service`, `repository`. Bên trong mỗi module có thể dùng cấu trúc:
-
-```text
-quiz/
-├── QuizController.java
-├── QuizApplicationService.java
-├── Quiz.java
-├── QuizRepository.java
-├── QuizJpaRepository.java
-├── QuizMapper.java
-└── dto/
-```
-
-Cách chia này giúp code của một nghiệp vụ nằm gần nhau, giảm việc đi qua nhiều thư mục khi đọc hoặc sửa tính năng.
-
-## Ranh giới module chính
-
-| Module | Trách nhiệm |
+| Vùng | Trách nhiệm |
 |---|---|
-| Java `document` | Upload, metadata, quyền sở hữu và processing status |
-| Python `pipelines` | Parsing, chunking, embedding và indexing theo page/slide |
-| Python `services.rag` | Retrieval, prompt, LLM call, answer và citation |
-| Python `services.quiz` | Sinh câu hỏi có cấu trúc; không chấm điểm |
-| `quiz` | Quiz, question, attempt, answer và backend scoring |
-| `progress` | Content Progress, Topic Mastery, mastery history |
-| `study` | Task, Calendar, Study Plan, Study Session, recommendation |
-| `exam` | Exam, exam topics, countdown, Mock Exam |
-| `event` | Learning Events phục vụ cập nhật progress, statistics và audit |
-| `admin` | User/content management, AI/RAG status, feedback và logs |
-| Java `integration.ai` | Internal API client gọi Python AI service |
-| Python `clients` | Adapter cho Qdrant, object storage và LLM/Embedding provider |
+| Web | UI ba vai trò; chỉ gọi Java |
+| Java `classroom/subject` | Class, membership, ClassSubject, Teacher assignment |
+| Java `document/publication` | Kho tài liệu, ownership, public/revoke |
+| Java `slide/note` | Slide access, Note và view event |
+| Java `progress/study/review` | Progress/Statistics, Plan/Calendar, Quiz review/attempt/scoring |
+| Python `pipelines` | Personal PDF/DOCX indexing và Teacher PPTX render/index |
+| Python `services` | Retrieval, RAG, Slide Tutor, citation và sinh Quiz draft |
+| PostgreSQL `app` | Dữ liệu nghiệp vụ do Java sở hữu |
+| PostgreSQL `ai` | Job/chunk/vector do Python sở hữu |
 
-## Ranh giới Java ↔ Python
-
-- Browser chỉ gọi Java backend; không public AI service trực tiếp cho frontend.
-- Java xác thực user, kiểm tra quyền tài liệu và gửi một scope tối thiểu sang Python.
-- Python trả kết quả AI, citation và trạng thái xử lý; Java validate rồi mới lưu dữ liệu nghiệp vụ.
-- Python không chấm quiz, cập nhật Topic Mastery, tính recommendation hoặc đọc/ghi tùy ý vào PostgreSQL.
-- Mỗi request có `requestId` để nối log giữa hai service.
-- MVP có thể dùng HTTP nội bộ; thêm queue khi indexing thực sự cần chạy nền hoặc retry dài.
+Không tạo module Topic, Quiz Teacher, Mastery, Exam/Mock Exam hoặc Recommendation trong MVP hiện tại.

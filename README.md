@@ -1,42 +1,54 @@
 # StudyFlow — Đồ án tốt nghiệp
 
-Nền tảng quản lý học tập và hỗ trợ ôn thi thông minh tích hợp AI dành cho sinh viên đại học.
+Nền tảng hỗ trợ học tập và ôn luyện tích hợp AI cho ba vai trò Student, Teacher và Admin.
 
-## Xem HTML mock
+## Phạm vi MVP
 
-Mở trực tiếp `index.html` bằng trình duyệt. Mock là một file HTML độc lập, không cần cài package hay chạy build.
+- **Student:** học theo Class → ClassSubject, xem PPTX Teacher public, lưu Note theo slide, dùng Slide AI Tutor, quản lý PDF/DOCX cá nhân và Personal RAG, tạo/duyệt/làm Quiz trong Ôn tập, xem Tiến độ & Thống kê và quản lý Kế hoạch & Lịch theo bảng tuần.
+- **Teacher:** xem lớp/môn được phân công, quản lý kho PDF/PPTX/DOCX, public hoặc thu hồi tài liệu theo ClassSubject.
+- **Admin:** quản lý user/role, Class, Subject, Student membership, Teacher assignment, feedback, audit và settings.
 
-Nếu muốn phục vụ qua HTTP local:
+MVP không có Chapter/Topic, Quiz do Teacher tạo, Topic Mastery, Exam/Mock Exam hoặc recommendation nâng cao.
 
-```powershell
-npx serve .
+## Quy tắc học liệu
+
+- PPTX Teacher public: xem trên web, không tải file gốc; có Note và Slide AI Tutor.
+- PDF Teacher public: chỉ tải xuống; không viewer, Note hoặc AI Tutor.
+- Personal Document: Student chỉ upload PDF/DOCX; chatbot chỉ retrieval trên tài liệu của chính Student đã chọn.
+- Quiz AI được sinh từ các Personal Document đang chọn, vào trạng thái chờ duyệt và chỉ được làm sau khi Student chấp nhận.
+
+## Kiến trúc
+
+```text
+Next.js Web → Java Spring Boot → PostgreSQL + pgvector
+                         ├────→ Object Storage
+                         └────→ Python FastAPI → LLM/Embedding API
 ```
 
-## Kiến trúc đã chốt
+Frontend chỉ gọi Java. Java sở hữu luật nghiệp vụ, quyền, vòng đời Quiz và chấm điểm. Python xử lý parsing/rendering, chunking, embedding, RAG, citation, Slide Tutor và sinh bản nháp Quiz có nguồn.
 
-- Frontend: Next.js, gồm Student UI và Admin UI.
-- Backend: Java Spring Boot theo hướng modular monolith, giữ nghiệp vụ và database.
-- AI: Python FastAPI service riêng cho document processing, embedding, RAG, Quiz Generator và evaluation.
-- Database: PostgreSQL.
-- File storage: Supabase Storage hoặc object storage tương đương.
-- Vector database: Qdrant.
-- Deploy: frontend, Java backend và Python AI service là ba deployable unit riêng.
+## Xem prototype
 
-Tài liệu Word ban đầu ghi FastAPI cho backend. Quyết định mới nhất của dự án là dùng Java Spring Boot cho nghiệp vụ và FastAPI/Python cho AI; cấu trúc repository và HTML mock đã được chuẩn hóa theo quyết định này.
+- Mở `index.html` để xem kiến trúc, rule và demo flow.
+- Mở `apps/web/mvp.html` để chạy prototype ba vai trò.
+
+Hai file dùng fixture tổng hợp và không gọi backend thật.
 
 ## Tài liệu
 
-- `PROJECT_STRUCTURE.md`: cây thư mục và trách nhiệm từng vùng.
-- `AGENTS.md`: quyền đọc/sửa và luồng làm việc bắt buộc cho coding agents.
-- `docs/architecture.md`: kiến trúc, ranh giới module và quyết định về AI.
-- `docs/database-plan.md`: nhóm bảng dự kiến.
-- `docs/api-plan.md`: nhóm API dự kiến.
-- `docs/demo-flow.md`: kịch bản demo khi bảo vệ.
-- `Plan_do_an_tot_nghiep_hoan_chinh_theo_chuc_nang.docx`: tài liệu nguồn, được giữ nguyên.
+- `docs/Plan_do_an_tot_nghiep_dong_bo_toan_bo_kien_truc_CSDL_API.docx`: tài liệu yêu cầu nguồn.
+- `docs/architecture.md`: high-level architecture.
+- `docs/low-level-design.md`: module, state machine và rule chi tiết.
+- `docs/database-plan.md`: schema PostgreSQL + pgvector.
+- `docs/api-plan.md`: public/internal API contract.
+- `docs/tech-stack.md`: stack và triển khai.
+- `docs/demo-flow.md`: kịch bản bảo vệ.
 
 ## Nguyên tắc cốt lõi
 
-1. AI chỉ xử lý tác vụ cần hiểu hoặc sinh ngôn ngữ.
-2. Backend Java chịu trách nhiệm scoring, progress, mastery, statistics, recommendation và exam countdown.
-3. Student chủ động chỉnh Study Plan; AI không tự điều phối lịch.
-4. Personal Documents thuộc người sở hữu và không tự trở thành Official Content.
+1. Student/Teacher/Admin chỉ thao tác đúng scope.
+2. Personal Document thuộc owner; Admin/Teacher không mặc định được xem.
+3. Teacher chỉ public vào ClassSubject được phân công.
+4. Personal RAG và Slide Tutor là hai scope AI tách biệt.
+5. Progress đo hoạt động học; MVP không suy ra Topic Mastery.
+6. Student chủ động quản lý kế hoạch.

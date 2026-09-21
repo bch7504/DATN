@@ -1,4 +1,4 @@
-"""Environment-backed service settings."""
+"""Environment-backed settings for the internal AI service."""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -8,8 +8,7 @@ class Settings(BaseSettings):
 
     environment: str = "local"
     internal_service_token: str
-    qdrant_url: str
-    qdrant_api_key: str | None = None
+    ai_database_url: str
     ai_provider: str = "openai"
     ai_api_key: str
     ai_chat_model: str
@@ -17,4 +16,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
