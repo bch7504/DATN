@@ -212,7 +212,7 @@ Mỗi request phải có:
 
 - `requestId` để trace xuyên service.
 - Service credential; không chuyển tiếp JWT người dùng nếu không cần.
-- Authorized scope tối thiểu như user/document/ClassSubject/page/slide.
+- Authorized scope tối thiểu như user/document/ClassSubject/page.
 - Timeout; retry chỉ cho thao tác an toàn hoặc có idempotency key.
 - Schema version khi contract bắt đầu thay đổi.
 
@@ -226,8 +226,10 @@ Python trả structured data; Java validate trước khi lưu. Mọi thay đổi
 - Quiz dùng `MCQ_SINGLE`: mỗi câu có nhiều lựa chọn nhưng chỉ một đáp án đúng; Quiz AI phải được Student chấp nhận trước khi làm.
 - Recommendation tự động ngoài phạm vi MVP; Student chủ động quyết định Study Plan.
 - Personal Document thuộc owner; Admin không mặc định được dùng làm Official Content.
-- AI Tutor phải trả citation theo page/slide/document và retrieval phải filter đúng scope.
-- PPTX Teacher public chỉ xem web; PDF/DOCX Teacher public chỉ tải xuống.
+- AI Tutor phải trả citation theo document + pageNumber (Personal PDF) hoặc slideNumber (Teacher PPTX) và retrieval phải filter đúng scope.
+- PPTX Teacher public chỉ xem web; PDF Teacher public chỉ tải xuống.
+- Teacher chỉ upload PDF/PPTX; Personal Document chỉ upload PDF. Không nhận DOCX trong MVP. PDF Teacher không có Viewer, Note, Tutor, page progress hoặc AI indexing; PPTX giữ Slide Viewer/Note/Tutor.
+- Teacher upload và public tài liệu theo ClassSubject; Student thuộc lớp mới là người xem PPTX, lưu Note cá nhân và dùng Slide Tutor. Không mô tả các chức năng học này là chức năng của Teacher.
 - Admin không quản lý Quiz hoặc Progress cá nhân của Student trong MVP.
 
 ## 7. Contract bắt buộc cho function và tool

@@ -1,2 +1,2 @@
-"""PDF, PPTX and DOCX parser adapters."""
+"""PDF (Personal RAG) and PPTX (Teacher Slide) parser adapters."""
 

@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 PipelineType = Literal["PERSONAL_RAG", "TEACHER_SLIDE"]
@@ -12,17 +12,42 @@ QuizDifficulty = Literal["EASY", "MEDIUM", "HARD", "MIXED"]
 
 
 class SourceLocation(BaseModel):
-    kind: Literal["PAGE", "SLIDE", "SECTION"]
+    kind: Literal["PAGE", "SLIDE"]
     value: str
 
 
 class DocumentIndexRequest(BaseModel):
+    """Schema v2: authorized Personal PDF or Teacher PPTX indexing input."""
     document_id: str = Field(alias="documentId")
     document_version: int = Field(alias="documentVersion", ge=1)
     pipeline_type: PipelineType = Field(alias="pipelineType")
     owner_id: str | None = Field(default=None, alias="ownerId")
     signed_file_url: str = Field(alias="signedFileUrl")
     mime_type: str = Field(alias="mimeType")
+
+    @model_validator(mode="after")
+    def validate_pipeline_file(self) -> "DocumentIndexRequest":
+        """Validate metadata before a worker fetches the authorized file.
+
+        Args:
+            self: Parsed request from Java with pipeline, MIME and owner scope.
+        Returns:
+            DocumentIndexRequest: This request, unchanged; no side effects.
+        Raises:
+            ValueError: Unsupported MIME/pipeline or missing Personal owner;
+                caller maps validation failure to 422 INVALID_INDEX_INPUT.
+
+        File structure and actual ownership still require Java/worker checks.
+        """
+        expected_mime = (
+            "application/pdf" if self.pipeline_type == "PERSONAL_RAG"
+            else "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        )
+        if self.mime_type != expected_mime:
+            raise ValueError("INVALID_INDEX_INPUT: unsupported pipeline/MIME")
+        if self.pipeline_type == "PERSONAL_RAG" and not (self.owner_id or "").strip():
+            raise ValueError("INVALID_INDEX_INPUT: Personal ownerId required")
+        return self
 
 
 class DocumentDeindexRequest(BaseModel):

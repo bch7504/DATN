@@ -5,7 +5,7 @@
 | ID | Priority | Target |
 |---|---|---|
 | NFR-PERF-001 | MUST | Public API không AI đạt p95 ≤ 1 giây khi service warm và 50 user đồng thời. |
-| NFR-PERF-002 | MUST | RAG/Slide Tutor đạt p95 ≤ 20 giây, không tính cold start platform. |
+| NFR-PERF-002 | MUST | RAG/Slide AI Tutor đạt p95 ≤ 20 giây, không tính cold start platform. |
 | NFR-PERF-003 | MUST | Tạo Quiz trả `202` ≤ 1 giây; 95% job hoàn tất ≤ 60 giây. |
 | NFR-PERF-004 | SHOULD | Index file trong giới hạn kích thước hoàn tất ≤ 5 phút ở 95th percentile. |
 | NFR-PERF-005 | MUST | List API phân trang; mặc định 20, tối đa 100 item/page. |

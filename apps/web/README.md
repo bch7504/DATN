@@ -29,6 +29,9 @@ Prototype dùng fixture tổng hợp, không gọi backend. Có thể mở trự
 - Không gọi Python, pgvector, Object Storage hoặc model provider trực tiếp.
 - Không tính progress hay chấm Quiz ở client.
 - PPTX lớp chỉ xem; PDF lớp chỉ download.
-- Personal upload chỉ nhận PDF/DOCX.
-- Personal RAG và Slide Tutor không dùng chung scope.
+- Personal upload chỉ nhận PDF.
+- Teacher upload PDF/PPTX; Student xem slide PPTX, ghi Note và dùng Tutor. PDF Teacher public chỉ có tải xuống.
+- Personal RAG và Slide AI Tutor không dùng chung scope.
 - Quiz draft sinh từ Personal RAG phải được Student chấp nhận trước khi bắt đầu attempt.
+
+Kiểm tra prototype: `node --test apps/web/tests/pdf-policy.test.cjs` từ root. Upload trong HTML chỉ kiểm tra extension/MIME/header/size tại máy và hiển thị mô phỏng; kiểm tra cấu trúc PDF/PPTX và xử lý AI thật cần Java/Python. Không gửi file đã chọn lên server.

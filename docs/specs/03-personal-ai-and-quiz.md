@@ -2,19 +2,19 @@
 
 ## 1. Mục tiêu
 
-Cho phép Student quản lý PDF/DOCX cá nhân, hỏi đáp trên đúng tài liệu đã chọn và tạo Quiz nhiều lựa chọn có một đáp án đúng kèm citation.
+Cho phép Student quản lý PDF cá nhân, hỏi đáp trên đúng tài liệu đã chọn và tạo Quiz nhiều lựa chọn có một đáp án đúng kèm citation.
 
 ## 2. Functional requirements
 
 | ID | Priority | Requirement |
 |---|---|---|
 | PAI-FR-001 | MUST | Student upload, xem trạng thái và xóa Personal Document của mình. |
-| PAI-FR-002 | MUST | PDF/DOCX hợp lệ được extract, chunk, embed và lưu pgvector bất đồng bộ. |
+| PAI-FR-002 | MUST | PDF hợp lệ được extract, chunk, embed và lưu pgvector bất đồng bộ. |
 | PAI-FR-003 | MUST | Student tạo conversation với một hoặc nhiều document `READY`. |
 | PAI-FR-004 | MUST | RAG trả `ANSWERED` hoặc `NO_EVIDENCE` cùng citation đúng scope. |
 | PAI-FR-005 | MUST | Student yêu cầu sinh Quiz từ document scope của conversation. |
 | PAI-FR-006 | MUST | Quiz sinh bất đồng bộ và xuất hiện ở Ôn tập khi `REVIEW_REQUIRED`. |
-| PAI-BR-001 | MUST | Personal upload chỉ nhận PDF/DOCX tối đa 20 MB. |
+| PAI-BR-001 | MUST | Personal upload chỉ nhận PDF tối đa 20 MB. |
 | PAI-BR-002 | MUST | Client không được thêm document ngoài conversation khi hỏi hoặc sinh Quiz. |
 | PAI-BR-003 | MUST | Quiz dùng `MCQ_SINGLE`: nhiều lựa chọn nhưng chỉ một đáp án đúng. |
 | PAI-SEC-001 | MUST | Java và Python đều filter owner/document/version; citation sai scope bị từ chối. |
@@ -23,7 +23,7 @@ Cho phép Student quản lý PDF/DOCX cá nhân, hỏi đáp trên đúng tài l
 
 ### `POST /api/v1/personal-documents`
 
-- **Args/input:** multipart `file`; PDF/DOCX, MIME thực khớp extension, `size <= 20 MB`.
+- **Args/input:** multipart `file`; PDF, MIME thực khớp extension, `size <= 20 MB`.
 - **Output:** `202` với `{documentId, fileName, fileType, processingStatus:"PENDING_PROCESSING"}`.
 - **Errors:** `413 FILE_TOO_LARGE`; `415 UNSUPPORTED_FILE_TYPE`; `422 INVALID_FILE`; `503 STORAGE_UNAVAILABLE`.
 - **Side effect:** lưu object, document metadata và enqueue index idempotent.
@@ -57,7 +57,7 @@ Cho phép Student quản lý PDF/DOCX cá nhân, hỏi đáp trên đúng tài l
 
 - **Input:** `{question}` 1–2.000 ký tự; scope lấy từ conversation do Java sở hữu.
 - **Output:** `{messageId, status:"ANSWERED|NO_EVIDENCE", answer, citations, traceId}`.
-- **Citation:** `{documentId, location:{kind:"PAGE|SECTION", value}, excerpt}`.
+- **Citation:** `{documentId, location:{kind:"PAGE", value}, excerpt}`; `value` là số trang PDF bắt đầu từ 1.
 - **Errors:** `404 CONVERSATION_NOT_FOUND`; `409 DOCUMENT_NOT_READY`; `503 AI_SERVICE_UNAVAILABLE`.
 - **Side effect:** lưu message/citation có retention; ghi event `ASK_AI`.
 
@@ -81,11 +81,11 @@ Mỗi question Python trả về:
 
 ```json
 {
-  "content": "Chọn các phát biểu đúng về tính cô lập",
+  "content": "Mục đích của tính cô lập giữa các transaction là gì?",
   "options": [
     {"id": "A", "text": "Giảm ảnh hưởng giữa transaction"},
     {"id": "B", "text": "Luôn loại bỏ mọi anomaly"},
-    {"id": "C", "text": "Phụ thuộc isolation level"}
+    {"id": "C", "text": "Xóa toàn bộ ràng buộc dữ liệu"}
   ],
   "correctOptionIndex": 0,
   "explanation": "...",
@@ -139,3 +139,10 @@ Mọi request có `X-Request-Id`, `X-Schema-Version`, service credential và tim
 - **Given** Personal Document đã được index
 - **When** owner yêu cầu xóa
 - **Then** tài liệu lập tức không còn dùng được cho RAG/Quiz và job dọn vector/object có thể retry an toàn.
+
+### PAI-AC-005 — Định dạng PDF và lớp văn bản
+
+- **Given** Student upload file không phải PDF hoặc đổi đuôi file khác thành `.pdf`
+- **When** Java kiểm extension, MIME thực và cấu trúc file
+- **Then** từ chối bằng `415 UNSUPPORTED_FILE_TYPE` hoặc `422 INVALID_FILE`.
+- PDF cá nhân không có văn bản trích xuất được chuyển `FAILED` với `PDF_TEXT_REQUIRED`; chưa hỗ trợ OCR trong MVP. File mã hóa cần mật khẩu trả `PDF_ENCRYPTED`. UI hướng dẫn upload bản PDF có lớp văn bản, không cho dùng tài liệu lỗi để hỏi hoặc sinh Quiz.

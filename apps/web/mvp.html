@@ -1111,7 +1111,7 @@
       border-color: var(--amber-border);
     }
 
-    .file.docx {
+    .file.document {
       color: var(--blue);
       background: var(--blue-bg);
       border-color: #bfdbfe;
@@ -2395,7 +2395,7 @@
             </span>
           </div>
           <h1>Học đúng tài liệu, đúng phạm vi.</h1>
-          <p>ClassSubject, Personal RAG, Slide Tutor, Lịch tuần và AI Quiz trong một luồng quản lý ôn thi xuyên suốt.
+          <p>ClassSubject, Personal RAG, Slide AI Tutor, Lịch tuần và AI Quiz trong một luồng quản lý ôn thi xuyên suốt.
           </p>
           <div class="auth-tags">
             <span>Student Workspace</span>
@@ -2458,7 +2458,7 @@
         </div>
         <div class="auth-note">
           <strong>Quy tắc scope cốt lõi:</strong> PPTX lớp chỉ xem web + Note + Tutor · PDF lớp chỉ download · Personal:
-          PDF/DOCX + Personal RAG độc lập.
+          PDF + Personal RAG độc lập.
         </div>
       </div>
     </div>
@@ -2567,7 +2567,7 @@
                 <span class="trend">Tuần này</span>
               </div>
               <h3>46</h3>
-              <p>Slide đã xem</p>
+              <p>slide đã xem</p>
             </article>
             <article class="panel stat">
               <div class="stat-top">
@@ -2631,7 +2631,7 @@
                   <span>14:30</span>
                   <span>
                     <b>Đọc tài liệu cá nhân</b>
-                    <small>Đề cương ôn tập.docx · 30 phút · Personal RAG</small>
+                    <small>Đề cương ôn tập.pdf · 30 phút · Personal RAG</small>
                   </span>
                   <span class="status processing">Đã lên lịch</span>
                 </div>
@@ -2730,7 +2730,7 @@
           <div class="page-head">
             <div>
               <h1>Cơ sở dữ liệu · KTPM-K21</h1>
-              <p>Giáo viên: Cô Lan Hoàng · Slide/PPTX luôn xếp trước PDF theo kịch bản demo.</p>
+              <p>Giáo viên: Cô Lan Hoàng · PPTX luôn xếp trước PDF theo kịch bản demo.</p>
             </div>
             <div class="actions">
               <button class="button" data-page="student-classes">← Đổi môn học</button>
@@ -2771,7 +2771,7 @@
                       </span>
                     </div>
                   </td>
-                  <td>Slide Web Viewer</td>
+                  <td>Slide Viewer</td>
                   <td>
                     <div class="progress" style="width:120px"><i style="width:43%"></i></div>
                   </td>
@@ -2788,7 +2788,7 @@
                       </span>
                     </div>
                   </td>
-                  <td>Slide Web Viewer</td>
+                  <td>Slide Viewer</td>
                   <td>
                     <div class="progress" style="width:120px"><i style="width:18%"></i></div>
                   </td>
@@ -2820,10 +2820,10 @@
           <div class="page-head">
             <div>
               <h1>Tài liệu cá nhân & RAG</h1>
-              <p>Kho riêng của sinh viên. Chỉ nhận PDF/DOCX và được giới hạn chặt chẽ cho Personal RAG.</p>
+              <p>Kho riêng của sinh viên. Chỉ nhận PDF và được giới hạn chặt chẽ cho Personal RAG.</p>
             </div>
             <div class="actions">
-              <button class="button primary" data-modal="personal">Upload PDF / DOCX</button>
+              <button class="button primary" data-modal="personal">Upload PDF</button>
             </div>
           </div>
           <div class="tabs">
@@ -2852,8 +2852,8 @@
                   <div class="selection">
                     <input type="checkbox" id="pd2" checked>
                     <label for="pd2">
-                      <b>Ghi chú Transaction.docx</b>
-                      <small>DOCX · 1.2 MB · Owner: Minh Nguyễn (Student)</small>
+                      <b>Ghi chú Transaction.pdf</b>
+                      <small>PDF · 1.2 MB · Owner: Minh Nguyễn (Student)</small>
                     </label>
                     <span class="status">READY</span>
                   </div>
@@ -2878,7 +2878,7 @@
                   <li>Chỉ tài liệu do chính bạn sở hữu (Owner)</li>
                   <li>Chỉ tìm kiếm trên các file READY đã tick chọn</li>
                   <li>Không truy cập tài liệu Teacher hay của người khác</li>
-                  <li>Citation minh bạch theo document / page / section</li>
+                  <li>Citation minh bạch theo document / page</li>
                   <li>Nếu không đủ bằng chứng trả lời: <b style="color:var(--ink)">NO_EVIDENCE</b></li>
                 </ul>
                 <button class="button soft" data-personal-tab-jump="chat" style="margin-top:18px;width:100%">Hỏi đáp
@@ -2894,7 +2894,7 @@
                   <b>2 Personal Documents đã được Java xác minh phạm vi:</b>
                   <div class="selected-docs">
                     <span class="chip green">Đề cương ôn tập CSDL.pdf</span>
-                    <span class="chip green">Ghi chú Transaction.docx</span>
+                    <span class="chip green">Ghi chú Transaction.pdf</span>
                   </div>
                 </div>
                 <div class="chat" id="ragChat">
@@ -2910,7 +2910,7 @@
                     trạng thái trung gian của nhau. Mức độ cô lập (Isolation level) quyết định những hiện tượng đọc nào
                     được phép xảy ra.
                     <div class="citation">Đề cương ôn tập CSDL.pdf · Trang 12</div>
-                    <div class="citation">Ghi chú Transaction.docx · Section 3</div>
+                    <div class="citation">Ghi chú Transaction.pdf · Trang 3</div>
                   </div>
                 </div>
                 <form class="composer" id="ragForm">
@@ -3030,7 +3030,7 @@
                 <span class="trend">+12 slides</span>
               </div>
               <h3>46/92</h3>
-              <p>Distinct Slide đã xem</p>
+              <p>Distinct slide đã xem</p>
             </article>
             <article class="panel stat">
               <div class="stat-top">
@@ -3411,7 +3411,7 @@
             <div class="question">
               <p><b>Câu 2.</b> Nguyên lý ACID bảo đảm điều gì khi xảy ra sự cố gián đoạn transaction?</p>
               <div class="chip green">Đáp án dự kiến: Atomicity bảo đảm rollback toàn bộ thay đổi</div>
-              <div class="citation">Ghi chú Transaction.docx · Section 3</div>
+              <div class="citation">Ghi chú Transaction.pdf · Trang 3</div>
             </div>
             <div class="actions" style="margin-top:18px">
               <button class="button warn" id="rejectQuiz">Từ chối Quiz này</button>
@@ -3568,7 +3568,7 @@
           <div class="page-head">
             <div>
               <h1>Kho tài liệu giáo viên</h1>
-              <p>Upload file PDF, PPTX hoặc DOCX. File mới upload chưa tự động public cho sinh viên.</p>
+              <p>Teacher upload và public tài liệu: Student xem PPTX với Note/Tutor, hoặc tải PDF. File mới chưa tự động public.</p>
             </div>
             <div class="actions">
               <button class="button primary" data-modal="teacher">+ Upload tài liệu mới</button>
@@ -3619,14 +3619,14 @@
                 <tr>
                   <td>
                     <div class="doc">
-                      <span class="file docx">DOCX</span>
+                      <span class="file document">PDF</span>
                       <span>
-                        <b>Bài tập thực hành Transaction.docx</b>
+                        <b>Bài tập thực hành Transaction.pdf</b>
                         <small>Vừa upload 3 phút trước</small>
                       </span>
                     </div>
                   </td>
-                  <td>Văn bản DOCX</td>
+                  <td>Văn bản PDF</td>
                   <td><span class="status processing">PROCESSING</span></td>
                   <td>Chưa public</td>
                   <td><button class="button" disabled>Chờ xử lý</button></td>
@@ -4094,7 +4094,7 @@
                 </div>
                 <div class="field full">
                   <label>Định dạng file cá nhân cho phép</label>
-                  <input value="PDF, DOCX" readonly style="background:#f8fafc">
+                  <input value="PDF" readonly style="background:#f8fafc">
                 </div>
               </div>
               <button class="button primary" data-action="save-settings" style="margin-top:18px">Lưu cấu hình</button>
@@ -4146,8 +4146,9 @@
       </div>
       <div class="form">
         <div class="field full">
-          <label>Chọn file tài liệu (Chỉ PDF hoặc DOCX)</label>
-          <input type="file" accept=".pdf,.docx" id="personalFile">
+          <label>Chọn file tài liệu (Chỉ PDF)</label>
+          <input type="file" accept=".pdf,application/pdf" id="personalFile">
+          <small>PDF có lớp văn bản, tối đa 20 MB. Prototype chỉ kiểm tra file tại máy; không gửi lên server.</small>
         </div>
         <div class="field full">
           <label>Chính sách phân quyền</label>
@@ -4169,8 +4170,9 @@
       </div>
       <div class="form">
         <div class="field full">
-          <label>Chọn file bài giảng (PDF, PPTX hoặc DOCX)</label>
-          <input type="file" accept=".pdf,.pptx,.docx">
+          <label>Chọn file bài giảng (PDF hoặc PPTX)</label>
+          <input type="file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" id="teacherFile">
+          <small>Tối đa 50 MB. Teacher đăng tài liệu; Student xem slide PPTX và dùng Note/Tutor. PDF chỉ tải xuống. Prototype không gửi file lên server.</small>
         </div>
         <div class="field full">
           <label>Trạng thái ban đầu sau khi tải lên</label>
@@ -4459,7 +4461,7 @@
       showPage('slide-viewer');
     }));
     document.querySelectorAll('[data-download-pdf]').forEach(b => b.addEventListener('click', () => {
-      showToast('Java Backend đã xác thực scope và gửi file PDF demo');
+      showToast('Demo: PDF lớp chỉ tải xuống; chưa có backend gửi file thật.');
     }));
     document.querySelectorAll('[data-material-filter]').forEach(b => b.addEventListener('click', () => {
       document.querySelectorAll('[data-material-filter]').forEach(x => x.classList.toggle('active', x === b));
@@ -4742,13 +4744,59 @@
       });
     });
 
-    document.querySelectorAll('[data-submit]').forEach(b => {
-      b.addEventListener('click', () => {
-        b.closest('.modal-layer').classList.remove('show');
-        showToast(b.dataset.submit === 'publish'
-          ? 'Đã tạo publication phân phối tới đúng ClassSubject'
-          : 'Đã tạo upload fixture; Java Backend chuẩn bị xử lý');
-      });
+    /**
+     * Validate a selected upload in this local prototype.
+     * Input: browser-selected file only; no network or persistence.
+     * @param {File|undefined} file Required selected file; Personal PDF <=20 MB, Teacher PDF/PPTX <=50 MB.
+     * @param {'personal'|'teacher'} scope Required upload scope; no default.
+     * @returns {Promise<string|null>} User-visible validation error, or null if valid.
+     * @throws {Error} File read failure; caller displays a retry message.
+     */
+    async function validateUploadFile(file, scope) {
+      if (!['personal', 'teacher'].includes(scope)) return 'Phạm vi upload không hợp lệ.';
+      if (!file) return 'Vui lòng chọn file trước khi tải lên.';
+      const pdf = /\.pdf$/i.test(file.name);
+      const pptx = /\.pptx$/i.test(file.name);
+      if (!pdf && !(scope === 'teacher' && pptx)) {
+        return scope === 'personal' ? 'Tài liệu cá nhân chỉ nhận PDF.' : 'Kho Teacher chỉ nhận PDF hoặc PPTX.';
+      }
+      const mime = pdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      if (file.type && file.type !== mime) return 'Loại file không khớp phần mở rộng.';
+      const limit = scope === 'personal' ? 20 : 50;
+      if (!file.size || file.size > limit * 1024 * 1024) return `File phải có dữ liệu và không vượt quá ${limit} MB.`;
+      const bytes = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+      if (pdf) return new TextDecoder().decode(bytes) === '%PDF-' ? null : 'File không có header PDF hợp lệ.';
+      // A ZIP signature is only a preliminary check. Java must validate the PPTX package.
+      return bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 3 && bytes[3] === 4
+        ? null : 'File không có header PPTX hợp lệ.';
+    }
+
+    /**
+     * Handle a prototype upload/publication click; never uploads actual data.
+     * @param {MouseEvent} event Click on a button with data-submit.
+     * @returns {Promise<void>} Displays validation/fixture notice and closes valid modal.
+     * @throws {Error} None propagated; file-read errors become a user-visible notice.
+     */
+    async function submitDemoDocument(event) {
+      const button = event.currentTarget;
+      if (['personal', 'teacher'].includes(button.dataset.submit)) {
+        try {
+          const scope = button.dataset.submit;
+          const input = document.getElementById(scope === 'personal' ? 'personalFile' : 'teacherFile');
+          const error = await validateUploadFile(input.files[0], scope);
+          if (error) { showToast(error); return; }
+        } catch {
+          showToast('Không đọc được file. Vui lòng chọn lại.');
+          return;
+        }
+      }
+      button.closest('.modal-layer').classList.remove('show');
+      showToast(button.dataset.submit === 'publish'
+        ? 'Demo: mô phỏng public tài liệu cho lớp/môn.'
+        : 'Demo: file được chọn tại máy; chưa upload hoặc xử lý trên server.');
+    }
+    document.querySelectorAll('[data-submit]').forEach(button => {
+      button.addEventListener('click', submitDemoDocument);
     });
 
     function escapeHtml(value) {

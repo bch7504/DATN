@@ -1,1 +1,1 @@
-"""Personal RAG, Slide Tutor, citation and Quiz draft generation services."""
+"""Personal RAG, Slide AI Tutor, citation and Quiz draft generation services."""

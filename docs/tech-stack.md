@@ -9,11 +9,11 @@
 | Web | Next.js, TypeScript, Tailwind CSS | Student/Teacher/Admin UI, SSR/client interaction |
 | API nghiệp vụ | Java, Spring Boot, Spring Security, JPA/Hibernate | Public API, RBAC, transaction, business rules |
 | Migration nghiệp vụ | Flyway | Schema `app` |
-| AI API/worker | Python, FastAPI, Pydantic | Parsing, rendering, RAG, Slide Tutor |
+| AI API/worker | Python, FastAPI, Pydantic | Parsing, rendering, RAG, Slide AI Tutor |
 | Migration AI | Alembic | Schema `ai` |
 | Database | PostgreSQL | System of record |
-| Vector search | pgvector | Embedding cho Personal RAG và Slide Tutor |
-| Storage | S3-compatible Object Storage | PDF/PPTX/DOCX, slide render và preview |
+| Vector search | pgvector | Embedding cho Personal RAG và Slide AI Tutor |
+| Storage | S3-compatible Object Storage | PDF/PPTX, slide render và preview |
 | Model | OpenAI hoặc Gemini theo quota | Chat/embedding qua Python adapter |
 | Container/CI | Docker, GitHub Actions | Local parity và quality gate |
 | Deploy | Vercel + Render/Railway hoặc nền tảng tương đương | Public demo end-to-end |
@@ -55,7 +55,6 @@ Spring Security xử lý JWT/RBAC. Application service kiểm ownership/membersh
 Pipeline:
 
 - Personal PDF: extract text theo page → chunk → embed → pgvector.
-- Personal DOCX: extract text theo section/paragraph → chunk → embed.
 - Teacher PPTX: extract text + render slide → chunk/embed phần cần Tutor.
 - Teacher PDF: không AI index trong MVP.
 

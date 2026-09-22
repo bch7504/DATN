@@ -29,7 +29,7 @@ Cho phép Student xem hoạt động học, lập lịch theo tuần, duyệt Qu
 
 - **Errors:** `404` ngoài membership; `422 INVALID_DATE_RANGE`.
 - Không trả Topic Mastery hoặc suy luận mức hiểu.
-- PDF/DOCX Teacher download không tạo page progress.
+- PDF Teacher download không tạo page progress.
 
 ## 4. Study Plan và Calendar contracts
 

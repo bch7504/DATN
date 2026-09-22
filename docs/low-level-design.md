@@ -58,7 +58,6 @@ api/routes/
 └── health.py
 pipelines/
 ├── personal_pdf.py
-├── personal_docx.py
 └── teacher_pptx.py
 services/
 ├── indexing.py
@@ -82,8 +81,8 @@ student_id
   → document
 ```
 
-- PPTX: list slides, view artifact, Note, view event, Slide Tutor.
-- PDF/DOCX: download only; không có Viewer, Note, Tutor hoặc page progress.
+- PPTX: list slides, view artifact, Note, view event, Slide AI Tutor.
+- PDF: download only; không có Viewer, Note, Tutor hoặc page progress.
 
 ### Teacher publication
 
@@ -103,7 +102,7 @@ Tất cả selected document phải:
 ```text
 scope == PERSONAL
 AND owner_id == current_student
-AND file_type IN (PDF, DOCX)
+AND file_type = PDF
 AND processing_status == READY
 ```
 
@@ -124,9 +123,9 @@ UPLOADING
 READY|FAILED → DELETING → DELETED
 ```
 
-- Personal PDF/DOCX luôn qua AI indexing.
+- Personal PDF luôn qua AI indexing.
 - Teacher PPTX qua render/extract/index.
-- Teacher PDF/DOCX có thể READY sau lưu/scan metadata; Teacher PDF không AI index.
+- Teacher PDF có thể READY sau lưu/scan metadata; Teacher PDF không AI index.
 
 ### Publication
 
@@ -164,7 +163,7 @@ sequenceDiagram
     participant A as Python
     participant P as PostgreSQL/pgvector
 
-    W->>J: POST personal-documents (PDF/DOCX)
+    W->>J: POST personal-documents (PDF)
     J->>S: Store object
     J->>P: Insert document PENDING_PROCESSING
     J->>A: POST documents/index + signed URL
@@ -263,8 +262,8 @@ Không audit nội dung Note/chat/document dưới dạng plain text.
 - Student A không thấy Class/Personal Document của Student B.
 - Teacher không public ngoài assignment.
 - Publication bị revoke lập tức mất quyền.
-- PPTX không download; PDF/DOCX lớp không mở viewer/Tutor/Note.
-- Personal upload từ chối PPTX.
+- PPTX không download; PDF lớp không mở viewer/Tutor/Note.
+- Personal upload từ chối PPTX/DOCX.
 - Personal RAG không nhận Teacher Document và không rò dữ liệu owner khác.
 - Slide citation sai document/slide bị Java từ chối.
 - Retry không tạo chunk/publication trùng.

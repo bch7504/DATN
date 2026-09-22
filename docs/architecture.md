@@ -8,8 +8,8 @@
 
 StudyFlow gom lớp học, môn học, học liệu, tài liệu cá nhân, tiến độ, kế hoạch và ôn tập vào một hệ thống. AI chỉ xuất hiện tại các điểm cần hiểu nội dung:
 
-1. **Personal Document RAG:** Student chọn một hoặc nhiều PDF/DOCX do chính mình upload và hỏi đáp có citation.
-2. **Slide AI Tutor:** Student đang xem Slide/PPTX do Teacher public và hỏi trong đúng tài liệu/slide được phép.
+1. **Personal Document RAG:** Student chọn một hoặc nhiều PDF do chính mình upload và hỏi đáp có citation.
+2. **Slide AI Tutor:** Student đang xem PPTX do Teacher public và hỏi trong đúng tài liệu/slide được phép.
 3. **Personal Quiz Generator:** từ cùng các Personal Documents đã chọn trong chatbot, Student yêu cầu AI sinh bản nháp Quiz có nguồn; Java validate và lưu để Student duyệt.
 
 MVP không có Chapter/Topic, Quiz do Teacher tạo/giao, Topic Mastery, Exam/Mock Exam hoặc recommendation nâng cao. Quiz trong MVP do chính Student yêu cầu tạo từ chatbot Personal Documents và chỉ được làm sau khi Student chấp nhận bản nháp.
@@ -33,9 +33,9 @@ Class
 | Ngữ cảnh | Loại file | Student được làm gì | AI |
 |---|---|---|---|
 | Tài liệu lớp/môn | PPTX/Slide | Xem trên web, lưu Note theo slide; không tải file gốc | Slide AI Tutor |
-| Tài liệu lớp/môn | PDF/DOCX | Chỉ tải xuống | Không Note, không AI Tutor |
-| Kho Teacher | PDF/PPTX/DOCX | Teacher quản lý và public | Chỉ PPTX cần xử lý cho Slide Tutor |
-| Tài liệu cá nhân | PDF/DOCX | Owner upload, quản lý, chọn một/nhiều file để hỏi | Personal RAG |
+| Tài liệu lớp/môn | PDF | Chỉ tải xuống | Không Note, không AI Tutor |
+| Kho Teacher | PDF/PPTX | Teacher quản lý và public | Chỉ PPTX cần xử lý cho Slide AI Tutor |
+| Tài liệu cá nhân | PDF | Owner upload, quản lý, chọn một/nhiều file để hỏi | Personal RAG |
 
 ## 3. Sơ đồ hệ thống
 
@@ -68,7 +68,7 @@ PostgreSQL là một cụm dữ liệu trung tâm có extension pgvector. Nên t
 |---|---|
 | Next.js | UI Student/Teacher/Admin, Slide Viewer, form, loading/error, gọi Java API |
 | Spring Boot | Auth/JWT/RBAC, user, class, subject, assignment, document/publication, Note, progress/statistics, plan/calendar, Quiz review/attempt/scoring, audit và public API |
-| FastAPI | Parse/render tài liệu cần AI, chunk, embedding, retrieval, RAG, Slide Tutor, sinh bản nháp Quiz và citation |
+| FastAPI | Parse/render tài liệu cần AI, chunk, embedding, retrieval, RAG, Slide AI Tutor, sinh bản nháp Quiz và citation |
 | PostgreSQL + pgvector | Dữ liệu nghiệp vụ, AI job/chunk/embedding trong schema tách biệt |
 | Object Storage | File gốc, slide render/preview và tài nguyên lớn |
 
@@ -76,7 +76,7 @@ PostgreSQL là một cụm dữ liệu trung tâm có extension pgvector. Nên t
 
 ### 5.1 Teacher public tài liệu
 
-1. Teacher upload PDF/PPTX/DOCX vào kho; Java kiểm MIME, kích thước và owner rồi lưu Object Storage.
+1. Teacher upload PDF/PPTX vào kho; Java kiểm MIME, kích thước và owner rồi lưu Object Storage.
 2. Với PPTX, Java tạo job để Python extract text và render slide; tài liệu chuyển `PROCESSING → READY` hoặc `FAILED`.
 3. Teacher chọn file và ClassSubject được phân công để public.
 4. Java kiểm assignment, tạo `document_publications`.
@@ -88,11 +88,11 @@ PostgreSQL là một cụm dữ liệu trung tâm có extension pgvector. Nên t
 2. Web nhận slide artifact qua Java hoặc URL ký ngắn hạn, không nhận file PPTX gốc.
 3. Sự kiện `VIEW_SLIDE` cập nhật Learning Progress.
 4. Note lưu theo `student + document + slide_number`.
-5. Câu hỏi Slide Tutor đi qua Java; Java gửi đúng document/slide scope sang Python. Citation phải trỏ về slide thuộc cùng tài liệu.
+5. Câu hỏi Slide AI Tutor đi qua Java; Java gửi đúng document/slide scope sang Python. Citation phải trỏ về slide thuộc cùng tài liệu.
 
 ### 5.3 Personal Document RAG
 
-1. Student upload PDF/DOCX; Java kiểm owner và định dạng.
+1. Student upload PDF; Java kiểm owner và định dạng.
 2. Java lưu file và enqueue indexing idempotent.
 3. Python extract, chunk, embed và ghi `ai.document_chunks` với owner/scope.
 4. Student chọn một hoặc nhiều document `READY`.
@@ -101,11 +101,11 @@ PostgreSQL là một cụm dữ liệu trung tâm có extension pgvector. Nên t
 
 Từ cùng context đã chọn, Student có thể yêu cầu tạo Quiz. Java gửi scope hợp lệ sang Python, validate câu hỏi/đáp án/source rồi lưu Quiz ở `REVIEW_REQUIRED`; Quiz chưa được dùng để làm bài cho tới khi Student chấp nhận.
 
-Personal RAG không truy xuất tài liệu lớp/môn. Slide Tutor không truy xuất Personal Document.
+Personal RAG không truy xuất tài liệu lớp/môn. Slide AI Tutor không truy xuất Personal Document.
 
 ### 5.4 Tiến độ, kế hoạch và ôn tập
 
-- Tiến độ dựa trên slide đã xem và hoạt động đã hoàn thành; PDF/DOCX Teacher chỉ tải xuống nên không có page progress.
+- Tiến độ dựa trên slide đã xem và hoạt động đã hoàn thành; PDF Teacher chỉ tải xuống nên không có page progress.
 - Thống kê gồm slide đã xem, tài liệu cá nhân, kế hoạch hoàn thành và lịch sử làm Quiz.
 - Student tự tạo Study Plan, task, deadline và lịch. Recommendation nâng cao để Future Work.
 - Ôn tập gồm quản lý Quiz và làm Quiz. Quiz AI mới sinh ở trạng thái `REVIEW_REQUIRED`; Student xem lại, chấp nhận để chuyển `READY`, rồi mới tạo attempt. Java chấm điểm và lưu answer/result.

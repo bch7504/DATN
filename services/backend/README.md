@@ -23,7 +23,7 @@ Java backend là system of record và public API duy nhất cho Web.
 - Teacher chỉ public document của mình vào ClassSubject được phân công.
 - PPTX Teacher: viewer + Note + Tutor, không download file gốc.
 - PDF Teacher: download, không viewer/Note/Tutor.
-- Personal Document: Student owner, PDF/DOCX, Personal RAG riêng.
+- Personal Document: Student owner, PDF, Personal RAG riêng.
 - Java xác minh scope trước khi gọi Python và kiểm lại citation khi nhận.
 - Java lưu vòng đời Quiz, chỉ cho làm Quiz `READY`, tính progress và chấm Quiz.
 

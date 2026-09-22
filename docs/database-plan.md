@@ -55,12 +55,12 @@ Không lưu raw refresh token.
 
 ### `documents`
 
-`id`, `owner_id`, `owner_role`, `document_scope` (`TEACHER_LIBRARY|PERSONAL`), `file_name`, `file_type` (`PDF|PPTX|DOCX`), `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, `slide_count`, timestamps, soft-delete fields.
+`id`, `owner_id`, `owner_role`, `document_scope` (`TEACHER_LIBRARY|PERSONAL`), `file_name`, `file_type` (`PDF|PPTX`), `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, `slide_count`, timestamps, soft-delete fields.
 
 Quy tắc:
 
-- Personal: owner là Student, chỉ `PDF|DOCX`.
-- Teacher Library: owner là Teacher, cho phép `PDF|PPTX|DOCX`.
+- Personal: owner là Student, chỉ `PDF`.
+- Teacher Library: owner là Teacher, cho phép `PDF|PPTX`.
 - PPTX muốn public phải `READY` để xem Slide.
 - Object key không trả trực tiếp cho browser.
 
@@ -112,7 +112,7 @@ Trạng thái: `UPLOADING → PENDING_PROCESSING → PROCESSING → READY|FAILED
 - Unique: `(document_id, document_version, chunk_index)`.
 - B-tree index cho document/version/owner/source/location.
 - Vector index chỉ thêm sau khi đo dữ liệu; MVP có thể dùng exact cosine search.
-- PDF/DOCX Teacher public không cần index.
+- PDF Teacher public không cần index.
 
 ### Chat metadata
 
@@ -129,7 +129,7 @@ Nếu lưu hội thoại, Java sở hữu bảng và áp dụng retention. Khôn
 `id`, `student_id`, `class_subject_id`, `document_id`, `last_slide`, `viewed_slide_count`, `progress_percent`, `completed_at`, `updated_at`.
 
 - Unique: `(student_id, document_id)`.
-- Chỉ PPTX/Slide có document progress; PDF/DOCX Teacher không có page progress.
+- Chỉ PPTX/Slide có document progress; PDF Teacher không có page progress.
 
 ### `learning_events`
 

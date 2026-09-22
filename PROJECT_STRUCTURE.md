@@ -95,8 +95,8 @@ DATN/
 | Java `document/publication` | Kho tài liệu, ownership, public/revoke |
 | Java `slide/note` | Slide access, Note và view event |
 | Java `progress/study/review` | Progress/Statistics, Plan/Calendar, Quiz review/attempt/scoring |
-| Python `pipelines` | Personal PDF/DOCX indexing và Teacher PPTX render/index |
-| Python `services` | Retrieval, RAG, Slide Tutor, citation và sinh Quiz draft |
+| Python `pipelines` | Personal PDF indexing và Teacher PPTX render/index |
+| Python `services` | Retrieval, RAG, Slide AI Tutor, citation và sinh Quiz draft |
 | PostgreSQL `app` | Dữ liệu nghiệp vụ do Java sở hữu |
 | PostgreSQL `ai` | Job/chunk/vector do Python sở hữu |
 

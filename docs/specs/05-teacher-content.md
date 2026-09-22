@@ -10,12 +10,12 @@ Cho phép Teacher xem phạm vi giảng dạy, danh sách Student, quản lý kh
 |---|---|---|
 | TCH-FR-001 | MUST | Teacher xem ClassSubject active được phân công. |
 | TCH-FR-002 | MUST | Teacher xem danh sách Student active trong ClassSubject được phân công. |
-| TCH-FR-003 | MUST | Teacher upload và quản lý PDF/PPTX/DOCX tối đa 50 MB. |
+| TCH-FR-003 | MUST | Teacher upload và quản lý PDF/PPTX tối đa 50 MB. |
 | TCH-FR-004 | MUST | File mới nằm trong library và chưa tự public. |
 | TCH-FR-005 | MUST | Teacher public một document tới một hoặc nhiều ClassSubject được phân công. |
 | TCH-FR-006 | MUST | Teacher revoke publication mà không xóa file library. |
 | TCH-BR-001 | MUST | Teacher không dùng document của Teacher khác hoặc public ngoài assignment. |
-| TCH-BR-002 | MUST | PPTX chỉ public khi `READY`; PDF/DOCX public để Student tải xuống. |
+| TCH-BR-002 | MUST | PPTX chỉ public khi `READY`; PDF public để Student tải xuống. |
 
 ## 3. Assignment và Student list contracts
 
@@ -36,10 +36,10 @@ Cho phép Teacher xem phạm vi giảng dạy, danh sách Student, quản lý kh
 
 ### `POST /api/v1/teacher/documents`
 
-- **Input:** multipart `file`; PDF/PPTX/DOCX, MIME hợp lệ, `size <= 50 MB`.
+- **Input:** multipart `file`; PDF/PPTX, MIME hợp lệ, `size <= 50 MB`.
 - **Output:** `202` với document metadata và processing status.
 - **Errors:** `413`, `415`, `422`, `503 STORAGE_UNAVAILABLE`.
-- **Side effect:** lưu object; PPTX enqueue render/extract/index; PDF/DOCX scan metadata rồi READY.
+- **Side effect:** lưu object; PPTX enqueue render/extract/index; PDF scan metadata rồi READY.
 
 ### Query/update/delete
 
@@ -58,7 +58,7 @@ Không endpoint nào trả storage key hoặc credential.
 - **Input:** `{classSubjectIds:[...]}` có ít nhất một ID duy nhất.
 - **Output:** `201` danh sách publication; publication đã tồn tại/revoked được re-activate thay vì tạo duplicate.
 - **Errors:** `404 DOCUMENT_OR_ASSIGNMENT_NOT_FOUND`; `409 DOCUMENT_NOT_READY|UNSUPPORTED_PUBLICATION_TYPE`.
-- **Validation:** document owner là Teacher hiện tại; tất cả ClassSubject được gán active; file type thuộc PDF/PPTX/DOCX.
+- **Validation:** document owner là Teacher hiện tại; tất cả ClassSubject được gán active; file type thuộc PDF/PPTX.
 - **Side effect:** tạo/re-activate publication và audit từng target.
 
 ### `GET /api/v1/teacher/documents/{id}/publications`
@@ -73,7 +73,7 @@ Không endpoint nào trả storage key hoặc credential.
 ## 6. Processing behavior
 
 - PPTX: `UPLOADING → PENDING_PROCESSING → PROCESSING → READY|FAILED`; READY có slide artifacts.
-- PDF/DOCX: metadata/virus/MIME validation rồi READY; không AI index và không sinh viewer.
+- PDF: metadata/virus/MIME validation rồi READY; không AI index và không sinh viewer.
 - Retry dùng cùng logical document version/idempotency key; không tạo slide/chunk trùng.
 
 ## 7. Acceptance criteria
@@ -84,11 +84,11 @@ Không endpoint nào trả storage key hoặc credential.
 - **When** A xem Student list hoặc public document tới X
 - **Then** Java trả `404`, không lộ metadata của lớp.
 
-### TCH-AC-002 — DOCX publication
+### TCH-AC-002 — PDF publication
 
-- **Given** DOCX của Teacher ở trạng thái READY
+- **Given** PDF của Teacher ở trạng thái READY
 - **When** Teacher public vào ClassSubject được gán
-- **Then** Student thấy DOCX với action Download và không thấy Viewer/Note/Tutor.
+- **Then** Student thấy PDF với action Download và không thấy Viewer/Note/Tutor.
 
 ### TCH-AC-003 — Một file, nhiều publication
 

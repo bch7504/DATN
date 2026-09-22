@@ -10,7 +10,7 @@ Ma trận này là checklist bàn giao giữa requirement, API, data, test và d
 |---|---|---|---|---|
 | AUTH-FR-001..005 | `/auth/*`, `/me` | `users`, `refresh_tokens` | register role escalation, lock, refresh reuse | Login/role switch |
 | STU-FR-001..003 | `/student/classes`, `/subjects`, `/materials` | `class_students`, `class_subjects`, `document_publications` | membership/publication isolation | Bước 1 |
-| STU-FR-004..007 | `/slides`, `/note`, `/view-events`, `/tutor`; internal `/slides/ask` | `slides`, `slide_notes`, `learning_progress` | PPTX no-download, citation scope | Bước 3 |
+| STU-FR-004..007 | `/slides`, `/note`, `/view-events`, `/tutor`; internal `/slides/ask` | `slides`, `slide_notes`, `learning_progress` | PPTX no-download, PDF download-only, citation scope | Bước 3 |
 | PAI-FR-001..002 | `/personal-documents`; internal index/jobs/deindex | `documents`, `ai.index_jobs`, `ai.document_chunks` | MIME/size, owner, retry/deletion | Bước 2 |
 | PAI-FR-003..004 | `/personal-rag/conversations/*`; internal `/personal-rag/ask` | `chat_conversations`, `chat_messages`, chunks/vector | multi-doc scope, `NO_EVIDENCE` | Bước 2 |
 | PAI-FR-005..006 | conversation Quiz endpoint; internal `/quizzes/generate` | `quizzes`, sources, questions | malformed answer/source, async failure | Bước 6 |
@@ -28,7 +28,8 @@ Ma trận này là checklist bàn giao giữa requirement, API, data, test và d
 | Frontend chỉ gọi Java | Web config/network test | Không có Python/storage/provider URL trong client bundle |
 | Personal Document thuộc owner | Java + Python defense in depth | Cross-user contract/integration test |
 | Teacher chỉ public theo assignment | Java application service + DB constraint | Negative test với ClassSubject ngoài scope |
-| PPTX viewer, PDF/DOCX download | Java policy + Web action matrix | API và UI test theo file type |
+| PPTX viewer, PDF download | Java policy + Web action matrix | API và UI test theo file type |
+| Teacher đăng PDF/PPTX, Student học PPTX hoặc tải PDF; Personal chỉ PDF | Java upload policy + Python schema v2 + Web validation | Test DOCX bị từ chối cả hai scope; PPTX bị từ chối tại Personal; PDF Teacher không gọi AI |
 | Citation đúng scope | Python retrieval + Java revalidation | Eval/test với citation sai document/location |
 | Quiz phải được duyệt | Java state machine | `REVIEW_REQUIRED` attempt trả 409 |
 | Một đáp án đúng | Python structured output + Java validation/scoring | Invalid multiple answer key bị từ chối; selected answer test |

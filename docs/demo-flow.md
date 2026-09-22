@@ -4,7 +4,7 @@
 
 Chứng minh một luồng end-to-end có ba vai trò, phân quyền đúng và các tác vụ AI được giới hạn scope:
 
-- Personal RAG chỉ dùng PDF/DOCX của chính Student đã chọn.
+- Personal RAG chỉ dùng PDF của chính Student đã chọn.
 - Slide AI Tutor chỉ dùng PPTX Teacher đã public cho đúng lớp/môn.
 
 ## 2. Kịch bản chính
@@ -26,14 +26,14 @@ Kỳ vọng:
 ### Bước 2 — Student: Personal Document RAG
 
 1. Mở **Tài liệu cá nhân**.
-2. Upload một PDF hoặc DOCX; quan sát `PROCESSING → READY`.
+2. Upload một PDF; quan sát `PROCESSING → READY`.
 3. Chọn hai tài liệu Personal đã READY.
 4. Chuyển sang tab **Hỏi đáp AI**, đặt câu hỏi.
 5. Mở citation để thấy đúng tài liệu/trang nguồn.
 
 Kỳ vọng:
 
-- UI từ chối PPTX trong Personal Documents.
+- UI từ chối PPTX/DOCX trong Personal Documents.
 - Chỉ document của Student hiện tại được chọn.
 - Chat không lấy học liệu Teacher trong lớp.
 - Nếu nguồn không đủ, trả `NO_EVIDENCE`.
@@ -49,13 +49,13 @@ Kỳ vọng:
 
 - Không có nút tải file PPTX gốc.
 - Tutor citation trỏ đúng document/slide.
-- PDF/DOCX Teacher không mở viewer, không có Note/Tutor.
+- PDF Teacher không mở viewer, không có Note/Tutor.
 
 ### Bước 4 — Student: Tiến độ & Thống kê
 
 Mở trang gộp **Tiến độ & Thống kê** và trình bày:
 
-- Slide đã xem theo môn/lớp.
+- slide đã xem theo môn/lớp.
 - Personal Documents và AI questions.
 - Study plan items đã hoàn thành.
 - Số Quiz đã chấp nhận, đã làm và điểm trung bình.
@@ -87,9 +87,9 @@ Quiz chỉ được làm sau khi Student chấp nhận. Python sinh bản nháp 
 1. Chuyển sang Teacher.
 2. Xem ClassSubject được Admin phân công.
 3. Mở danh sách Student read-only của một ClassSubject được phân công.
-4. Upload PDF/PPTX/DOCX vào **Kho tài liệu**.
+4. Upload PDF/PPTX vào **Kho tài liệu**.
 5. Chọn một tài liệu READY, chọn đúng Lớp + Môn và public.
-6. Public một DOCX và xác minh Student chỉ có action tải xuống.
+6. Public một PDF và xác minh Student chỉ có action tải xuống.
 7. Xem nơi đã public rồi thực hiện thu hồi.
 
 Kỳ vọng:
@@ -120,7 +120,7 @@ Thực hiện các bước chính trên URL public, chỉ ra:
 
 - 1 Student, 1 Teacher, 1 Admin.
 - 1 lớp chính và ít nhất 2 môn; mỗi môn có Teacher assignment.
-- 1 PPTX Teacher đã READY/public, 1 PDF và 1 DOCX Teacher đã public.
+- 1 PPTX Teacher đã READY/public và 2 PDF Teacher đã public.
 - 1 Teacher Document chưa public và 1 job FAILED có thể retry.
 - 2 Personal Documents READY, 1 Personal Document PROCESSING.
 - Slide Note và learning progress mẫu.
@@ -140,8 +140,8 @@ Thực hiện các bước chính trên URL public, chỉ ra:
 - [ ] Ba role Student/Teacher/Admin.
 - [ ] Không có Topic, Quiz do Teacher tạo, Topic Mastery, Exam/Mock Exam hoặc recommendation.
 - [ ] PPTX lớp: xem web + Note + Tutor, không download.
-- [ ] PDF/DOCX lớp: download, không viewer/Note/Tutor.
-- [ ] Personal: PDF/DOCX, owner isolation, multi-document RAG.
+- [ ] PDF lớp: download, không viewer/Note/Tutor.
+- [ ] Personal: PDF, owner isolation, multi-document RAG.
 - [ ] Quiz sinh từ Personal RAG phải được Student chấp nhận trước khi làm; Java chấm điểm.
 - [ ] Kế hoạch & Lịch hiển thị bảng tuần và cảnh báo trùng giờ.
 - [ ] Teacher public đúng assignment.

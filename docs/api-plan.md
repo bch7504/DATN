@@ -2,6 +2,24 @@
 
 Đây là contract mục tiêu. Browser chỉ gọi Java Spring Boot tại `/api/v1`. Python FastAPI chỉ mở internal API cho Java tại `/internal/v1`.
 
+## Quyết định định dạng — 22/09/2026
+
+| Nguồn upload | Định dạng | Hành vi |
+|---|---|---|
+| Teacher Library | PPTX | Render slide; Viewer, Note, Slide Tutor và slide progress; không tải file gốc |
+| Teacher Library | PDF | Chỉ tải xuống sau kiểm quyền; không viewer, Note, Tutor, page progress hoặc AI index |
+| Personal Document | PDF | Index theo trang cho Personal RAG và Quiz; chỉ owner dùng |
+
+Teacher thực hiện upload/public. Các chức năng xem slide, Note cá nhân và Slide Tutor thuộc Student có membership hợp lệ, không thuộc Teacher.
+
+DOCX bị loại khỏi cả hai luồng upload. Public upload giữ nguyên URL: multipart `file`, tối đa 20 MB với Personal, 50 MB với Teacher. Java kiểm extension, MIME thực và cấu trúc file; `415 UNSUPPORTED_FILE_TYPE`, `413 FILE_TOO_LARGE`, `422 INVALID_FILE` dùng error envelope chung. Chọn sai file ở Web phải hiển thị lỗi trước khi mô phỏng/gửi upload.
+
+Contract nội bộ dùng `X-Schema-Version: 2` vì đã loại DOCX và loại citation `SECTION`. `PERSONAL_RAG` chỉ nhận `mimeType=application/pdf` và ownerId không rỗng; `TEACHER_SLIDE` chỉ nhận MIME PPTX. Sai tổ hợp pipeline/MIME trả `422 INVALID_INDEX_INPUT`. PDF Teacher không được gửi sang AI. Routes `/slides/*`, `currentSlide`, `allowedSlideNumbers`, `slideNumber` tiếp tục phục vụ PPTX.
+
+Personal PDF không trích xuất được văn bản: job `FAILED`, `errorCode=PDF_TEXT_REQUIRED`; PDF cần mật khẩu: `PDF_ENCRYPTED`. MVP chưa có OCR. Java phản ánh lỗi qua status API, UI hướng dẫn chọn PDF có lớp văn bản. PDF Teacher chỉ tải xuống nên không bắt buộc lớp văn bản cho RAG.
+
+**Bàn giao implementation:** Java chưa scaffold endpoint/migration; Python mới có health và schema. Khi triển khai, cần test hợp lệ/sai MIME/output schema hai phía, kiểm quyền download PDF, chặn PDF trên Slide/Note/Tutor API và kiểm tra nội dung file ở server. Không xem kiểm tra file trong HTML prototype là validation production.
+
 ## 1. Quy ước chung
 
 - Auth: access JWT ngắn hạn; refresh token luân phiên trong cookie HttpOnly/Secure/SameSite.
@@ -42,9 +60,9 @@
 | GET | `/api/v1/student/class-subjects/{id}/materials` | Chỉ publication hiệu lực; PPTX trước PDF |
 | GET | `/api/v1/student/materials/{documentId}/slides` | Chỉ PPTX đã public và READY |
 | GET | `/api/v1/student/materials/{documentId}/slides/{number}` | Artifact xem có kiểm quyền |
-| GET | `/api/v1/student/materials/{documentId}/download` | Chỉ PDF/DOCX public; không cung cấp download PPTX |
+| GET | `/api/v1/student/materials/{documentId}/download` | Chỉ PDF public; không cung cấp download PPTX |
 
-PDF/DOCX Teacher không có viewer API, Note hoặc Tutor API.
+PDF Teacher không có viewer API, Note hoặc Tutor API.
 
 ### 3.2 Slide Note và Tutor
 
@@ -73,7 +91,7 @@ Tutor response:
 
 | Method | Endpoint | Mục đích |
 |---|---|---|
-| POST | `/api/v1/personal-documents` | Upload PDF/DOCX |
+| POST | `/api/v1/personal-documents` | Upload PDF |
 | GET | `/api/v1/personal-documents` | Danh sách của owner |
 | GET | `/api/v1/personal-documents/{id}/status` | Poll processing |
 | DELETE | `/api/v1/personal-documents/{id}` | Xóa theo lifecycle |
@@ -127,7 +145,7 @@ Teacher chỉ nhận ClassSubject đang được phân công.
 
 ### 4.2 Kho tài liệu
 
-- `POST /api/v1/teacher/documents`: upload PDF/PPTX/DOCX.
+- `POST /api/v1/teacher/documents`: upload PDF/PPTX.
 - `GET /api/v1/teacher/documents`
 - `GET /api/v1/teacher/documents/{id}`
 - `GET /api/v1/teacher/documents/{id}/status`
@@ -141,7 +159,7 @@ Upload response trả `documentId`, `processingStatus`, `fileType`; không trả
 - `GET /api/v1/teacher/documents/{documentId}/publications`
 - `DELETE /api/v1/teacher/publications/{publicationId}`
 
-Request public chứa `classSubjectIds`. Java kiểm document owner, trạng thái và Teacher assignment cho từng ID. PPTX chưa READY không được public. PDF/DOCX public để Student tải xuống; chỉ PPTX có Viewer/Note/Tutor.
+Request public chứa `classSubjectIds`. Java kiểm document owner, trạng thái và Teacher assignment cho từng ID. PPTX chưa READY không được public. PDF public để Student tải xuống; chỉ PPTX có Viewer/Note/Tutor.
 
 ## 5. Admin API
 
@@ -163,7 +181,7 @@ Header chung:
 ```text
 Authorization: Bearer <service-token>
 X-Request-Id: req_...
-X-Schema-Version: 1
+X-Schema-Version: 2
 Idempotency-Key: ...   # với job mutation
 ```
 
@@ -179,17 +197,17 @@ Idempotency-Key: ...   # với job mutation
 
 ### Index pipeline
 
-- `PERSONAL_RAG`: chỉ PDF/DOCX Personal; ownerId bắt buộc.
+- `PERSONAL_RAG`: chỉ PDF Personal; ownerId bắt buộc.
 - `TEACHER_SLIDE`: chỉ PPTX Teacher; tạo render/extracted text/chunk cho viewer và Tutor.
-- PDF/DOCX Teacher không gọi AI indexing.
+- PDF Teacher không gọi AI indexing.
 
 ### Citation và scope
 
-- Personal citation: `documentId`, `pageNumber|section`, `excerpt`.
+- Personal citation: `documentId`, `pageNumber`, `excerpt`.
 - Slide citation: `documentId`, `slideNumber`, `excerpt`.
 - Python filter active version và đúng source type.
 - Java đối chiếu mọi document/citation với scope đã cấp trước khi trả browser.
-- Personal RAG không nhận Teacher Document ID; Slide Tutor không nhận Personal Document ID.
+- Personal RAG không nhận Teacher Document ID; Slide AI Tutor không nhận Personal Document ID.
 - Quiz generation chỉ nhận Personal Document ID đã được Java xác thực; mỗi câu hỏi phải có source thuộc scope.
 
 ## 7. Timeout, retry và versioning

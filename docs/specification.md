@@ -1,7 +1,7 @@
 # StudyFlow — Master Specification
 
 - **Trạng thái:** Draft for implementation
-- **Phiên bản:** 1.0
+- **Phiên bản:** 1.1 — Personal chỉ PDF; Teacher PDF/PPTX (22/09/2026)
 - **Phạm vi:** MVP đồ án tốt nghiệp
 - **Nguồn tham chiếu:** `architecture.md`, `database-plan.md`, `api-plan.md`, `low-level-design.md`, `tech-stack.md`, `demo-flow.md`
 
@@ -32,10 +32,10 @@ Hệ thống phải chứng minh được bốn giá trị chính:
 
 - Auth, profile, JWT/refresh token và RBAC ba vai trò.
 - Class, Subject, ClassSubject, Student membership và Teacher assignment.
-- Teacher Library cho PDF/PPTX/DOCX; public/revoke theo ClassSubject.
-- Student xem PPTX trên web; PDF/DOCX public chỉ tải xuống.
+- Teacher Library cho PDF/PPTX; public/revoke theo ClassSubject.
+- Student xem PPTX trên web; PDF public chỉ tải xuống.
 - Note theo slide, Slide AI Tutor và citation theo document/slide.
-- Personal Document PDF/DOCX, multi-document RAG và citation theo page/section.
+- Personal Document PDF, multi-document RAG và citation theo page.
 - AI sinh Quiz trắc nghiệm nhiều lựa chọn, mỗi câu chỉ có một đáp án đúng, từ Personal Documents đã chọn.
 - Student duyệt/từ chối Quiz, làm bài và xem kết quả do Java chấm.
 - Progress/Statistics theo hoạt động; Study Plan và lịch tuần.
@@ -67,11 +67,9 @@ Next.js Web → Java Spring Boot → PostgreSQL + pgvector
 
 | Nguồn | Loại | Student action | AI action |
 |---|---|---|---|
-| Teacher publication | PPTX | Xem Slide, Note; không tải bản gốc | Slide Tutor |
+| Teacher publication | PPTX | Xem Slide, Note; không tải bản gốc | Slide AI Tutor |
 | Teacher publication | PDF | Tải xuống | Không AI |
-| Teacher publication | DOCX | Tải xuống | Không AI |
 | Personal Document | PDF | Quản lý, chọn cho chat/Quiz | RAG, Quiz generation |
-| Personal Document | DOCX | Quản lý, chọn cho chat/Quiz | RAG, Quiz generation |
 
 Quiz dùng dạng `MCQ_SINGLE`: mỗi câu có tối thiểu hai lựa chọn và đúng một đáp án. Java so sánh lựa chọn của Student với `correctOptionIndex` đã lưu.
 

@@ -91,7 +91,7 @@
         <small>Luồng giá trị chính</small><h2>Student học — Teacher chia sẻ — Admin tổ chức</h2>
         <div class="flow-mini">
           <div><span>01</span><p><b>Class & Subject Materials</b><small>PPTX xem web, PDF tải xuống</small></p></div>
-          <div><span>02</span><p><b>Hai scope AI riêng</b><small>Personal RAG và Slide Tutor</small></p></div>
+          <div><span>02</span><p><b>Hai scope AI riêng</b><small>Personal RAG và Slide AI Tutor</small></p></div>
           <div><span>03</span><p><b>Plan & Review</b><small>Lịch tuần và Quiz do Student duyệt</small></p></div>
         </div>
       </aside>
@@ -119,7 +119,7 @@
       <div class="section-head"><small>Product scope</small><h2>Một nền tảng, ba không gian làm việc</h2><p>MVP tập trung vào quản lý học liệu, hoạt động học và ôn tập. AI trả lời theo hai ngữ cảnh và sinh Quiz từ Personal Document đã được kiểm quyền.</p></div>
       <div class="grid g3">
         <article class="card role-card" data-role="S"><span class="role-icon">S</span><h3>Student learning flow</h3><p>Vào lớp/môn, học Slide, quản lý tài liệu cá nhân, lịch tuần và Quiz ôn tập.</p><ul class="list"><li>Slide Viewer + Note + Tutor</li><li>Personal RAG + Quiz draft</li><li>Progress, Calendar, Review</li></ul></article>
-        <article class="card role-card" data-role="T"><span class="role-icon">T</span><h3>Teacher publishing flow</h3><p>Quản lý một kho file và public đúng ClassSubject được phân công.</p><ul class="list"><li>PDF/PPTX/DOCX library</li><li>Public / revoke</li><li>Không nhân bản file vật lý</li></ul></article>
+        <article class="card role-card" data-role="T"><span class="role-icon">T</span><h3>Teacher publishing flow</h3><p>Quản lý một kho file và public đúng ClassSubject được phân công.</p><ul class="list"><li>PDF/PPTX library</li><li>Public / revoke</li><li>Không nhân bản file vật lý</li></ul></article>
         <article class="card role-card" data-role="A"><span class="role-icon">A</span><h3>Admin academic flow</h3><p>Tổ chức user, class, subject và Teacher assignment; theo dõi audit.</p><ul class="list"><li>RBAC và account status</li><li>ClassSubject assignment</li><li>Feedback, logs, settings</li></ul></article>
       </div>
       <div class="grid g2" style="margin-top:14px">
@@ -132,7 +132,7 @@
       <div class="section-head"><small>Role based access</small><h2>Chức năng bám đúng trách nhiệm</h2><p>Không gian làm việc và API đều giới hạn theo role, membership, assignment, publication và ownership.</p></div>
       <div class="grid g3">
         <article class="card"><h3>Student</h3><ul class="list"><li>Dashboard</li><li>Lớp học & Môn học</li><li>Tài liệu cá nhân + Hỏi đáp AI</li><li>Tạo và duyệt Quiz AI</li><li>Tiến độ & Thống kê</li><li>Kế hoạch & Lịch tuần</li><li>Ôn tập + làm Quiz</li></ul></article>
-        <article class="card"><h3>Teacher</h3><ul class="list"><li>Dashboard</li><li>Lớp/Môn phụ trách</li><li>Kho tài liệu PDF/PPTX/DOCX</li><li>Public theo ClassSubject</li><li>Xem nơi đã public</li><li>Thu hồi publication</li></ul></article>
+        <article class="card"><h3>Teacher</h3><ul class="list"><li>Dashboard</li><li>Lớp/Môn phụ trách</li><li>Kho tài liệu PDF/PPTX</li><li>Public theo ClassSubject</li><li>Xem nơi đã public</li><li>Thu hồi publication</li></ul></article>
         <article class="card"><h3>Admin</h3><ul class="list"><li>Dashboard hệ thống</li><li>User, role, khóa/mở khóa</li><li>Class, Student membership, Subject</li><li>Teacher assignment</li><li>Feedback & Reports</li><li>Logs, Audit, Settings</li></ul></article>
       </div>
     </section>
@@ -162,8 +162,8 @@
       <div class="grid g2">
         <div class="rule-card"><span>01</span><div><h4>PPTX lớp chỉ xem</h4><p>Viewer + Note + Tutor; không cung cấp tải file gốc.</p></div></div>
         <div class="rule-card"><span>02</span><div><h4>PDF lớp chỉ tải</h4><p>Không viewer, page progress, Note hoặc AI Tutor.</p></div></div>
-        <div class="rule-card"><span>03</span><div><h4>Personal chỉ PDF/DOCX</h4><p>Owner isolation và multi-document selection trước khi hỏi.</p></div></div>
-        <div class="rule-card"><span>04</span><div><h4>Hai scope AI tách biệt</h4><p>Personal RAG không đọc học liệu lớp; Slide Tutor không đọc Personal Document.</p></div></div>
+        <div class="rule-card"><span>03</span><div><h4>Personal chỉ PDF</h4><p>Owner isolation và multi-document selection trước khi hỏi.</p></div></div>
+        <div class="rule-card"><span>04</span><div><h4>Hai scope AI tách biệt</h4><p>Personal RAG không đọc học liệu lớp; Slide AI Tutor không đọc Personal Document.</p></div></div>
         <div class="rule-card"><span>05</span><div><h4>Teacher theo assignment</h4><p>Chỉ public vào ClassSubject được Admin phân công.</p></div></div>
         <div class="rule-card"><span>06</span><div><h4>Admin không thay Teacher</h4><p>Không mặc định đọc tài liệu/chat/plan cá nhân hoặc public học liệu.</p></div></div>
         <div class="rule-card"><span>07</span><div><h4>Không Topic Mastery</h4><p>Progress phản ánh slide và hoạt động; không suy luận mức hiểu.</p></div></div>
@@ -175,7 +175,7 @@
       <div class="section-head"><small>Defense scenario</small><h2>Luồng bảo vệ end-to-end</h2><p>Dữ liệu seed cho phép trình bày cả happy path, processing và retry.</p></div>
       <div class="demo-steps">
         <div class="demo-step"><div><b>Student mở lớp/môn</b><p>Chọn ClassSubject, thấy PPTX trước PDF.</p></div></div>
-        <div class="demo-step"><div><b>Personal RAG → Quiz draft</b><p>Upload PDF/DOCX, chọn nhiều file, hỏi có citation rồi yêu cầu tạo Quiz.</p></div></div>
+        <div class="demo-step"><div><b>Personal RAG → Quiz draft</b><p>Upload PDF, chọn nhiều file, hỏi có citation rồi yêu cầu tạo Quiz.</p></div></div>
         <div class="demo-step"><div><b>Slide learning</b><p>Xem PPTX, lưu Note và hỏi Tutor theo slide.</p></div></div>
         <div class="demo-step"><div><b>Plan → Quiz review → Attempt</b><p>Thêm lịch vào bảng tuần, chấp nhận Quiz, làm bài và xem kết quả Java trả về.</p></div></div>
         <div class="demo-step"><div><b>Teacher publish</b><p>Upload vào kho, chọn ClassSubject, public rồi thu hồi.</p></div></div>
