@@ -1,6 +1,32 @@
 # StudyFlow Web
 
-Khu vực Next.js cho Student, Teacher và Admin.
+Ứng dụng Next.js cho Student, Teacher và Admin. Giao diện thật nằm trong `src/app`; `mvp.html` được giữ làm tài liệu tham chiếu luồng và prototype offline.
+
+## Chạy ứng dụng
+
+```bash
+npm install
+npm run dev
+```
+
+Mở `http://localhost:3000`. Mọi môi trường chỉ dùng fixture khi `NEXT_PUBLIC_DEMO_MODE=true`; nếu không, login/session/route guard gọi Java qua `NEXT_PUBLIC_API_URL`.
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+FE-M0 và FE-M1 đã hoàn thành: app shell đỏ–trắng PTIT, navigation responsive cho ba role, đăng ký Student, login, phục hồi session qua `/me`, route guard, forbidden state và logout. Các màn hình nghiệp vụ sau M1 vẫn là demo có nhãn rõ khi cờ demo được bật.
+
+Các route kiểm tra nhanh:
+
+- `/student/dashboard`
+- `/student/materials`
+- `/student/viewer`
+- `/student/personal-documents`
+- `/teacher/documents`
+- `/admin/dashboard`
 
 ## Prototype HTML
 

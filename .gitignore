@@ -8,6 +8,14 @@ target/
 .gradle/
 build/
 
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+dist/
+.coverage
+
 # IDE
 .idea/
 .vscode/
@@ -26,4 +34,3 @@ qdrant_storage/
 # OS
 .DS_Store
 Thumbs.db
-

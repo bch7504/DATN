@@ -59,7 +59,7 @@ class DocumentDeindexRequest(BaseModel):
 class JobAccepted(BaseModel):
     request_id: str = Field(alias="requestId")
     job_id: str = Field(alias="jobId")
-    status: Literal["QUEUED"]
+    status: JobStatus
 
 
 class JobResult(BaseModel):

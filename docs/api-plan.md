@@ -49,6 +49,13 @@ Personal PDF không trích xuất được văn bản: job `FAILED`, `errorCode=
 | POST | `/api/v1/auth/logout` | Authenticated | Thu hồi phiên |
 | GET/PATCH | `/api/v1/me` | Authenticated | Xem/cập nhật profile |
 
+Contract FE-M1:
+
+- `POST /api/v1/auth/register` nhận `{"displayName":"...","email":"...","password":"..."}`; không nhận trường role. Java luôn tạo `STUDENT`, thiết lập session cookie và trả `204`; email trùng trả `409` với error envelope chung.
+- `POST /api/v1/auth/login` nhận `{"identifier":"...","password":"..."}`. Thành công trả `204`, thiết lập session cookie HttpOnly theo chính sách ở trên; sai thông tin trả `401` với error envelope chung. Web không tự nhận hoặc lưu role từ form.
+- `GET /api/v1/me` trả `{"id":"...","displayName":"...","email":"...","role":"STUDENT|TEACHER|ADMIN"}`. Web dùng response này cho route guard; `401` phải điều hướng về `/login`, role không khớp trả giao diện forbidden.
+- `POST /api/v1/auth/logout` trả `204` sau khi thu hồi phiên và xóa cookie. Frontend không giữ JWT/service credential trong local storage.
+
 ## 3. Student API
 
 ### 3.1 Lớp học và học liệu
@@ -194,6 +201,8 @@ Idempotency-Key: ...   # với job mutation
 | POST `/internal/v1/quizzes/generate` | userId, authorizedDocumentIds, questionCount, difficulty? | `MCQ_SINGLE` questions, options, `correctOptionIndex`, explanation + sources |
 | POST `/internal/v1/slides/ask` | userId, documentId, allowedSlideNumbers/currentSlide, question | answer/NO_EVIDENCE, slide citations |
 | GET `/internal/v1/health` | Header chung | Liveness/readiness rút gọn |
+
+Job mutation trả `202` với `requestId`, `jobId` và trạng thái hiện tại. Gửi lại cùng `Idempotency-Key` và cùng mutation trả đúng job đã có; dùng lại key cho document/version/pipeline/operation khác trả `409 IDEMPOTENCY_CONFLICT`. Thiếu key trả `422 IDEMPOTENCY_KEY_REQUIRED`. Job polling không trả signed URL, nội dung tài liệu hoặc provider payload.
 
 ### Index pipeline
 
