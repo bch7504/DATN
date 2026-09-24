@@ -9,54 +9,66 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap"
     rel="stylesheet">
   <style>
     :root {
-      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      --font-display: 'Space Grotesk', var(--font-sans);
-      --bg: #f8fafc;
+      --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-display: 'Manrope', var(--font-sans);
+      --bg: #f6f7f9;
       --paper: #ffffff;
-      --ink: #0f172a;
+      --surface: #ffffff;
+      --ink: #172033;
       --ink-secondary: #334155;
       --muted: #64748b;
       --muted-light: #94a3b8;
-      --line: #e2e8f0;
+      --line: #e5e7eb;
       --line-subtle: #f1f5f9;
 
-      /* Emerald Palette */
-      --primary: #059669;
-      --primary-hover: #047857;
-      --primary-dark: #064e3b;
-      --primary-glow: rgba(16, 185, 129, 0.18);
-      --mint: #ecfdf5;
-      --mint-border: #a7f3d0;
-      --mint-text: #065f46;
+      /* PTIT Brand Colors */
+      --primary: #d71920;
+      --primary-hover: #b9151b;
+      --primary-dark: #a80f18;
+      --primary-glow: rgba(215, 25, 32, 0.16);
+      --red: #d71920;
+      --red-dark: #a80f18;
+      --red-soft: #fff1f2;
+      --red-border: #fecdd3;
+      --red-text: #991b1b;
+      --red-bg: #fff1f2;
+      --gold: #f4c300;
+      --gold-dark: #b89c0e;
+      --gold-soft: #fffbeb;
+      --gold-border: #fde68a;
+      --gold-text: #92400e;
+
+      /* Mint / Green Status */
+      --mint: #f0fdf4;
+      --mint-border: #bbf7d0;
+      --mint-text: #166534;
 
       /* Accents */
       --amber: #d97706;
       --amber-bg: #fffbeb;
       --amber-border: #fde68a;
       --amber-text: #92400e;
-      --red: #e11d48;
-      --red-bg: #fff1f2;
-      --red-border: #fecdd3;
       --blue: #2563eb;
       --blue-bg: #eff6ff;
+      --blue-border: #bfdbfe;
       --purple: #7c3aed;
       --purple-bg: #f5f3ff;
-      --lime: #84cc16;
+      --purple-border: #ddd6fe;
 
       /* Elevation */
-      --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-      --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
-      --shadow-lg: 0 12px 28px -6px rgba(15, 23, 42, 0.08), 0 6px 12px -4px rgba(15, 23, 42, 0.04);
-      --shadow-xl: 0 24px 48px -12px rgba(15, 23, 42, 0.16);
+      --shadow-sm: 0 1px 3px 0 rgba(23, 32, 51, 0.05);
+      --shadow-md: 0 4px 8px -1px rgba(23, 32, 51, 0.07), 0 2px 4px -2px rgba(23, 32, 51, 0.05);
+      --shadow-lg: 0 12px 28px -6px rgba(23, 32, 51, 0.08), 0 6px 12px -4px rgba(23, 32, 51, 0.04);
+      --shadow-xl: 0 24px 48px -12px rgba(23, 32, 51, 0.16);
       --radius-sm: 8px;
       --radius-md: 12px;
       --radius-lg: 16px;
       --radius-xl: 22px;
-      --side: 268px;
+      --side: 272px;
     }
 
     * {
@@ -78,6 +90,10 @@
       font-size: 14px;
       line-height: 1.55;
       -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4, h5, h6, .brand b, .crumb b, .auth-story h1, .auth-panel h2, .hero h2, .stat h3, .panel-head h3, .review-course-card h3, .class-card h3 {
+      font-family: var(--font-display);
     }
 
     button,
@@ -129,23 +145,25 @@
     }
 
     .brand-mark {
-      width: 42px;
-      height: 42px;
+      width: 44px;
+      height: 44px;
       display: grid;
       place-items: center;
-      border-radius: var(--radius-md);
-      color: #ffffff;
-      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-      font-family: var(--font-display);
-      font-size: 16px;
-      font-weight: 800;
-      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.28);
-      letter-spacing: -0.02em;
+      border-radius: 50%;
+      border: 2px solid var(--red);
+      background: white;
+      box-shadow: 0 4px 14px rgba(215, 25, 32, 0.15);
+      flex-shrink: 0;
+    }
+
+    .brand-mark svg {
+      width: 24px;
+      height: 29px;
     }
 
     .brand b {
       font-size: 16px;
-      font-weight: 700;
+      font-weight: 800;
       color: var(--ink);
       letter-spacing: -0.02em;
       display: block;
@@ -195,8 +213,9 @@
     }
 
     .nav button.active {
-      color: var(--primary);
-      background: var(--mint);
+      color: var(--primary-dark);
+      background: var(--red-soft);
+      box-shadow: inset 0 0 0 1px var(--red-border);
       font-weight: 700;
     }
 
@@ -213,7 +232,7 @@
     }
 
     .nav button.active .nav-icon {
-      background: rgba(5, 150, 105, 0.12);
+      background: rgba(215, 25, 32, 0.12);
       color: var(--primary);
     }
 
@@ -233,8 +252,8 @@
       padding: 16px;
       border-radius: var(--radius-lg);
       color: white;
-      background: linear-gradient(145deg, #064e3b 0%, #065f46 100%);
-      box-shadow: 0 10px 24px -6px rgba(6, 78, 59, 0.3);
+      background: linear-gradient(145deg, #8c0e16 0%, #a80f18 100%);
+      box-shadow: 0 10px 24px -6px rgba(140, 14, 22, 0.35);
       position: relative;
       overflow: hidden;
     }
@@ -267,15 +286,15 @@
       width: 100%;
       padding: 8px 12px;
       border-radius: 9px;
-      color: #064e3b;
-      background: #a7f3d0;
+      color: var(--red-dark);
+      background: #ffffff;
       font-size: 11.5px;
       font-weight: 700;
       transition: background 0.15s;
     }
 
     .demo-card button:hover {
-      background: #6ee7b7;
+      background: var(--red-soft);
     }
 
     .profile {
@@ -301,10 +320,10 @@
       place-items: center;
       border-radius: var(--radius-md);
       color: white;
-      background: linear-gradient(135deg, #059669 0%, #34d399 100%);
+      background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
       font-size: 13px;
       font-weight: 700;
-      box-shadow: 0 4px 10px rgba(5, 150, 105, 0.2);
+      box-shadow: 0 4px 10px rgba(215, 25, 32, 0.25);
     }
 
     .profile b {
@@ -411,10 +430,10 @@
 
     .demo-pill {
       padding: 6px 12px;
-      border: 1px solid var(--mint-border);
+      border: 1px solid var(--gold-border);
       border-radius: 99px;
-      color: var(--mint-text);
-      background: var(--mint);
+      color: var(--gold-text);
+      background: var(--gold-soft);
       font-size: 11.5px;
       font-weight: 700;
       display: flex;
@@ -549,30 +568,30 @@
     .button.primary {
       border-color: var(--primary-hover);
       color: white;
-      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-      box-shadow: 0 4px 14px rgba(5, 150, 105, 0.28);
+      background: linear-gradient(135deg, #d71920 0%, #bd1119 100%);
+      box-shadow: 0 4px 14px rgba(215, 25, 32, 0.28);
     }
 
     .button.primary:hover {
-      background: linear-gradient(135deg, #047857 0%, #059669 100%);
-      box-shadow: 0 6px 20px rgba(5, 150, 105, 0.38);
+      background: linear-gradient(135deg, #bd1119 0%, #a80f18 100%);
+      box-shadow: 0 6px 20px rgba(215, 25, 32, 0.38);
     }
 
     .button.soft {
-      border-color: var(--mint-border);
-      color: var(--mint-text);
-      background: var(--mint);
+      border-color: var(--red-border);
+      color: var(--red-dark);
+      background: var(--red-soft);
     }
 
     .button.soft:hover {
-      background: #d1fae5;
-      border-color: #6ee7b7;
+      background: #ffe4e6;
+      border-color: #fda4af;
     }
 
     .button.warn {
       border-color: var(--red-border);
       color: var(--red);
-      background: var(--red-bg);
+      background: var(--red-soft);
     }
 
     .button.warn:hover {
@@ -649,9 +668,9 @@
       position: relative;
       overflow: hidden;
       color: white;
-      background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0d9488 100%);
-      box-shadow: 0 16px 36px -8px rgba(6, 78, 59, 0.35);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: radial-gradient(circle at 75% 20%, rgba(244,195,0,.24), transparent 28%), linear-gradient(135deg, #a80f18 0%, #d71920 62%, #eb3a40 100%);
+      box-shadow: 0 16px 36px -8px rgba(168, 15, 24, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.15);
     }
 
     .hero::after {
@@ -662,7 +681,7 @@
       right: -80px;
       top: -100px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(167, 243, 208, 0.25) 0%, rgba(255, 255, 255, 0) 70%);
+      background: radial-gradient(circle, rgba(244, 195, 0, 0.2) 0%, rgba(255, 255, 255, 0) 70%);
       pointer-events: none;
     }
 
@@ -670,7 +689,7 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: url("data:image/svg+xml,%3Csvg width='30' height='30' viewBox='0 0 30 30' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.5 0H0V1.5V30H1.5V1.5H30V0H1.5Z' fill='rgba(255, 255, 255, 0.03)'/%3E%3C/svg%3E");
+      background: url("data:image/svg+xml,%3Csvg width='30' height='30' viewBox='0 0 30 30' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.5 0H0V1.5V30H1.5V1.5H30V0H1.5Z' fill='rgba(255, 255, 255, 0.04)'/%3E%3C/svg%3E");
       opacity: 0.6;
     }
 
@@ -685,8 +704,8 @@
       gap: 6px;
       padding: 5px 12px;
       border-radius: 99px;
-      color: #064e3b;
-      background: #a7f3d0;
+      color: #854d0e;
+      background: #fef08a;
       font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
@@ -706,7 +725,7 @@
     .hero p {
       max-width: 640px;
       margin: 0;
-      color: rgba(255, 255, 255, 0.85);
+      color: rgba(255, 255, 255, 0.9);
       font-size: 14.5px;
       line-height: 1.5;
     }
@@ -714,14 +733,14 @@
     .hero .button {
       margin-top: 22px;
       border: none;
-      color: #064e3b;
+      color: #a80f18;
       background: #ffffff;
-      font-weight: 700;
+      font-weight: 800;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     }
 
     .hero .button:hover {
-      background: #ecfdf5;
+      background: #fff1f2;
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     }
@@ -751,8 +770,8 @@
       display: grid;
       place-items: center;
       border-radius: var(--radius-md);
-      color: var(--primary);
-      background: var(--mint);
+      color: var(--red);
+      background: var(--red-soft);
       font-size: 13px;
       font-weight: 800;
     }
@@ -766,7 +785,7 @@
     .trend {
       padding: 5px 10px;
       border-radius: 99px;
-      color: var(--primary);
+      color: var(--mint-text);
       background: var(--mint);
       font-size: 11px;
       font-weight: 700;
@@ -844,8 +863,8 @@
       display: grid;
       place-items: center;
       border-radius: var(--radius-md);
-      color: var(--primary);
-      background: var(--mint);
+      color: var(--red);
+      background: var(--red-soft);
       font-size: 13px;
       font-weight: 800;
     }
@@ -887,8 +906,9 @@
     }
 
     .chip.green {
-      color: var(--primary);
+      color: var(--mint-text);
       background: var(--mint);
+      border: 1px solid var(--mint-border);
     }
 
     .chip.amber {
@@ -908,7 +928,7 @@
       height: 100%;
       display: block;
       border-radius: inherit;
-      background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+      background: linear-gradient(90deg, var(--red) 0%, #f05257 100%);
       transition: width 0.3s ease;
     }
 
@@ -934,8 +954,9 @@
       display: inline-block;
       padding: 4px 10px;
       border-radius: 8px;
-      color: var(--primary);
-      background: var(--mint);
+      color: var(--red-dark);
+      background: var(--red-soft);
+      border: 1px solid var(--red-border);
       font-size: 12px;
       font-weight: 800;
       letter-spacing: 0.04em;
@@ -982,8 +1003,8 @@
       display: grid;
       place-items: center;
       border-radius: 10px;
-      color: var(--primary);
-      background: var(--mint);
+      color: var(--red);
+      background: var(--red-soft);
       font-size: 13px;
       font-weight: 800;
     }
@@ -1039,8 +1060,9 @@
     }
 
     .filter.active {
-      color: var(--primary);
-      background: var(--mint);
+      color: var(--red-dark);
+      background: var(--red-soft);
+      border: 1px solid var(--red-border);
       font-weight: 700;
     }
 
@@ -1137,7 +1159,7 @@
       gap: 6px;
       padding: 5px 12px;
       border-radius: 99px;
-      color: var(--primary);
+      color: var(--mint-text);
       background: var(--mint);
       border: 1px solid var(--mint-border);
       font-size: 11.5px;
@@ -1159,8 +1181,8 @@
     }
 
     .status.failed {
-      color: var(--red);
-      background: var(--red-bg);
+      color: var(--red-text);
+      background: var(--red-soft);
       border-color: var(--red-border);
     }
 
@@ -1191,9 +1213,9 @@
 
     .tabs button.active {
       color: white;
-      background: var(--primary);
+      background: var(--red);
       font-weight: 700;
-      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.28);
+      box-shadow: 0 2px 8px rgba(215, 25, 32, 0.28);
     }
 
     .selection {
@@ -1285,22 +1307,29 @@
     .message.user {
       align-self: flex-end;
       color: white;
-      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+      background: linear-gradient(135deg, #a80f18 0%, #d71920 100%);
+      box-shadow: 0 4px 12px rgba(215, 25, 32, 0.2);
     }
 
     .citation {
       margin-top: 10px;
       padding: 8px 12px;
-      border: 1px solid var(--mint-border);
+      border: 1px solid var(--red-border);
       border-radius: var(--radius-md);
-      color: var(--mint-text);
-      background: white;
+      color: var(--red-dark);
+      background: var(--red-soft);
       font-size: 12px;
       font-weight: 700;
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .citation:hover {
+      background: #fee2e2;
+      border-color: #fca5a5;
     }
 
     .citation::before {
@@ -1351,6 +1380,519 @@
       width: 18px;
       height: 18px;
       stroke-width: 2.2;
+    }
+
+    /* 2-Column Personal RAG Workspace */
+    .rag-workspace-2col {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    /* Left: Chatbot Frame */
+    .rag-chat-col {
+      min-width: 0;
+      height: 720px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: white;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Top Session Bar inside Chatbot */
+    .chat-sessions-header {
+      border-bottom: 1px solid var(--line);
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .chat-sessions-bar {
+      padding: 9px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #fafbfc;
+      border-bottom: 1px solid var(--line-subtle);
+      overflow-x: auto;
+    }
+
+    .chat-sessions-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .chat-sessions-title svg {
+      color: var(--red);
+    }
+
+    .chat-sessions-pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      overflow-x: auto;
+    }
+
+    .session-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 99px;
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .session-pill:hover {
+      color: var(--ink);
+      border-color: var(--muted-light);
+      background: var(--line-subtle);
+    }
+
+    .session-pill.active {
+      color: var(--red-dark);
+      background: var(--red-soft);
+      border-color: var(--red-border);
+      font-weight: 700;
+    }
+
+    .session-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted-light);
+    }
+
+    .session-pill.active .session-dot {
+      background: var(--red);
+    }
+
+    .new-session-btn {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .chat-context-subbar {
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #ffffff;
+      font-size: 11.5px;
+      color: var(--ink-secondary);
+    }
+
+    .chat-scope-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .scope-separator {
+      color: var(--line);
+    }
+
+    .scope-badge {
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: var(--line-subtle);
+      color: var(--muted);
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+
+    .scope-badge.lock {
+      background: var(--red-soft);
+      color: var(--red-dark);
+    }
+
+    .trace-pill {
+      font-family: monospace;
+      font-size: 10.5px;
+      color: var(--muted);
+      padding: 2px 6px;
+      background: var(--line-subtle);
+      border-radius: 4px;
+    }
+
+    /* Message Citations */
+    .message-citations {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--line);
+    }
+
+    .citations-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .chat-citation-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border: 1px solid var(--red-border);
+      border-radius: var(--radius-sm);
+      background: var(--red-soft);
+      color: var(--red-dark);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.16s ease;
+      text-align: left;
+      width: fit-content;
+      max-width: 100%;
+    }
+
+    .chat-citation-btn:hover {
+      background: #fee2e2;
+      border-color: #fda4af;
+      transform: translateX(2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .chat-citation-btn .click-hint {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--red);
+      margin-left: 6px;
+      opacity: 0.85;
+    }
+
+    /* Interactive Citation Detail Drawer inside Chatbot */
+    .chat-citation-drawer {
+      position: absolute;
+      bottom: 122px;
+      left: 16px;
+      right: 16px;
+      max-height: 220px;
+      padding: 14px 16px;
+      border: 1.5px solid var(--red-border);
+      border-radius: var(--radius-lg);
+      background: #ffffff;
+      box-shadow: 0 12px 30px -4px rgba(215, 25, 32, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+      z-index: 25;
+      overflow-y: auto;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: none;
+    }
+
+    .chat-citation-drawer.show {
+      display: block;
+      animation: slideUpFade 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUpFade {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .chat-citation-drawer-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .citation-tag {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--red);
+      color: white;
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .citation-head-left b {
+      display: block;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .citation-close-btn {
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      transition: all 0.15s;
+    }
+
+    .citation-close-btn:hover {
+      background: var(--red-soft);
+      color: var(--red-dark);
+      border-color: var(--red-border);
+    }
+
+    .citation-quote-box {
+      padding: 8px 12px;
+      border-left: 3px solid var(--red);
+      background: #fff8f8;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      margin-bottom: 8px;
+    }
+
+    .citation-quote-box p {
+      margin: 0;
+      color: var(--ink-secondary);
+      font-size: 12.5px;
+      line-height: 1.55;
+      font-style: italic;
+    }
+
+    .citation-footer-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--muted);
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .match-badge {
+      color: var(--mint-text);
+      font-weight: 700;
+    }
+
+    .prompt-suggestions {
+      padding: 9px 16px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      border-top: 1px solid var(--line-subtle);
+      background: #fafbfc;
+    }
+
+    .prompt-chip {
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      border-radius: 99px;
+      background: white;
+      color: var(--ink-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .prompt-chip:hover {
+      border-color: var(--primary);
+      color: var(--primary-dark);
+      background: var(--red-soft);
+    }
+
+    /* Right: Compact Document Source Selector */
+    .rag-sources-col {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .rag-sources-col .pad {
+      padding: 16px 14px;
+    }
+
+    .sources-quick-filter {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 0 2px;
+    }
+
+    .compact-selection {
+      padding: 9px 10px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: white;
+      transition: all 0.15s;
+    }
+
+    .compact-selection:hover {
+      border-color: var(--primary);
+    }
+
+    .compact-selection input {
+      accent-color: var(--red);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .compact-selection label {
+      flex: 1;
+      cursor: pointer;
+      min-width: 0;
+    }
+
+    .compact-selection b {
+      font-size: 12px;
+      font-weight: 700;
+      display: block;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .compact-selection small {
+      color: var(--muted);
+      font-size: 10.5px;
+      display: block;
+      margin-top: 1px;
+    }
+
+    .text-action {
+      border: 0;
+      background: transparent;
+      color: var(--red);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .text-action:hover {
+      text-decoration: underline;
+    }
+
+    /* Multi-level Review Workspace */
+    .review-hub {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .review-courses-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .review-course-card {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: white;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .review-course-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .review-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: white;
+      width: fit-content;
+      margin-bottom: 18px;
+    }
+
+    .review-tab-btn {
+      padding: 9px 18px;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .review-tab-btn:hover {
+      color: var(--ink);
+      background: var(--line-subtle);
+    }
+
+    .review-tab-btn.active {
+      color: var(--red-dark);
+      background: var(--red-soft);
+      box-shadow: inset 0 0 0 1px var(--red-border);
+    }
+
+    .review-tab-btn .badge-pill {
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--primary);
+      background: rgba(215, 25, 32, 0.1);
+    }
+
+    .attempt-history-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .attempt-history-item {
+      padding: 11px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
     }
 
     /* Slide Viewer */
@@ -2189,6 +2731,14 @@
         grid-template-columns: 1fr;
       }
 
+      .rag-workspace-2col {
+        grid-template-columns: 1fr;
+      }
+
+      .review-courses-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
       .viewer {
         grid-template-columns: 100px 1fr;
       }
@@ -2388,10 +2938,12 @@
       <div class="auth-story">
         <div>
           <div class="brand">
-            <span class="brand-mark">SF</span>
+            <span class="brand-mark" style="width:48px;height:48px">
+              <svg viewBox="0 0 33 40" width="26" height="32" fill="none"><path d="M20.1674 0.61667C22.0416 0.162072 24.0551 0.433337 25.7853 1.2615C26.8115 1.84885 27.519 2.87242 27.896 3.97127C28.4556 5.59138 28.4781 7.33794 28.3446 9.02874C28.1174 11.4897 27.5271 13.9109 26.6837 16.2333C26.3871 17.0218 26.0726 17.8092 25.6483 18.5402C25.5633 18.6874 25.4708 18.8316 25.3506 18.9535C25.7767 17.8443 26.1044 16.7 26.379 15.5454C26.7588 13.8971 27.0097 12.2109 26.9912 10.5167C26.9797 8.89311 26.7086 7.22702 25.9102 5.79138C25.0841 4.29138 23.6059 3.14253 21.9179 2.78104C20.5056 2.47701 19.0303 2.76035 17.718 3.31495C15.9571 4.06092 14.4084 5.22299 13.0088 6.5069C12.2937 7.16897 11.6232 7.87759 10.9884 8.6161C11.9371 6.94541 13.1164 5.40115 14.4766 4.03966C16.0566 2.47184 17.9666 1.13334 20.1674 0.61667Z" fill="#d71920"/><path d="M14.9744 2.89597C12.5528 5.23217 10.5075 7.94482 8.85005 10.8638C7.8933 12.569 7.0753 14.3529 6.44807 16.204C5.85436 17.9241 5.44391 19.7046 5.18666 21.5046C4.9612 23.0402 4.86004 24.5977 4.95774 26.1483C5.06873 27.7029 5.39362 29.277 6.17 30.6465C6.77122 31.6937 7.67363 32.6494 8.85525 33.0247C8.79166 33.0931 8.69165 33.0965 8.60725 33.1247C7.50771 33.4213 6.32088 33.5138 5.21441 33.2006C4.36056 32.9626 3.59806 32.423 3.09627 31.696C2.43377 30.7471 2.16958 29.5868 2.06726 28.4529C1.91695 26.4833 2.19733 24.5103 2.60315 22.5862C2.88758 21.2529 3.24484 19.9362 3.64488 18.6333C3.73795 18.3448 3.81137 18.0483 3.93566 17.7707C4.72592 16.0017 5.637 14.2873 6.63017 12.623C7.92047 10.4776 9.36513 8.4178 11.0272 6.53907C12.2169 5.19884 13.5211 3.95114 14.9744 2.89597Z" fill="#d71920"/><path d="M25.5674 19.2448C27.4526 19.2316 29.3383 19.2419 31.224 19.2396C31.2246 19.6931 31.224 20.146 31.2246 20.5994C30.5217 20.6029 29.8181 20.5965 29.1152 20.6029C29.1192 22.8276 29.114 25.0523 29.1175 27.2776C28.6405 27.2793 28.1636 27.2713 27.6873 27.2816C27.6688 25.0552 27.6826 22.8276 27.6797 20.6006C26.9756 20.5977 26.2715 20.6046 25.5674 20.5971C25.5737 20.1465 25.5737 19.6954 25.5674 19.2448Z" fill="#d71920"/><path d="M7.25338 19.3408C8.16966 19.3425 9.08652 19.3414 10.0034 19.342C10.5248 19.3471 11.0486 19.3517 11.5665 19.4219C12.2071 19.5155 12.7696 19.9443 13.0771 20.5035C13.3089 20.9276 13.3777 21.4201 13.3667 21.8971C13.3529 22.3523 13.2505 22.8173 12.9898 23.1983C12.6337 23.7644 12.0001 24.1385 11.3365 24.2115C10.5173 24.3115 9.69063 24.2793 8.868 24.2822C8.86742 25.2782 8.86048 26.2747 8.87147 27.2713C8.33153 27.2828 7.79101 27.277 7.25049 27.2742C7.25858 24.6299 7.2528 21.9851 7.25338 19.3408ZM8.86395 20.6897C8.86858 21.4374 8.86684 22.1851 8.86511 22.9328C9.47153 22.9431 10.0814 22.9529 10.6861 22.8885C10.9821 22.8575 11.2758 22.7299 11.4671 22.4971C11.7417 22.1638 11.7804 21.6673 11.5874 21.2862C11.4064 20.942 11.0226 20.7402 10.6404 20.7173C10.0496 20.6782 9.45592 20.6707 8.86395 20.6897Z" fill="#d71920"/><path d="M13.5957 19.3488C15.482 19.3368 17.3695 19.3448 19.2564 19.3448C19.2558 19.7977 19.2564 20.25 19.2558 20.7029C18.5506 20.7121 17.8447 20.6908 17.14 20.7138C17.155 22.9362 17.1446 25.1598 17.1452 27.3828C16.666 27.377 16.1873 27.3816 15.7086 27.3805C15.711 25.1552 15.7081 22.9299 15.7104 20.7046C15.0068 20.7029 14.3033 20.7052 13.5998 20.704C13.5998 20.2517 13.6073 19.8 13.5957 19.3488Z" fill="#d71920"/><path d="M21.8081 19.2253C22.5371 17.9029 23.2481 16.5695 23.9944 15.2569C23.9361 15.5517 23.8106 15.8259 23.7141 16.1092C23.2684 17.3534 22.807 18.592 22.3717 19.8397C22.7591 19.6718 23.1152 19.4408 23.4932 19.2546C24.0962 19.2345 24.7003 19.2534 25.3038 19.2293C25.3056 19.2448 25.3096 19.2753 25.3113 19.2908C25.2986 19.2931 25.2738 19.2977 25.2611 19.3006C25.1501 19.3207 25.0402 19.3431 24.9338 19.3799C24.0372 19.6943 23.1366 19.9966 22.2399 20.3103C22.5348 20.4822 22.8654 20.581 23.1724 20.7293C23.1678 21.6086 23.1793 22.4885 23.1666 23.3678C23.1585 23.3534 23.1435 23.3247 23.136 23.3103C22.7932 22.3736 22.3954 21.4557 22.022 20.5299C20.9918 21.5109 19.9807 22.5126 18.9569 23.5006C18.9101 23.5431 18.8829 23.6006 18.8552 23.6563C18.8205 23.7207 18.7332 23.7322 18.6771 23.7724C19.3217 22.7397 19.9489 21.6954 20.5889 20.6592C20.9993 20.5063 21.4115 20.3586 21.822 20.2063C21.7555 20.1517 21.6826 20.1052 21.6034 20.0724C21.0092 19.808 20.423 19.5247 19.8275 19.2626L19.8056 19.2534C20.4727 19.2368 21.1404 19.242 21.8081 19.2253Z" fill="#f4c300"/></svg>
+            </span>
             <span>
               <b>StudyFlow</b>
-              <small style="color:rgba(255,255,255,0.7)">Nền tảng Quản lý Học tập</small>
+              <small style="color:rgba(255,255,255,0.85);letter-spacing:0.04em">Học viện Công nghệ Bưu chính Viễn thông</small>
             </span>
           </div>
           <h1>Học đúng tài liệu, đúng phạm vi.</h1>
@@ -2469,10 +3021,12 @@
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <span class="brand-mark">SF</span>
+        <span class="brand-mark">
+          <svg viewBox="0 0 33 40" width="22" height="27" fill="none"><path d="M20.1674 0.61667C22.0416 0.162072 24.0551 0.433337 25.7853 1.2615C26.8115 1.84885 27.519 2.87242 27.896 3.97127C28.4556 5.59138 28.4781 7.33794 28.3446 9.02874C28.1174 11.4897 27.5271 13.9109 26.6837 16.2333C26.3871 17.0218 26.0726 17.8092 25.6483 18.5402C25.5633 18.6874 25.4708 18.8316 25.3506 18.9535C25.7767 17.8443 26.1044 16.7 26.379 15.5454C26.7588 13.8971 27.0097 12.2109 26.9912 10.5167C26.9797 8.89311 26.7086 7.22702 25.9102 5.79138C25.0841 4.29138 23.6059 3.14253 21.9179 2.78104C20.5056 2.47701 19.0303 2.76035 17.718 3.31495C15.9571 4.06092 14.4084 5.22299 13.0088 6.5069C12.2937 7.16897 11.6232 7.87759 10.9884 8.6161C11.9371 6.94541 13.1164 5.40115 14.4766 4.03966C16.0566 2.47184 17.9666 1.13334 20.1674 0.61667Z" fill="#d71920"/><path d="M14.9744 2.89597C12.5528 5.23217 10.5075 7.94482 8.85005 10.8638C7.8933 12.569 7.0753 14.3529 6.44807 16.204C5.85436 17.9241 5.44391 19.7046 5.18666 21.5046C4.9612 23.0402 4.86004 24.5977 4.95774 26.1483C5.06873 27.7029 5.39362 29.277 6.17 30.6465C6.77122 31.6937 7.67363 32.6494 8.85525 33.0247C8.79166 33.0931 8.69165 33.0965 8.60725 33.1247C7.50771 33.4213 6.32088 33.5138 5.21441 33.2006C4.36056 32.9626 3.59806 32.423 3.09627 31.696C2.43377 30.7471 2.16958 29.5868 2.06726 28.4529C1.91695 26.4833 2.19733 24.5103 2.60315 22.5862C2.88758 21.2529 3.24484 19.9362 3.64488 18.6333C3.73795 18.3448 3.81137 18.0483 3.93566 17.7707C4.72592 16.0017 5.637 14.2873 6.63017 12.623C7.92047 10.4776 9.36513 8.4178 11.0272 6.53907C12.2169 5.19884 13.5211 3.95114 14.9744 2.89597Z" fill="#d71920"/><path d="M25.5674 19.2448C27.4526 19.2316 29.3383 19.2419 31.224 19.2396C31.2246 19.6931 31.224 20.146 31.2246 20.5994C30.5217 20.6029 29.8181 20.5965 29.1152 20.6029C29.1192 22.8276 29.114 25.0523 29.1175 27.2776C28.6405 27.2793 28.1636 27.2713 27.6873 27.2816C27.6688 25.0552 27.6826 22.8276 27.6797 20.6006C26.9756 20.5977 26.2715 20.6046 25.5674 20.5971C25.5737 20.1465 25.5737 19.6954 25.5674 19.2448Z" fill="#d71920"/><path d="M7.25338 19.3408C8.16966 19.3425 9.08652 19.3414 10.0034 19.342C10.5248 19.3471 11.0486 19.3517 11.5665 19.4219C12.2071 19.5155 12.7696 19.9443 13.0771 20.5035C13.3089 20.9276 13.3777 21.4201 13.3667 21.8971C13.3529 22.3523 13.2505 22.8173 12.9898 23.1983C12.6337 23.7644 12.0001 24.1385 11.3365 24.2115C10.5173 24.3115 9.69063 24.2793 8.868 24.2822C8.86742 25.2782 8.86048 26.2747 8.87147 27.2713C8.33153 27.2828 7.79101 27.277 7.25049 27.2742C7.25858 24.6299 7.2528 21.9851 7.25338 19.3408ZM8.86395 20.6897C8.86858 21.4374 8.86684 22.1851 8.86511 22.9328C9.47153 22.9431 10.0814 22.9529 10.6861 22.8885C10.9821 22.8575 11.2758 22.7299 11.4671 22.4971C11.7417 22.1638 11.7804 21.6673 11.5874 21.2862C11.4064 20.942 11.0226 20.7402 10.6404 20.7173C10.0496 20.6782 9.45592 20.6707 8.86395 20.6897Z" fill="#d71920"/><path d="M13.5957 19.3488C15.482 19.3368 17.3695 19.3448 19.2564 19.3448C19.2558 19.7977 19.2564 20.25 19.2558 20.7029C18.5506 20.7121 17.8447 20.6908 17.14 20.7138C17.155 22.9362 17.1446 25.1598 17.1452 27.3828C16.666 27.377 16.1873 27.3816 15.7086 27.3805C15.711 25.1552 15.7081 22.9299 15.7104 20.7046C15.0068 20.7029 14.3033 20.7052 13.5998 20.704C13.5998 20.2517 13.6073 19.8 13.5957 19.3488Z" fill="#d71920"/><path d="M21.8081 19.2253C22.5371 17.9029 23.2481 16.5695 23.9944 15.2569C23.9361 15.5517 23.8106 15.8259 23.7141 16.1092C23.2684 17.3534 22.807 18.592 22.3717 19.8397C22.7591 19.6718 23.1152 19.4408 23.4932 19.2546C24.0962 19.2345 24.7003 19.2534 25.3038 19.2293C25.3056 19.2448 25.3096 19.2753 25.3113 19.2908C25.2986 19.2931 25.2738 19.2977 25.2611 19.3006C25.1501 19.3207 25.0402 19.3431 24.9338 19.3799C24.0372 19.6943 23.1366 19.9966 22.2399 20.3103C22.5348 20.4822 22.8654 20.581 23.1724 20.7293C23.1678 21.6086 23.1793 22.4885 23.1666 23.3678C23.1585 23.3534 23.1435 23.3247 23.136 23.3103C22.7932 22.3736 22.3954 21.4557 22.022 20.5299C20.9918 21.5109 19.9807 22.5126 18.9569 23.5006C18.9101 23.5431 18.8829 23.6006 18.8552 23.6563C18.8205 23.7207 18.7332 23.7322 18.6771 23.7724C19.3217 22.7397 19.9489 21.6954 20.5889 20.6592C20.9993 20.5063 21.4115 20.3586 21.822 20.2063C21.7555 20.1517 21.6826 20.1052 21.6034 20.0724C21.0092 19.808 20.423 19.5247 19.8275 19.2626L19.8056 19.2534C20.4727 19.2368 21.1404 19.242 21.8081 19.2253Z" fill="#f4c300"/></svg>
+        </span>
         <span>
           <b>StudyFlow</b>
-          <small id="workspaceName">Workspace</small>
+          <small id="workspaceName">PTIT Workspace</small>
         </span>
       </div>
 
@@ -2624,6 +3178,15 @@
             </article>
           </div>
 
+          <article class="panel pad" style="margin-top:18px">
+            <div class="panel-head"><div><h3>Tiến độ từng lớp học phần</h3><p>Toàn bộ viewing progress, Quiz và Study Task được Java tổng hợp ngay trên Dashboard.</p></div></div>
+            <div class="grid g3">
+              <div class="mini-progress"><span><b>DBI-01 · Cơ sở dữ liệu</b><b>64%</b></span><div class="progress"><i style="width:64%"></i></div><small>18/28 slide · 3 Quiz, TB 7,8 · 5/7 task</small></div>
+              <div class="mini-progress"><span><b>AI-02 · Trí tuệ nhân tạo</b><b>42%</b></span><div class="progress"><i style="width:42%"></i></div><small>13/31 slide · 2 Quiz, TB 8,1 · 3/6 task</small></div>
+              <div class="mini-progress"><span><b>WEB-03 · Lập trình Web</b><b>78%</b></span><div class="progress"><i style="width:78%"></i></div><small>25/32 slide · 4 Quiz, TB 8,4 · 8/10 task</small></div>
+            </div>
+          </article>
+
           <div class="grid layout" style="margin-top:18px">
             <article class="panel pad">
               <div class="panel-head">
@@ -2708,7 +3271,7 @@
               <span class="status">APPROVED</span>
               <h3>Cơ sở dữ liệu</h3>
               <p>Cô Lan Hoàng · HK1 · 2026–2027</p>
-              <div class="actions" style="margin-top:16px"><button class="button soft" data-open-materials>Mở lớp học phần</button><button class="button" data-page="student-offering-progress">Xem tiến độ chi tiết</button></div>
+              <div class="actions" style="margin-top:16px"><button class="button soft" data-open-materials>Mở học liệu</button></div>
             </article>
             <article class="panel class-card">
               <span class="class-code">AI-02</span>
@@ -2821,125 +3384,180 @@
         <section class="page" id="page-student-personal" hidden>
           <div class="page-head">
             <div>
-              <h1>Tài liệu cá nhân & RAG</h1>
-              <p>Kho riêng của sinh viên. Chỉ nhận PDF và được giới hạn chặt chẽ cho Personal RAG.</p>
+              <h1>Tài liệu cá nhân & Hỏi đáp AI (Personal RAG)</h1>
+              <p>Kho riêng của sinh viên. Chatbot đối chiếu trực tiếp trên các tài liệu PDF được tick chọn.</p>
             </div>
             <div class="actions">
-              <button class="button primary" data-modal="personal">Upload PDF</button>
+              <button class="button primary" data-modal="personal">+ Upload PDF mới</button>
             </div>
           </div>
-          <div class="tabs">
-            <button class="active" data-personal-tab="library">Kho tài liệu cá nhân</button>
-            <button data-personal-tab="chat">Hỏi đáp AI (Personal RAG)</button>
-          </div>
 
-          <div id="personal-library">
-            <div class="grid layout">
-              <article class="panel pad">
-                <div class="panel-head">
-                  <div>
-                    <h3>Kho tài liệu của Minh</h3>
-                    <p>Chọn các tài liệu READY bạn muốn AI trả lời</p>
+          <div class="rag-workspace-2col">
+            <!-- CỘT TRÁI: GIAO DIỆN CHATBOT (Có phân phiên ở trên đầu, trích dẫn tương tác, gợi ý, composer) -->
+            <article class="rag-chat-col">
+              <!-- Phân phiên trò chuyện đặt lên đầu trong khung chatbot -->
+              <div class="chat-sessions-header">
+                <div class="chat-sessions-bar">
+                  <span class="chat-sessions-title">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <b>Phiên hỏi đáp:</b>
+                  </span>
+                  <div class="chat-sessions-pills" id="chatSessionList">
+                    <button type="button" class="session-pill active" data-session="s1">
+                      <span class="session-dot"></span>
+                      <span>Transaction & ACID</span>
+                    </button>
+                    <button type="button" class="session-pill" data-session="s2">
+                      <span class="session-dot"></span>
+                      <span>Chuẩn hóa 3NF</span>
+                    </button>
+                    <button type="button" class="session-pill" data-session="s3">
+                      <span class="session-dot"></span>
+                      <span>B-Tree & Index</span>
+                    </button>
+                  </div>
+                  <button type="button" class="button soft compact new-session-btn" id="newChatSessionBtn" title="Tạo phiên hỏi đáp mới">+ Phiên mới</button>
+                </div>
+                <div class="chat-context-subbar">
+                  <div class="chat-scope-info">
+                    <span class="pulse-dot"></span>
+                    <span id="evidenceStatusText">Đang kích hoạt: <b>2 PDF cá nhân</b></span>
+                    <span class="scope-separator">·</span>
+                    <span class="scope-badge">Personal Documents Scope</span>
+                    <span class="scope-badge lock">Không dùng Teacher PDF</span>
+                  </div>
+                  <span class="trace-pill">trace: ptit-rag-024</span>
+                </div>
+              </div>
+
+              <!-- Nội dung hội thoại -->
+              <div class="chat" id="ragChat">
+                <div class="message">
+                  Xin chào Minh! Hãy hỏi bất kỳ điều gì về các tài liệu PDF bạn đã tick chọn bên phải (<b>Đề cương ôn tập CSDL.pdf</b>, <b>Ghi chú Transaction.pdf</b>). Phản hồi luôn kèm trích dẫn minh bạch; nếu thiếu bằng chứng hệ thống trả <b>NO_EVIDENCE</b> thay vì suy đoán.
+                </div>
+                <div class="message user">
+                  Giải thích tính cô lập (Isolation) của transaction?
+                </div>
+                <div class="message">
+                  Tính cô lập (Isolation) đảm bảo các transaction thực thi đồng thời không can thiệp hay nhìn thấy trạng thái trung gian của nhau. Mức độ cô lập (Isolation level) quyết định những hiện tượng đọc nào được phép xảy ra (Dirty Read, Non-repeatable Read, Phantom Read).
+                  <div class="message-citations">
+                    <span class="citations-label">Trích dẫn minh chứng (bấm để xem chi tiết):</span>
+                    <button type="button" class="chat-citation-btn" data-doc="Đề cương ôn tập CSDL.pdf" data-page="Trang 12" data-excerpt="“Transaction đồng thời không nhìn thấy trạng thái trung gian của nhau. Các mức Isolation bảo vệ chống Dirty Read và Phantom Read.”">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                      <span>Đề cương ôn tập CSDL.pdf · Trang 12</span>
+                      <span class="click-hint">Bấm xem chi tiết →</span>
+                    </button>
+                    <button type="button" class="chat-citation-btn" data-doc="Ghi chú Transaction.pdf" data-page="Trang 3" data-excerpt="“Mức cô lập Serializable ngăn chặn hoàn toàn mọi hiện tượng đọc bất thường trong môi trường đồng thời.”">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                      <span>Ghi chú Transaction.pdf · Trang 3</span>
+                      <span class="click-hint">Bấm xem chi tiết →</span>
+                    </button>
                   </div>
                 </div>
-                <div class="cards">
-                  <div class="selection">
-                    <input type="checkbox" id="pd1" checked>
+              </div>
+
+              <!-- Chi tiết trích dẫn hiển thị ngay bên trong giao diện chatbot -->
+              <div class="chat-citation-drawer" id="chatCitationDrawer">
+                <div class="chat-citation-drawer-head">
+                  <div class="citation-head-left">
+                    <span class="citation-tag">MINH CHỨNG XÁC THỰC</span>
+                    <b id="inlineCiteDocTitle">Đề cương ôn tập CSDL.pdf · Trang 12</b>
+                  </div>
+                  <button type="button" class="citation-close-btn" id="closeCitationDrawer" title="Đóng chi tiết">✕</button>
+                </div>
+                <div class="chat-citation-drawer-body">
+                  <div class="citation-quote-box">
+                    <p id="inlineCiteExcerpt">“Transaction đồng thời không nhìn thấy trạng thái trung gian của nhau. Các mức Isolation bảo vệ chống Dirty Read và Phantom Read.”</p>
+                  </div>
+                  <div class="citation-footer-meta">
+                    <span class="match-badge">✓ Đối chiếu 100% tài liệu nguồn cá nhân</span>
+                    <small>Grounding snapshot: SHA-256 verified · Phạm vi: Student Minh Nguyễn</small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Gợi ý câu hỏi nhanh -->
+              <div class="prompt-suggestions">
+                <button type="button" class="prompt-chip" data-quick-prompt="Isolation level nào ngăn chặn Dirty Read?">Isolation Level là gì?</button>
+                <button type="button" class="prompt-chip" data-quick-prompt="Giải thích nguyên lý ACID trong CSDL?">Nguyên lý ACID</button>
+                <button type="button" class="prompt-chip" data-quick-prompt="Tóm tắt nội dung chính về Transaction trong tài liệu?">Tóm tắt Transaction</button>
+              </div>
+
+              <form class="composer" id="ragForm">
+                <input id="ragInput" placeholder="Hỏi nội dung trong các tài liệu đã chọn bên phải..." autocomplete="off">
+                <button class="send" title="Gửi câu hỏi" type="submit">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <line x1="22" x2="11" y1="2" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </button>
+              </form>
+              <small style="display:block;padding:6px 16px 8px;color:var(--muted);font-size:11px">Đối chiếu từng claim với đúng evidence snapshot · Nhấn vào trích dẫn để xem bằng chứng</small>
+            </article>
+
+            <!-- CỘT PHẢI: KHUNG TÍCH CHỌN TÀI LIỆU NHỎ GỌN (Scope) -->
+            <aside class="rag-sources-col">
+              <article class="panel pad">
+                <div class="panel-head" style="margin-bottom:12px">
+                  <div>
+                    <h3 style="font-size:15px">Tài liệu đối chiếu</h3>
+                    <p style="font-size:11.5px">Tích chọn 1–10 PDF cá nhân</p>
+                  </div>
+                  <span class="chip" id="sourceCountBadge">2 đã chọn</span>
+                </div>
+
+                <div class="sources-quick-filter">
+                  <small style="color:var(--muted);font-weight:700;font-size:10.5px">DANH SÁCH PDF</small>
+                  <button type="button" class="text-action" id="selectAllDocsBtn">Chọn tất cả</button>
+                </div>
+
+                <div class="cards" id="personalFileList" style="gap:8px">
+                  <div class="compact-selection">
+                    <input type="checkbox" id="pd1" checked data-doc-title="Đề cương ôn tập CSDL.pdf" data-pages="24">
                     <label for="pd1">
                       <b>Đề cương ôn tập CSDL.pdf</b>
-                      <small>PDF · 24 trang · Owner: Minh Nguyễn (Student)</small>
+                      <small>24 trang · 3.4 MB</small>
                     </label>
                     <span class="status">READY</span>
                   </div>
-                  <div class="selection">
-                    <input type="checkbox" id="pd2" checked>
+                  <div class="compact-selection">
+                    <input type="checkbox" id="pd2" checked data-doc-title="Ghi chú Transaction.pdf" data-pages="12">
                     <label for="pd2">
                       <b>Ghi chú Transaction.pdf</b>
-                      <small>PDF · 1.2 MB · Owner: Minh Nguyễn (Student)</small>
+                      <small>12 trang · 1.2 MB</small>
                     </label>
                     <span class="status">READY</span>
                   </div>
-                  <div class="selection">
-                    <input type="checkbox" id="pd3" disabled>
+                  <div class="compact-selection">
+                    <input type="checkbox" id="pd3" data-doc-title="B-Tree & Indexing.pdf" data-pages="18">
                     <label for="pd3">
+                      <b>B-Tree & Indexing.pdf</b>
+                      <small>18 trang · 2.1 MB</small>
+                    </label>
+                    <span class="status">READY</span>
+                  </div>
+                  <div class="compact-selection">
+                    <input type="checkbox" id="pd4" disabled data-doc-title="Bài tập tuần 5.pdf">
+                    <label for="pd4">
                       <b>Bài tập tuần 5.pdf</b>
-                      <small>PDF · Vừa upload 2 phút trước · Đang chunking</small>
+                      <small>Đang chunking vector</small>
                     </label>
                     <span class="status processing">PROCESSING</span>
                   </div>
                 </div>
-              </article>
-              <aside class="panel pad">
-                <div class="panel-head">
-                  <div>
-                    <h3>Phạm vi RAG</h3>
-                    <p>Backend Java xác thực quyền</p>
-                  </div>
-                </div>
-                <ul style="margin:0;padding-left:18px;color:var(--muted);font-size:13px;line-height:1.8">
-                  <li>Chỉ tài liệu do chính bạn sở hữu (Owner)</li>
-                  <li>Chỉ tìm kiếm trên các file READY đã tick chọn</li>
-                  <li>Không truy cập tài liệu Teacher hay của người khác</li>
-                  <li>Citation minh bạch theo document / page</li>
-                  <li>Nếu không đủ bằng chứng trả lời: <b style="color:var(--ink)">NO_EVIDENCE</b></li>
-                </ul>
-                <button class="button soft" data-personal-tab-jump="chat" style="margin-top:18px;width:100%">Hỏi đáp
-                  trên 2 tài liệu đã chọn →</button>
-              </aside>
-            </div>
-          </div>
 
-          <div id="personal-chat" hidden>
-            <div class="grid layout">
-              <aside class="panel pad">
-                <div class="panel-head">
-                  <div><h3>Evidence scope</h3><p>2 Personal PDF · owner verified</p></div>
-                  <button class="button" data-personal-tab-jump="library">Đổi nguồn</button>
-                </div>
-                <div class="cards">
-                  <div class="item-card"><span class="item-icon">PDF</span><span><b>Đề cương ôn tập</b><small>READY · version 3</small></span><span class="status">✓</span></div>
-                  <div class="item-card"><span class="item-icon" style="color:var(--blue);background:var(--blue-bg)">PDF</span><span><b>Ghi chú Transaction</b><small>READY · version 1</small></span><span class="status">✓</span></div>
-                </div>
-                <div class="callout" style="margin:16px 0 0"><div><b>Conversation history</b><small>Chuẩn hóa dữ liệu · đang mở<br>SQL nâng cao · hôm qua</small></div></div>
-                <button class="button" data-action="new-conversation" style="width:100%;margin-top:12px">+ Cuộc trò chuyện mới</button>
-              </aside>
-              <article class="panel chat-shell">
-                <div class="chat-context">
-                  <b>Hỏi đáp theo nguồn · Java đã xác minh 2 document/version</b>
-                  <div class="selected-docs">
-                    <span class="chip green">Không dùng Teacher Documents</span>
-                    <span class="chip">trace: demo-rag-018</span>
+                <div class="callout" style="margin-top:14px;padding:12px 14px;background:var(--red-soft);border-color:var(--red-border);color:var(--red-text)">
+                  <div>
+                    <b style="color:var(--red-dark);font-size:12px">Quy tắc RAG phạm vi hẹp</b>
+                    <small style="color:#78350f;font-size:11px;display:block;margin-top:2px">Chỉ trích xuất từ PDF đã tick chọn. Thiếu bằng chứng trả về <b>NO_EVIDENCE</b>.</small>
                   </div>
                 </div>
-                <div class="chat" id="ragChat">
-                  <div class="message">
-                    Hãy hỏi điều bạn cần tìm hiểu. Tôi chỉ dùng evidence trong các PDF đã chọn; thiếu bằng chứng sẽ trả
-                    <b>NO_EVIDENCE</b> thay vì suy đoán.
-                  </div>
-                  <div class="message user">
-                    Giải thích tính cô lập (Isolation) của transaction?
-                  </div>
-                  <div class="message">
-                    Tính cô lập (Isolation) đảm bảo các transaction thực thi đồng thời không can thiệp hay nhìn thấy
-                    trạng thái trung gian của nhau. Mức độ cô lập (Isolation level) quyết định những hiện tượng đọc nào
-                    được phép xảy ra.
-                    <details class="citation"><summary>Đề cương ôn tập CSDL.pdf · Trang 12</summary><p>“Transaction đồng thời không nhìn thấy trạng thái trung gian của nhau.”</p></details>
-                    <details class="citation"><summary>Ghi chú Transaction.pdf · Trang 3</summary><p>Citation được gắn với claim về mức cô lập.</p></details>
-                  </div>
-                </div>
-                <form class="composer" id="ragForm">
-                  <input id="ragInput" placeholder="Hỏi nội dung trong các tài liệu đã chọn...">
-                  <button class="send" title="Gửi câu hỏi">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <line x1="22" x2="11" y1="2" y2="13" />
-                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                    </svg>
-                  </button>
-                </form>
-                <small style="display:block;padding:0 18px 14px;color:var(--muted)">Đang truy xuất → đối chiếu từng claim với đúng context đã dùng · Không có model selector hoặc Agent Trace</small>
+
+                <button class="button soft" data-modal="personal" style="width:100%;margin-top:12px;font-size:12.5px;min-height:36px">+ Upload PDF mới</button>
               </article>
-            </div>
-            <div class="actions" style="justify-content:flex-end;margin-top:12px"><button class="button primary" id="generateQuiz">Sinh Quiz từ 2 nguồn đã chọn</button></div>
+            </aside>
           </div>
         </section>
 
@@ -2996,12 +3614,11 @@
           </article>
         </section>
 
-        <!-- STUDENT: Course Offering Detail progress; intentionally absent from primary navigation. -->
-        <section class="page" id="page-student-offering-progress" hidden>
+        <template id="retired-dashboard-progress-reference">
           <div class="page-head">
             <div>
-              <h1>Chi tiết tiến độ Course Offering</h1>
-              <p>Viewing progress của DBI-01; không phải màn Progress tổng hợp và không gán nhãn Topic Mastery.</p>
+              <h1>Nội dung đã chuyển lên Dashboard</h1>
+              <p>Template lưu trữ không được render hoặc điều hướng; Dashboard là nơi hiển thị tiến độ.</p>
             </div>
           </div>
           <div class="grid g4">
@@ -3122,7 +3739,7 @@
               </div>
             </article>
           </div>
-        </section>
+        </template>
 
         <!-- STUDENT: Plan & Schedule -->
         <section class="page" id="page-student-plan" hidden>
@@ -3282,151 +3899,468 @@
           </article>
         </section>
 
-        <!-- STUDENT: Review & Quiz -->
+        <!-- STUDENT: Review & Quiz Hub -->
         <section class="page" id="page-student-review" hidden>
-          <div class="page-head">
-            <div>
-              <h1>Ôn tập & Duyệt Quiz</h1>
-              <p>Quản lý các bài Quiz do AI sinh, kiểm tra nguồn citation trước khi bắt đầu làm bài.</p>
+          <!-- CẤP ĐỘ 1: CHỌN MÔN HỌC ĐỂ ÔN TẬP -->
+          <div id="reviewCoursePicker">
+            <div class="page-head">
+              <div>
+                <h1>Ôn tập & Khảo nghiệm</h1>
+                <p>Chọn môn học phần để vào không gian ôn tập riêng, hoặc ôn tập theo Quiz cá nhân.</p>
+              </div>
+              <div class="actions">
+                <button class="button" id="goCreateQuiz">+ Tạo Quiz</button>
+              </div>
             </div>
-            <div class="actions">
-              <button class="button" id="goCreateQuiz">+ Tạo Quiz trong Chatbot</button>
+
+            <article class="panel pad" id="quizCreateBox" style="margin-bottom:18px" hidden>
+              <div class="panel-head"><div><h3>Tạo Quiz theo yêu cầu của bạn</h3><p>Chọn Personal Documents và tự viết prompt; không sử dụng ngữ cảnh chatbot.</p></div></div>
+              <div class="grid g2">
+                <div class="cards"><label class="item-card"><input type="checkbox" checked><span><b>Đề cương ôn tập CSDL.pdf</b><small>READY · Personal PDF</small></span></label><label class="item-card"><input type="checkbox" checked><span><b>Ghi chú Transaction.pdf</b><small>READY · Personal PDF</small></span></label></div>
+                <div><label for="quizPrompt"><b>Yêu cầu tạo Quiz</b></label><textarea id="quizPrompt" maxlength="2000" placeholder="Tự nhập số câu, độ khó, chủ đề và nội dung muốn tập trung…" style="width:100%;min-height:110px;margin:8px 0;padding:12px;border:1px solid var(--line);border-radius:10px"></textarea><small style="display:block;color:var(--muted);margin-bottom:10px">Hệ thống giữ định dạng MCQ_SINGLE, kiểm quyền nguồn và citation.</small><button class="button primary" id="generateQuiz">Tạo Quiz</button></div>
+              </div>
+            </article>
+
+            <!-- 4 Thẻ chỉ số tổng quan của phân hệ Ôn tập -->
+            <div class="grid g4" style="margin-bottom:20px">
+              <article class="panel stat">
+                <div class="stat-top">
+                  <span class="stat-icon" style="color:var(--amber);background:var(--amber-bg)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" x2="12" y1="8" y2="12" />
+                      <line x1="12" x2="12.01" y1="16" y2="16" />
+                    </svg>
+                  </span>
+                  <span class="trend" style="color:var(--amber);background:var(--amber-bg)">Cần duyệt</span>
+                </div>
+                <h3 id="pendingCount">1</h3>
+                <p>Quiz AI chờ duyệt</p>
+              </article>
+              <article class="panel stat">
+                <div class="stat-top">
+                  <span class="stat-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  <span class="trend">Có thể làm</span>
+                </div>
+                <h3 id="readyCount">5</h3>
+                <p>Quiz đã duyệt sẵn sàng</p>
+              </article>
+              <article class="panel stat">
+                <div class="stat-top">
+                  <span class="stat-icon" style="color:var(--blue);background:var(--blue-bg)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                  </span>
+                  <span class="trend" style="color:var(--blue);background:var(--blue-bg)">Tuần này</span>
+                </div>
+                <h3>2</h3>
+                <p>Lượt làm bài Quiz</p>
+              </article>
+              <article class="panel stat">
+                <div class="stat-top">
+                  <span class="stat-icon" style="color:var(--purple);background:var(--purple-bg)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="m9 12 2 2 4-4" />
+                    </svg>
+                  </span>
+                  <span class="trend" style="color:var(--purple);background:var(--purple-bg)">Java chấm</span>
+                </div>
+                <h3>82%</h3>
+                <p>Điểm trung bình</p>
+              </article>
+            </div>
+
+            <div class="panel-head" style="margin-top:24px;margin-bottom:12px">
+              <div>
+                <h3>Không gian ôn tập theo môn học</h3>
+                <p>Chọn một môn để vào quản lý Quiz, xem câu sai có trích dẫn và theo dõi tiến độ</p>
+              </div>
+            </div>
+
+            <!-- Lưới chọn môn ôn tập -->
+            <div class="review-courses-grid">
+              <!-- Môn 1: DBI-01 -->
+              <article class="review-course-card">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                  <span class="class-code">DBI-01</span>
+                  <span class="status">APPROVED</span>
+                </div>
+                <div>
+                  <h3 style="margin:0 0 4px;font-size:17px;font-weight:700">Cơ sở dữ liệu</h3>
+                  <small style="color:var(--muted)">Cô Lan Hoàng · HK1 2026–2027</small>
+                </div>
+                <div class="mini-progress">
+                  <span><b>Tiến độ xem slide</b><b>46/92 slide (50%)</b></span>
+                  <div class="progress"><i style="width:50%"></i></div>
+                </div>
+                <div style="display:flex;gap:12px;font-size:12.5px;color:var(--muted)">
+                  <span><b>3</b> Quiz READY</span> • <span style="color:var(--amber)"><b>1</b> Cần duyệt</span> • <span style="color:var(--red)"><b>2</b> Câu sai</span>
+                </div>
+                <button class="button primary" data-open-review-course="DBI-01" style="width:100%;margin-top:auto">Vào ôn tập môn này →</button>
+              </article>
+
+              <!-- Môn 2: AI-02 -->
+              <article class="review-course-card">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                  <span class="class-code">AI-02</span>
+                  <span class="status">APPROVED</span>
+                </div>
+                <div>
+                  <h3 style="margin:0 0 4px;font-size:17px;font-weight:700">Trí tuệ nhân tạo</h3>
+                  <small style="color:var(--muted)">Thầy Huy Nguyễn · HK1 2026–2027</small>
+                </div>
+                <div class="mini-progress">
+                  <span><b>Tiến độ xem slide</b><b>18/60 slide (30%)</b></span>
+                  <div class="progress"><i style="width:30%"></i></div>
+                </div>
+                <div style="display:flex;gap:12px;font-size:12.5px;color:var(--muted)">
+                  <span><b>2</b> Quiz READY</span> • <span><b>0</b> Cần duyệt</span>
+                </div>
+                <button class="button primary" data-open-review-course="AI-02" style="width:100%;margin-top:auto">Vào ôn tập môn này →</button>
+              </article>
+
+              <!-- Môn 3: Quiz cá nhân -->
+              <article class="review-course-card" style="background:var(--red-soft);border-color:var(--red-border)">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                  <span class="class-code" style="background:white;color:var(--red-dark)">PERSONAL</span>
+                  <span class="status" style="background:white">KHO RIÊNG</span>
+                </div>
+                <div>
+                  <h3 style="margin:0 0 4px;font-size:17px;font-weight:700">Quiz cá nhân</h3>
+                  <small style="color:var(--muted)">Sinh từ Personal PDF · Không gắn vào lớp</small>
+                </div>
+                <p style="margin:0;font-size:12.5px;color:var(--ink-secondary);line-height:1.5">
+                  Bộ câu hỏi tự ôn tập do AI sinh từ tài liệu riêng, chỉ owner có quyền truy cập.
+                </p>
+                <div style="display:flex;gap:8px;font-size:12px;color:var(--muted);margin-top:auto">
+                  <span><b>2</b> Quiz cá nhân đã duyệt</span>
+                </div>
+                <button class="button soft" data-open-review-course="PERSONAL" style="width:100%;background:white">Vào ôn tập cá nhân →</button>
+              </article>
             </div>
           </div>
 
-          <div class="grid g4">
-            <article class="panel stat">
-              <div class="stat-top">
-                <span class="stat-icon" style="color:var(--amber);background:var(--amber-bg)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" x2="12" y1="8" y2="12" />
-                    <line x1="12" x2="12.01" y1="16" y2="16" />
-                  </svg>
-                </span>
-                <span class="trend" style="color:var(--amber);background:var(--amber-bg)">Cần xử lý</span>
+          <!-- CẤP ĐỘ 2: KHÔNG GIAN ÔN TẬP CHI TIẾT CỦA MÔN ĐƯỢC CHỌN -->
+          <div id="subjectReviewWorkspace" hidden>
+            <div class="page-head" style="margin-bottom:14px">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <button class="button" id="backToCoursePicker" style="min-height:34px;padding:0 14px;font-size:12.5px">← Đổi môn học</button>
+                  <small style="color:var(--muted);font-weight:800;letter-spacing:0.04em">ÔN TẬP / <span id="currentReviewCode">DBI-01</span></small>
+                </div>
+                <h1 id="currentReviewTitle">Cơ sở dữ liệu · DBI-01</h1>
+                <p id="currentReviewSubtitle">Enrollment APPROVED · Giáo viên: Cô Lan Hoàng · HK1 2026–2027</p>
               </div>
-              <h3 id="pendingCount">1</h3>
-              <p>Quiz chờ duyệt</p>
-            </article>
-            <article class="panel stat">
-              <div class="stat-top">
-                <span class="stat-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </span>
-                <span class="trend">Có thể làm</span>
+            </div>
+
+            <!-- Sub-Tabs phân chia rõ 3 chức năng -->
+            <div class="review-tabs">
+              <button class="review-tab-btn active" data-subtab="quizzes">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                <span>Quản lý Quiz</span>
+                <span class="badge-pill" id="subtabQuizPill">4 Quiz</span>
+              </button>
+              <button class="review-tab-btn" data-subtab="wrong-answers">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                <span>Nội dung cần ôn lại</span>
+                <span class="badge-pill" style="background:#fee2e2;color:var(--red)">2 chủ đề câu sai</span>
+              </button>
+              <button class="review-tab-btn" data-subtab="progress">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="14" x="3" y="3" rx="2"/><line x1="3" x2="21" y1="9" y2="9"/></svg>
+                <span>Xem tiến độ môn học</span>
+                <span class="badge-pill" style="background:var(--mint);color:var(--mint-text)">46/92 slide</span>
+              </button>
+            </div>
+
+            <!-- TAB 1: QUẢN LÝ QUIZ -->
+            <div id="tabPanelQuizzes">
+              <!-- Danh sách Quiz -->
+              <article class="panel pad">
+                <div class="panel-head">
+                  <div>
+                    <h3>Kho Quiz của môn học</h3>
+                    <p>Quiz AI sinh ra phải được sinh viên duyệt chất lượng và nguồn trích dẫn trước khi làm</p>
+                  </div>
+                </div>
+
+                <div class="quiz-list">
+                  <!-- Quiz vừa sinh từ AI đang chờ duyệt -->
+                  <div class="quiz-row" id="draftQuiz">
+                    <span>
+                      <b style="color:var(--primary)">Transaction từ tài liệu cá nhân</b>
+                      <small>10 câu hỏi MCQ_SINGLE · 2 tài liệu nguồn · Trạng thái vừa sinh từ RAG</small>
+                    </span>
+                    <div class="actions">
+                      <span class="status processing" id="draftStatus">REVIEW_REQUIRED</span>
+                      <button class="button soft" id="reviewQuiz">Xem & Duyệt Quiz</button>
+                    </div>
+                  </div>
+
+                  <!-- Quiz đã sẵn sàng -->
+                  <div class="quiz-row">
+                    <span>
+                      <b>Thiết kế ERD căn bản</b>
+                      <small>8 câu hỏi trắc nghiệm · Sinh viên đã chấp nhận · Điểm cao nhất: 8.5/8</small>
+                    </span>
+                    <div class="actions">
+                      <span class="status">READY</span>
+                      <button class="button primary" data-start-quiz>Bắt đầu làm bài</button>
+                    </div>
+                  </div>
+
+                  <div class="quiz-row">
+                    <span>
+                      <b>Chuẩn hóa dữ liệu 1NF - 3NF - BCNF</b>
+                      <small>12 câu hỏi trắc nghiệm · Đã duyệt · Chưa làm lần nào</small>
+                    </span>
+                    <div class="actions">
+                      <span class="status">READY</span>
+                      <button class="button primary" data-start-quiz>Bắt đầu làm bài</button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <!-- Hộp Duyệt Quiz (Quiz Review Box) -->
+              <article class="panel quiz-box" id="quizReview" style="margin-top:18px" hidden>
+                <div class="panel-head">
+                  <div>
+                    <h3>Duyệt Quiz: Transaction & Khóa</h3>
+                    <p>Kiểm tra nội dung câu hỏi MCQ_SINGLE và tính xác thực của Citation trước khi chấp nhận</p>
+                  </div>
+                  <span class="status processing">REVIEW_REQUIRED</span>
+                </div>
+                <div class="question">
+                  <p><b>Câu 1.</b> Isolation level nào dưới đây ngăn chặn hoàn toàn hiện tượng Dirty Read?</p>
+                  <div class="chip green">Đáp án dự kiến: Read Committed (hoặc cao hơn)</div>
+                  <div class="citation" style="margin-top:8px">Đề cương ôn tập CSDL.pdf · Trang 12</div>
+                </div>
+                <div class="question">
+                  <p><b>Câu 2.</b> Nguyên lý ACID bảo đảm điều gì khi xảy ra sự cố gián đoạn transaction?</p>
+                  <div class="chip green">Đáp án dự kiến: Atomicity bảo đảm rollback toàn bộ thay đổi</div>
+                  <div class="citation" style="margin-top:8px">Ghi chú Transaction.pdf · Trang 3</div>
+                </div>
+                <div class="actions" style="margin-top:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <label style="font-size:13px;font-weight:700">Đưa Quiz vào:
+                    <select id="quizDestination" style="padding:6px 12px;border:1px solid var(--line);border-radius:8px">
+                      <option value="DBI-01">DBI-01 · Cơ sở dữ liệu (Khuyên dùng)</option>
+                      <option value="AI-02">AI-02 · Trí tuệ nhân tạo</option>
+                      <option value="PERSONAL">Quiz cá nhân (Kho riêng)</option>
+                    </select>
+                  </label>
+                  <button class="button" id="regenerateQuiz">Tạo lại toàn bộ</button>
+                  <button class="button warn" id="rejectQuiz">Từ chối Quiz này</button>
+                  <button class="button primary" id="acceptQuiz">Chấp nhận & Đưa vào kho ôn</button>
+                </div>
+              </article>
+
+              <!-- Màn Làm bài Quiz (Quiz Runner) -->
+              <article class="panel quiz-box" id="quizRunner" style="margin-top:18px" hidden>
+                <div class="panel-head">
+                  <div>
+                    <h3>Đang làm bài: Thiết kế ERD căn bản</h3>
+                    <p>Định dạng MCQ_SINGLE · Câu hỏi số 1 / 8</p>
+                  </div>
+                  <span class="chip amber">Thời gian: 15 phút</span>
+                </div>
+                <p style="font-size:15px;margin-bottom:14px;font-weight:600"><b>Câu hỏi:</b> Thành phần nào trong mô hình quan hệ dùng để định danh duy nhất một thực thể trong bảng?</p>
+                <label class="answer"><input type="radio" name="quiz-answer" value="1"> Thuộc tính khóa chính (Primary Key)</label>
+                <label class="answer"><input type="radio" name="quiz-answer" value="2"> Thuộc tính đa trị (Multivalued Attribute)</label>
+                <label class="answer"><input type="radio" name="quiz-answer" value="3"> Mối liên kết nhiều - nhiều (N - N)</label>
+                <label class="answer"><input type="radio" name="quiz-answer" value="4"> Khóa ngoại tham chiếu (Foreign Key)</label>
+
+                <div class="actions" style="margin-top:18px">
+                  <button class="button primary" id="submitQuiz">Nộp bài Quiz</button>
+                </div>
+
+                <!-- Kết quả và Lịch sử Attempt -->
+                <div class="result" id="quizResult" hidden style="margin-top:18px">
+                  <b>Kết quả: 7 / 8 điểm · SCORED (Đạt 87.5%)</b>
+                  <p style="color:var(--mint-text);margin-top:4px">Điểm số do Java Spring Boot Backend chấm và ghi nhận vào Learning Events. Không có chấm điểm tự do.</p>
+
+                  <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--mint-border)">
+                    <b style="font-size:13.5px;color:var(--mint-text)">Lịch sử các lần làm (Attempt History):</b>
+                    <div class="attempt-history-list">
+                      <div class="attempt-history-item">
+                        <span><b>Lượt 1 (18/09):</b> 5.0 / 8 điểm</span>
+                        <span class="chip">Đã ghi nhận</span>
+                      </div>
+                      <div class="attempt-history-item">
+                        <span><b>Lượt 2 (20/09):</b> 7.0 / 8 điểm</span>
+                        <span class="chip">Đã ghi nhận</span>
+                      </div>
+                      <div class="attempt-history-item" style="border-color:var(--mint-border);background:var(--mint)">
+                        <span><b style="color:var(--primary)">Lượt 3 (Vừa nộp):</b> 7.0 / 8 điểm</span>
+                        <span class="chip green">Mới nhất</span>
+                      </div>
+                    </div>
+                    <small style="display:block;margin-top:8px;color:var(--muted)">Quy tắc: Mỗi lượt làm tạo một attempt mới độc lập, không bao giờ ghi đè lịch sử cũ.</small>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <!-- TAB 2: NỘI DUNG CẦN ÔN LẠI -->
+            <div id="tabPanelWrongAnswers" hidden>
+              <article class="panel pad">
+                <div class="panel-head">
+                  <div>
+                    <h3>Nội dung cần ôn lại từ câu trả lời sai</h3>
+                    <p>Chỉ tổng hợp khách quan từ câu sai trong các lần làm bài và question source; tuyệt đối không dùng AI suy đoán mạnh/yếu.</p>
+                  </div>
+                  <span class="chip" style="color:var(--red);background:#fee2e2">2 chủ đề cần ôn</span>
+                </div>
+
+                <div class="timeline">
+                  <div class="timeline-item">
+                    <span style="color:var(--red)">Sai 2 lần</span>
+                    <span>
+                      <b>Bội số liên kết N-N và Ánh xạ sang bảng trung gian</b>
+                      <small>Học liệu gốc: Thiết kế ERD và mô hình quan hệ · Slide 4</small>
+                    </span>
+                    <button class="button primary" data-open-slide data-target-slide="3">Mở Slide 4 của môn →</button>
+                  </div>
+
+                  <div class="timeline-item">
+                    <span style="color:var(--amber)">Sai 1 lần</span>
+                    <span>
+                      <b>Mức độ cô lập Serializable và hiện tượng Dirty Read</b>
+                      <small>Học liệu gốc: Đề cương ôn tập CSDL.pdf · Trang 12</small>
+                    </span>
+                    <button class="button soft" data-page="student-personal">Xem nguồn trong Personal PDF →</button>
+                  </div>
+
+                  <div class="timeline-item">
+                    <span style="color:var(--muted)">Sai 1 lần</span>
+                    <span>
+                      <b>Quy tắc chuyển đổi thực thể yếu (Weak Entity)</b>
+                      <small>Học liệu gốc: Thiết kế ERD và mô hình quan hệ · Slide 1</small>
+                    </span>
+                    <button class="button primary" data-open-slide data-target-slide="0">Mở Slide 1 của môn →</button>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <!-- TAB 3: XEM TIẾN ĐỘ MÔN HỌC -->
+            <div id="tabPanelProgress" hidden>
+              <div class="grid g4" style="margin-bottom:18px">
+                <article class="panel stat">
+                  <div class="stat-top">
+                    <span class="stat-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect width="18" height="14" x="3" y="3" rx="2"/><line x1="3" x2="21" y1="9" y2="9"/></svg>
+                    </span>
+                    <span class="trend">+12 slides</span>
+                  </div>
+                  <h3>46/92</h3>
+                  <p>Distinct slide đã xem (50%)</p>
+                </article>
+                <article class="panel stat">
+                  <div class="stat-top">
+                    <span class="stat-icon" style="color:var(--blue);background:var(--blue-bg)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
+                    </span>
+                    <span class="trend" style="color:var(--blue);background:var(--blue-bg)">Học liệu lớp</span>
+                  </div>
+                  <h3>3 bài</h3>
+                  <p>Slide PPTX giảng viên public</p>
+                </article>
+                <article class="panel stat">
+                  <div class="stat-top">
+                    <span class="stat-icon" style="color:var(--purple);background:var(--purple-bg)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
+                    <span class="trend" style="color:var(--purple);background:var(--purple-bg)">Nhiệm vụ</span>
+                  </div>
+                  <h3>5/7</h3>
+                  <p>Study Task của môn đã xong</p>
+                </article>
+                <article class="panel stat">
+                  <div class="stat-top">
+                    <span class="stat-icon" style="color:var(--amber);background:var(--amber-bg)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                    </span>
+                    <span class="trend" style="color:var(--amber);background:var(--amber-bg)">Java scored</span>
+                  </div>
+                  <h3>82%</h3>
+                  <p>Điểm Quiz trung bình môn</p>
+                </article>
               </div>
-              <h3 id="readyCount">1</h3>
-              <p>Quiz sẵn sàng</p>
-            </article>
-            <article class="panel stat">
-              <div class="stat-top">
-                <span class="stat-icon" style="color:var(--blue);background:var(--blue-bg)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                </span>
-                <span class="trend" style="color:var(--blue);background:var(--blue-bg)">Tuần này</span>
+
+              <div class="grid g2">
+                <article class="panel pad">
+                  <div class="panel-head">
+                    <div>
+                      <h3>Tiến độ Slide trong môn học</h3>
+                      <p>Tỷ lệ distinct slide views / tổng số slide bài giảng</p>
+                    </div>
+                  </div>
+                  <div class="cards">
+                    <div>
+                      <div class="mini-progress">
+                        <span><b>Thiết kế ERD và mô hình quan hệ</b><b>12/28 slide (43%)</b></span>
+                        <div class="progress"><i style="width:43%"></i></div>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="mini-progress">
+                        <span><b>Transaction và Concurrency Control</b><b>18/34 slide (53%)</b></span>
+                        <div class="progress"><i style="width:53%"></i></div>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="mini-progress">
+                        <span><b>Chuẩn hóa dữ liệu (Normal Forms)</b><b>16/30 slide (53%)</b></span>
+                        <div class="progress"><i style="width:53%"></i></div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="panel pad">
+                  <div class="panel-head">
+                    <div>
+                      <h3>Nhật ký học tập môn này (7 ngày)</h3>
+                      <p>Hệ thống ghi nhận Learning Events từ hoạt động thực tế</p>
+                    </div>
+                  </div>
+                  <div class="timeline">
+                    <div class="timeline-item">
+                      <span>Thứ 4</span>
+                      <span>
+                        <b>Xem 12 slides bài giảng · Lưu 2 Slide Notes</b>
+                        <small>Cơ sở dữ liệu · KTPM-K21</small>
+                      </span>
+                      <span class="chip green">75 phút</span>
+                    </div>
+                    <div class="timeline-item">
+                      <span>Thứ 3</span>
+                      <span>
+                        <b>Hoàn thành Quiz Transaction</b>
+                        <small>DBI-01 · Java chấm 8 câu</small>
+                      </span>
+                      <span class="chip">35 phút</span>
+                    </div>
+                    <div class="timeline-item">
+                      <span>Thứ 2</span>
+                      <span>
+                        <b>Hoàn thành Study Task ôn tập</b>
+                        <small>Ôn Thiết kế ERD trong DBI-01</small>
+                      </span>
+                      <span class="chip">90 phút</span>
+                    </div>
+                  </div>
+                </article>
               </div>
-              <h3>2</h3>
-              <p>Lượt đã làm</p>
-            </article>
-            <article class="panel stat">
-              <div class="stat-top">
-                <span class="stat-icon" style="color:var(--purple);background:var(--purple-bg)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="m9 12 2 2 4-4" />
-                  </svg>
-                </span>
-                <span class="trend" style="color:var(--purple);background:var(--purple-bg)">Java chấm</span>
-              </div>
-              <h3>82%</h3>
-              <p>Điểm trung bình</p>
-            </article>
+            </div>
           </div>
-
-          <article class="panel pad" style="margin-top:18px">
-            <div class="panel-head">
-              <div>
-                <h3>Danh sách Quiz</h3>
-                <p>Quiz do AI tạo sẽ xuất hiện tại đây để sinh viên duyệt chất lượng nguồn</p>
-              </div>
-            </div>
-            <div class="quiz-list">
-              <div class="quiz-row" id="draftQuiz" hidden>
-                <span>
-                  <b>Transaction từ tài liệu cá nhân</b>
-                  <small>10 câu trắc nghiệm · 2 tài liệu nguồn · Trạng thái nháp vừa sinh</small>
-                </span>
-                <div class="actions">
-                  <span class="status processing" id="draftStatus">REVIEW_REQUIRED</span>
-                  <button class="button soft" id="reviewQuiz">Xem & Duyệt Quiz</button>
-                </div>
-              </div>
-              <div class="quiz-row">
-                <span>
-                  <b>Thiết kế ERD căn bản</b>
-                  <small>8 câu hỏi · Sinh viên đã duyệt và chấp nhận ngày 20/09/2026</small>
-                </span>
-                <div class="actions">
-                  <span class="status">READY</span>
-                  <button class="button primary" data-start-quiz>Bắt đầu làm bài</button>
-                </div>
-              </div>
-            </div>
-          </article>
-
-          <!-- Review Box -->
-          <article class="panel quiz-box" id="quizReview" style="margin-top:18px" hidden>
-            <div class="panel-head">
-              <div>
-                <h3>Duyệt Quiz: Transaction & Khóa</h3>
-                <p>Kiểm tra nội dung câu hỏi và tính xác thực của Citation trước khi chấp nhận</p>
-              </div>
-              <span class="status processing">REVIEW_REQUIRED</span>
-            </div>
-            <div class="question">
-              <p><b>Câu 1.</b> Isolation level nào dưới đây ngăn chặn hoàn toàn hiện tượng Dirty Read?</p>
-              <div class="chip green">Đáp án dự kiến: Read Committed (hoặc cao hơn)</div>
-              <div class="citation">Đề cương ôn tập CSDL.pdf · Trang 12</div>
-            </div>
-            <div class="question">
-              <p><b>Câu 2.</b> Nguyên lý ACID bảo đảm điều gì khi xảy ra sự cố gián đoạn transaction?</p>
-              <div class="chip green">Đáp án dự kiến: Atomicity bảo đảm rollback toàn bộ thay đổi</div>
-              <div class="citation">Ghi chú Transaction.pdf · Trang 3</div>
-            </div>
-            <div class="actions" style="margin-top:18px">
-              <button class="button warn" id="rejectQuiz">Từ chối Quiz này</button>
-              <button class="button primary" id="acceptQuiz">Chấp nhận Quiz (Chuyển sang READY)</button>
-            </div>
-          </article>
-
-          <!-- Quiz Runner -->
-          <article class="panel quiz-box" id="quizRunner" style="margin-top:18px" hidden>
-            <div class="panel-head">
-              <div>
-                <h3>Đang làm bài: Thiết kế ERD căn bản</h3>
-                <p>Quiz READY · Câu hỏi số 1 / 8</p>
-              </div>
-              <span class="chip amber">Thời gian: 15 phút</span>
-            </div>
-            <p style="font-size:15px;margin-bottom:14px"><b>Câu hỏi demo:</b> Thành phần nào trong mô hình quan hệ dùng
-              để định danh duy nhất một thực thể?</p>
-            <label class="answer"><input type="radio" name="quiz-answer"> Thuộc tính khóa (Primary Key)</label>
-            <label class="answer"><input type="radio" name="quiz-answer"> Thuộc tính đa trị (Multivalued
-              Attribute)</label>
-            <label class="answer"><input type="radio" name="quiz-answer"> Mối liên kết nhiều - nhiều (N - N)</label>
-            <button class="button primary" id="submitQuiz" style="margin-top:18px">Nộp bài Quiz demo</button>
-            <div class="result" id="quizResult" hidden>
-              <b>Kết quả: 7 / 8 điểm · SCORED</b>
-              <p>Kết quả được tính toán và lưu trữ an toàn bởi Java Spring Boot Backend. Frontend không tự ý chấm điểm.
-              </p>
-            </div>
-          </article>
         </section>
 
         <!-- TEACHER: Dashboard -->
@@ -4346,7 +5280,6 @@
     const titles = {
       ...Object.fromEntries(Object.values(roleConfig).flatMap(r => r.nav.map(n => [n[0], n[2]]))),
       'student-materials': 'Tài liệu môn học',
-      'student-offering-progress': 'Chi tiết lớp học phần',
       'slide-viewer': 'Slide Viewer'
     };
 
@@ -4461,26 +5394,184 @@
       });
     }));
 
-    // Personal tabs & RAG Chat
-    const personalTabs = [...document.querySelectorAll('[data-personal-tab]')];
-    function showPersonalTab(name) {
-      personalTabs.forEach(b => b.classList.toggle('active', b.dataset.personalTab === name));
-      document.getElementById('personal-library').hidden = name !== 'library';
-      document.getElementById('personal-chat').hidden = name !== 'chat';
-    }
-    personalTabs.forEach(b => b.addEventListener('click', () => showPersonalTab(b.dataset.personalTab)));
-    document.querySelectorAll('[data-personal-tab-jump]').forEach(b => b.addEventListener('click', () => showPersonalTab(b.dataset.personalTabJump)));
+    // Chatbot Sessions & Interactive Citations
+    const chatSessions = {
+      s1: {
+        title: 'Transaction & ACID',
+        messages: [
+          { role: 'assistant', text: 'Xin chào Minh! Hãy hỏi bất kỳ điều gì về các tài liệu PDF bạn đã tick chọn bên phải (<b>Đề cương ôn tập CSDL.pdf</b>, <b>Ghi chú Transaction.pdf</b>). Phản hồi luôn kèm trích dẫn minh bạch; nếu thiếu bằng chứng hệ thống trả <b>NO_EVIDENCE</b> thay vì suy đoán.' },
+          { role: 'user', text: 'Giải thích tính cô lập (Isolation) của transaction?' },
+          {
+            role: 'assistant',
+            text: 'Tính cô lập (Isolation) đảm bảo các transaction thực thi đồng thời không can thiệp hay nhìn thấy trạng thái trung gian của nhau. Mức độ cô lập (Isolation level) quyết định những hiện tượng đọc nào được phép xảy ra (Dirty Read, Non-repeatable Read, Phantom Read).',
+            citations: [
+              { doc: 'Đề cương ôn tập CSDL.pdf', page: 'Trang 12', excerpt: '“Transaction đồng thời không nhìn thấy trạng thái trung gian của nhau. Các mức Isolation bảo vệ chống Dirty Read và Phantom Read.”' },
+              { doc: 'Ghi chú Transaction.pdf', page: 'Trang 3', excerpt: '“Mức cô lập Serializable ngăn chặn hoàn toàn mọi hiện tượng đọc bất thường trong môi trường đồng thời.”' }
+            ]
+          }
+        ]
+      },
+      s2: {
+        title: 'Chuẩn hóa 3NF',
+        messages: [
+          { role: 'assistant', text: 'Phiên hỏi đáp về <b>Chuẩn hóa CSDL (1NF, 2NF, 3NF, BCNF)</b>. Dữ liệu đối chiếu từ các PDF cá nhân đã chọn bên phải.' },
+          { role: 'user', text: 'Điều kiện để một lược đồ quan hệ đạt dạng chuẩn 3NF là gì?' },
+          {
+            role: 'assistant',
+            text: 'Một lược đồ quan hệ đạt dạng chuẩn 3 (3NF) khi và chỉ khi: Đã đạt chuẩn 2NF và không có thuộc tính không khóa nào phụ thuộc bắc cầu vào khóa chính. Nghĩa là với mọi phụ thuộc hàm X → A, hoặc X là siêu khóa, hoặc A là thuộc tính khóa.',
+            citations: [
+              { doc: 'Đề cương ôn tập CSDL.pdf', page: 'Trang 18', excerpt: '“Quan hệ đạt 3NF nếu đạt 2NF và mọi thuộc tính không khóa đều phụ thuộc trực tiếp vào khóa chính, không phụ thuộc bắc cầu.”' }
+            ]
+          }
+        ]
+      },
+      s3: {
+        title: 'B-Tree & Index',
+        messages: [
+          { role: 'assistant', text: 'Phiên hỏi đáp về <b>Chỉ mục B-Tree và Tối ưu hóa truy vấn SQL</b>.' },
+          { role: 'user', text: 'Sự khác biệt giữa Clustered Index và Non-Clustered Index?' },
+          {
+            role: 'assistant',
+            text: 'Clustered Index sắp xếp vật lý các bản ghi dữ liệu thực tế trên đĩa theo thứ tự khóa chỉ mục (mỗi bảng chỉ có 1 Clustered Index). Ngược lại, Non-Clustered Index tạo cấu trúc chỉ mục riêng biệt chứa con trỏ trỏ đến vị trí dữ liệu thực tế (bảng có thể có nhiều Non-Clustered Index).',
+            citations: [
+              { doc: 'B-Tree & Indexing.pdf', page: 'Trang 7', excerpt: '“Chỉ mục phân cụm (Clustered Index) quyết định thứ tự lưu trữ vật lý của hàng dữ liệu trong bảng.”' }
+            ]
+          }
+        ]
+      }
+    };
 
-    document.getElementById('goCreateQuiz').addEventListener('click', () => {
-      showPage('student-personal');
-      showPersonalTab('chat');
+    let activeSessionId = 's1';
+
+    function renderChatSession(sessionId) {
+      activeSessionId = sessionId;
+      const session = chatSessions[sessionId] || { title: 'Phiên mới', messages: [] };
+      const chat = document.getElementById('ragChat');
+      chat.innerHTML = session.messages.map(m => {
+        if (m.role === 'user') {
+          return `<div class="message user">${escapeHtml(m.text)}</div>`;
+        }
+        let citationsHtml = '';
+        if (m.citations && m.citations.length > 0) {
+          citationsHtml = `
+            <div class="message-citations">
+              <span class="citations-label">Trích dẫn minh chứng (bấm để xem chi tiết):</span>
+              ${m.citations.map(c => `
+                <button type="button" class="chat-citation-btn" data-doc="${escapeHtml(c.doc)}" data-page="${escapeHtml(c.page)}" data-excerpt="${escapeHtml(c.excerpt)}">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                  <span>${escapeHtml(c.doc)} · ${escapeHtml(c.page)}</span>
+                  <span class="click-hint">Bấm xem chi tiết →</span>
+                </button>
+              `).join('')}
+            </div>
+          `;
+        }
+        return `<div class="message">${m.text}${citationsHtml}</div>`;
+      }).join('');
+      chat.scrollTop = chat.scrollHeight;
+      document.getElementById('chatCitationDrawer').classList.remove('show');
+    }
+
+    // Switch chat session pill
+    document.getElementById('chatSessionList').addEventListener('click', e => {
+      const pill = e.target.closest('.session-pill');
+      if (!pill) return;
+      document.querySelectorAll('.session-pill').forEach(p => p.classList.toggle('active', p === pill));
+      renderChatSession(pill.dataset.session);
+      showToast(`Đã chuyển sang: ${pill.textContent.trim()}`);
     });
 
+    // Create new chat session
+    let sessionCounter = 4;
+    document.getElementById('newChatSessionBtn').addEventListener('click', () => {
+      const newId = 's' + sessionCounter++;
+      const newTitle = `Chủ đề mới #${sessionCounter - 1}`;
+      chatSessions[newId] = {
+        title: newTitle,
+        messages: [
+          { role: 'assistant', text: `Chào bạn! Bạn vừa tạo phiên hỏi đáp mới. Hãy nhập câu hỏi dựa trên các tài liệu PDF đã tick chọn bên phải.` }
+        ]
+      };
+      const pillsContainer = document.getElementById('chatSessionList');
+      pillsContainer.insertAdjacentHTML('beforeend', `
+        <button type="button" class="session-pill active" data-session="${newId}">
+          <span class="session-dot"></span>
+          <span>${newTitle}</span>
+        </button>
+      `);
+      document.querySelectorAll('.session-pill').forEach(p => p.classList.toggle('active', p.dataset.session === newId));
+      renderChatSession(newId);
+      document.getElementById('ragInput').focus();
+      showToast('Đã tạo phiên hỏi đáp mới');
+    });
+
+    // Interactive Citation Drawer inside Chatbot
+    document.addEventListener('click', e => {
+      const citeBtn = e.target.closest('.chat-citation-btn');
+      if (citeBtn) {
+        const doc = citeBtn.dataset.doc || 'Tài liệu';
+        const page = citeBtn.dataset.page || '';
+        const excerpt = citeBtn.dataset.excerpt || 'Đoạn trích dẫn đối chiếu từ snapshot tài liệu.';
+        document.getElementById('inlineCiteDocTitle').textContent = `${doc} · ${page}`;
+        document.getElementById('inlineCiteExcerpt').textContent = excerpt;
+        const drawer = document.getElementById('chatCitationDrawer');
+        drawer.classList.add('show');
+        drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+      if (e.target.closest('#closeCitationDrawer')) {
+        document.getElementById('chatCitationDrawer').classList.remove('show');
+      }
+    });
+
+    // Checkbox scope change listener
+    function updateSelectedSourcesBadge() {
+      const checkedBoxes = document.querySelectorAll('#personalFileList input[type="checkbox"]:checked');
+      const count = checkedBoxes.length;
+      document.getElementById('sourceCountBadge').textContent = `${count} đã chọn`;
+      const statusText = document.getElementById('evidenceStatusText');
+      if (count === 0) {
+        statusText.innerHTML = '<span style="color:var(--amber)">⚠️ Chưa chọn PDF nào</span>';
+      } else {
+        statusText.innerHTML = `Đang kích hoạt: <b>${count} PDF cá nhân</b>`;
+      }
+    }
+    document.querySelectorAll('#personalFileList input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', updateSelectedSourcesBadge);
+    });
+
+    // Toggle select all docs
+    document.getElementById('selectAllDocsBtn').addEventListener('click', () => {
+      const readyBoxes = [...document.querySelectorAll('#personalFileList input[type="checkbox"]:not(:disabled)')];
+      const allChecked = readyBoxes.every(cb => cb.checked);
+      readyBoxes.forEach(cb => cb.checked = !allChecked);
+      updateSelectedSourcesBadge();
+      showToast(allChecked ? 'Đã bỏ chọn tất cả tài liệu' : 'Đã chọn toàn bộ tài liệu sẵn sàng');
+    });
+
+    // Quick prompt chip click
+    document.querySelectorAll('.prompt-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const prompt = chip.dataset.quickPrompt;
+        if (prompt) {
+          document.getElementById('ragInput').value = prompt;
+          document.getElementById('ragForm').dispatchEvent(new Event('submit', { cancelable: true }));
+        }
+      });
+    });
+
+    // RAG form submit
     document.getElementById('ragForm').addEventListener('submit', e => {
       e.preventDefault();
       const input = document.getElementById('ragInput');
       const value = input.value.trim();
       if (!value) return;
+
+      const checkedCount = document.querySelectorAll('#personalFileList input[type="checkbox"]:checked').length;
+      if (checkedCount === 0) {
+        return showToast('Vui lòng tick chọn ít nhất 1 tài liệu ở bên phải');
+      }
+
       const chat = document.getElementById('ragChat');
       chat.insertAdjacentHTML('beforeend', `
         <div class="message user">${escapeHtml(value)}</div>
@@ -4488,31 +5579,115 @@
       `);
       input.value = '';
       chat.scrollTop = chat.scrollHeight;
+
       setTimeout(() => {
         document.getElementById('ragRetrieving')?.remove();
-        const noEvidence = /học phí|điểm thi|thời tiết|ngoài tài liệu/i.test(value);
-        chat.insertAdjacentHTML('beforeend', noEvidence ? `
-          <div class="message"><b>NO_EVIDENCE</b><br>Không tìm thấy đủ bằng chứng trong 2 PDF đã chọn. Hãy đổi nguồn hoặc hỏi cụ thể hơn.</div>
-        ` : `
-          <div class="message">
-            Phản hồi fixture chỉ dùng 2 Personal Documents đã chọn. Mỗi claim phải được evidence hỗ trợ trước khi trả lời.
-            <details class="citation"><summary>Đề cương ôn tập CSDL.pdf · Trang 12</summary><p>Citation chứng minh trực tiếp claim phía trên.</p></details>
-          </div>
-        `);
+        const noEvidence = /học phí|điểm thi|thời tiết|ngoài tài liệu|hôm nay|thủ đô/i.test(value);
+        if (noEvidence) {
+          chat.insertAdjacentHTML('beforeend', `
+            <div class="message">
+              <b>NO_EVIDENCE</b><br>
+              Không tìm thấy đủ bằng chứng trong ${checkedCount} PDF cá nhân đã tick chọn bên phải. Hãy đổi phạm vi tài liệu hoặc đặt câu hỏi cụ thể hơn.
+            </div>
+          `);
+        } else {
+          chat.insertAdjacentHTML('beforeend', `
+            <div class="message">
+              Phản hồi đối chiếu từ ${checkedCount} Personal Documents bạn đã chọn. Mọi phát biểu đều có trích đoạn xác thực tương ứng:
+              <div class="message-citations">
+                <span class="citations-label">Trích dẫn minh chứng (bấm để xem chi tiết):</span>
+                <button type="button" class="chat-citation-btn" data-doc="Đề cương ôn tập CSDL.pdf" data-page="Trang 12" data-excerpt="“Transaction đồng thời không nhìn thấy trạng thái trung gian của nhau. Các mức Isolation bảo vệ chống Dirty Read và Phantom Read.”">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                  <span>Đề cương ôn tập CSDL.pdf · Trang 12</span>
+                  <span class="click-hint">Bấm xem chi tiết →</span>
+                </button>
+              </div>
+            </div>
+          `);
+        }
         chat.scrollTop = chat.scrollHeight;
       }, 450);
     });
 
+    // Course Review Hub Logic (Level 1 <-> Level 2)
+    const reviewCourses = {
+      'DBI-01': {
+        code: 'DBI-01',
+        title: 'Cơ sở dữ liệu · DBI-01',
+        subtitle: 'Enrollment APPROVED · Giáo viên: Cô Lan Hoàng · HK1 2026–2027',
+        quizCount: '4 Quiz'
+      },
+      'AI-02': {
+        code: 'AI-02',
+        title: 'Trí tuệ nhân tạo · AI-02',
+        subtitle: 'Enrollment APPROVED · Giáo viên: Thầy Huy Nguyễn · HK1 2026–2027',
+        quizCount: '2 Quiz'
+      },
+      'PERSONAL': {
+        code: 'PERSONAL',
+        title: 'Quiz cá nhân · Kho riêng',
+        subtitle: 'Sinh từ Personal Documents của sinh viên · Chỉ owner có quyền truy cập',
+        quizCount: '2 Quiz'
+      }
+    };
+
+    function switchReviewSubTab(subtabName) {
+      document.querySelectorAll('.review-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.subtab === subtabName);
+      });
+      document.getElementById('tabPanelQuizzes').hidden = subtabName !== 'quizzes';
+      document.getElementById('tabPanelWrongAnswers').hidden = subtabName !== 'wrong-answers';
+      document.getElementById('tabPanelProgress').hidden = subtabName !== 'progress';
+    }
+
+    document.querySelectorAll('.review-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchReviewSubTab(btn.dataset.subtab));
+    });
+
+    document.querySelectorAll('[data-open-review-course]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cKey = btn.dataset.openReviewCourse;
+        const cInfo = reviewCourses[cKey] || reviewCourses['DBI-01'];
+        document.getElementById('currentReviewCode').textContent = cInfo.code;
+        document.getElementById('currentReviewTitle').textContent = cInfo.title;
+        document.getElementById('currentReviewSubtitle').textContent = cInfo.subtitle;
+        document.getElementById('subtabQuizPill').textContent = cInfo.quizCount;
+        document.getElementById('reviewCoursePicker').hidden = true;
+        document.getElementById('subjectReviewWorkspace').hidden = false;
+        switchReviewSubTab('quizzes');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+
+    document.getElementById('backToCoursePicker').addEventListener('click', () => {
+      document.getElementById('subjectReviewWorkspace').hidden = true;
+      document.getElementById('reviewCoursePicker').hidden = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    document.querySelectorAll('[data-target-slide]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = parseInt(btn.dataset.targetSlide) || 0;
+        slideIndex = target;
+        renderSlide();
+        showPage('slide-viewer');
+        showToast(`Đã mở Slide ${target + 1} của môn học`);
+      });
+    });
+
+    document.getElementById('goCreateQuiz').addEventListener('click', () => {
+      const box = document.getElementById('quizCreateBox');
+      box.hidden = !box.hidden;
+      if (!box.hidden) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
     document.getElementById('generateQuiz').addEventListener('click', () => {
-      document.getElementById('ragChat').insertAdjacentHTML('beforeend', `
-        <div class="message user">Tạo Quiz ôn tập từ 2 tài liệu cá nhân đã chọn.</div>
-        <div class="message">
-          Đã sinh bản nháp 10 câu có trích dẫn nguồn citation. Java Backend đã lưu với trạng thái <b>REVIEW_REQUIRED</b>. Hãy mở mục Ôn tập để duyệt.
-        </div>
-      `);
+      const quizPrompt = document.getElementById('quizPrompt').value.trim();
+      if (!quizPrompt) return showToast('Vui lòng nhập prompt tạo Quiz');
       document.getElementById('draftQuiz').hidden = false;
       document.getElementById('pendingCount').textContent = '1';
-      showToast('Quiz mới đã xuất hiện trong Ôn tập và đang chờ bạn duyệt');
+      document.getElementById('quizCreateBox').hidden = true;
+      showToast('Java đã nhận Personal Documents và prompt của bạn; Quiz đang chờ duyệt');
       setTimeout(() => {
         showPage('student-review');
         document.getElementById('quizReview').hidden = false;
@@ -4662,6 +5837,7 @@
     });
 
     document.getElementById('acceptQuiz').addEventListener('click', () => {
+      const destination = document.getElementById('quizDestination').value;
       const status = document.getElementById('draftStatus');
       const button = document.getElementById('reviewQuiz');
       status.textContent = 'READY';
@@ -4674,7 +5850,15 @@
       document.getElementById('pendingCount').textContent = '0';
       document.getElementById('readyCount').textContent = '2';
       bindQuizStart(button);
-      showToast('Đã chấp nhận Quiz; Quiz hiện có thể làm');
+      showToast(destination === 'PERSONAL' ? 'Đã chấp nhận vào Quiz cá nhân' : `Đã chấp nhận và gắn Quiz vào ${destination}`);
+    });
+
+    document.getElementById('regenerateQuiz').addEventListener('click', () => {
+      document.getElementById('quizReview').hidden = true;
+      showPage('student-review');
+      document.getElementById('quizPrompt').value = '';
+      document.getElementById('quizCreateBox').hidden = false;
+      showToast('Tự nhập prompt mới để tạo lại toàn bộ Quiz; draft cũ không bị ghi đè');
     });
 
     document.getElementById('rejectQuiz').addEventListener('click', () => {
@@ -4695,12 +5879,25 @@
     }
     document.querySelectorAll('[data-start-quiz]').forEach(bindQuizStart);
 
+    let attemptCounter = 3;
     document.getElementById('submitQuiz').addEventListener('click', () => {
       if (!document.querySelector('input[name="quiz-answer"]:checked')) {
         return showToast('Vui lòng chọn một đáp án trước khi nộp bài');
       }
       document.getElementById('quizResult').hidden = false;
-      showToast('Đã nhận kết quả chấm điểm từ Java Backend');
+      document.getElementById('quizResult').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      const list = document.querySelector('.attempt-history-list');
+      if (list) {
+        list.insertAdjacentHTML('afterbegin', `
+          <div class="attempt-history-item">
+            <span><b>Lượt ${attemptCounter++}</b> · Vừa làm xong</span>
+            <span>Đạt <b>9/10</b> điểm (90%)</span>
+            <span class="status">COMPLETED</span>
+          </div>
+        `);
+      }
+      showToast('Đã nhận kết quả chấm điểm từ Java Backend; Lịch sử attempt được lưu mới');
     });
 
     // Teacher actions

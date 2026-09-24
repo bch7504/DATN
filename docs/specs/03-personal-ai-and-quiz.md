@@ -12,13 +12,15 @@ Cho phép Student quản lý PDF cá nhân, hỏi đáp trên đúng tài liệu
 | PAI-FR-002 | MUST | PDF hợp lệ được extract, chunk, embed và lưu pgvector bất đồng bộ. |
 | PAI-FR-003 | MUST | Student tạo conversation với một hoặc nhiều document `READY`. |
 | PAI-FR-004 | MUST | RAG trả `ANSWERED` hoặc `NO_EVIDENCE` cùng citation đúng scope. |
-| PAI-FR-005 | MUST | Student yêu cầu sinh Quiz từ document scope của conversation. |
+| PAI-FR-005 | MUST | Student chủ động chọn Personal Documents `READY` và tự nhập prompt để sinh Quiz; không cần conversation/chat context. |
 | PAI-FR-006 | MUST | Quiz sinh bất đồng bộ và xuất hiện ở Ôn tập khi `REVIEW_REQUIRED`. |
 | PAI-FR-007 | MUST | Chatbot giữ history theo conversation và chỉ dùng các document đã chọn trong scope đó. |
 | PAI-FR-008 | MUST | Mỗi factual claim phải được evidence hỗ trợ; citation phải entail claim thay vì chỉ có ID hợp lệ. |
 | PAI-BR-001 | MUST | Personal upload chỉ nhận PDF tối đa 20 MB. |
-| PAI-BR-002 | MUST | Client không được thêm document ngoài conversation khi hỏi hoặc sinh Quiz. |
+| PAI-BR-002 | MUST | RAG chỉ dùng document trong conversation; Quiz chỉ dùng `selectedDocumentIds` được Java load lại theo owner/READY. |
 | PAI-BR-003 | MUST | Quiz dùng `MCQ_SINGLE`: nhiều lựa chọn nhưng chỉ một đáp án đúng. |
+| PAI-BR-004 | MUST | Prompt Student chỉ là yêu cầu nội dung; không thay thế system instruction, schema, grounding hoặc authorized scope. |
+| PAI-BR-005 | MUST | Accept Quiz phải chọn Course Offering `APPROVED` hoặc lưu là Quiz cá nhân; nguồn tạo và nơi ôn tập là hai khái niệm độc lập. |
 | PAI-SEC-001 | MUST | Java và Python đều filter owner/document/version; citation sai scope bị từ chối. |
 
 ## 3. Personal Document contracts
@@ -71,12 +73,20 @@ Cho phép Student quản lý PDF cá nhân, hỏi đáp trên đúng tài liệu
 
 ## 5. Quiz generation contract
 
-### `POST /api/v1/personal-rag/conversations/{id}/quizzes`
+### `POST /api/v1/quizzes`
 
-- **Input:** `{title?, questionCount:1..50=10, difficulty:"EASY|MEDIUM|HARD|MIXED"="MIXED"}`.
-- **Output:** `202` với `{quizId, status:"GENERATING", sourceDocumentIds, createdAt}`.
-- **Errors:** `404 CONVERSATION_NOT_FOUND`; `409 DOCUMENT_NOT_READY|QUIZ_GENERATION_IN_PROGRESS`; `422 INVALID_QUESTION_COUNT`.
-- **Side effect:** Java tạo Quiz `GENERATING`, phát job có idempotency key và gọi Python bằng authorized scope đã load lại.
+- **Input:** `{selectedDocumentIds:[1..10],prompt}`; Student tự viết prompt dài 1–2.000 ký tự. Không lấy prompt mẫu hoặc conversation context làm điều kiện tạo Quiz.
+- **Output:** `202` với `{quizId, status:"GENERATING", sourceDocumentIds, userPrompt, createdAt}`.
+- **Errors:** `404 DOCUMENT_NOT_FOUND`; `409 DOCUMENT_NOT_READY|QUIZ_GENERATION_IN_PROGRESS`; `422 INVALID_DOCUMENT_SCOPE|INVALID_QUIZ_PROMPT`.
+- **Side effect:** Java load lại owner/status/version của toàn bộ source, tạo Quiz `GENERATING`, phát job có idempotency key và gọi Python bằng authorized scope.
+- **Security:** Java/Python coi prompt là untrusted content; system rules vẫn bắt buộc `MCQ_SINGLE`, 4 options, grounding và citation.
+
+### Review, regenerate và accept
+
+- `POST /api/v1/review/quizzes/{id}/regenerate` nhận `{prompt}` mới, tạo generation mới có liên kết lịch sử và không ghi đè draft/attempt cũ.
+- `POST /api/v1/review/quizzes/{id}/accept` nhận `{destinationType:"COURSE_OFFERING"|"PERSONAL",courseOfferingId?}`.
+- Với `COURSE_OFFERING`, Java bắt buộc enrollment `APPROVED`; với `PERSONAL`, `courseOfferingId` phải `null`.
+- MVP accept/reject/regenerate toàn bộ Quiz, chưa editor từng câu.
 
 ### Structured AI output
 
@@ -113,7 +123,7 @@ Validation tại Java:
 | `POST /internal/v1/documents/index` | requestId, document/version, pipeline, ownerId, signed URL, MIME | `202 {jobId,status}` | Idempotent; retry tối đa 3 |
 | `GET /internal/v1/jobs/{jobId}` | job ID + service credential | status, attempts, errorCode | `404`; poll có backoff |
 | `POST /internal/v1/personal-rag/ask` | userId, conversationId, authorized document/version scope, history window, question | `ANSWERED|NO_EVIDENCE`, answer, claim-grounded citations, traceId | Không retry mù sau timeout |
-| `POST /internal/v1/quizzes/generate` | userId, authorized IDs, count, difficulty | structured questions + sources | Job idempotent; malformed output không lưu |
+| `POST /internal/v1/quizzes/generate` | userId, authorized IDs, untrusted userPrompt; không có chat context bắt buộc | structured questions + sources | Job idempotent; prompt không vượt system rule; malformed output không lưu |
 
 Mọi request có `X-Request-Id`, `X-Schema-Version`, service credential và timeout. Python không nhận user JWT.
 
@@ -161,3 +171,9 @@ Mọi request có `X-Request-Id`, `X-Schema-Version`, service credential và tim
 - **Given** một case trong locked test set
 - **When** chạy benchmark
 - **Then** evaluator đi qua đúng pipeline production, không retrieval lần hai, ghi dataset/prompt/model/retrieval version và chấm riêng Personal RAG với Slide Tutor theo [kế hoạch AI](../ai-implementation-plan.md#7-kiểm-thử-và-kế-hoạch-đánh-giá-chatbot).
+
+### PAI-AC-008 — Prompt tự do và nơi ôn tập
+
+- **Given** Student chọn Personal Documents và nhập prompt hợp lệ
+- **When** AI sinh Quiz rồi Student accept
+- **Then** Java chỉ cho gắn vào Course Offering có enrollment `APPROVED` hoặc lưu Quiz cá nhân; prompt không thể đổi schema/system rule và source documents vẫn giữ nguyên.

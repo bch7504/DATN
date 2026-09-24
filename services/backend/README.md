@@ -13,7 +13,7 @@ Java backend là system of record và public API duy nhất cho Web. Backend ch�
 | `document`, `publication` | Teacher/Personal metadata, upload, public/revoke theo Course Offering |
 | `slide`, `note` | Slide artifact access, view event và Note |
 | `conversation` | Personal RAG conversation/history và citation record |
-| `review` | Quiz draft review, attempt, answer và Java scoring |
+| `review` | Free-prompt Quiz, destination, draft review/regenerate, attempt, wrong-answer source và Java scoring |
 | `progress`, `study` | Dashboard aggregate, Content Progress, Study Streak, Daily Goal và Study Plan/Calendar |
 | `feedback`, `audit`, `settings` | Admin operation và operational metadata |
 | `integration.ai`, `integration.storage` | Outbound adapters; không chứa business rule |

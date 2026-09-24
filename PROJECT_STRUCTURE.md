@@ -1,6 +1,6 @@
 # Cấu trúc repository StudyFlow
 
-Đây là cấu trúc đích theo baseline Course Offering. Frontend đã có route động và README boundary; Backend hiện mới có package marker cũ, sẽ được scaffold/migrate theo `docs/backend-implementation-plan.md` ở BE-M0 thay vì coi cây dưới đây là source đã hoàn tất.
+Đây là cấu trúc đích theo baseline Course Offering. Frontend và AI hiện chỉ giữ cấu trúc thư mục, README, kế hoạch và HTML mock; chưa có source triển khai, dependency, migration hay test thực thi. Backend được quản lý theo `docs/backend-implementation-plan.md`. Cây dưới đây là cấu trúc dự kiến, không phải xác nhận rằng các module đã được code.
 
 ```text
 DATN/
@@ -68,14 +68,18 @@ DATN/
 │   └── ai/
 │       ├── app/
 │       │   ├── api/routes/      # health, documents, personal_rag, slides, quizzes
+│       │   ├── core/
+│       │   ├── schemas/
+│       │   ├── repositories/
 │       │   ├── pipelines/
 │       │   ├── services/
 │       │   ├── workers/
 │       │   └── clients/
+│       ├── migrations/
 │       ├── evals/
 │       └── tests/
 ├── docs/
-│   ├── Ke_hoach_do_an_tot_nghiep_cap_nhat_Streak_Daily_Goal.md
+│   ├── Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md
 │   ├── architecture.md
 │   ├── low-level-design.md
 │   ├── backend-implementation-plan.md
@@ -98,7 +102,7 @@ DATN/
 | Java `courseoffering/enrollment` | Teacher tự tạo Course Offering/join code; Teacher duyệt Enrollment; Admin giám sát |
 | Java `document/publication` | Kho tài liệu, ownership, public/revoke |
 | Java `slide/note` | Slide access, Note và view event |
-| Java `progress/study/review` | Dashboard/Streak/Daily Goal, Course Offering progress, Plan/Calendar, Quiz review/attempt/scoring |
+| Java `progress/study/review` | Dashboard/Streak/Daily Goal, Plan/Calendar, Quiz destination, attempt/scoring và wrong-answer review |
 | Python `pipelines` | Personal PDF indexing và Teacher PPTX render/index |
 | Python `services` | Retrieval, RAG, Slide AI Tutor, citation và sinh Quiz draft |
 | PostgreSQL `app` | Dữ liệu nghiệp vụ do Java sở hữu |

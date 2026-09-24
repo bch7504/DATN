@@ -1,6 +1,6 @@
 # StudyFlow — High-level Architecture
 
-> Baseline 2.1 theo `Ke_hoach_do_an_tot_nghiep_cap_nhat_Streak_Daily_Goal.md`.
+> Baseline MVP v1.0 theo `Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`.
 > Product requirements nằm trong `specification.md` và `specs/`.
 
 ## 1. Mô hình nghiệp vụ
@@ -54,8 +54,8 @@ Ranh giới bắt buộc:
 
 | Thành phần | Sở hữu |
 |---|---|
-| Next.js | UI ba role, join flow, Course Offering, materials, viewer, chatbot/citation, Dashboard/Streak/Daily Goal, Quiz review, plan/calendar |
-| Spring Boot | Auth/RBAC, User, Subject, Semester, Course Offering/join code, Enrollment, Document/Publication, Note, Dashboard Progress/Streak/Daily Goal, Plan, Quiz lifecycle/scoring, audit |
+| Next.js | UI ba role, join flow, Course Offering, materials, viewer, chatbot/citation, free-prompt Quiz, review theo môn, Dashboard/Streak/Daily Goal, plan/calendar |
+| Spring Boot | Auth/RBAC, User, Subject, Semester, Course Offering/join code, Enrollment, Document/Publication, Note, Dashboard/Streak/Daily Goal, Plan, Quiz lifecycle/destination/scoring/wrong-answer review, audit |
 | FastAPI | PDF/PPTX extraction, render/chunk/embed, retrieval, Personal RAG, Slide Tutor, grounded citation, Quiz draft |
 | PostgreSQL + pgvector | Schema nghiệp vụ `app`; job/index/chunk/vector ở schema `ai` |
 | Object Storage | PDF/PPTX gốc, slide render và preview |
@@ -145,10 +145,12 @@ Khi Course Offering archive, quyền Tutor dựa trên archive policy và enroll
 
 ## 8. Quiz, Dashboard, Streak, Daily Goal và kế hoạch
 
-- Quiz AI chỉ lấy Personal Documents trong conversation scope.
+- Quiz AI nhận danh sách Personal Documents do Student chủ động chọn và Java xác minh lại, không phụ thuộc conversation scope; prompt tự do không được vượt system rule/schema/scope.
+- Khi accept, Java gắn Quiz vào Course Offering `APPROVED` hoặc giữ là Quiz cá nhân. Source sinh Quiz không đổi theo destination.
+- Ôn tập theo môn dùng answer sai + question source để điều hướng về tài liệu; không dùng AI suy đoán năng lực và không overwrite lịch sử attempt.
 - Python trả structured draft `MCQ_SINGLE`; Java validate source/answer, lưu `REVIEW_REQUIRED`.
 - Student accept để chuyển `READY`; Java tạo attempt và chấm điểm.
-- Không có menu Progress/Statistics độc lập: Dashboard hiển thị tổng quan, Course Offering Detail hiển thị viewing progress theo lớp/tài liệu.
+- Không có menu/màn Progress độc lập: Dashboard hiển thị cả tổng quan và viewing progress theo từng Course Offering/tài liệu.
 - Java tổng hợp progress từ slide view, task và Quiz đã hoàn tất; không suy luận Topic Mastery.
 - Study Streak dùng các local date có `VIEW_SLIDE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`. Login, Note và hỏi AI không được tính; nhiều event cùng ngày chỉ tính một ngày.
 - Daily Goal lưu target Slide/câu Quiz/Study Task của Student; actual luôn được Java tính từ dữ liệu nghiệp vụ trong ngày.

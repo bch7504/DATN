@@ -1,6 +1,6 @@
 # StudyFlow — API Plan
 
-Contract mục tiêu theo Course Offering baseline 2.0. Browser chỉ gọi Java tại `/api/v1`; Python chỉ mở `/internal/v1` cho Java.
+Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1`; Python chỉ mở `/internal/v1` cho Java.
 
 ## 1. Quy ước chung
 
@@ -159,17 +159,18 @@ UX và contract lấy cảm hứng từ evidence-scoped workspace của repo tha
 
 History chỉ owner đọc; response có selected source metadata và messages/citations đã kiểm định, không có prompt/token/Agent Trace.
 
-#### Quiz từ conversation
+#### Quiz từ Personal Documents và prompt tự do
 
-`POST /api/v1/personal-rag/conversations/{id}/quizzes`
+`POST /api/v1/quizzes`
 
-- Input `{questionCount,difficulty}`; Java dùng scope đã lưu, không nhận thêm document IDs.
-- Output `202 {quizId,status:"GENERATING"}`.
+- Input `{selectedDocumentIds:[1..10],prompt}`; prompt dài 1–2.000 ký tự. Java load lại ownership/trạng thái của từng Personal Document, không phụ thuộc conversation/chat.
+- Output `202 {quizId,status:"GENERATING",userPrompt}`.
 - Python trả draft; Java validate/lưu `REVIEW_REQUIRED`. Không trả Quiz làm ngay trong chat.
+- Prompt là input không tin cậy, không được thay system instruction, output schema, authorized scope hoặc citation rule.
 
 ### 4.6 Dashboard, Study Streak và Daily Goal
 
-Không có API/menu Progress tổng hợp độc lập. Dashboard là endpoint tổng hợp; chi tiết tiến độ đặt trong Course Offering.
+Không có API/menu/màn Progress độc lập. Dashboard là endpoint duy nhất trả tổng quan và tiến độ theo từng Course Offering.
 
 #### `GET /api/v1/student/dashboard`
 
@@ -202,7 +203,20 @@ Không có API/menu Progress tổng hợp độc lập. Dashboard là endpoint t
     "averageQuizScore": 84.0
   },
   "upcomingItems": [],
-  "activeCourseOfferings": []
+  "activeCourseOfferings": [
+    {
+      "courseOfferingId": "offering_dbi_01",
+      "code": "DBI-01",
+      "name": "Cơ sở dữ liệu",
+      "viewedSlides": 18,
+      "totalPublishedSlides": 28,
+      "progressPercent": 64,
+      "completedQuizzes": 3,
+      "averageQuizScore": 78.0,
+      "completedTasks": 5,
+      "totalTasks": 7
+    }
+  ]
 }
 ```
 
@@ -226,19 +240,28 @@ Không có API/menu Progress tổng hợp độc lập. Dashboard là endpoint t
 - **Errors:** `422 INVALID_DAILY_GOAL`; caller giữ giá trị cũ và hiển thị validation.
 - **Side effect:** chỉ cập nhật target; không tạo learning event và không sửa Streak.
 
-#### Tiến độ theo Course Offering
-
-- `GET /api/v1/student/course-offerings/{offeringId}/progress`
-- **Input:** Course Offering thuộc enrollment được phép.
-- **Output:** viewing progress theo PPTX/document, Quiz/Study Plan summary liên quan lớp; không có Topic Mastery.
-- **Errors:** `404` ngoài scope; Teacher PDF không có page progress.
-
 ### 4.7 Study Plan, Calendar và Quiz
 
 - CRUD `/api/v1/study-plans` và `/api/v1/study-plans/{planId}/items`.
 - `GET /api/v1/calendar?from=&to=`.
 - `PATCH /api/v1/study-plan-items/{id}/status` phát `STUDY_TASK_COMPLETED` idempotent khi chuyển sang completed.
 - `/api/v1/review/quizzes/*` và `/api/v1/review/attempts/*`; submit/scoring thành công phát `QUIZ_COMPLETED` một lần.
+
+#### Quiz review và workspace ôn tập
+
+- `POST /api/v1/review/quizzes/{id}/regenerate`
+  - Input `{prompt,selectedDocumentIds?}` mới; Quiz hiện tại thuộc Student và ở trạng thái cho phép tạo lại.
+  - Output `202 {quizId,status:"GENERATING",regeneratedFromQuizId}`; không ghi đè draft/attempt cũ.
+  - Errors: `404 QUIZ_NOT_FOUND`; `409 INVALID_QUIZ_STATE|GENERATION_IN_PROGRESS`; `422 INVALID_QUIZ_PROMPT`.
+- `POST /api/v1/review/quizzes/{id}/accept`
+  - Input `{destinationType:"COURSE_OFFERING"|"PERSONAL",courseOfferingId?}`.
+  - `COURSE_OFFERING` yêu cầu enrollment `APPROVED`; `PERSONAL` yêu cầu `courseOfferingId=null`.
+  - Output `200 {quizId,status:"READY",courseOfferingId}`; errors `404`, `409 INVALID_QUIZ_STATE`, `422 INVALID_DESTINATION`.
+- `GET /api/v1/review/course-offerings`: danh sách Course Offering được phép cùng `quizCount`, `averageScore`, `latestAttemptAt`.
+- `GET /api/v1/review/course-offerings/{id}`: overview, Quiz READY/history, attempt history và review items từ câu sai.
+- `GET /api/v1/review/personal-quizzes`: Quiz có `courseOfferingId=null` của current Student.
+- Review item có `{questionId,wrongCount,contentLabel,sources:[{documentId,documentName,location}]}`; chỉ tổng hợp từ answer sai và question source, không gọi AI suy đoán Topic Mastery.
+- Start attempt luôn tạo record mới; submit không overwrite attempt `COMPLETED` và trả chuỗi kết quả để UI so sánh.
 
 Plan item optional `courseOfferingId`. Java phát hiện conflict. Không có Topic Mastery, recommendation, XP, Achievement hoặc leaderboard endpoint. Quiz `REVIEW_REQUIRED` phải accept thành `READY`; Java chấm attempt.
 
@@ -304,8 +327,8 @@ Header:
 ```text
 Authorization: Bearer <service-token>
 X-Request-Id: req_...
-X-Schema-Version: 2
-Idempotency-Key: ...   # index/deindex
+X-Schema-Version: 3
+Idempotency-Key: ...   # index/deindex/Quiz generation
 ```
 
 | Endpoint | Request | Response |
@@ -315,7 +338,7 @@ Idempotency-Key: ...   # index/deindex
 | GET `/internal/v1/jobs/{jobId}` | job ID | status/attempt/error/artifact metadata |
 | POST `/internal/v1/personal-rag/ask` | userId, conversationId, authorized documents, message | answer/NO_EVIDENCE + page citations |
 | POST `/internal/v1/slides/ask` | user/document/current/allowed slides/question | answer/NO_EVIDENCE + slide citations |
-| POST `/internal/v1/quizzes/generate` | user/conversation/authorized docs/count/difficulty | Structured `MCQ_SINGLE` draft |
+| POST `/internal/v1/quizzes/generate` | user/conversation/authorized docs/untrusted `userPrompt` | Structured `MCQ_SINGLE` draft |
 | GET `/internal/v1/health` | common headers | Liveness/readiness |
 
 ### Grounding contract

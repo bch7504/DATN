@@ -1,7 +1,7 @@
 # Low-level Design — StudyFlow Course Offering
 
 **Baseline:** 24/09/2026
-**Nguồn nghiệp vụ:** `Ke_hoach_do_an_tot_nghiep_cap_nhat_Streak_Daily_Goal.md`
+**Nguồn nghiệp vụ:** `Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`
 
 ## 1. Module và boundary
 
@@ -84,10 +84,12 @@ Note key là `(studentId, slideId)`. View progress idempotent theo event/key. Sl
 
 ## 6. Quiz, Dashboard, Streak và Daily Goal
 
-- Quiz AI chỉ lấy Personal PDF scope và dùng `MCQ_SINGLE`.
+- Quiz AI chỉ lấy Personal PDF `READY` Student chủ động chọn, không phụ thuộc chatbot; nhận prompt tự do như untrusted input và dùng `MCQ_SINGLE` 4 options có citation.
+- `REVIEW_REQUIRED` cho phép regenerate toàn bộ hoặc accept vào Course Offering `APPROVED`/Quiz cá nhân; generation source độc lập destination.
+- Workspace Ôn tập nhóm theo Course Offering và Quiz cá nhân. Nội dung cần ôn là projection từ answer sai → question source; mỗi lượt làm tạo attempt mới, không overwrite.
 - Python sinh draft có source; Java validate rồi chuyển `GENERATING → REVIEW_REQUIRED`.
 - Student chấp nhận hoặc từ chối draft trước khi làm; Java chấm điểm và lưu attempt/result.
-- Không tạo route/menu Progress độc lập. Dashboard lấy aggregate từ Java; Course Offering Detail lấy viewing progress theo lớp.
+- Không tạo route/menu Progress hoặc màn tiến độ Course Offering riêng. Dashboard lấy aggregate và viewing progress theo từng lớp từ Java.
 - Content Progress tính từ slide view/learning event có thể kiểm thử; không suy luận Topic Mastery.
 - `recordLearningEvent(studentId,eventType,targetId,idempotencyKey)` chốt `activityDate` theo timezone tài khoản; output là event đã tạo hoặc event cũ khi retry, lỗi scope/validation không tạo event.
 - Streak chỉ xét `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`; distinct local date quyết định chuỗi hiện tại/kỷ lục.

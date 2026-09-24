@@ -2,7 +2,7 @@
 
 **Người phụ trách:** Chủ dự án, đồng thời phụ trách Frontend nhưng thực hiện theo boundary `AI_AGENT` trong `AGENTS.md`.
 
-> **Trạng thái 23/09/2026:** AI-M0 và AI-M1 đã hoàn thành; 25 test đạt và Alembic sinh SQL migration hợp lệ. Dừng trước AI-M2 theo phạm vi hiện tại.
+> **Trạng thái 24/09/2026:** mới chốt cấu trúc và kế hoạch; chưa scaffold dependency, code, migration hoặc test. Bắt đầu từ AI-M0 khi triển khai.
 
 ## 1. Mục tiêu và boundary
 
@@ -81,7 +81,8 @@ PPTX → extract text + render slide → chunk theo slide
 - Citation chỉ được tạo từ chunk đã retrieval và phải entail claim gắn với nó; không chỉ kiểm tra ID hợp lệ.
 - Reviewer/rewrite tối đa một lần. Nếu vẫn thiếu bằng chứng, trả `NO_EVIDENCE` thay vì mở rộng bằng kiến thức model.
 - Personal citation: document + page; Slide citation: document + slide.
-- Quiz chỉ sinh `MCQ_SINGLE`, tối thiểu hai option, đúng một `correctOptionIndex`, explanation và source.
+- Quiz nhận `userPrompt` tự do như dữ liệu không tin cậy nhưng chỉ sinh `MCQ_SINGLE` với 4 options, đúng một `correctOptionIndex`, explanation và source.
+- System prompt/schema/authorized scope luôn ưu tiên hơn user prompt; yêu cầu đổi format, bỏ citation hoặc truy cập nguồn khác phải bị bỏ qua.
 - Java revalidate toàn bộ output trước khi lưu.
 
 ### Pattern chatbot tham khảo
@@ -105,7 +106,7 @@ Không sao chép frontend gọi FastAPI, model/provider selector, Supervisor/aut
 - `POST /internal/v1/quizzes/generate`
 - `GET /internal/v1/health`
 
-Mỗi request có service credential, `X-Request-Id`, `X-Schema-Version: 2`, authorized scope tối thiểu và timeout. Index/deindex yêu cầu `Idempotency-Key`; không retry mù LLM request sau timeout.
+Mỗi request có service credential, `X-Request-Id`, `X-Schema-Version: 3`, authorized scope tối thiểu và timeout. Version 3 thay form Quiz count/difficulty bằng `userPrompt`. Index/deindex yêu cầu `Idempotency-Key`; không retry mù LLM request sau timeout.
 
 Job result của `TEACHER_SLIDE` cần trả danh sách artifact có schema rõ để Java lưu slide metadata. Contract này phải được cập nhật trong `docs/api-plan.md` trước khi triển khai hai phía.
 
@@ -127,7 +128,7 @@ Job result của `TEACHER_SLIDE` cần trả danh sách artifact có schema rõ 
 | AI-M1 | Alembic, pgvector repository và job worker | Job idempotent, retry không tạo dữ liệu trùng |
 | AI-M2 | Personal PDF và Teacher PPTX pipeline | Page/slide metadata và vector đúng 1024 chiều |
 | AI-M3 | Retrieval, Personal RAG và Slide Tutor | Scope isolation, citation và `NO_EVIDENCE` đúng |
-| AI-M4 | Structured Quiz generation | Mọi câu hợp lệ, đúng một đáp án và có nguồn |
+| AI-M4 | Free-prompt structured Quiz generation | Mọi câu hợp lệ, đúng một đáp án, có nguồn và prompt không vượt system rule |
 | AI-M5 | Eval v2, metrics và hardening | Đạt KPI theo từng flow/nhóm case trong kế hoạch evaluation |
 
 ## 7. Kiểm thử và kế hoạch đánh giá chatbot
@@ -156,7 +157,7 @@ authorized scope → query/history normalization → retrieval một lần
 - Test owner/document/version/source/Course Offering isolation và citation đúng trang/slide.
 - Test vector đúng 1024 chiều, embedding version khớp và reindex an toàn.
 - Test index/deindex idempotent, retry tối đa ba lần và không tạo chunk trùng.
-- Test Quiz malformed, option trùng, answer index sai và citation ngoài scope.
+- Test Quiz malformed, prompt injection, option trùng, answer index sai và citation ngoài scope.
 - Test claim reviewer loại `UNSUPPORTED`/`CONTRADICTED`, retry đúng một lần và fallback `NO_EVIDENCE`.
 - Không log document content, prompt, answer, signed URL, token hoặc provider payload.
 

@@ -191,7 +191,7 @@ Chỉ `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` được dùng đ�
 
 ### `quizzes`
 
-`id`, `student_id`, `conversation_id`, title/description, `generation_type=AI_PERSONAL_RAG`, status, question_count, timestamps.
+`id`, `student_id`, nullable `course_offering_id`, title/description, `user_prompt`, `generation_type=AI_PERSONAL_DOCUMENTS`, status, question_count, optional `regenerated_from_quiz_id`, timestamps.
 
 State: `GENERATING → REVIEW_REQUIRED → READY|REJECTED`; generation lỗi → `GENERATION_FAILED`; lịch sử → `ARCHIVED`.
 
@@ -204,6 +204,11 @@ State: `GENERATING → REVIEW_REQUIRED → READY|REJECTED`; generation lỗi →
 - `quiz_answers`: attempt/question/selected option/correctness/score; unique `(attempt_id, question_id)`.
 
 Java validate structured output và chấm trong transaction. Python/LLM không tạo attempt và không chấm điểm.
+
+- `course_offering_id` chỉ được gán khi Student accept và có enrollment `APPROVED`; `NULL` nghĩa là Quiz cá nhân.
+- `quiz_sources` luôn mô tả nguồn sinh Quiz và độc lập với `course_offering_id` dùng để nhóm nơi ôn tập.
+- “Nội dung cần ôn lại” là projection từ `quiz_answers.is_correct=false → quiz_questions → quiz_question_sources`; không lưu kết luận năng lực do AI.
+- Mỗi lượt làm là một `quiz_attempts` mới; submit không overwrite attempt đã hoàn thành.
 
 ## 9. Admin và vận hành
 

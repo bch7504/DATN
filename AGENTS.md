@@ -224,6 +224,9 @@ Python trả structured data; Java validate trước khi lưu. Mọi thay đổi
 - Khi thiếu bằng chứng, RAG/Tutor trả `NO_EVIDENCE`; không tự tạo câu trả lời không có nguồn.
 - Backend Java sở hữu Quiz lifecycle và chấm điểm; LLM không chấm Quiz.
 - Quiz dùng `MCQ_SINGLE`: mỗi câu có nhiều lựa chọn nhưng chỉ một đáp án đúng; Quiz AI phải được Student chấp nhận trước khi làm.
+- Student chủ động chọn Personal Documents và tự nhập prompt để tạo Quiz, không phụ thuộc conversation/chat context; prompt không được thay thế system rule, schema, grounding hoặc authorized scope.
+- Khi accept, Quiz được gắn vào Course Offering có enrollment `APPROVED` hoặc giữ là Quiz cá nhân; nguồn sinh Quiz và nơi ôn tập là hai khái niệm độc lập.
+- “Nội dung cần ôn lại” chỉ tổng hợp từ câu trả lời sai và nguồn của câu hỏi; không dùng AI suy đoán Student yếu/mạnh. Mỗi lượt làm tạo attempt mới, không ghi đè lịch sử.
 - Recommendation tự động ngoài phạm vi MVP; Student chủ động quyết định Study Plan.
 - Personal Document thuộc owner; Admin không mặc định được dùng làm Official Content.
 - AI Tutor phải trả citation theo document + pageNumber (Personal PDF) hoặc slideNumber (Teacher PPTX) và retrieval phải filter đúng scope.
@@ -232,7 +235,7 @@ Python trả structured data; Java validate trước khi lưu. Mọi thay đổi
 - Teacher tự tạo Course Offering theo Subject + Semester, quản lý join code và duyệt Course Enrollment. Admin chỉ quản lý danh mục/giám sát, không phân công từng lớp trong MVP.
 - Teacher upload và public tài liệu vào Course Offering mình sở hữu; chỉ Student có enrollment `APPROVED` mới xem PPTX, lưu Note cá nhân và dùng Slide Tutor. Không mô tả các chức năng học này là chức năng của Teacher.
 - Admin không quản lý Quiz hoặc Progress cá nhân của Student trong MVP.
-- Không có menu/route `Tiến độ & Thống kê` độc lập; Dashboard hiển thị tổng quan và Course Offering Detail hiển thị viewing progress chi tiết.
+- Không có menu/route `Tiến độ & Thống kê` hoặc màn tiến độ Course Offering độc lập; Dashboard hiển thị đầy đủ tiến độ tổng quan và tiến độ của từng Course Offering.
 - Study Streak chỉ tính ngày có ít nhất một `VIEW_SLIDE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; login, Note và `ASK_AI` không được tính.
 - Student chỉ cấu hình target Daily Goal. Java tính actual/phần trăm theo ngày và múi giờ người dùng; hoàn thành Daily Goal không phải điều kiện duy trì Study Streak.
 - Không triển khai XP, Level, Achievement, badge hoặc leaderboard trong MVP.

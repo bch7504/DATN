@@ -1,3 +1,3 @@
 # Web tests
 
-Route guard, role navigation, document rules, Slide Viewer và Personal RAG UI với fixture tổng hợp.
+Placeholder cho Route guard, role navigation, document rules, Slide Viewer, Personal RAG và Quiz UI test bằng fixture tổng hợp. Hiện chưa có test implementation.

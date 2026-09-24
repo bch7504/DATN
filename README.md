@@ -15,7 +15,7 @@ MVP không có Chapter/Topic, Quiz do Teacher tạo, Topic Mastery, Exam/Mock Ex
 - PPTX Teacher public: xem trên web, không tải file gốc; có Note và Slide AI Tutor.
 - PDF Teacher public: chỉ tải xuống; không viewer, Note hoặc AI Tutor.
 - Personal Document: Student chỉ upload PDF; chatbot chỉ retrieval trên tài liệu của chính Student đã chọn.
-- Quiz AI được sinh từ các Personal Document đang chọn, vào trạng thái chờ duyệt và chỉ được làm sau khi Student chấp nhận.
+- Quiz AI được sinh khi Student chủ động chọn Personal Documents và tự nhập prompt, không phụ thuộc chatbot. Student review/regenerate rồi chọn nơi ôn trước khi làm.
 
 ## Kiến trúc
 
@@ -34,9 +34,15 @@ Frontend chỉ gọi Java. Java sở hữu luật nghiệp vụ, quyền, vòng 
 
 Hai file dùng fixture tổng hợp và không gọi backend thật.
 
+## Trạng thái triển khai
+
+- Frontend hiện chỉ có cấu trúc route dự kiến, README và HTML mock; chưa có mã Next.js hay dependency để build.
+- AI Service hiện chỉ có cấu trúc module, README và kế hoạch; chưa có mã FastAPI, migration hoặc test thực thi.
+- Việc triển khai sẽ bắt đầu lại từ milestone M0 trong từng kế hoạch tương ứng.
+
 ## Tài liệu
 
-- `docs/Ke_hoach_do_an_tot_nghiep_cap_nhat_Streak_Daily_Goal.md`: kế hoạch đồ án và nguồn nghiệp vụ hiện hành.
+- `docs/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`: kế hoạch đồ án và flow MVP v1.0 hiện hành.
 - `docs/architecture.md`: high-level architecture.
 - `docs/low-level-design.md`: module, state machine và rule chi tiết.
 - `docs/database-plan.md`: schema PostgreSQL + pgvector.
@@ -50,7 +56,8 @@ Hai file dùng fixture tổng hợp và không gọi backend thật.
 2. Personal Document thuộc owner; Admin/Teacher không mặc định được xem.
 3. Teacher chỉ public vào Course Offering mình sở hữu; Student chỉ truy cập khi Enrollment `APPROVED`.
 4. Personal RAG và Slide AI Tutor là hai scope AI tách biệt.
-5. Dashboard hiển thị tổng quan; tiến độ xem chi tiết nằm trong Course Offering, không có menu Progress độc lập.
+5. Dashboard hiển thị đầy đủ tổng quan và tiến độ theo từng Course Offering; không có menu/màn Progress độc lập.
 6. Study Streak chỉ tính ngày có `VIEW_SLIDE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; hoàn thành Daily Goal không phải điều kiện duy trì streak.
 7. Student chỉ chỉnh target Daily Goal; Java tính actual và phần trăm từ Learning Event theo múi giờ người dùng.
 8. Student chủ động quản lý kế hoạch.
+9. Nội dung cần ôn lại lấy từ câu sai và citation; mỗi lượt làm Quiz tạo attempt mới, không ghi đè lịch sử.

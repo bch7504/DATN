@@ -4,7 +4,7 @@
 
 - Next.js 16, React 19, TypeScript và Tailwind/CSS tokens.
 - App shell ba vai trò; API client chỉ gọi Java `/api/v1`.
-- Student: Dashboard/Streak/Daily Goal, Course Offering/join, materials, Viewer/Note/Tutor, Personal RAG, Quiz và Plan.
+- Student: Dashboard/Streak/Daily Goal, Course Offering/join, materials, Viewer/Note/Tutor, Personal RAG, free-prompt Quiz, review theo môn/câu sai và Plan.
 - Teacher: tự tạo Course Offering, join code, Enrollment approval, Library/publication.
 - Admin: User/Role, Subject, Semester, Course Offering monitoring, feedback/audit/settings.
 - Fixture chỉ bật qua `NEXT_PUBLIC_DEMO_MODE=true` và hiển thị nhãn demo.
@@ -12,7 +12,7 @@
 ## Java backend
 
 - Spring Boot, Spring Security/JWT, Bean Validation, JPA và Flyway.
-- Sở hữu auth/RBAC, Subject/Semester, Course Offering/Enrollment, document/publication, Note, Quiz lifecycle/scoring, Dashboard progress, Study Streak, Daily Goal và study plan.
+- Sở hữu auth/RBAC, Subject/Semester, Course Offering/Enrollment, document/publication, Note, Quiz lifecycle/destination/scoring/wrong-answer review, Dashboard progress, Study Streak, Daily Goal và study plan.
 - Gọi Python qua internal HTTP có service credential, request ID, schema version, timeout và idempotency.
 
 ## Python AI service

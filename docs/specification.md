@@ -1,9 +1,9 @@
 # StudyFlow — Master Specification
 
 - **Trạng thái:** Baseline triển khai theo phương án Course Offering
-- **Phiên bản:** 2.1 — Dashboard/Streak/Daily Goal (24/09/2026)
+- **Phiên bản:** 3.0 — Chốt Flow MVP v1.0 (24/09/2026)
 - **Phạm vi:** MVP đồ án tốt nghiệp trong 12 tuần
-- **Nguồn nghiệp vụ:** `Ke_hoach_do_an_tot_nghiep_cap_nhat_Streak_Daily_Goal.md`
+- **Nguồn nghiệp vụ:** `Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`
 - **Nguồn tham khảo chatbot:** [Multi-Agent Document Intelligence Assistant](https://github.com/bch7504/Multi-Agent-Document-Intelligence-Assistant), chỉ dùng làm mẫu UX/grounding, không thay thế kiến trúc StudyFlow
 
 ## 1. Mục tiêu sản phẩm
@@ -51,7 +51,9 @@ Admin duyệt quyền Teacher ở cấp tài khoản, không tạo/phân công v
 - Student xem PPTX trên web; Teacher PDF public chỉ tải xuống.
 - Note theo slide, Slide AI Tutor và citation theo document/slide.
 - Personal PDF, multi-document RAG, lịch sử hội thoại và citation theo page.
-- AI sinh Quiz `MCQ_SINGLE` từ Personal Documents đã chọn; Student review/accept/reject trước attempt.
+- AI sinh Quiz `MCQ_SINGLE` từ Personal Documents đã chọn và prompt tự do; Student review/regenerate/accept/reject trước attempt.
+- Khi accept, Student gắn Quiz vào Course Offering `APPROVED` hoặc giữ là Quiz cá nhân; nguồn sinh Quiz độc lập với nơi ôn tập.
+- Ôn tập (Review Hub) theo cấu trúc 2 tầng: Level 1 chọn môn/Quiz cá nhân; Level 2 gồm 3 sub-tab (Quản lý Quiz & lịch sử attempt không ghi đè, Nội dung cần ôn lại tổng hợp từ câu sai kèm link tài liệu/slide, Xem tiến độ slide của môn). Không dùng AI suy luận năng lực.
 - Dashboard tổng hợp viewing progress, Study Streak và Daily Goal; chi tiết tiến độ nằm trong Course Offering.
 - Study Plan, task, deadline và lịch tuần.
 - Admin monitoring, feedback/report, audit log và typed settings.
@@ -89,7 +91,7 @@ Teacher Document gắn với owner, không nhân bản khi public cho nhiều Co
 
 ## 5.1 Dashboard, Study Streak và Daily Goal
 
-- Không có menu `Tiến độ & Thống kê` độc lập. Dashboard hiển thị tiến độ tổng quan; Course Offering Detail hiển thị tiến độ theo lớp/tài liệu.
+- Không có menu `Tiến độ & Thống kê` hoặc màn tiến độ Course Offering độc lập. Dashboard hiển thị đầy đủ tiến độ tổng quan và theo từng lớp/tài liệu.
 - Viewing Progress chỉ phản ánh slide đã mở/xem, không suy luận mức hiểu hoặc Topic Mastery.
 - Streak chỉ tính ngày có ít nhất một `VIEW_SLIDE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; login, Note hay `ASK_AI` không duy trì streak.
 - Nhiều hoạt động hợp lệ trong cùng ngày chỉ tạo một activity day. Java tính `currentStreak`, `longestStreak` và tuần hoạt động theo timezone tài khoản.
@@ -98,17 +100,19 @@ Teacher Document gắn với owner, không nhân bản khi public cho nhiều Co
 
 ## 6. Chatbot Personal RAG
 
-Chatbot dùng mẫu workspace evidence-scoped:
+Chatbot dùng mẫu workspace evidence-scoped tối ưu giao diện 2 cột:
 
-- Cột nguồn hiển thị Personal PDF, trạng thái `PROCESSING|READY|FAILED` và checkbox chỉ bật với `READY`.
-- Header hội thoại hiển thị số nguồn đang dùng, nút tạo hội thoại mới và lịch sử.
+- Bố cục 2 cột: Khung Chatbot ở bên trái (linh hoạt độ rộng, ưu tiên trải nghiệm thảo luận); Cột chọn nguồn tài liệu cá nhân thu gọn bên phải (~280px) hiển thị Personal PDF, trạng thái `PROCESSING|READY|FAILED` và checkbox chỉ bật với `READY`.
+- Header khung chatbot tích hợp thanh phiên hội thoại (Session Bar) hiển thị các cuộc trò chuyện đang có và nút `+ Phiên mới` để chuyển ngữ cảnh nhanh chóng.
 - Empty state có câu hỏi gợi ý; composer hỗ trợ Enter gửi, Shift+Enter xuống dòng.
-- Mỗi lượt assistant trả `ANSWERED` hoặc `NO_EVIDENCE`, citation mở rộng theo document/page/excerpt và `traceId`.
+- Mỗi lượt assistant trả `ANSWERED` hoặc `NO_EVIDENCE`, kèm chip citation hiển thị tên file và số trang.
+- In-Chat Citation Inspector: Nhấn vào chip citation sẽ mở Drawer chi tiết trích dẫn trượt ngay bên trong khung chatbot, hiển thị trích đoạn (excerpt), số trang, tên file và mã kiểm chứng grounding SHA-256.
 - Java tải conversation, kiểm owner và snapshot `selectedDocumentIds` trước mỗi message.
 - Python filter document/version/owner/source trước retrieval; citation chỉ dựng từ chunk đã retrieval và được kiểm định bằng code.
 - Prompt xem document content là dữ liệu không tin cậy, không phải instruction.
 - Không hiển thị model selector, prompt nội bộ, token usage hay Agent Trace cho Student trong MVP.
-- Tạo Quiz là action riêng từ conversation scope; kết quả đi vào Java lifecycle, không biến thành Quiz làm ngay trong chat.
+- Tạo Quiz là action riêng: Student chọn Personal Documents và tự nhập prompt, không phụ thuộc conversation/chat; kết quả đi vào Java lifecycle.
+- MVP regenerate/accept/reject toàn bộ Quiz, chưa chỉnh từng câu. Mỗi lần làm tạo attempt mới và giữ lịch sử để so sánh.
 
 Những pattern trên được rút ra từ repo tham khảo; StudyFlow không dùng frontend gọi thẳng FastAPI, Supervisor tự route hay database/vector stack của repo đó.
 

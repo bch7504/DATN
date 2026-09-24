@@ -12,7 +12,7 @@ Java Spring Boot là public API duy nhất cho Web và system of record của to
 - Subject, Semester, Course Offering, join code, Course Enrollment;
 - Teacher Library, publication, slide metadata, Note;
 - Personal Document metadata và conversation history;
-- Quiz lifecycle, validation, attempt/scoring;
+- Quiz prompt/lifecycle, destination, validation, attempt/scoring và wrong-answer review projection;
 - Dashboard aggregate, Content Progress, Study Streak, Daily Goal và Study Plan/Calendar;
 - feedback, audit, settings;
 - authorization trước khi cấp signed URL hoặc gọi Python.
@@ -71,7 +71,7 @@ services/backend/
 │       ├── ai/
 │       │   ├── AiClient.java
 │       │   ├── HttpAiClient.java
-│       │   ├── dto/          # internal schema v2 request/response
+│       │   ├── dto/          # internal schema v3 request/response
 │       │   └── AiClientConfiguration.java
 │       └── storage/
 │           ├── ObjectStorage.java
@@ -142,10 +142,14 @@ Quiz:     GENERATING → REVIEW_REQUIRED → READY | REJECTED | GENERATION_FAILE
 - Teacher PDF không gọi AI; Teacher PPTX và Personal PDF gọi pipeline đúng loại.
 - Java kiểm lại mọi citation/source/Quiz output trước khi lưu.
 - Quiz submit/scoring là transaction và không nhận score từ client/LLM.
+- Quiz generation nhận prompt tự do như untrusted input; Java vẫn khóa authorized source, schema và validation.
+- Accept gắn Quiz vào Course Offering `APPROVED` hoặc để `courseOfferingId=null` cho Quiz cá nhân; source generation không thay đổi theo destination.
+- Regenerate tạo generation/draft mới có liên kết, không overwrite Quiz hoặc attempt cũ.
+- Review content được project từ answer sai và question source; không gọi AI để suy luận năng lực.
 
 ### Dashboard, Study Streak và Daily Goal
 
-- Không có module/API Progress tổng hợp độc lập cho Web; `progress` cung cấp Dashboard aggregate và tiến độ chi tiết theo Course Offering.
+- Không có API Progress độc lập cho Web; `progress` cung cấp một Dashboard projection gồm aggregate và tiến độ theo từng Course Offering.
 - Java chốt `activityDate` từ `occurredAt + users.timeZone`; client không được gửi ngày dùng tính Streak.
 - Chỉ `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` duy trì Streak; distinct local date quyết định current/longest streak.
 - Daily Goal chỉ lưu target. Actual lấy từ slide phân biệt đã xem, số câu trong attempt đã chấm và task hoàn thành trong ngày.
@@ -155,7 +159,7 @@ Quiz:     GENERATING → REVIEW_REQUIRED → READY | REJECTED | GENERATION_FAILE
 
 - Endpoint dùng deny-by-default, role guard và resource-level access policy.
 - Không lộ sự tồn tại của resource ngoài scope; không trả storage key/internal AI metadata.
-- AI request có service credential, `X-Request-Id`, `X-Schema-Version: 2`, timeout và authorized document/version/location scope.
+- AI request có service credential, `X-Request-Id`, `X-Schema-Version: 3`, timeout và authorized document/version/location scope.
 - Job mutation có `Idempotency-Key`; retry chỉ cho thao tác an toàn/idempotent.
 - Upload kiểm extension, MIME thực, size và filename; signed URL tối đa 5 phút.
 - Log/audit không chứa document, prompt, answer, Note, password, token hoặc secret.
@@ -171,7 +175,7 @@ Migration chỉ tiến, không sửa migration đã chạy:
 5. documents, publications, processing jobs metadata;
 6. slides, notes, learning progress/events và daily goals;
 7. conversations/messages/citations;
-8. quizzes/questions/options/attempts/answers;
+8. quizzes (prompt/destination/regeneration), questions/options/sources/attempts/answers;
 9. study plans/tasks/sessions;
 10. feedback/audit/settings.
 
@@ -186,8 +190,8 @@ Chi tiết bảng/constraint tại `docs/database-plan.md`. Không tạo bảng 
 | BE-M2 | Subject/Semester/Course Offering/join code | Teacher self-create, Admin catalog/monitor đúng |
 | BE-M3 | Enrollment authorization | request/approve/reject và access policy đạt |
 | BE-M4 | Document/publication/storage/PPTX handoff | file policy, owner scope, async status đạt |
-| BE-M5 | Slide/Note/Personal conversation + AI adapter | contract v2, citation revalidation, NO_EVIDENCE đạt |
-| BE-M6 | Quiz lifecycle/scoring | REVIEW_REQUIRED và Java scoring đạt |
+| BE-M5 | Slide/Note/Personal conversation + AI adapter | contract v3, citation revalidation, NO_EVIDENCE đạt |
+| BE-M6 | Quiz prompt/lifecycle/destination/scoring/review | REVIEW_REQUIRED, approved destination, wrong-answer citation và Java scoring đạt |
 | BE-M7 | Dashboard/Streak/Daily Goal/Study Plan | event idempotent, timezone/day boundary và no Topic Mastery đạt |
 | BE-M8 | Admin/audit/hardening/E2E | demo flow, performance/security đạt |
 
@@ -199,7 +203,8 @@ Chi tiết bảng/constraint tại `docs/database-plan.md`. Không tạo bảng 
 - Access matrix: Student `PENDING/REJECTED`, Teacher khác owner, Admin privacy.
 - AI adapter với fake server: timeout, malformed JSON, wrong schema, citation ngoài scope, `NO_EVIDENCE`.
 - Storage test: MIME/size, signed URL, delete/retry idempotent.
-- Quiz test: option trùng, answer index sai, client gửi score giả, submit lặp.
+- Quiz test: prompt injection, option trùng, answer index sai, destination ngoài enrollment, regenerate không overwrite, client gửi score giả, submit lặp và attempt history.
+- Review test: chỉ answer sai sinh review item; citation đúng page/slide; không có AI mastery inference.
 - Dashboard test: cùng slide trong ngày không đếm lặp, ba loại event hợp lệ duy trì Streak, login/Note/ASK_AI không tính, goal chưa đủ vẫn giữ Streak.
 - Daily Goal test: target bounds, actual server-side, rollover theo timezone và client không thể sửa actual/currentStreak.
 - E2E dùng seed tổng hợp theo `docs/demo-flow.md`.
