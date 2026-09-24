@@ -15,10 +15,11 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 ### `users`
 
-`id`, `email`, `username`, `password_hash`, `full_name`, `role (STUDENT|TEACHER|ADMIN)`, `status (ACTIVE|LOCKED)`, timestamps.
+`id`, `email`, `username`, `password_hash`, `full_name`, `time_zone`, `role (STUDENT|TEACHER|ADMIN)`, `status (ACTIVE|LOCKED)`, timestamps.
 
 - Unique `email`, `username`.
 - Public registration luôn tạo `STUDENT`.
+- `time_zone` là IANA zone hợp lệ, mặc định `Asia/Ho_Chi_Minh`; Java dùng để chốt local date cho Streak/Daily Goal.
 - Đổi/khóa role Teacher phải kiểm Course Offering đang active và thu hồi session theo policy.
 
 ### `refresh_tokens`
@@ -127,7 +128,7 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 - Query và document phải cùng embedding model/dimensions/index version.
 - Signed URL được xóa sau terminal status và không bao giờ log.
 
-## 6. Progress và Learning Events
+## 6. Dashboard Progress, Study Streak và Daily Goal
 
 ### `learning_progress`
 
@@ -139,7 +140,12 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 ### `learning_events`
 
-`id`, `student_id`, `event_type`, `target_type`, `target_id`, `metadata`, `occurred_at`.
+`id`, `student_id`, `event_type`, `target_type`, `target_id`, `activity_date`, `quantity`, `idempotency_key`, `metadata`, `occurred_at`.
+
+- `activity_date` được Java chốt theo `users.time_zone` tại thời điểm ghi event; không để client truyền.
+- `quantity >= 1`; `QUIZ_COMPLETED` dùng số câu trong attempt đã chấm, `STUDY_TASK_COMPLETED` dùng `1`.
+- Unique `(student_id, idempotency_key)`; partial unique `(student_id, target_id, activity_date, event_type)` cho `VIEW_SLIDE` để Daily Goal không đếm lại cùng slide trong ngày.
+- Index `(student_id, activity_date, event_type)` phục vụ Dashboard/Streak/Daily Goal.
 
 Event chính:
 
@@ -152,13 +158,24 @@ PERSONAL_DOCUMENT_UPLOADED
 PERSONAL_DOCUMENT_INDEXED
 ASK_AI
 STUDY_PLAN_CREATED
-STUDY_PLAN_COMPLETED
+STUDY_TASK_COMPLETED
 QUIZ_GENERATED
 QUIZ_ACCEPTED
 QUIZ_COMPLETED
 ```
 
 Metadata không chứa join code, prompt, document text hay secret.
+
+Chỉ `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` được dùng để tính Streak. Login, `NOTE_SAVED`, `ASK_AI` và upload/index không tạo activity day.
+
+### `daily_goals`
+
+`student_id`, `slide_target`, `quiz_question_target`, `task_target`, `updated_at`.
+
+- Primary key/FK `student_id`; một cấu hình đang áp dụng cho mỗi Student và lặp lại cho các ngày sau đến khi thay đổi.
+- Check: `slide_target 0..100`, `quiz_question_target 0..200`, `task_target 0..50` và tổng target lớn hơn `0`.
+- Chỉ lưu target. `slide_actual`, `quiz_question_actual`, `task_actual` và `completed` được Java tính từ dữ liệu/event của `activity_date` hiện tại, không lưu để client cập nhật.
+- Streak không phụ thuộc `completed`; một event học hợp lệ là đủ duy trì ngày học.
 
 ## 7. Study Plan và Calendar
 

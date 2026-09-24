@@ -10,6 +10,7 @@
 | STU-FR-004 | Teacher PPTX xem web, Note, Tutor; không tải file gốc. |
 | STU-FR-005 | Teacher PDF chỉ download; không Viewer/Note/Tutor/progress/index AI. |
 | STU-FR-006 | Citation Slide Tutor thuộc đúng document/version/slide và authorized Course Offering. |
+| STU-FR-007 | Course Offering Detail hiển thị viewing progress chi tiết; không suy luận Topic Mastery. |
 
 ## 2. Public API
 
@@ -19,6 +20,7 @@
 | `GET /api/v1/student/course-offerings` | status, semester, pagination | lớp + enrollment status | `401` |
 | `GET /api/v1/student/course-offerings/{id}` | offering ID | subject, semester, Teacher, state | `404` ngoài scope |
 | `GET /api/v1/student/course-offerings/{id}/materials` | pagination/type | active publications | `403/404` |
+| `GET /api/v1/student/course-offerings/{id}/progress` | offering ID | distinct slide views, totals và tỷ lệ theo document | `403/404` |
 | `POST /api/v1/student/slides/{slideId}/views` | idempotency key | content progress event | `404/409` |
 | `PUT /api/v1/student/slides/{slideId}/note` | `{content}` | saved Note | `404/422` |
 | `POST /api/v1/student/slides/{slideId}/questions` | `{question,conversationId?}` | answer/citation/trace | `NO_EVIDENCE`, AI unavailable |
@@ -32,3 +34,4 @@ Download PDF và slide artifact dùng signed URL ngắn hạn sau authorization;
 - Revoke/lock có hiệu lực trước khi cấp URL hoặc gọi AI.
 - Slide Tutor chạy đúng production pipeline, citation entail claim; câu ngoài nguồn trả `NO_EVIDENCE`.
 - Prompt injection trong slide không thay đổi system rule hay authorized scope.
+- Viewing progress chỉ xuất hiện trong Course Offering Detail; không tạo màn Progress tổng hợp độc lập.

@@ -65,3 +65,29 @@ export interface QuizSummary {
   sourceNames: string[];
   score?: number;
 }
+
+export type DailyGoalMetricKey = "SLIDES" | "QUIZ_QUESTIONS" | "STUDY_TASKS";
+
+export interface DailyGoalMetric {
+  key: DailyGoalMetricKey;
+  label: string;
+  actual: number;
+  target: number;
+  percent: number;
+}
+
+export interface StudyStreakSummary {
+  currentStreak: number;
+  longestStreak: number;
+  activityDays: string[];
+}
+
+export interface StudentDashboardSummary {
+  studyStreak: StudyStreakSummary;
+  dailyGoal: DailyGoalMetric[];
+  aggregateProgress: {
+    viewedSlides: number;
+    totalSlides: number;
+    percent: number;
+  };
+}

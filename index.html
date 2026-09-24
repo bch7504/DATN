@@ -118,20 +118,20 @@
     <section class="shell panel-view" id="panel-overview">
       <div class="section-head"><small>Product scope</small><h2>Một nền tảng, ba không gian làm việc</h2><p>MVP tập trung vào quản lý học liệu, hoạt động học và ôn tập. AI trả lời theo hai ngữ cảnh và sinh Quiz từ Personal Document đã được kiểm quyền.</p></div>
       <div class="grid g3">
-        <article class="card role-card" data-role="S"><span class="role-icon">S</span><h3>Student learning flow</h3><p>Nhập join code, chờ duyệt Enrollment rồi học Slide, dùng chatbot, lịch và Quiz.</p><ul class="list"><li>Course Offering + Enrollment</li><li>Slide Viewer + Note + Tutor</li><li>Personal RAG + Quiz draft</li></ul></article>
+        <article class="card role-card" data-role="S"><span class="role-icon">S</span><h3>Student learning flow</h3><p>Nhập join code, học Slide, dùng chatbot/Quiz và duy trì nhịp học mỗi ngày.</p><ul class="list"><li>Course Offering + Enrollment</li><li>Slide Viewer + Note + Tutor</li><li>Dashboard + Streak + Daily Goal</li></ul></article>
         <article class="card role-card" data-role="T"><span class="role-icon">T</span><h3>Teacher ownership flow</h3><p>Tự tạo Course Offering, duyệt Student và public file vào đúng lớp mình sở hữu.</p><ul class="list"><li>Join code + Enrollment</li><li>PDF/PPTX library</li><li>Public / revoke</li></ul></article>
         <article class="card role-card" data-role="A"><span class="role-icon">A</span><h3>Admin governance flow</h3><p>Quản lý user, Subject/Semester và giám sát lớp; không phân công từng lớp.</p><ul class="list"><li>RBAC và account status</li><li>Course Offering monitoring</li><li>Feedback, logs, settings</li></ul></article>
       </div>
       <div class="grid g2" style="margin-top:14px">
-        <div class="scope in"><h3>Trong MVP</h3><div class="tags"><span class="tag">Course Offering</span><span class="tag">Enrollment</span><span class="tag">Teacher Library</span><span class="tag">Slide Viewer</span><span class="tag">Personal RAG</span><span class="tag">AI Quiz Review</span><span class="tag">Progress</span></div></div>
-        <div class="scope out"><h3>Future Work</h3><div class="tags"><span class="tag">Chapter/Topic</span><span class="tag">Teacher Quiz</span><span class="tag">Topic Mastery</span><span class="tag">Exam/Mock Exam</span><span class="tag">Recommendation</span><span class="tag">Calendar Sync</span></div></div>
+        <div class="scope in"><h3>Trong MVP</h3><div class="tags"><span class="tag">Course Offering</span><span class="tag">Enrollment</span><span class="tag">Slide Viewer</span><span class="tag">Personal RAG</span><span class="tag">AI Quiz Review</span><span class="tag">Study Streak</span><span class="tag">Daily Goal</span></div></div>
+        <div class="scope out"><h3>Future Work</h3><div class="tags"><span class="tag">Chapter/Topic</span><span class="tag">Topic Mastery</span><span class="tag">Exam/Mock Exam</span><span class="tag">Recommendation</span><span class="tag">XP/Level</span><span class="tag">Badge/Leaderboard</span></div></div>
       </div>
     </section>
 
     <section class="shell panel-view" id="panel-roles" hidden>
       <div class="section-head"><small>Role based access</small><h2>Chức năng bám đúng trách nhiệm</h2><p>Không gian làm việc và API đều giới hạn theo role, Course Enrollment, publication và ownership.</p></div>
       <div class="grid g3">
-        <article class="card"><h3>Student</h3><ul class="list"><li>Dashboard</li><li>Join code & Enrollment</li><li>Course Offering materials</li><li>Tài liệu cá nhân + Hỏi đáp AI</li><li>Quiz, Progress và Lịch tuần</li></ul></article>
+        <article class="card"><h3>Student</h3><ul class="list"><li>Dashboard, Streak & Daily Goal</li><li>Join code & Enrollment</li><li>Course Offering materials</li><li>Tài liệu cá nhân + Hỏi đáp AI</li><li>Quiz và Lịch tuần</li></ul></article>
         <article class="card"><h3>Teacher</h3><ul class="list"><li>Tự tạo Course Offering</li><li>Join code & Enrollment approval</li><li>Kho tài liệu PDF/PPTX</li><li>Public/revoke theo lớp sở hữu</li></ul></article>
         <article class="card"><h3>Admin</h3><ul class="list"><li>User, role, khóa/mở khóa</li><li>Subject & Semester</li><li>Course Offering monitoring</li><li>Feedback, Audit, Settings</li></ul></article>
       </div>
@@ -142,7 +142,7 @@
       <div class="arch">
         <div class="arch-row">
           <div class="node"><small>Presentation</small><h3>Next.js Web</h3><p>Student, Teacher, Admin UI. Không gọi database, storage hoặc Python trực tiếp.</p></div><div class="arrow">→</div>
-          <div class="node"><small>System of record</small><h3>Spring Boot</h3><p>Auth/RBAC, Course Offering, Enrollment, publication, Note, plan và Quiz scoring.</p></div><div class="arrow">→</div>
+          <div class="node"><small>System of record</small><h3>Spring Boot</h3><p>Auth/RBAC, Course Offering, Dashboard, Streak, Daily Goal, plan và Quiz scoring.</p></div><div class="arrow">→</div>
           <div class="node"><small>Document intelligence</small><h3>FastAPI</h3><p>Parse/render, chunk, embed, RAG, Tutor, citation và sinh Quiz draft.</p></div>
         </div>
         <div class="infra"><div class="node"><small>Data</small><h3>PostgreSQL + pgvector</h3></div><div class="node"><small>Files</small><h3>Object Storage</h3></div><div class="node"><small>Models</small><h3>LLM / Embedding API</h3></div></div>
@@ -152,8 +152,8 @@
     <section class="shell panel-view" id="panel-data" hidden>
       <div class="section-head"><small>Contracts</small><h2>Dữ liệu và API theo đúng scope</h2><p>Một PostgreSQL cluster với schema/role tách biệt; public API thuộc Java và internal API thuộc Python.</p></div>
       <div class="grid g2">
-        <article class="card schema"><h3>Nhóm bảng nghiệp vụ</h3><table><tr><th>Nhóm</th><th>Bảng chính</th></tr><tr><td>Academic</td><td><code>subjects, semesters, course_offerings, course_enrollments</code></td></tr><tr><td>Materials</td><td><code>documents, document_publications, slides, slide_notes</code></td></tr><tr><td>Learning</td><td><code>learning_progress, learning_events, study_plans, study_plan_items</code></td></tr><tr><td>Review</td><td><code>quizzes, quiz_sources, quiz_questions, quiz_attempts, quiz_answers</code></td></tr><tr><td>AI</td><td><code>ai.index_jobs, ai.document_chunks, vector</code></td></tr></table></article>
-        <article class="card"><h3>API quan trọng</h3><div class="api-path"><b class="method">POST</b><code>/student/enrollments</code><span>Java</span></div><div class="api-path"><b class="method">GET</b><code>/student/course-offerings/{id}/materials</code><span>Java</span></div><div class="api-path"><b class="method">POST</b><code>/personal-rag/conversations/{id}/quizzes</code><span>Java</span></div><div class="api-path"><b class="method">POST</b><code>/review/quizzes/{id}/accept</code><span>Java</span></div><div class="api-path"><b class="method">POST</b><code>/internal/v1/quizzes/generate</code><span>Python</span></div></article>
+        <article class="card schema"><h3>Nhóm bảng nghiệp vụ</h3><table><tr><th>Nhóm</th><th>Bảng chính</th></tr><tr><td>Academic</td><td><code>subjects, semesters, course_offerings, course_enrollments</code></td></tr><tr><td>Materials</td><td><code>documents, document_publications, slides, slide_notes</code></td></tr><tr><td>Learning</td><td><code>learning_progress, learning_events, daily_goals, study_plans</code></td></tr><tr><td>Review</td><td><code>quizzes, quiz_sources, quiz_questions, quiz_attempts, quiz_answers</code></td></tr><tr><td>AI</td><td><code>ai.index_jobs, ai.document_chunks, vector</code></td></tr></table></article>
+        <article class="card"><h3>API quan trọng</h3><div class="api-path"><b class="method">GET</b><code>/student/dashboard</code><span>Java</span></div><div class="api-path"><b class="method">GET</b><code>/student/study-streak</code><span>Java</span></div><div class="api-path"><b class="method">PUT</b><code>/student/daily-goal</code><span>Java</span></div><div class="api-path"><b class="method">GET</b><code>/student/course-offerings/{id}/progress</code><span>Java</span></div><div class="api-path"><b class="method">POST</b><code>/internal/v1/quizzes/generate</code><span>Python</span></div></article>
       </div>
     </section>
 
@@ -166,8 +166,8 @@
         <div class="rule-card"><span>04</span><div><h4>Hai scope AI tách biệt</h4><p>Personal RAG không đọc học liệu lớp; Slide AI Tutor không đọc Personal Document.</p></div></div>
         <div class="rule-card"><span>05</span><div><h4>Teacher sở hữu lớp</h4><p>Tự tạo Course Offering và chỉ public vào lớp mình sở hữu.</p></div></div>
         <div class="rule-card"><span>06</span><div><h4>Admin không thay Teacher</h4><p>Không mặc định đọc tài liệu/chat/plan cá nhân hoặc public học liệu.</p></div></div>
-        <div class="rule-card"><span>07</span><div><h4>Không Topic Mastery</h4><p>Progress phản ánh slide và hoạt động; không suy luận mức hiểu.</p></div></div>
-        <div class="rule-card"><span>08</span><div><h4>Quiz phải được duyệt</h4><p>Python sinh bản nháp; Student chấp nhận trước khi làm và Java chấm điểm.</p></div></div>
+        <div class="rule-card"><span>07</span><div><h4>Streak có nguồn sự kiện rõ</h4><p>Chỉ VIEW_SLIDE, STUDY_TASK_COMPLETED và QUIZ_COMPLETED; Daily Goal độc lập với streak.</p></div></div>
+        <div class="rule-card"><span>08</span><div><h4>Không gamification mở rộng</h4><p>Không XP, Level, Achievement, badge, leaderboard hoặc Topic Mastery trong MVP.</p></div></div>
       </div>
     </section>
 
@@ -177,7 +177,7 @@
         <div class="demo-step"><div><b>Student tham gia lớp</b><p>Nhập join code, chờ Teacher duyệt rồi mở Course Offering.</p></div></div>
         <div class="demo-step"><div><b>Personal RAG → Quiz draft</b><p>Upload PDF, chọn nhiều file, hỏi có citation rồi yêu cầu tạo Quiz.</p></div></div>
         <div class="demo-step"><div><b>Slide learning</b><p>Xem PPTX, lưu Note và hỏi Tutor theo slide.</p></div></div>
-        <div class="demo-step"><div><b>Plan → Quiz review → Attempt</b><p>Thêm lịch vào bảng tuần, chấp nhận Quiz, làm bài và xem kết quả Java trả về.</p></div></div>
+        <div class="demo-step"><div><b>Dashboard → Streak → Daily Goal</b><p>Xem nhịp học, chỉnh target và nhận actual do Java tổng hợp từ Learning Event.</p></div></div>
         <div class="demo-step"><div><b>Teacher tạo lớp & publish</b><p>Tạo Course Offering, duyệt Enrollment, upload rồi public/thu hồi.</p></div></div>
         <div class="demo-step"><div><b>Admin govern</b><p>Quản lý user, Subject/Semester, giám sát Course Offering, feedback và audit.</p></div></div>
         <div class="demo-step"><div><b>Deployment</b><p>Chạy trên URL public, chứng minh trace và health.</p></div></div>

@@ -2,7 +2,7 @@
 
 ## 1. Mục tiêu
 
-Chứng minh luồng end-to-end `Semester → Course Offering → Enrollment → Material → AI/Quiz → Progress` với dữ liệu demo được đánh dấu rõ.
+Chứng minh luồng end-to-end `Semester → Course Offering → Enrollment → Material → AI/Quiz → Dashboard/Streak/Daily Goal` với dữ liệu demo được đánh dấu rõ.
 
 ## 2. Dữ liệu chuẩn bị
 
@@ -23,7 +23,7 @@ Chứng minh luồng end-to-end `Semester → Course Offering → Enrollment →
 7. Trong Slide Viewer, Student ghi Note và hỏi Slide Tutor; câu trả lời có citation slide. Câu ngoài nguồn trả `NO_EVIDENCE`.
 8. Student upload Personal PDF, chọn nhiều nguồn `READY`, tạo cuộc trò chuyện và hỏi tiếp nối; câu trả lời có citation trang.
 9. Student yêu cầu Quiz; Java tạo `GENERATING`, nhận draft rồi chuyển `REVIEW_REQUIRED`; Student duyệt, làm bài và Java chấm điểm.
-10. Dashboard/Progress cập nhật từ learning events; Study Plan vẫn do Student tự quyết định.
+10. Dashboard hiển thị viewing progress, Study Streak và Daily Goal; Student chỉnh ba target rồi hoàn thành một hoạt động hợp lệ để thấy actual/Streak do Java cập nhật. Chi tiết tiến độ nằm trong Course Offering, không có menu Progress riêng.
 11. **Admin** thấy Course Offering, enrollment event và audit metadata nhưng không thấy nội dung tài liệu/chat/Note cá nhân.
 
 ## 4. Negative paths bắt buộc
@@ -46,5 +46,7 @@ Chứng minh luồng end-to-end `Semester → Course Offering → Enrollment →
 - [ ] Chính sách PPTX/PDF/Personal PDF đúng.
 - [ ] Personal RAG và Slide Tutor có source scope, history, citation, loading/error/`NO_EVIDENCE`.
 - [ ] Quiz phải qua `REVIEW_REQUIRED`; Java chấm điểm.
+- [ ] Streak chỉ tính Slide/Task/Quiz hợp lệ; Daily Goal chưa đạt 100% vẫn có thể duy trì Streak.
+- [ ] Không có menu Progress riêng hoặc XP/Level/Achievement/leaderboard.
 - [ ] Không có Topic Mastery, DOCX, OCR, Exam, Teacher Quiz, recommendation hoặc multi-agent trong MVP.
 - [ ] Trace ID xuất hiện ở lỗi/AI response nhưng không lộ secret hay nội dung riêng tư.

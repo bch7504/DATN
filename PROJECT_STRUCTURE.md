@@ -21,7 +21,6 @@ DATN/
 │       │   │   │   ├── course-offerings/
 │       │   │   │   ├── materials/
 │       │   │   │   ├── personal-documents/
-│       │   │   │   ├── progress/
 │       │   │   │   ├── plan/
 │       │   │   │   └── review/
 │       │   │   ├── teacher/
@@ -76,7 +75,7 @@ DATN/
 │       ├── evals/
 │       └── tests/
 ├── docs/
-│   ├── Ke_hoach_do_an_tot_nghiep_phuong_an_Course_Offering.md
+│   ├── Ke_hoach_do_an_tot_nghiep_cap_nhat_Streak_Daily_Goal.md
 │   ├── architecture.md
 │   ├── low-level-design.md
 │   ├── backend-implementation-plan.md
@@ -99,7 +98,7 @@ DATN/
 | Java `courseoffering/enrollment` | Teacher tự tạo Course Offering/join code; Teacher duyệt Enrollment; Admin giám sát |
 | Java `document/publication` | Kho tài liệu, ownership, public/revoke |
 | Java `slide/note` | Slide access, Note và view event |
-| Java `progress/study/review` | Progress/Statistics, Plan/Calendar, Quiz review/attempt/scoring |
+| Java `progress/study/review` | Dashboard/Streak/Daily Goal, Course Offering progress, Plan/Calendar, Quiz review/attempt/scoring |
 | Python `pipelines` | Personal PDF indexing và Teacher PPTX render/index |
 | Python `services` | Retrieval, RAG, Slide AI Tutor, citation và sinh Quiz draft |
 | PostgreSQL `app` | Dữ liệu nghiệp vụ do Java sở hữu |

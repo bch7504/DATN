@@ -24,11 +24,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
-  Clock3,
   Copy,
   Download,
   FileDown,
   FileText,
+  Flame,
   GraduationCap,
   History,
   LayoutDashboard,
@@ -50,6 +50,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  Target,
   Upload,
   UserCheck,
   UserCog,
@@ -59,8 +60,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { isDemoMode, logout } from "@/lib/api-client";
-import { materials, personalDocuments, quizzes, weeklyTasks } from "@/lib/demo-data";
-import type { ProcessingStatus, QuizStatus } from "@/types/api";
+import { materials, personalDocuments, quizzes, studentDashboard, weeklyTasks } from "@/lib/demo-data";
+import type { DailyGoalMetric, ProcessingStatus, QuizStatus } from "@/types/api";
 import { useSession } from "@/components/auth-context";
 
 type Role = "student" | "teacher" | "admin";
@@ -103,7 +104,6 @@ const navByRole: Record<Role, NavItem[]> = {
     { key: "materials", label: "Học liệu", icon: Library },
     { key: "personal-documents", label: "Tài liệu & Chatbot", icon: MessageSquareText },
     { key: "review", label: "Ôn tập & Quiz", icon: ClipboardCheck },
-    { key: "progress", label: "Tiến độ", icon: BarChart3 },
     { key: "plan", label: "Kế hoạch & Lịch", icon: CalendarDays },
   ],
   teacher: [
@@ -217,9 +217,8 @@ function Workspace({ role, section, notify }: { role: Role; section: string; not
     if (section === "viewer") return <ViewerPage notify={notify} />;
     if (section === "personal-documents") return <PersonalDocumentsPage notify={notify} />;
     if (section === "review") return <ReviewPage notify={notify} />;
-    if (section === "progress") return <ProgressPage />;
     if (section === "plan") return <PlanPage notify={notify} />;
-    return <StudentDashboard />;
+    return <StudentDashboard notify={notify} />;
   }
   if (role === "teacher") return <TeacherPage section={section} notify={notify} />;
   return <AdminPage section={section} notify={notify} />;
@@ -231,12 +230,20 @@ function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps): 
 }
 
 /** Render the Student dashboard fixture. */
-function StudentDashboard(): ReactElement {
+function StudentDashboard({ notify }: { notify: (message: string) => void }): ReactElement {
+  const [editingGoal, setEditingGoal] = useState<boolean>(false);
+
+  const saveTargets = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    setEditingGoal(false);
+    notify("Đã lưu target Daily Goal demo; actual luôn do Java tính từ Learning Event");
+  };
+
   return <div className="page-stack">
-    <PageHeader eyebrow="Học kỳ 1 · 2026–2027" title="Chào buổi sáng, Minh Khang" description="Tiếp tục lớp học phần đã được duyệt và hoàn thành mục tiêu tuần này." actions={<><Link className="button secondary" href="/student/plan"><CalendarDays size={17} /> Xem lịch</Link><Link className="button primary" href="/student/course-offerings"><Play size={17} /> Vào lớp học phần</Link></>} />
+    <PageHeader eyebrow="Học kỳ 1 · 2026–2027" title="Chào buổi sáng, Minh Khang" description="Theo dõi nhịp học hôm nay và tiếp tục lớp học phần đã được duyệt." actions={<><Link className="button secondary" href="/student/plan"><CalendarDays size={17} /> Xem lịch</Link><Link className="button primary" href="/student/course-offerings"><Play size={17} /> Vào lớp học phần</Link></>} />
     <section className="hero-card"><div className="hero-copy"><span className="hero-kicker"><Sparkles size={15} /> Luồng học chính</span><h2>Từ slide bài giảng đến câu trả lời có nguồn</h2><p>Mở Course Offering, xem PPTX, ghi chú và hỏi AI Tutor ngay tại slide.</p><Link href="/student/materials" className="button light">Mở học liệu <ChevronRight size={17} /></Link></div><div className="flow-steps">{["Vào lớp", "Mở slide", "Ghi chú", "Hỏi AI"].map((label: string, index: number): ReactElement => <div key={label}><b>0{index + 1}</b><span>{label}</span></div>)}</div></section>
-    <section className="stats-grid"><Metric icon={BookOpen} label="Slide đã xem" value="38 / 62" trend="+8 tuần này" /><Metric icon={Clock3} label="Thời gian học" value="6h 40m" trend="Mục tiêu 8h" /><Metric icon={ClipboardCheck} label="Quiz hoàn thành" value="7" trend="Java chấm điểm" /><Metric icon={ListChecks} label="Task tuần" value="9 / 12" trend="Bạn chủ động lập" /></section>
-    <section className="dashboard-grid"><div className="card panel-span-2"><CardHeading title="Tiếp tục học" action={<Link href="/student/materials">Xem tất cả</Link>} /><div className="course-card"><div className="course-icon"><BookOpen /></div><div className="course-main"><span>INT2211 · Cơ sở dữ liệu</span><h3>Thiết kế cơ sở dữ liệu quan hệ</h3><div className="progress-line"><i style={{ width: "64%" }} /></div><small>Slide 18/28 · enrollment APPROVED</small></div><Link className="round-action" href="/student/viewer" aria-label="Mở slide"><ChevronRight /></Link></div></div><div className="card"><CardHeading title="Lịch hôm nay" action={<Link href="/student/plan">Chi tiết</Link>} /><div className="timeline"><div><time>08:00</time><span><b>Xem slide Chuẩn hóa</b><small>Cơ sở dữ liệu · 45 phút</small></span></div><div><time>19:00</time><span><b>Làm Quiz SQL</b><small>12 câu · 25 phút</small></span></div></div></div><div className="card panel-span-2"><CardHeading title="Lớp học phần của bạn" /><div className="subject-grid"><SubjectCard code="DBI-01" name="Cơ sở dữ liệu" progress={64} color="red" /><SubjectCard code="AI-02" name="Trí tuệ nhân tạo" progress={42} color="gold" /><SubjectCard code="WEB-03" name="Lập trình Web" progress={78} color="blue" /></div></div><div className="card ai-card"><Bot size={24} /><span className="eyebrow light">AI theo nguồn</span><h3>Cần giải thích tài liệu?</h3><p>Chọn Personal PDF hoặc hỏi ngay trong Slide Viewer.</p><Link href="/student/personal-documents" className="button light wide">Mở chatbot</Link></div></section>
+    <section className="stats-grid"><Metric icon={Flame} label="Study Streak" value={`${studentDashboard.studyStreak.currentStreak} ngày`} trend={`Dài nhất ${studentDashboard.studyStreak.longestStreak} ngày`} /><Metric icon={BookOpen} label="Tiến độ tổng quan" value={`${studentDashboard.aggregateProgress.viewedSlides} / ${studentDashboard.aggregateProgress.totalSlides}`} trend={`${studentDashboard.aggregateProgress.percent}% slide đã xem`} /><Metric icon={ClipboardCheck} label="Quiz hoàn thành" value="7" trend="Java chấm điểm" /><Metric icon={ListChecks} label="Task tuần" value="9 / 12" trend="Bạn chủ động lập" /></section>
+    <section className="dashboard-grid"><div className="card panel-span-2"><CardHeading title="Mục tiêu hôm nay" action={<button className="text-action" type="button" onClick={(): void => setEditingGoal((value: boolean): boolean => !value)}>{editingGoal ? "Đóng" : "Chỉnh mục tiêu"}</button>} /><p className="card-note">Target do bạn chọn; actual và phần trăm do Java trả về.</p>{editingGoal ? <form className="daily-goal-form" onSubmit={saveTargets}>{studentDashboard.dailyGoal.map((goal: DailyGoalMetric): ReactElement => <label key={goal.key}>{goal.label}<input name={goal.key} type="number" min="0" defaultValue={goal.target} /></label>)}<button className="button primary" type="submit"><Target size={16} /> Lưu mục tiêu</button></form> : <div className="daily-goal-list">{studentDashboard.dailyGoal.map((goal: DailyGoalMetric): ReactElement => <DailyGoalRow key={goal.key} goal={goal} />)}</div>}</div><div className="card streak-card"><div className="streak-icon"><Flame /></div><span className="eyebrow">Study Streak</span><strong>{studentDashboard.studyStreak.currentStreak} ngày liên tiếp</strong><p>Dài nhất {studentDashboard.studyStreak.longestStreak} ngày. Chỉ slide, Study Task hoặc Quiz hợp lệ mới được tính.</p><div className="streak-week">{["T5", "T6", "T7", "CN", "T2", "T3", "T4"].map((day: string, index: number): ReactElement => <span className={index === 0 ? "muted" : "active"} key={day}>{day}</span>)}</div></div><div className="card panel-span-2"><CardHeading title="Tiếp tục học" action={<Link href="/student/materials">Xem tất cả</Link>} /><div className="course-card"><div className="course-icon"><BookOpen /></div><div className="course-main"><span>INT2211 · Cơ sở dữ liệu</span><h3>Thiết kế cơ sở dữ liệu quan hệ</h3><div className="progress-line"><i style={{ width: "64%" }} /></div><small>Slide 18/28 · enrollment APPROVED</small></div><Link className="round-action" href="/student/viewer" aria-label="Mở slide"><ChevronRight /></Link></div></div><div className="card"><CardHeading title="Lịch hôm nay" action={<Link href="/student/plan">Chi tiết</Link>} /><div className="timeline"><div><time>08:00</time><span><b>Xem slide Chuẩn hóa</b><small>Cơ sở dữ liệu · 45 phút</small></span></div><div><time>19:00</time><span><b>Làm Quiz SQL</b><small>12 câu · 25 phút</small></span></div></div></div><div className="card panel-span-2"><CardHeading title="Lớp học phần của bạn" /><div className="subject-grid"><SubjectCard code="DBI-01" name="Cơ sở dữ liệu" progress={64} color="red" /><SubjectCard code="AI-02" name="Trí tuệ nhân tạo" progress={42} color="gold" /><SubjectCard code="WEB-03" name="Lập trình Web" progress={78} color="blue" /></div></div><div className="card ai-card"><Bot size={24} /><span className="eyebrow light">AI theo nguồn</span><h3>Cần giải thích tài liệu?</h3><p>Chọn Personal PDF hoặc hỏi ngay trong Slide Viewer.</p><Link href="/student/personal-documents" className="button light wide">Mở chatbot</Link></div></section>
   </div>;
 }
 
@@ -250,14 +257,14 @@ function CourseOfferingsPage({ notify }: { notify: (message: string) => void }):
     setJoinCode("");
   };
   const offerings = [
-    { code: "DBI-01", name: "Cơ sở dữ liệu", teacher: "TS. Nguyễn Minh Anh", status: "APPROVED", tone: "ready", count: 7 },
-    { code: "AI-02", name: "Trí tuệ nhân tạo", teacher: "ThS. Lê Hoàng", status: "PENDING", tone: "processing", count: 0 },
-    { code: "WEB-23", name: "Lập trình Web", teacher: "ThS. Phạm Huy", status: "ARCHIVED", tone: "review", count: 5 },
+    { code: "DBI-01", name: "Cơ sở dữ liệu", teacher: "TS. Nguyễn Minh Anh", status: "APPROVED", tone: "ready", count: 7, progress: 64, viewed: "18/28 slide" },
+    { code: "AI-02", name: "Trí tuệ nhân tạo", teacher: "ThS. Lê Hoàng", status: "PENDING", tone: "processing", count: 0, progress: 0, viewed: "Chưa được truy cập" },
+    { code: "WEB-23", name: "Lập trình Web", teacher: "ThS. Phạm Huy", status: "ARCHIVED", tone: "review", count: 5, progress: 78, viewed: "25/32 slide" },
   ];
   return <div className="page-stack"><PageHeader eyebrow="Semester → Course Offering" title="Lớp học phần" description="Nhập mã tham gia, theo dõi yêu cầu và chỉ mở học liệu khi Teacher đã duyệt." />
     <section className="join-card"><div><span className="eyebrow light">Tham gia lớp mới</span><h2>Nhập join code do giảng viên cung cấp</h2><p>Yêu cầu sẽ ở trạng thái PENDING cho đến khi Teacher của lớp phê duyệt.</p></div><form onSubmit={submitJoin}><label htmlFor="join-code">Mã lớp học phần</label><div><input id="join-code" value={joinCode} maxLength={12} onChange={(event: ChangeEvent<HTMLInputElement>): void => setJoinCode(event.target.value.replace(/\s/g, ""))} placeholder="Ví dụ: AI7X92" /><button className="button light" type="submit"><UserPlus size={17} /> Gửi yêu cầu</button></div></form></section>
     <div className="filter-row"><div className="search-box"><Search size={17} /><input aria-label="Tìm lớp học phần" placeholder="Tìm tên lớp hoặc môn học" /></div><button className="chip active" type="button">Tất cả</button><button className="chip" type="button">Học kỳ 1</button></div>
-    <div className="class-grid">{offerings.map((offering: typeof offerings[number], index: number): ReactElement => <article className="class-card" key={offering.code}><div className={`class-cover cover-${index + 1}`}><span>HK1 · 2026–2027</span><GraduationCap /></div><div className="class-body"><span className={`status ${offering.tone}`}>{offering.status === "APPROVED" ? "Đã duyệt" : offering.status === "PENDING" ? "Chờ duyệt" : "Đã kết thúc"}</span><h2>{offering.name}</h2><p>{offering.code} · {offering.teacher}</p><div className="meta-split"><span><Library size={15} /> {offering.count} học liệu</span><span>{offering.status}</span></div>{offering.status === "APPROVED" ? <Link className="button primary wide" href="/student/materials">Mở lớp <ChevronRight size={16} /></Link> : <button className="button secondary wide" type="button" disabled>{offering.status === "PENDING" ? "Đang chờ Teacher duyệt" : "Xem lịch sử lớp"}</button>}</div></article>)}</div>
+    <div className="class-grid">{offerings.map((offering: typeof offerings[number], index: number): ReactElement => <article className="class-card" key={offering.code}><div className={`class-cover cover-${index + 1}`}><span>HK1 · 2026–2027</span><GraduationCap /></div><div className="class-body"><span className={`status ${offering.tone}`}>{offering.status === "APPROVED" ? "Đã duyệt" : offering.status === "PENDING" ? "Chờ duyệt" : "Đã kết thúc"}</span><h2>{offering.name}</h2><p>{offering.code} · {offering.teacher}</p><div className="meta-split"><span><Library size={15} /> {offering.count} học liệu</span><span>{offering.status}</span></div>{offering.status !== "PENDING" && <div className="offering-progress"><span><b>Tiến độ xem</b><small>{offering.viewed}</small></span><div className="progress-line"><i style={{ width: `${offering.progress}%` }} /></div></div>}{offering.status === "APPROVED" ? <Link className="button primary wide" href="/student/materials">Mở chi tiết lớp <ChevronRight size={16} /></Link> : <button className="button secondary wide" type="button" disabled>{offering.status === "PENDING" ? "Đang chờ Teacher duyệt" : "Xem lịch sử lớp"}</button>}</div></article>)}</div>
   </div>;
 }
 
@@ -353,11 +360,6 @@ function ChatBubble({ turn, expanded = false }: { turn: ChatTurn; expanded?: boo
 /** Render Quiz review fixtures. */
 function ReviewPage({ notify }: { notify: (message: string) => void }): ReactElement {
   return <div className="page-stack"><PageHeader eyebrow="Java sở hữu Quiz lifecycle" title="Ôn tập & Quiz" description="AI chỉ sinh bản nháp MCQ_SINGLE có nguồn; bạn phải duyệt trước khi làm." actions={<button className="button primary" type="button" onClick={(): void => notify("Hãy tạo Quiz từ conversation Personal RAG")}><Plus size={17} /> Tạo Quiz</button>} /><div className="quiz-summary"><Metric icon={ClipboardCheck} label="Chờ duyệt" value="1" trend="Kiểm tra nguồn" /><Metric icon={CheckCircle2} label="Sẵn sàng" value="1" trend="Có thể bắt đầu" /><Metric icon={BarChart3} label="Điểm gần nhất" value="87,5" trend="Java đã chấm" /></div><div className="quiz-grid">{quizzes.map((quiz: typeof quizzes[number]): ReactElement => <article className="quiz-card" key={quiz.id}><div><span className="file-icon pdf"><ClipboardCheck size={20} /></span><StatusBadge status={quiz.status} /></div><h2>{quiz.title}</h2><p>{quiz.questionCount} câu · {quiz.sourceNames.join(", ")}</p><div className="quiz-actions">{quiz.status === "REVIEW_REQUIRED" ? <><button className="button secondary" type="button" onClick={(): void => notify("Đã mở citation để duyệt")}>Xem nguồn</button><button className="button primary" type="button" onClick={(): void => notify("Java chuyển Quiz sang READY")}>Chấp nhận</button></> : <button className="button primary wide" type="button" onClick={(): void => notify("Đáp án sẽ được gửi về Java để chấm")}>{quiz.status === "READY" ? "Bắt đầu" : "Xem kết quả"}</button>}</div></article>)}</div></div>;
-}
-
-/** Render deterministic content progress and statistics. */
-function ProgressPage(): ReactElement {
-  return <div className="page-stack"><PageHeader eyebrow="Content Progress" title="Tiến độ & Thống kê" description="Số liệu do Java tổng hợp từ slide view và learning event; không suy luận Topic Mastery." /><section className="stats-grid"><Metric icon={BookOpen} label="Slide đã xem" value="38 / 62" trend="61% nội dung" /><Metric icon={Clock3} label="Thời gian học" value="24h 15m" trend="Trong học kỳ" /><Metric icon={MessageSquareText} label="Câu hỏi AI" value="31" trend="9 NO_EVIDENCE" /><Metric icon={ClipboardCheck} label="Quiz" value="7" trend="Điểm TB 84%" /></section><div className="progress-layout"><section className="card panel-span-2"><CardHeading title="Hoạt động 7 ngày" /><div className="bar-chart">{[54, 72, 38, 88, 62, 94, 48].map((height: number, index: number): ReactElement => <div key={index}><i style={{ height: `${height}%` }} /><span>T{index + 2}</span></div>)}</div></section><section className="card"><CardHeading title="Theo lớp học phần" /><ProgressItem label="DBI-01 · Cơ sở dữ liệu" value={64} /><ProgressItem label="AI-02 · Trí tuệ nhân tạo" value={42} /><ProgressItem label="WEB-23 · Lập trình Web" value={78} /></section></div></div>;
 }
 
 /** Render Student-owned weekly plan. */
@@ -473,6 +475,11 @@ function ActivityList(): ReactElement {
 /** Render a labeled progress bar. */
 function ProgressItem({ label, value }: { label: string; value: number }): ReactElement {
   return <div className="progress-item"><span><b>{label}</b><small>{value}%</small></span><div className="progress-line"><i style={{ width: `${value}%` }} /></div></div>;
+}
+
+/** Render one server-computed Daily Goal metric. */
+function DailyGoalRow({ goal }: { goal: DailyGoalMetric }): ReactElement {
+  return <div className="daily-goal-row"><span><b>{goal.label}</b><small>{goal.actual} / {goal.target}</small></span><div className="progress-line"><i style={{ width: `${goal.percent}%` }} /></div></div>;
 }
 
 /** Render the production placeholder when demo fixtures are disabled. */

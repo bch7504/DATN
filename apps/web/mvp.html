@@ -2539,7 +2539,7 @@
           <div class="page-head">
             <div>
               <h1>Chào buổi sáng, Minh.</h1>
-              <p>Tiếp tục học Slide, hoàn thành kế hoạch ôn tập và duyệt Quiz mới.</p>
+              <p>Theo dõi nhịp học hôm nay, Daily Goal và tiếp tục Course Offering đã được duyệt.</p>
             </div>
             <div class="actions">
               <button class="button" data-page="student-plan">Xem lịch tuần</button>
@@ -2566,8 +2566,8 @@
                 </span>
                 <span class="trend">Tuần này</span>
               </div>
-              <h3>46</h3>
-              <p>slide đã xem</p>
+              <h3>6 ngày</h3>
+              <p>Study Streak · dài nhất 14 ngày</p>
             </article>
             <article class="panel stat">
               <div class="stat-top">
@@ -2579,8 +2579,8 @@
                 </span>
                 <span class="trend" style="color:var(--blue);background:var(--blue-bg)">2 READY</span>
               </div>
-              <h3>3</h3>
-              <p>Tài liệu cá nhân</p>
+              <h3>46/92</h3>
+              <p>slide đã xem tổng quan</p>
             </article>
             <article class="panel stat">
               <div class="stat-top">
@@ -2606,6 +2606,21 @@
               </div>
               <h3>0</h3>
               <p>Quiz mới từ AI</p>
+            </article>
+          </div>
+
+          <div class="grid g2" style="margin-top:18px">
+            <article class="panel pad">
+              <div class="panel-head"><div><h3>Daily Goal hôm nay</h3><p>Student chỉnh target; Java tính actual từ Learning Event.</p></div><button class="button" data-action="Chỉnh target Daily Goal">Chỉnh mục tiêu</button></div>
+              <div class="cards">
+                <div class="mini-progress"><span><b>Slide đã xem</b><b>3/5</b></span><div class="progress"><i style="width:60%"></i></div></div>
+                <div class="mini-progress"><span><b>Câu Quiz hoàn thành</b><b>6/10</b></span><div class="progress"><i style="width:60%"></i></div></div>
+                <div class="mini-progress"><span><b>Study Task hoàn thành</b><b>1/2</b></span><div class="progress"><i style="width:50%"></i></div></div>
+              </div>
+            </article>
+            <article class="panel pad">
+              <div class="panel-head"><div><h3>Study Streak</h3><p>Chỉ hoạt động học hợp lệ mới duy trì streak.</p></div><span class="status">6 ngày</span></div>
+              <p style="color:var(--muted);line-height:1.7">Tính từ <b>VIEW_SLIDE</b>, <b>STUDY_TASK_COMPLETED</b> hoặc <b>QUIZ_COMPLETED</b>. Login, Note và ASK_AI không được tính. Daily Goal độc lập với streak.</p>
             </article>
           </div>
 
@@ -2693,7 +2708,7 @@
               <span class="status">APPROVED</span>
               <h3>Cơ sở dữ liệu</h3>
               <p>Cô Lan Hoàng · HK1 · 2026–2027</p>
-              <button class="button soft" data-open-materials style="margin-top:16px;width:100%">Mở lớp học phần</button>
+              <div class="actions" style="margin-top:16px"><button class="button soft" data-open-materials>Mở lớp học phần</button><button class="button" data-page="student-offering-progress">Xem tiến độ chi tiết</button></div>
             </article>
             <article class="panel class-card">
               <span class="class-code">AI-02</span>
@@ -2981,12 +2996,12 @@
           </article>
         </section>
 
-        <!-- STUDENT: Progress & Stats -->
-        <section class="page" id="page-student-progress" hidden>
+        <!-- STUDENT: Course Offering Detail progress; intentionally absent from primary navigation. -->
+        <section class="page" id="page-student-offering-progress" hidden>
           <div class="page-head">
             <div>
-              <h1>Tiến độ & Thống kê học tập</h1>
-              <p>Tổng hợp Learning Progress và Statistics khách quan; không gán nhãn Topic Mastery suy diễn.</p>
+              <h1>Chi tiết tiến độ Course Offering</h1>
+              <p>Viewing progress của DBI-01; không phải màn Progress tổng hợp và không gán nhãn Topic Mastery.</p>
             </div>
           </div>
           <div class="grid g4">
@@ -3012,8 +3027,8 @@
                 </span>
                 <span class="trend" style="color:var(--blue);background:var(--blue-bg)">Kho riêng</span>
               </div>
-              <h3>3</h3>
-              <p>Personal Documents</p>
+              <h3>7</h3>
+              <p>Học liệu trong DBI-01</p>
             </article>
             <article class="panel stat">
               <div class="stat-top">
@@ -3024,8 +3039,8 @@
                 </span>
                 <span class="trend" style="color:var(--purple);background:var(--purple-bg)">Tuần này</span>
               </div>
-              <h3>8/11</h3>
-              <p>Plan items hoàn thành</p>
+              <h3>5/7</h3>
+              <p>Study Task của DBI-01</p>
             </article>
             <article class="panel stat">
               <div class="stat-top">
@@ -3046,27 +3061,27 @@
             <article class="panel pad">
               <div class="panel-head">
                 <div>
-                  <h3>Tiến độ Slide theo từng môn</h3>
-                  <p>Tỷ lệ distinct slide views / tổng số slide của môn</p>
+                  <h3>Tiến độ Slide trong DBI-01</h3>
+                  <p>Tỷ lệ distinct slide views / tổng số slide đã public trong lớp</p>
                 </div>
               </div>
               <div class="cards">
                 <div>
                   <div class="mini-progress">
-                    <span><b>Cơ sở dữ liệu</b><b>50% hoàn thành</b></span>
+                    <span><b>Thiết kế ERD</b><b>12/28 slide</b></span>
                     <div class="progress"><i style="width:50%"></i></div>
                   </div>
                 </div>
                 <div>
                   <div class="mini-progress">
-                    <span><b>Lập trình Web</b><b>72% hoàn thành</b></span>
-                    <div class="progress"><i style="width:72%"></i></div>
+                    <span><b>Chuẩn hóa dữ liệu</b><b>18/24 slide</b></span>
+                    <div class="progress"><i style="width:75%"></i></div>
                   </div>
                 </div>
                 <div>
                   <div class="mini-progress">
-                    <span><b>Machine Learning</b><b>31% hoàn thành</b></span>
-                    <div class="progress"><i style="width:31%"></i></div>
+                    <span><b>Transaction</b><b>8/20 slide</b></span>
+                    <div class="progress"><i style="width:40%"></i></div>
                   </div>
                 </div>
               </div>
@@ -3091,16 +3106,16 @@
                 <div class="timeline-item">
                   <span>Thứ 3</span>
                   <span>
-                    <b>Hỏi đáp Personal RAG</b>
-                    <small>2 tài liệu cá nhân · 4 câu hỏi AI Tutor</small>
+                    <b>Hoàn thành Quiz Transaction</b>
+                    <small>DBI-01 · Java đã chấm 8 câu</small>
                   </span>
                   <span class="chip">35 phút</span>
                 </div>
                 <div class="timeline-item">
                   <span>Thứ 2</span>
                   <span>
-                    <b>Hoàn thành 3 mục kế hoạch ôn thi</b>
-                    <small>Thiết kế ERD và mô hình quan hệ</small>
+                    <b>Hoàn thành Study Task</b>
+                    <small>Ôn Thiết kế ERD trong DBI-01</small>
                   </span>
                   <span class="chip">90 phút</span>
                 </div>
@@ -4287,7 +4302,6 @@
           ['student-dashboard', 'DB', 'Tổng quan'],
           ['student-course-offerings', 'CL', 'Lớp học phần'],
           ['student-personal', 'PD', 'Tài liệu cá nhân'],
-          ['student-progress', 'PG', 'Tiến độ & Thống kê'],
           ['student-plan', 'PL', 'Kế hoạch & Lịch'],
           ['student-review', 'QZ', 'Ôn tập']
         ]
@@ -4332,6 +4346,7 @@
     const titles = {
       ...Object.fromEntries(Object.values(roleConfig).flatMap(r => r.nav.map(n => [n[0], n[2]]))),
       'student-materials': 'Tài liệu môn học',
+      'student-offering-progress': 'Chi tiết lớp học phần',
       'slide-viewer': 'Slide Viewer'
     };
 

@@ -1,4 +1,4 @@
-# Traceability Matrix — Course Offering baseline
+# Traceability Matrix — Course Offering, Streak và Daily Goal baseline
 
 | Requirement | Public UI/API | System of record | Test chính |
 |---|---|---|---|
@@ -9,7 +9,8 @@
 | TCH-FR-001..003 | Teacher offerings/join/enrollments | Java offering/enrollment | owner-only, rotation, transition idempotency |
 | TCH-FR-004..006 | library/publication/archive | Java document/publication | type policy, multi-publication, no hard delete |
 | ADM-FR-001..005 | Admin users/catalog/monitoring | Java app/audit | no assignment UI, lock/archive audited |
-| Progress/Plan/Quiz | Student progress/plan/review | Java events/plans/quizzes | idempotent progress, Java scoring, manual plan |
+| DASH-FR-001..006 | Dashboard, Streak, Daily Goal, Course Offering progress | Java `learning_events`, `daily_goals`, viewing progress | đúng event/ngày/múi giờ, idempotency, goal độc lập streak |
+| Plan/Quiz | Student plan/review/attempt | Java plans/quizzes | Java scoring, manual plan, accepted Quiz only |
 | AI evaluation | AI eval runner/report | synthetic versioned dataset | production path, 3 runs, scope violation 0 |
 
 ## Kiểm soát kiến trúc
@@ -22,3 +23,4 @@
 | Python chỉ dùng authorized scope | request schema + retrieval filter | chunk ngoài document/version/owner/offering không xuất hiện |
 | Citation entail claim | claim reviewer + validator | citation ID đúng nhưng không chứng minh claim bị loại |
 | Java chấm Quiz | Quiz service/transaction | client/LLM gửi score bị bỏ qua |
+| Java tính Streak/Daily Goal | learning-event projector + user timezone | login/Note/ASK_AI không tăng streak; client gửi actual bị bỏ qua |

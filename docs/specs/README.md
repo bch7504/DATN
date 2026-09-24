@@ -7,7 +7,7 @@ Thư mục này chứa specification có thể dùng trực tiếp cho implement
 1. [`01-auth-and-access.md`](01-auth-and-access.md)
 2. [`02-student-learning.md`](02-student-learning.md)
 3. [`03-personal-ai-and-quiz.md`](03-personal-ai-and-quiz.md)
-4. [`04-plan-progress-review.md`](04-plan-progress-review.md)
+4. [`04-plan-progress-review.md`](04-plan-progress-review.md) — Dashboard, Study Streak, Daily Goal, Study Plan và Quiz review
 5. [`05-teacher-content.md`](05-teacher-content.md)
 6. [`06-admin-operations.md`](06-admin-operations.md)
 7. [`07-non-functional.md`](07-non-functional.md)

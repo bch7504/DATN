@@ -1,4 +1,18 @@
-import type { MaterialSummary, QuizSummary } from "@/types/api";
+import type { MaterialSummary, QuizSummary, StudentDashboardSummary } from "@/types/api";
+
+export const studentDashboard: StudentDashboardSummary = {
+  studyStreak: {
+    currentStreak: 6,
+    longestStreak: 14,
+    activityDays: ["2026-09-19", "2026-09-20", "2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24"],
+  },
+  dailyGoal: [
+    { key: "SLIDES", label: "Slide đã xem", actual: 3, target: 5, percent: 60 },
+    { key: "QUIZ_QUESTIONS", label: "Câu Quiz hoàn thành", actual: 6, target: 10, percent: 60 },
+    { key: "STUDY_TASKS", label: "Study Task hoàn thành", actual: 1, target: 2, percent: 50 },
+  ],
+  aggregateProgress: { viewedSlides: 38, totalSlides: 62, percent: 61 },
+};
 
 export const materials: MaterialSummary[] = [
   { id: "doc-slide-1", title: "Thiết kế cơ sở dữ liệu quan hệ", type: "PPTX", subject: "Cơ sở dữ liệu", owner: "TS. Nguyễn Minh Anh", status: "READY", progress: 64 },

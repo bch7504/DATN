@@ -76,8 +76,12 @@ tiến độ, kế hoạch, vòng đời Quiz và chấm điểm.
     -   PDF Teacher public: chỉ tải xuống.
 -   Xây dựng Tài liệu cá nhân cho Student: upload PDF và hỏi đáp RAG có
     citation.
--   Xây dựng Tiến độ & Thống kê để theo dõi Slide đã xem và hoạt động
-    học tập chính.
+-   Hiển thị tiến độ học tập trực tiếp trên **Dashboard** và trong từng
+    Course Offering; không tạo module **Tiến độ & Thống kê** độc lập.
+-   Bổ sung **Study Streak (Chuỗi ôn tập)** để khuyến khích Student duy trì
+    hoạt động học tập hằng ngày.
+-   Bổ sung **Daily Goal (Mục tiêu hằng ngày)** để Student đặt mục tiêu về
+    số Slide cần xem, số câu Quiz cần làm và số Study Task cần hoàn thành.
 -   Xây dựng Kế hoạch & Lịch để quản lý study plan, task và deadline.
 -   Xây dựng khu vực Ôn tập với Quiz AI sinh từ Personal Documents.
 -   Deploy end-to-end và có logging, kiểm thử, seed/mock data phục vụ
@@ -217,8 +221,9 @@ Student chấp nhận → `READY` → làm bài → Java chấm điểm và lưu
   STT                     Module                  Mô tả
   ----------------------- ----------------------- --------------------------------------
   1                       **Dashboard**           Tổng quan lớp đang học, việc cần làm,
-                                                  deadline, tiến độ và thông tin học tập
-                                                  quan trọng.
+                                                  deadline và tiến độ học tập. Hiển thị
+                                                  Study Streak, Daily Goal, tiến độ Slide,
+                                                  Quiz và Study Plan ở mức tổng quan.
 
   2                       **Lớp học phần**        Xem lớp đang học theo học kỳ; nhập
                                                   join code để gửi yêu cầu tham gia; xem
@@ -239,15 +244,14 @@ Student chấp nhận → `READY` → làm bài → Java chấm điểm và lưu
                                                   `UPLOADING/PROCESSING/READY/FAILED`;
                                                   chọn một/nhiều PDF để hỏi RAG.
 
-  6                       **Tiến độ & Thống kê**  Theo dõi số Slide đã xem, tiến độ học
-                                                  và các số liệu tổng hợp cần thiết.
-
-  7                       **Kế hoạch & Lịch**     Tạo/chỉnh sửa study plan, task,
+  6                       **Kế hoạch & Lịch**     Tạo/chỉnh sửa study plan, task,
                                                   deadline và xem trên lịch.
 
-  8                       **Ôn tập**              Quản lý Quiz AI sinh từ Personal
+  7                       **Ôn tập**              Quản lý Quiz AI sinh từ Personal
                                                   Documents; review, accept/reject, làm
-                                                  Quiz READY và xem kết quả.
+                                                  Quiz READY và xem kết quả. Tiến độ ôn
+                                                  tập chi tiết được hiển thị trong từng
+                                                  Course Offering.
   --------------------------------------------------------------------------------------
 
 ### Quyền truy cập Student
@@ -485,7 +489,11 @@ liệu được public sang Course Offering khác.
 
 ------------------------------------------------------------------------
 
-## 10. Theo dõi học tập
+## 10. Theo dõi học tập, Study Streak và Daily Goal
+
+Không xây dựng **Tiến độ & Thống kê** thành một menu độc lập. Các chỉ số
+tổng quan được hiển thị trên Dashboard; thông tin chi tiết theo môn được
+hiển thị trong từng Course Offering.
 
 ### 10.1. Tiến độ học tập
 
@@ -494,22 +502,79 @@ Theo dõi chủ yếu:
 -   Slide đã mở/xem.
 -   Tiến độ theo tài liệu/lớp học phần.
 -   Study plan/task đã hoàn thành.
+-   Số Quiz đã làm và điểm Quiz trung bình.
 
-PDF Teacher chỉ tải xuống nên không có page progress.
+PDF Teacher chỉ tải xuống nên không có page progress. Việc xem Slide chỉ
+được hiểu là **Viewing Progress**, không dùng để kết luận Student đã hiểu
+hoặc thành thạo kiến thức.
 
-### 10.2. Thống kê
+### 10.2. Hiển thị trên Dashboard
 
-Có thể tổng hợp:
+Dashboard Student hiển thị:
 
--   Số Slide đã xem.
--   Số Personal Documents.
--   Số kế hoạch đã hoàn thành.
--   Số Quiz đã làm.
--   Điểm Quiz trung bình.
+-   Lớp học phần đang học.
+-   Việc cần làm/deadline gần nhất.
+-   Tổng quan Slide đã xem.
+-   Study Plan/Task đã hoàn thành.
+-   Số Quiz đã làm và điểm Quiz trung bình.
+-   Study Streak hiện tại và kỷ lục.
+-   Daily Goal của ngày hiện tại.
 
-Không sử dụng Topic Mastery trong MVP.
+Chi tiết tiến độ theo từng môn nằm trong **Course Offering Detail → Tiến
+độ & Ôn tập**, không cần một menu thống kê riêng.
 
-### 10.3. Learning Events
+### 10.3. Study Streak - Chuỗi ôn tập
+
+Study Streak thể hiện số ngày liên tiếp Student có hoạt động học tập hợp
+lệ. Không tính streak chỉ dựa trên việc đăng nhập.
+
+Các hoạt động MVP được tính streak:
+
+-   `VIEW_SLIDE`
+-   `STUDY_TASK_COMPLETED`
+-   `QUIZ_COMPLETED`
+
+Quy tắc:
+
+-   Trong ngày chỉ cần có ít nhất một hoạt động hợp lệ thì ngày đó được
+    tính là một ngày học.
+-   Nhiều hoạt động trong cùng ngày vẫn chỉ tính một ngày.
+-   Nếu Student không có hoạt động hợp lệ trong một ngày thì chuỗi bị
+    ngắt.
+-   Hiển thị `currentStreak`, `longestStreak` và các ngày có hoạt động
+    trong tuần gần nhất.
+-   Streak chỉ dùng khuyến khích duy trì thói quen, không dùng để đánh giá
+    năng lực học tập.
+
+### 10.4. Daily Goal - Mục tiêu hằng ngày
+
+Student có thể cấu hình mục tiêu hằng ngày gồm:
+
+-   Số Slide cần xem.
+-   Số câu Quiz cần hoàn thành.
+-   Số Study Task cần hoàn thành.
+
+Ví dụ:
+
+``` text
+Slide:        5 / 5
+Quiz:         6 / 10 câu
+Study Task:   1 / 2
+```
+
+Target được Student cấu hình và có thể dùng lặp lại cho các ngày tiếp
+theo. Backend tính `actual` từ hoạt động học thực tế trong ngày.
+
+Daily Goal và Study Streak độc lập:
+
+-   **Daily Goal:** hôm nay Student muốn hoàn thành bao nhiêu.
+-   **Study Streak:** Student đã duy trì hoạt động học bao nhiêu ngày liên
+    tiếp.
+
+Không bắt buộc hoàn thành 100% Daily Goal để duy trì Streak; chỉ cần có
+ít nhất một hoạt động học hợp lệ trong ngày.
+
+### 10.5. Learning Events
 
 Các event chính:
 
@@ -521,10 +586,11 @@ Các event chính:
 -   `PERSONAL_DOCUMENT_INDEXED`
 -   `ASK_AI`
 -   `STUDY_PLAN_CREATED`
--   `STUDY_PLAN_COMPLETED`
+-   `STUDY_TASK_COMPLETED`
 -   `QUIZ_GENERATED`
--   `QUIZ_ACCEPTED`
 -   `QUIZ_COMPLETED`
+
+Không sử dụng Topic Mastery trong MVP.
 
 ------------------------------------------------------------------------
 
@@ -574,6 +640,13 @@ schema AI.
 
   `learning_progress`                 Tiến độ Student theo
                                       course_offering/document/slide.
+
+  `learning_events`                   Event học tập dùng tổng hợp Dashboard,
+                                      tính Study Streak và Daily Goal.
+
+  `daily_goals`                       Cấu hình mục tiêu hằng ngày:
+                                      slide_target, quiz_question_target,
+                                      task_target.
 
   `study_plans` / `study_plan_items`  Kế hoạch, task, deadline và lịch.
 
@@ -708,6 +781,22 @@ POST /api/v1/teacher/course-offerings/{id}/join-code/regenerate
 POST /api/v1/student/course-enrollments/join
 GET  /api/v1/student/course-enrollments
 ```
+
+### Dashboard, Study Streak & Daily Goal - Student
+
+``` text
+GET /api/v1/student/dashboard
+GET /api/v1/student/study-streak
+GET /api/v1/student/daily-goal
+PUT /api/v1/student/daily-goal
+```
+
+`GET /api/v1/student/study-streak` trả về `currentStreak`,
+`longestStreak` và `activityDays`.
+
+`GET /api/v1/student/daily-goal` trả về target và actual của Slide, câu
+Quiz và Study Task trong ngày hiện tại.
+
 
 Request ví dụ:
 
@@ -891,7 +980,9 @@ Không bắt buộc trong MVP.
 -   PPTX Viewer + Note + Slide AI Tutor.
 -   PDF Teacher chỉ download.
 -   Personal PDF + RAG có citation.
--   Tiến độ & Thống kê.
+-   Dashboard tổng hợp tiến độ học tập.
+-   Study Streak (Chuỗi ôn tập).
+-   Daily Goal (Mục tiêu hằng ngày).
 -   Kế hoạch & Lịch.
 -   Quiz AI từ Personal Documents.
 -   Deploy end-to-end.
@@ -952,8 +1043,8 @@ Không bắt buộc trong MVP.
   8                                   Slide AI Tutor + authorization + AI
                                       evaluation.
 
-  9                                   Tiến độ & Thống kê; Kế hoạch &
-                                      Lịch.
+  9                                   Dashboard progress; Study Streak;
+                                      Daily Goal; Kế hoạch & Lịch.
 
   10                                  Quiz AI từ Personal RAG;
                                       review/accept/reject;
@@ -1070,7 +1161,9 @@ Không bắt buộc trong MVP.
 8.  Student vào **Tài liệu cá nhân** → upload PDF → hỏi RAG có citation.
 9.  Student tạo Quiz từ Personal Documents → review → accept → làm Quiz
     → xem điểm.
-10. Mở **Tiến độ & Thống kê** và **Kế hoạch & Lịch**.
+10. Mở **Dashboard** để xem Study Streak, Daily Goal và tiến độ tổng
+    quan; sau đó mở một Course Offering để xem tiến độ ôn tập chi tiết và
+    **Kế hoạch & Lịch**.
 11. **Admin** xem Course Offering do Teacher tạo và Audit Log để chứng
     minh khả năng giám sát.
 12. Toàn bộ luồng chạy trên phiên bản deploy.
@@ -1111,6 +1204,12 @@ mô hình lớp học phần tín chỉ:
     gốc.
 12. Teacher PDF: chỉ download, không viewer/Note/Tutor.
 13. Personal Documents MVP: chỉ PDF có text layer.
+14. Không tạo menu **Tiến độ & Thống kê** độc lập; Dashboard hiển thị tổng
+    quan, Course Offering hiển thị tiến độ chi tiết.
+15. Gamification MVP chỉ gồm **Study Streak** và **Daily Goal**; chưa triển
+    khai XP, Level, Achievement hoặc leaderboard.
+16. Streak được tính từ hoạt động học hợp lệ, không tính từ đăng nhập và
+    không yêu cầu hoàn thành 100% Daily Goal.
 14. Personal RAG và Slide AI Tutor là hai trải nghiệm AI riêng.
 15. Import thời khóa biểu/danh sách đăng ký tín chỉ để ở Future Work.
 16. Nếu sau này import Excel/CSV, ưu tiên parser + validation xác định;

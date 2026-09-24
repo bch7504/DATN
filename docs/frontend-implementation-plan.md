@@ -15,13 +15,15 @@
 
 ### Student
 
-- Dashboard: hoạt động gần đây, lịch, Content Progress.
-- Course Offerings: nhập join code; danh sách `PENDING`, `APPROVED`, `ARCHIVED`; mở học liệu chỉ khi được phép.
+- Dashboard: Course Offering đang học, deadline, viewing progress, Quiz/Task, Study Streak và Daily Goal.
+- Daily Goal editor: target Slide/câu Quiz/Study Task; chỉ gửi target, không tự tính actual hoặc Streak.
+- Course Offerings: nhập join code; danh sách `PENDING`, `APPROVED`, `ARCHIVED`; mở học liệu và tiến độ chi tiết chỉ khi được phép.
 - Materials: PPTX **Xem slide**; Teacher PDF **Tải PDF**.
 - Slide Viewer: thumbnail, slide canvas, Note, Tutor bên phải, citation theo slide và `NO_EVIDENCE`.
 - Personal Documents: upload PDF, trạng thái xử lý, chọn 1–10 nguồn `READY`.
 - Chatbot: source panel, selected count, history/new conversation, suggested prompt, retrieval state, citation card theo claim và trace ID.
-- Quiz/Progress/Plan: review draft trước khi làm; hiển thị dữ liệu Java tính; Calendar do Student chủ động.
+- Quiz/Plan: review draft trước khi làm; hiển thị điểm/progress do Java tính; Calendar do Student chủ động.
+- Không tạo nav/route `Progress` riêng; viewing progress tổng quan nằm ở Dashboard và chi tiết nằm trong Course Offering.
 
 ### Teacher
 
@@ -57,7 +59,7 @@ Không đưa model/provider selector, Agent Trace, Supervisor/multi-agent hoặc
 | FE-M2 | Course Offering/Enrollment cho 3 role | Create/join/approve/monitor đúng quyền |
 | FE-M3 | Materials, Viewer, Note và Personal Documents | Policy PPTX/PDF đúng |
 | FE-M4 | Personal Chat + Slide Tutor UX | History/scope/citation/NO_EVIDENCE đủ trạng thái |
-| FE-M5 | Quiz, Progress, Plan/Calendar | Client không chấm hoặc suy luận progress |
+| FE-M5 | Dashboard/Streak/Daily Goal, Quiz, Plan/Calendar | Client không tính Streak/actual/điểm/progress |
 | FE-M6 | Accessibility/E2E/hardening | Demo flow và negative paths đạt |
 
 ## 5. Kiểm thử
@@ -69,6 +71,9 @@ Không đưa model/provider selector, Agent Trace, Supervisor/multi-agent hoặc
 - PPTX viewer/no-download; Teacher PDF download-only.
 - Chat source selection/history/retrieval/citation/`NO_EVIDENCE`; không có model selector hoặc direct AI URL.
 - Quiz `GENERATING → REVIEW_REQUIRED`; không có scoring/progress formula trong client.
+- Dashboard không có menu Progress riêng; hiển thị `currentStreak`, `longestStreak`, activity week và ba Daily Goal progress từ Java.
+- PUT Daily Goal chỉ gửi target hợp lệ; UI không coi hoàn thành 100% goal là điều kiện giữ Streak.
+- Không có XP, Level, Achievement, badge hoặc leaderboard trong UI MVP.
 - 360px, keyboard, focus, contrast và loading/empty/error/forbidden.
 
 ## 6. Bàn giao

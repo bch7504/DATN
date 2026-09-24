@@ -13,7 +13,7 @@ Java Spring Boot là public API duy nhất cho Web và system of record của to
 - Teacher Library, publication, slide metadata, Note;
 - Personal Document metadata và conversation history;
 - Quiz lifecycle, validation, attempt/scoring;
-- Content Progress, Statistics, Study Plan/Calendar;
+- Dashboard aggregate, Content Progress, Study Streak, Daily Goal và Study Plan/Calendar;
 - feedback, audit, settings;
 - authorization trước khi cấp signed URL hoặc gọi Python.
 
@@ -62,7 +62,7 @@ services/backend/
 │   ├── note/                 # Student + Slide note
 │   ├── conversation/         # Personal RAG conversation/history/citation record
 │   ├── review/               # Quiz draft/review/attempt/scoring
-│   ├── progress/             # Content Progress/Statistics
+│   ├── progress/             # Dashboard aggregate, Content Progress, Streak, Daily Goal
 │   ├── study/                # Study Plan/Task/Session/Calendar
 │   ├── feedback/
 │   ├── audit/
@@ -143,6 +143,14 @@ Quiz:     GENERATING → REVIEW_REQUIRED → READY | REJECTED | GENERATION_FAILE
 - Java kiểm lại mọi citation/source/Quiz output trước khi lưu.
 - Quiz submit/scoring là transaction và không nhận score từ client/LLM.
 
+### Dashboard, Study Streak và Daily Goal
+
+- Không có module/API Progress tổng hợp độc lập cho Web; `progress` cung cấp Dashboard aggregate và tiến độ chi tiết theo Course Offering.
+- Java chốt `activityDate` từ `occurredAt + users.timeZone`; client không được gửi ngày dùng tính Streak.
+- Chỉ `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` duy trì Streak; distinct local date quyết định current/longest streak.
+- Daily Goal chỉ lưu target. Actual lấy từ slide phân biệt đã xem, số câu trong attempt đã chấm và task hoàn thành trong ngày.
+- Retry view/task/Quiz dùng idempotency key và không tăng actual hai lần. Daily Goal completion độc lập với Streak.
+
 ## 6. Security và integration
 
 - Endpoint dùng deny-by-default, role guard và resource-level access policy.
@@ -161,7 +169,7 @@ Migration chỉ tiến, không sửa migration đã chạy:
 3. course_offerings, join-code hash/hint/index;
 4. course_enrollments và unique Student–Offering;
 5. documents, publications, processing jobs metadata;
-6. slides, notes, learning events;
+6. slides, notes, learning progress/events và daily goals;
 7. conversations/messages/citations;
 8. quizzes/questions/options/attempts/answers;
 9. study plans/tasks/sessions;
@@ -180,7 +188,7 @@ Chi tiết bảng/constraint tại `docs/database-plan.md`. Không tạo bảng 
 | BE-M4 | Document/publication/storage/PPTX handoff | file policy, owner scope, async status đạt |
 | BE-M5 | Slide/Note/Personal conversation + AI adapter | contract v2, citation revalidation, NO_EVIDENCE đạt |
 | BE-M6 | Quiz lifecycle/scoring | REVIEW_REQUIRED và Java scoring đạt |
-| BE-M7 | Progress/Statistics/Study Plan | idempotent event, no Topic Mastery đạt |
+| BE-M7 | Dashboard/Streak/Daily Goal/Study Plan | event idempotent, timezone/day boundary và no Topic Mastery đạt |
 | BE-M8 | Admin/audit/hardening/E2E | demo flow, performance/security đạt |
 
 ## 9. Test strategy
@@ -192,6 +200,8 @@ Chi tiết bảng/constraint tại `docs/database-plan.md`. Không tạo bảng 
 - AI adapter với fake server: timeout, malformed JSON, wrong schema, citation ngoài scope, `NO_EVIDENCE`.
 - Storage test: MIME/size, signed URL, delete/retry idempotent.
 - Quiz test: option trùng, answer index sai, client gửi score giả, submit lặp.
+- Dashboard test: cùng slide trong ngày không đếm lặp, ba loại event hợp lệ duy trì Streak, login/Note/ASK_AI không tính, goal chưa đủ vẫn giữ Streak.
+- Daily Goal test: target bounds, actual server-side, rollover theo timezone và client không thể sửa actual/currentStreak.
 - E2E dùng seed tổng hợp theo `docs/demo-flow.md`.
 
 ## 10. Dependency và bàn giao
@@ -200,4 +210,3 @@ Chi tiết bảng/constraint tại `docs/database-plan.md`. Không tạo bảng 
 - Trước khi đổi wire shape phải cập nhật `docs/api-plan.md` và contract test hai phía.
 - Docker chỉ thuộc kế hoạch toàn dự án; không chạy/triển khai container trong mốc lập kế hoạch này.
 - Kết thúc mỗi mốc báo file đổi, migration, test command, contract ảnh hưởng và việc còn lại.
-

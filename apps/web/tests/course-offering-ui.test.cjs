@@ -36,3 +36,17 @@ test("document chat UI is evidence scoped and keeps the Java boundary", () => {
   assert.match(app, /Citation này được gắn với claim/);
   assert.doesNotMatch(app, /openrouter\.ai|internal\/v1|NEXT_PUBLIC_OPENROUTER/i);
 });
+
+test("Student dashboard exposes Streak and Daily Goal without a standalone Progress route", () => {
+  const app = read("src/components/study-flow-app.tsx");
+  const prototype = read("mvp.html");
+  const combined = `${app}\n${prototype}`;
+  assert.match(combined, /Study Streak/);
+  assert.match(combined, /Daily Goal/);
+  assert.match(combined, /VIEW_SLIDE/);
+  assert.match(combined, /STUDY_TASK_COMPLETED/);
+  assert.match(combined, /QUIZ_COMPLETED/);
+  assert.match(prototype, /page-student-offering-progress/);
+  assert.doesNotMatch(combined, /student-progress/);
+  assert.doesNotMatch(app, /key: "progress"/);
+});

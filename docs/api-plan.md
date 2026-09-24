@@ -167,17 +167,80 @@ History chỉ owner đọc; response có selected source metadata và messages/c
 - Output `202 {quizId,status:"GENERATING"}`.
 - Python trả draft; Java validate/lưu `REVIEW_REQUIRED`. Không trả Quiz làm ngay trong chat.
 
-### 4.6 Progress, Statistics, Plan và Quiz
+### 4.6 Dashboard, Study Streak và Daily Goal
 
-- `GET /api/v1/student/progress/overview`
-- `GET /api/v1/student/progress/course-offerings/{offeringId}`
-- `GET /api/v1/student/statistics?from=&to=`
-- CRUD `/api/v1/study-plans` và `/api/v1/study-plans/{planId}/items`
-- `GET /api/v1/calendar?from=&to=`
-- `PATCH /api/v1/study-plan-items/{id}/status`
-- `/api/v1/review/quizzes/*` và `/api/v1/review/attempts/*`
+Không có API/menu Progress tổng hợp độc lập. Dashboard là endpoint tổng hợp; chi tiết tiến độ đặt trong Course Offering.
 
-Plan item optional `courseOfferingId`. Java phát hiện conflict. Không có Topic Mastery hoặc recommendation endpoint. Quiz `REVIEW_REQUIRED` phải accept thành `READY`; Java chấm attempt.
+#### `GET /api/v1/student/dashboard`
+
+- **Input:** ngày hiện tại được Java xác định theo timezone tài khoản; client không truyền actual/streak.
+- **Output `200`:**
+
+```json
+{
+  "date": "2026-09-24",
+  "timeZone": "Asia/Ho_Chi_Minh",
+  "streak": {
+    "currentStreak": 6,
+    "longestStreak": 14,
+    "activityDays": ["2026-09-18", "2026-09-19", "2026-09-20", "2026-09-22", "2026-09-23", "2026-09-24"]
+  },
+  "dailyGoal": {
+    "slideTarget": 5,
+    "slideActual": 3,
+    "quizQuestionTarget": 10,
+    "quizQuestionActual": 6,
+    "taskTarget": 2,
+    "taskActual": 1
+  },
+  "overview": {
+    "viewedSlides": 38,
+    "totalPublishedSlides": 62,
+    "completedTasks": 9,
+    "totalTasks": 12,
+    "completedQuizzes": 7,
+    "averageQuizScore": 84.0
+  },
+  "upcomingItems": [],
+  "activeCourseOfferings": []
+}
+```
+
+- **Errors:** `401 UNAUTHENTICATED`; `422 INVALID_TIME_ZONE` nếu cấu hình tài khoản hỏng và không thể fallback an toàn.
+
+#### `GET /api/v1/student/study-streak`
+
+- **Output `200`:** `{currentStreak,longestStreak,activityDays,timeZone,asOfDate}`.
+- Chỉ `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` tạo activity day. Login, Note và `ASK_AI` không được tính.
+- Nhiều event hợp lệ cùng local date chỉ tính một ngày; ngày thiếu hoạt động làm đứt current streak.
+
+#### `GET /api/v1/student/daily-goal`
+
+- **Output `200`:** target + actual của ngày hiện tại, `date`, `timeZone` và `completed:boolean`.
+- `slideActual` đếm slide phân biệt đã xem trong ngày; `quizQuestionActual` lấy từ số câu của attempt đã submit/scored; `taskActual` đếm task chuyển hoàn thành trong ngày.
+
+#### `PUT /api/v1/student/daily-goal`
+
+- **Input:** `{slideTarget:0..100,quizQuestionTarget:0..200,taskTarget:0..50}`; cả ba trường bắt buộc, ít nhất một target lớn hơn `0`.
+- **Output `200`:** cấu hình target đã lưu và actual hiện tại được tính lại; target này tiếp tục áp dụng cho các ngày sau đến khi Student đổi.
+- **Errors:** `422 INVALID_DAILY_GOAL`; caller giữ giá trị cũ và hiển thị validation.
+- **Side effect:** chỉ cập nhật target; không tạo learning event và không sửa Streak.
+
+#### Tiến độ theo Course Offering
+
+- `GET /api/v1/student/course-offerings/{offeringId}/progress`
+- **Input:** Course Offering thuộc enrollment được phép.
+- **Output:** viewing progress theo PPTX/document, Quiz/Study Plan summary liên quan lớp; không có Topic Mastery.
+- **Errors:** `404` ngoài scope; Teacher PDF không có page progress.
+
+### 4.7 Study Plan, Calendar và Quiz
+
+- CRUD `/api/v1/study-plans` và `/api/v1/study-plans/{planId}/items`.
+- `GET /api/v1/calendar?from=&to=`.
+- `PATCH /api/v1/study-plan-items/{id}/status` phát `STUDY_TASK_COMPLETED` idempotent khi chuyển sang completed.
+- `/api/v1/review/quizzes/*` và `/api/v1/review/attempts/*`; submit/scoring thành công phát `QUIZ_COMPLETED` một lần.
+
+Plan item optional `courseOfferingId`. Java phát hiện conflict. Không có Topic Mastery, recommendation, XP, Achievement hoặc leaderboard endpoint. Quiz `REVIEW_REQUIRED` phải accept thành `READY`; Java chấm attempt.
 
 ## 5. Teacher API
 

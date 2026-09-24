@@ -36,7 +36,7 @@ Các route kiểm tra nhanh:
 
 Mở `mvp.html` để chạy prototype độc lập:
 
-- Student: join/enrollment, Course Offering materials, Slide Viewer + Note + Tutor, Personal Documents + chatbot theo nguồn, Quiz review, Progress và lịch tuần.
+- Student: join/enrollment, Course Offering materials, Slide Viewer + Note + Tutor, Personal Documents + chatbot theo nguồn, Quiz review, Dashboard/Streak/Daily Goal và lịch tuần.
 - Teacher: tự tạo Course Offering, join code, duyệt Enrollment, document library và publication.
 - Admin: users/roles, Subject/Semester, Course Offering monitoring, feedback, logs và settings.
 
@@ -60,6 +60,8 @@ Prototype dùng fixture tổng hợp, không gọi backend. Có thể mở trự
 - Student chỉ mở học liệu khi Enrollment `APPROVED` hoặc historical access policy cho phép.
 - Không gọi Python, pgvector, Object Storage hoặc model provider trực tiếp.
 - Không tính progress hay chấm Quiz ở client.
+- Không có route/menu Progress độc lập; Dashboard nhận aggregate, Streak và Daily Goal từ Java, còn tiến độ chi tiết nằm trong Course Offering.
+- Student chỉ gửi target Daily Goal. Actual, phần trăm và streak do Java tính; không triển khai XP, Level, Achievement, badge hoặc leaderboard.
 - PPTX lớp chỉ xem; PDF lớp chỉ download.
 - Personal upload chỉ nhận PDF.
 - Teacher upload PDF/PPTX; Student xem slide PPTX, ghi Note và dùng Tutor. PDF Teacher public chỉ có tải xuống.

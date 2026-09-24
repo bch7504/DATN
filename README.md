@@ -4,11 +4,11 @@ Nền tảng hỗ trợ học tập và ôn luyện tích hợp AI cho ba vai tr
 
 ## Phạm vi MVP
 
-- **Student:** nhập join code, chờ Teacher duyệt Enrollment, học theo Course Offering, xem PPTX/Note/Tutor, dùng Personal RAG và Quiz, theo dõi tiến độ và tự quản lý lịch tuần.
+- **Student:** nhập join code, chờ Teacher duyệt Enrollment, học theo Course Offering, xem PPTX/Note/Tutor, dùng Personal RAG và Quiz; theo dõi Dashboard, Study Streak, Daily Goal và tự quản lý lịch tuần.
 - **Teacher:** tự tạo Course Offering từ Subject + Semester, quản lý join code/Enrollment, kho PDF/PPTX và publication của lớp mình sở hữu.
 - **Admin:** quản lý user/role, Subject/Semester, giám sát/lock/archive Course Offering, feedback, audit và settings.
 
-MVP không có Chapter/Topic, Quiz do Teacher tạo, Topic Mastery, Exam/Mock Exam hoặc recommendation nâng cao.
+MVP không có Chapter/Topic, Quiz do Teacher tạo, Topic Mastery, Exam/Mock Exam, recommendation nâng cao, XP, Level, Achievement, badge hoặc leaderboard.
 
 ## Quy tắc học liệu
 
@@ -36,7 +36,7 @@ Hai file dùng fixture tổng hợp và không gọi backend thật.
 
 ## Tài liệu
 
-- `docs/Plan_do_an_tot_nghiep_dong_bo_toan_bo_kien_truc_CSDL_API.docx`: tài liệu yêu cầu nguồn.
+- `docs/Ke_hoach_do_an_tot_nghiep_cap_nhat_Streak_Daily_Goal.md`: kế hoạch đồ án và nguồn nghiệp vụ hiện hành.
 - `docs/architecture.md`: high-level architecture.
 - `docs/low-level-design.md`: module, state machine và rule chi tiết.
 - `docs/database-plan.md`: schema PostgreSQL + pgvector.
@@ -50,5 +50,7 @@ Hai file dùng fixture tổng hợp và không gọi backend thật.
 2. Personal Document thuộc owner; Admin/Teacher không mặc định được xem.
 3. Teacher chỉ public vào Course Offering mình sở hữu; Student chỉ truy cập khi Enrollment `APPROVED`.
 4. Personal RAG và Slide AI Tutor là hai scope AI tách biệt.
-5. Progress đo hoạt động học; MVP không suy ra Topic Mastery.
-6. Student chủ động quản lý kế hoạch.
+5. Dashboard hiển thị tổng quan; tiến độ xem chi tiết nằm trong Course Offering, không có menu Progress độc lập.
+6. Study Streak chỉ tính ngày có `VIEW_SLIDE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; hoàn thành Daily Goal không phải điều kiện duy trì streak.
+7. Student chỉ chỉnh target Daily Goal; Java tính actual và phần trăm từ Learning Event theo múi giờ người dùng.
+8. Student chủ động quản lý kế hoạch.

@@ -1,13 +1,13 @@
 # Low-level Design — StudyFlow Course Offering
 
 **Baseline:** 24/09/2026
-**Nguồn nghiệp vụ:** `Ke_hoach_do_an_tot_nghiep_phuong_an_Course_Offering.md`
+**Nguồn nghiệp vụ:** `Ke_hoach_do_an_tot_nghiep_cap_nhat_Streak_Daily_Goal.md`
 
 ## 1. Module và boundary
 
 ```text
 Next.js Web
-  ├─ student: course-offerings, materials, viewer, personal-documents, review, progress, plan
+  ├─ student: dashboard, course-offerings, materials, viewer, personal-documents, review, plan
   ├─ teacher: course-offerings, enrollments, documents, publications
   └─ admin: users, catalog, course-offerings, feedback, audit, settings
         ↓ public /api/v1
@@ -82,12 +82,17 @@ Java cấp slide metadata/artifact khi:
 
 Note key là `(studentId, slideId)`. View progress idempotent theo event/key. Slide Tutor nhận current slide, authorized document/version và bounded history; citation dùng `slideNumber`. Thiếu evidence trả `NO_EVIDENCE`.
 
-## 6. Quiz và progress
+## 6. Quiz, Dashboard, Streak và Daily Goal
 
 - Quiz AI chỉ lấy Personal PDF scope và dùng `MCQ_SINGLE`.
 - Python sinh draft có source; Java validate rồi chuyển `GENERATING → REVIEW_REQUIRED`.
 - Student chấp nhận hoặc từ chối draft trước khi làm; Java chấm điểm và lưu attempt/result.
+- Không tạo route/menu Progress độc lập. Dashboard lấy aggregate từ Java; Course Offering Detail lấy viewing progress theo lớp.
 - Content Progress tính từ slide view/learning event có thể kiểm thử; không suy luận Topic Mastery.
+- `recordLearningEvent(studentId,eventType,targetId,idempotencyKey)` chốt `activityDate` theo timezone tài khoản; output là event đã tạo hoặc event cũ khi retry, lỗi scope/validation không tạo event.
+- Streak chỉ xét `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`; distinct local date quyết định chuỗi hiện tại/kỷ lục.
+- Daily Goal lưu ba target và Java tính actual: slide phân biệt, số câu Quiz đã chấm, task hoàn thành trong ngày. Client không gửi actual.
+- Daily Goal và Streak độc lập; chưa có XP, Level, Achievement hoặc leaderboard.
 - Study Plan/Calendar do Student chủ động tạo; AI không tự điều phối.
 
 ## 7. Idempotency, lỗi và quan sát

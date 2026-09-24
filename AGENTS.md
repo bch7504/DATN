@@ -232,6 +232,10 @@ Python trả structured data; Java validate trước khi lưu. Mọi thay đổi
 - Teacher tự tạo Course Offering theo Subject + Semester, quản lý join code và duyệt Course Enrollment. Admin chỉ quản lý danh mục/giám sát, không phân công từng lớp trong MVP.
 - Teacher upload và public tài liệu vào Course Offering mình sở hữu; chỉ Student có enrollment `APPROVED` mới xem PPTX, lưu Note cá nhân và dùng Slide Tutor. Không mô tả các chức năng học này là chức năng của Teacher.
 - Admin không quản lý Quiz hoặc Progress cá nhân của Student trong MVP.
+- Không có menu/route `Tiến độ & Thống kê` độc lập; Dashboard hiển thị tổng quan và Course Offering Detail hiển thị viewing progress chi tiết.
+- Study Streak chỉ tính ngày có ít nhất một `VIEW_SLIDE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; login, Note và `ASK_AI` không được tính.
+- Student chỉ cấu hình target Daily Goal. Java tính actual/phần trăm theo ngày và múi giờ người dùng; hoàn thành Daily Goal không phải điều kiện duy trì Study Streak.
+- Không triển khai XP, Level, Achievement, badge hoặc leaderboard trong MVP.
 
 ## 7. Contract bắt buộc cho function và tool
 

@@ -1,6 +1,6 @@
 # StudyFlow — High-level Architecture
 
-> Baseline 2.0 theo `Ke_hoach_do_an_tot_nghiep_phuong_an_Course_Offering.md`.
+> Baseline 2.1 theo `Ke_hoach_do_an_tot_nghiep_cap_nhat_Streak_Daily_Goal.md`.
 > Product requirements nằm trong `specification.md` và `specs/`.
 
 ## 1. Mô hình nghiệp vụ
@@ -54,8 +54,8 @@ Ranh giới bắt buộc:
 
 | Thành phần | Sở hữu |
 |---|---|
-| Next.js | UI ba role, join flow, Course Offering, materials, viewer, chatbot/citation, Quiz review, plan/calendar |
-| Spring Boot | Auth/RBAC, User, Subject, Semester, Course Offering/join code, Enrollment, Document/Publication, Note, Progress, Plan, Quiz lifecycle/scoring, audit |
+| Next.js | UI ba role, join flow, Course Offering, materials, viewer, chatbot/citation, Dashboard/Streak/Daily Goal, Quiz review, plan/calendar |
+| Spring Boot | Auth/RBAC, User, Subject, Semester, Course Offering/join code, Enrollment, Document/Publication, Note, Dashboard Progress/Streak/Daily Goal, Plan, Quiz lifecycle/scoring, audit |
 | FastAPI | PDF/PPTX extraction, render/chunk/embed, retrieval, Personal RAG, Slide Tutor, grounded citation, Quiz draft |
 | PostgreSQL + pgvector | Schema nghiệp vụ `app`; job/index/chunk/vector ở schema `ai` |
 | Object Storage | PDF/PPTX gốc, slide render và preview |
@@ -143,12 +143,16 @@ Document content luôn được xem là dữ liệu không tin cậy; prompt inj
 
 Khi Course Offering archive, quyền Tutor dựa trên archive policy và enrollment lịch sử; embedding không tạo lại chỉ vì một document được public sang lớp khác.
 
-## 8. Quiz, tiến độ và kế hoạch
+## 8. Quiz, Dashboard, Streak, Daily Goal và kế hoạch
 
 - Quiz AI chỉ lấy Personal Documents trong conversation scope.
 - Python trả structured draft `MCQ_SINGLE`; Java validate source/answer, lưu `REVIEW_REQUIRED`.
 - Student accept để chuyển `READY`; Java tạo attempt và chấm điểm.
-- Progress chỉ dùng Slide đã xem, plan item và hoạt động xác định; không suy luận Topic Mastery.
+- Không có menu Progress/Statistics độc lập: Dashboard hiển thị tổng quan, Course Offering Detail hiển thị viewing progress theo lớp/tài liệu.
+- Java tổng hợp progress từ slide view, task và Quiz đã hoàn tất; không suy luận Topic Mastery.
+- Study Streak dùng các local date có `VIEW_SLIDE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`. Login, Note và hỏi AI không được tính; nhiều event cùng ngày chỉ tính một ngày.
+- Daily Goal lưu target Slide/câu Quiz/Study Task của Student; actual luôn được Java tính từ dữ liệu nghiệp vụ trong ngày.
+- Hoàn thành 100% Daily Goal không phải điều kiện duy trì Streak. MVP không có XP, Level, Achievement hoặc leaderboard.
 - Calendar là projection từ Study Plan items; Student tự quyết định kế hoạch.
 
 ## 9. Bảo mật và quan sát
