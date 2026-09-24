@@ -123,7 +123,7 @@ KHÔNG ĐƯỢC ĐỌC HOẶC SỬA:
 - PostgreSQL dump, production log, user upload hoặc Personal Document thật
 - File chứa secret/token thật
 
-Luồng làm việc: nhận authorized scope từ Java → xử lý/retrieval/generation → trả structured result + citation. Không truy cập trực tiếp bảng user, membership, Quiz attempt/result hoặc study plan.
+Luồng làm việc: nhận authorized scope từ Java → xử lý/retrieval/generation → trả structured result + citation. Không truy cập trực tiếp bảng user, Course Enrollment, Quiz attempt/result hoặc study plan.
 
 ### QA_AGENT
 
@@ -212,7 +212,7 @@ Mỗi request phải có:
 
 - `requestId` để trace xuyên service.
 - Service credential; không chuyển tiếp JWT người dùng nếu không cần.
-- Authorized scope tối thiểu như user/document/ClassSubject/page.
+- Authorized scope tối thiểu như user/document/version/Course Offering/page hoặc slide.
 - Timeout; retry chỉ cho thao tác an toàn hoặc có idempotency key.
 - Schema version khi contract bắt đầu thay đổi.
 
@@ -229,7 +229,8 @@ Python trả structured data; Java validate trước khi lưu. Mọi thay đổi
 - AI Tutor phải trả citation theo document + pageNumber (Personal PDF) hoặc slideNumber (Teacher PPTX) và retrieval phải filter đúng scope.
 - PPTX Teacher public chỉ xem web; PDF Teacher public chỉ tải xuống.
 - Teacher chỉ upload PDF/PPTX; Personal Document chỉ upload PDF. Không nhận DOCX trong MVP. PDF Teacher không có Viewer, Note, Tutor, page progress hoặc AI indexing; PPTX giữ Slide Viewer/Note/Tutor.
-- Teacher upload và public tài liệu theo ClassSubject; Student thuộc lớp mới là người xem PPTX, lưu Note cá nhân và dùng Slide Tutor. Không mô tả các chức năng học này là chức năng của Teacher.
+- Teacher tự tạo Course Offering theo Subject + Semester, quản lý join code và duyệt Course Enrollment. Admin chỉ quản lý danh mục/giám sát, không phân công từng lớp trong MVP.
+- Teacher upload và public tài liệu vào Course Offering mình sở hữu; chỉ Student có enrollment `APPROVED` mới xem PPTX, lưu Note cá nhân và dùng Slide Tutor. Không mô tả các chức năng học này là chức năng của Teacher.
 - Admin không quản lý Quiz hoặc Progress cá nhân của Student trong MVP.
 
 ## 7. Contract bắt buộc cho function và tool

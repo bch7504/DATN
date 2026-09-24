@@ -17,24 +17,28 @@ npm test
 npm run build
 ```
 
-FE-M0 và FE-M1 đã hoàn thành: app shell đỏ–trắng PTIT, navigation responsive cho ba role, đăng ký Student, login, phục hồi session qua `/me`, route guard, forbidden state và logout. Các màn hình nghiệp vụ sau M1 vẫn là demo có nhãn rõ khi cờ demo được bật.
+FE-M0 và FE-M1 đã hoàn thành. Các màn hình Course Offering/chatbot hiện là fixture UI có nhãn rõ; chưa được xem là tích hợp production cho đến khi Java public API tương ứng sẵn sàng.
 
 Các route kiểm tra nhanh:
 
 - `/student/dashboard`
+- `/student/course-offerings`
 - `/student/materials`
 - `/student/viewer`
 - `/student/personal-documents`
 - `/teacher/documents`
+- `/teacher/course-offerings`
+- `/teacher/enrollments`
 - `/admin/dashboard`
+- `/admin/course-offerings`
 
 ## Prototype HTML
 
 Mở `mvp.html` để chạy prototype độc lập:
 
-- Student: Class/Subject materials, Slide Viewer + Note + Tutor, Personal Documents + RAG, AI Quiz review/attempt, Progress & Statistics và lịch tuần.
-- Teacher: assignments, document library, public/revoke.
-- Admin: users/roles, classes/subjects, Teacher assignment, feedback, logs, settings.
+- Student: join/enrollment, Course Offering materials, Slide Viewer + Note + Tutor, Personal Documents + chatbot theo nguồn, Quiz review, Progress và lịch tuần.
+- Teacher: tự tạo Course Offering, join code, duyệt Enrollment, document library và publication.
+- Admin: users/roles, Subject/Semester, Course Offering monitoring, feedback, logs và settings.
 
 Prototype dùng fixture tổng hợp, không gọi backend. Có thể mở trực tiếp:
 
@@ -52,12 +56,15 @@ Prototype dùng fixture tổng hợp, không gọi backend. Có thể mở trự
 ## Quy ước
 
 - Frontend chỉ gọi public Java API.
+- Teacher hợp lệ tự tạo Course Offering; Admin quản lý catalog/giám sát, không phân công từng lớp.
+- Student chỉ mở học liệu khi Enrollment `APPROVED` hoặc historical access policy cho phép.
 - Không gọi Python, pgvector, Object Storage hoặc model provider trực tiếp.
 - Không tính progress hay chấm Quiz ở client.
 - PPTX lớp chỉ xem; PDF lớp chỉ download.
 - Personal upload chỉ nhận PDF.
 - Teacher upload PDF/PPTX; Student xem slide PPTX, ghi Note và dùng Tutor. PDF Teacher public chỉ có tải xuống.
 - Personal RAG và Slide AI Tutor không dùng chung scope.
+- Chatbot hiển thị selected sources, history, retrieval state, citation và `NO_EVIDENCE`; không có model selector/Agent Trace.
 - Quiz draft sinh từ Personal RAG phải được Student chấp nhận trước khi bắt đầu attempt.
 
 Kiểm tra prototype: `node --test apps/web/tests/pdf-policy.test.cjs` từ root. Upload trong HTML chỉ kiểm tra extension/MIME/header/size tại máy và hiển thị mô phỏng; kiểm tra cấu trúc PDF/PPTX và xử lý AI thật cần Java/Python. Không gửi file đã chọn lên server.

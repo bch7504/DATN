@@ -1,34 +1,40 @@
-# StudyFlow Spring Boot backend
+# StudyFlow Spring Boot Backend
 
-Java backend là system of record và public API duy nhất cho Web.
+Java backend là system of record và public API duy nhất cho Web. Backend chưa được scaffold dependency; thư mục hiện tại chỉ đánh dấu boundary cho giai đoạn triển khai sau.
 
-## Module
+## Module đích
 
 | Package | Trách nhiệm |
 |---|---|
-| `auth`, `user` | JWT/session, RBAC STUDENT/TEACHER/ADMIN, account status |
-| `classroom` | Class và Student membership |
-| `subject` | Subject, ClassSubject và Teacher assignment |
-| `document` | Teacher Library, Personal Document, upload/status/delete |
-| `publication` | Public/revoke theo ClassSubject |
+| `auth`, `user` | JWT/session, RBAC, account status |
+| `academic` | Subject và Semester |
+| `courseoffering` | Teacher tự tạo lớp, join-code lifecycle, lock/archive |
+| `enrollment` | Student request, Teacher approve/reject, access policy |
+| `document`, `publication` | Teacher/Personal metadata, upload, public/revoke theo Course Offering |
 | `slide`, `note` | Slide artifact access, view event và Note |
-| `progress` | Learning Progress và Statistics; không có Topic Mastery |
-| `study` | Study Plan, item và Calendar tuần |
-| `review` | Quiz draft review, accept/reject, attempt/answer/scoring |
-| `feedback`, `audit`, `settings` | Admin operation |
-| `integration.ai`, `integration.storage` | Outbound adapter |
+| `conversation` | Personal RAG conversation/history và citation record |
+| `review` | Quiz draft review, attempt, answer và Java scoring |
+| `progress`, `study` | Content Progress/Statistics và Study Plan/Calendar |
+| `feedback`, `audit`, `settings` | Admin operation và operational metadata |
+| `integration.ai`, `integration.storage` | Outbound adapters; không chứa business rule |
 
-## Rule
+Mỗi business module triển khai theo `api → application → domain → infrastructure`. DTO/JPA entity không đi xuyên boundary; public/application method phải có typed contract và Javadoc theo `AGENTS.md`.
 
-- Teacher chỉ public document của mình vào ClassSubject được phân công.
-- PPTX Teacher: viewer + Note + Tutor, không download file gốc.
-- PDF Teacher: download, không viewer/Note/Tutor.
-- Personal Document: Student owner, PDF, Personal RAG riêng.
-- Java xác minh scope trước khi gọi Python và kiểm lại citation khi nhận.
-- Java lưu vòng đời Quiz, chỉ cho làm Quiz `READY`, tính progress và chấm Quiz.
+## Quy tắc
 
-## Database
+- Teacher hợp lệ tự tạo Course Offering từ Subject + Semester active; Admin quản lý catalog và giám sát, không phân công từng lớp.
+- Teacher owner quản lý join code, duyệt Enrollment và public document vào lớp mình sở hữu.
+- Student chỉ truy cập materials/Tutor khi Enrollment `APPROVED` hoặc historical policy cho phép.
+- Teacher PPTX: Viewer + Note + Tutor, không tải file gốc. Teacher PDF: chỉ download, không AI.
+- Personal Document: PDF text-layer thuộc Student owner; Personal RAG tách khỏi Teacher materials.
+- Java xác minh scope trước khi gọi Python, kiểm lại citation/Quiz output và sở hữu Quiz lifecycle/scoring/progress.
+- Java không đọc/ghi schema `ai` hoặc vector.
 
-Spring Data JPA + Flyway sở hữu schema `app` trong PostgreSQL. Python sở hữu schema `ai`; Java không đọc/ghi vector trực tiếp.
+## Tài liệu triển khai
 
-Project Spring Boot chưa được scaffold dependency trong repository. Các thư mục package hiện đánh dấu boundary để implementation sau bám đúng [API plan](../../docs/api-plan.md).
+- [Kế hoạch Backend](../../docs/backend-implementation-plan.md)
+- [API contract](../../docs/api-plan.md)
+- [Database plan](../../docs/database-plan.md)
+- [Low-level design](../../docs/low-level-design.md)
+
+Khi bắt đầu BE-M0, thay các package marker `classroom`/`subject` cũ bằng target packages trong kế hoạch bằng migration source rõ ràng; không giữ đồng thời hai mô hình nghiệp vụ.

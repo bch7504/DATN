@@ -1,3 +1,3 @@
 # Admin routes
 
-Dashboard, users/roles, classes/subjects/assignments, feedback, audit và settings. Không có màn quản trị AI/vector.
+Dashboard, users/roles, Subject/Semester, Course Offering monitoring, feedback, audit và settings. Không có Teacher assignment hoặc màn quản trị AI/vector.

@@ -4,9 +4,9 @@ Nền tảng hỗ trợ học tập và ôn luyện tích hợp AI cho ba vai tr
 
 ## Phạm vi MVP
 
-- **Student:** học theo Class → ClassSubject, xem PPTX Teacher public, lưu Note theo slide, dùng Slide AI Tutor, quản lý PDF cá nhân và Personal RAG, tạo/duyệt/làm Quiz trong Ôn tập, xem Tiến độ & Thống kê và quản lý Kế hoạch & Lịch theo bảng tuần.
-- **Teacher:** xem lớp/môn được phân công, quản lý kho PDF/PPTX, public hoặc thu hồi tài liệu theo ClassSubject.
-- **Admin:** quản lý user/role, Class, Subject, Student membership, Teacher assignment, feedback, audit và settings.
+- **Student:** nhập join code, chờ Teacher duyệt Enrollment, học theo Course Offering, xem PPTX/Note/Tutor, dùng Personal RAG và Quiz, theo dõi tiến độ và tự quản lý lịch tuần.
+- **Teacher:** tự tạo Course Offering từ Subject + Semester, quản lý join code/Enrollment, kho PDF/PPTX và publication của lớp mình sở hữu.
+- **Admin:** quản lý user/role, Subject/Semester, giám sát/lock/archive Course Offering, feedback, audit và settings.
 
 MVP không có Chapter/Topic, Quiz do Teacher tạo, Topic Mastery, Exam/Mock Exam hoặc recommendation nâng cao.
 
@@ -48,7 +48,7 @@ Hai file dùng fixture tổng hợp và không gọi backend thật.
 
 1. Student/Teacher/Admin chỉ thao tác đúng scope.
 2. Personal Document thuộc owner; Admin/Teacher không mặc định được xem.
-3. Teacher chỉ public vào ClassSubject được phân công.
+3. Teacher chỉ public vào Course Offering mình sở hữu; Student chỉ truy cập khi Enrollment `APPROVED`.
 4. Personal RAG và Slide AI Tutor là hai scope AI tách biệt.
 5. Progress đo hoạt động học; MVP không suy ra Topic Mastery.
 6. Student chủ động quản lý kế hoạch.

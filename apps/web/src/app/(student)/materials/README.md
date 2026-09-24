@@ -1,3 +1,3 @@
 # Student materials
 
-Slide Viewer/Note/Tutor và PDF download theo publication scope.
+PPTX Viewer/Note/Tutor và Teacher PDF download theo Course Offering publication + Enrollment scope.

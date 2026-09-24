@@ -22,6 +22,7 @@
 | NFR-SEC-004 | MUST | Internal API dùng service credential riêng, request ID và schema version. |
 | NFR-SEC-005 | MUST | Upload kiểm extension, MIME thực, kích thước và file name; file không được thực thi. |
 | NFR-SEC-006 | MUST | Password hash bằng BCrypt cost tối thiểu 12 hoặc thuật toán tương đương được cấu hình. |
+| NFR-SEC-007 | MUST | Nội dung trong tài liệu luôn được xem là dữ liệu, không được phép thay đổi system instruction, authorized scope hoặc tool behavior. |
 
 - Personal upload tối đa 20 MB; Teacher upload tối đa 50 MB.
 - CORS chỉ cho Web origin cấu hình; production không dùng wildcard với credential.
@@ -69,7 +70,8 @@ Timeout mặc định:
 ## 6. Observability
 
 - Health: Java, Python API, worker, PostgreSQL/pgvector và Object Storage.
-- Metric: request latency/error, queue depth, processing failure, retry count, `NO_EVIDENCE` rate, citation rejection và token usage tổng hợp.
+- Metric vận hành: request latency/error, queue depth, processing failure, retry count, `NO_EVIDENCE` rate, citation rejection và token usage tổng hợp.
+- Metric evaluation: context precision/recall, claim precision/recall, faithfulness, answer relevancy, citation entailment/validity, refusal accuracy và scope violation; báo cáo riêng cho Personal RAG và Slide Tutor.
 - Alert demo: health down 2 phút, failure rate > 10% trong 5 phút hoặc queue job cũ nhất > 10 phút.
 - Trace ID đi xuyên Web-facing response, Java log và Python log.
 
@@ -87,7 +89,13 @@ Timeout mặc định:
 - **When** worker xử lý
 - **Then** chỉ có một logical job/version active và không có chunk trùng.
 
-### NFR-AC-003 — Responsive
+### NFR-AC-003 — Evaluation ổn định và chống scope leakage
+
+- **Given** locked test set có câu nhiều tài liệu, câu nối tiếp, thiếu bằng chứng và prompt injection trong tài liệu
+- **When** benchmark chạy ba lần qua pipeline production
+- **Then** `scope_violation_rate = 0`, không có hallucination nghiêm trọng và các ngưỡng tại [kế hoạch AI](../ai-implementation-plan.md#7-kiểm-thử-và-kế-hoạch-đánh-giá-chatbot) được báo cáo theo từng nhóm case.
+
+### NFR-AC-004 — Responsive
 
 - **Given** viewport 360px
 - **When** Student mở navigation, lịch tuần và Quiz

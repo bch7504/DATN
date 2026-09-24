@@ -1,3 +1,3 @@
 # Teacher routes
 
-Dashboard, ClassSubject assignments, Teacher Document Library và publication/revoke.
+Dashboard, Course Offering tự tạo, join code, Enrollment approval, Teacher Document Library và publication/revoke.

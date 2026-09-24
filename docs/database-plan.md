@@ -1,202 +1,216 @@
-# StudyFlow — Database plan
+# StudyFlow — Database Plan
 
-PostgreSQL là nguồn dữ liệu trung tâm; pgvector là extension trong cùng cụm PostgreSQL. Java sở hữu schema `app`, Python sở hữu schema `ai`. Hai service dùng database role khác nhau và migration riêng.
+PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `app`; Python/Alembic sở hữu schema `ai` và pgvector. Hai service dùng database role riêng.
 
 ## 1. Nguyên tắc
 
-- Java/Flyway quản lý bảng nghiệp vụ, transaction và quyền.
-- Python/Alembic quản lý AI job, chunk và embedding.
-- File gốc, slide render và preview nằm ở Object Storage; database chỉ giữ metadata/path.
-- Không có Chapter/Topic trong MVP.
-- Personal Document bắt buộc có `owner_id`; retrieval luôn filter owner và danh sách document Java đã xác thực.
-- Teacher Document chỉ tới Student qua `document_publications → class_subjects → class_students`.
+- Mô hình học vụ: `semesters → course_offerings → course_enrollments`.
+- Không còn `classes`, `class_students`, `class_subjects` hoặc Teacher assignment trong baseline mới.
+- File/artifact nằm ở Object Storage; database chỉ giữ metadata/key.
+- Personal Document bắt buộc có owner; retrieval filter owner + document/version/source.
+- Teacher publication trỏ trực tiếp đến Course Offering.
+- Không xóa lịch sử lớp/enrollment khi hết học kỳ; dùng trạng thái và audit.
 
 ## 2. Identity và RBAC
 
 ### `users`
 
-`id`, `email`, `username`, `password_hash`, `full_name`, `role` (`STUDENT|TEACHER|ADMIN`), `status`, timestamps.
+`id`, `email`, `username`, `password_hash`, `full_name`, `role (STUDENT|TEACHER|ADMIN)`, `status (ACTIVE|LOCKED)`, timestamps.
 
-- Unique: `email`, `username`.
-- Khóa tài khoản phải thu hồi refresh session.
+- Unique `email`, `username`.
+- Public registration luôn tạo `STUDENT`.
+- Đổi/khóa role Teacher phải kiểm Course Offering đang active và thu hồi session theo policy.
 
 ### `refresh_tokens`
 
-`id`, `user_id`, `token_hash`, `expires_at`, `revoked_at`, `replaced_by_id`, metadata thiết bị tối thiểu.
+`id`, `user_id`, `token_hash`, `expires_at`, `revoked_at`, `replaced_by_id`, metadata thiết bị tối thiểu. Không lưu raw token.
 
-Không lưu raw refresh token.
-
-## 3. Lớp học, môn học và phân công
-
-### `classes`
-
-`id`, `code`, `name`, `cohort`, `academic_year`, `status`, timestamps.
-
-### `class_students`
-
-`class_id`, `student_id`, `joined_at`, `status`.
-
-- Unique: `(class_id, student_id)`.
-- Chỉ user role Student được thêm.
+## 3. Subject, Semester và Course Offering
 
 ### `subjects`
 
 `id`, `code`, `name`, `description`, `status`, timestamps.
 
-### `class_subjects`
+- Unique `code`.
+- Chỉ Admin CRUD; Teacher chỉ chọn Subject hợp lệ.
 
-`id`, `class_id`, `subject_id`, `teacher_id`, `semester`, `academic_year`, `status`, timestamps.
+### `semesters`
 
-- Unique đề xuất: `(class_id, subject_id, semester, academic_year)`.
-- `teacher_id` phải có role Teacher.
-- Đây là authorization scope cho việc public tài liệu.
+`id`, `code`, `name`, `academic_year`, `start_date`, `end_date`, `status (UPCOMING|ACTIVE|CLOSED)`, `offering_creation_enabled`, timestamps.
+
+- Unique `code`.
+- `end_date >= start_date`.
+- Java quyết định Semester nào cho phép Teacher tạo lớp; không tin client gửi status.
+
+### `course_offerings`
+
+`id`, `subject_id`, `semester_id`, `teacher_id`, `code`, `name`, `join_code_hash`, `join_code_hint`, `join_enabled`, `status (ACTIVE|ARCHIVED|LOCKED)`, `archived_at`, `locked_at`, timestamps.
+
+- Index `(teacher_id, semester_id, status)` và `(subject_id, semester_id)`.
+- Unique đề xuất `(semester_id, code)`; join code lookup dùng hash có unique index.
+- `teacher_id` phải là user `TEACHER/ACTIVE` tại application service.
+- Teacher chỉ tạo trong Semester được phép và chỉ mutate lớp mình sở hữu.
+- Admin có thể lock/archive nhưng không approve lớp.
+- Không lưu join code vào log/audit metadata; response chỉ trả code khi nghiệp vụ cần.
+
+### `course_enrollments`
+
+`id`, `course_offering_id`, `student_id`, `status (PENDING|APPROVED|REJECTED|REMOVED)`, `requested_at`, `decided_at`, `decided_by`, `removed_at`, `decision_note`, timestamps.
+
+- Unique `(course_offering_id, student_id)`.
+- Index `(course_offering_id, status, requested_at)` và `(student_id, status)`.
+- Student nhập code tạo/reopen request theo state machine; không tự ghi `APPROVED`.
+- `decided_by` phải là Teacher owner hoặc Admin trong policy đặc biệt được audit; luồng MVP dùng Teacher owner.
+- Enrollment không bị xóa khi lớp/học kỳ kết thúc.
 
 ## 4. Tài liệu và publication
 
 ### `documents`
 
-`id`, `owner_id`, `owner_role`, `document_scope` (`TEACHER_LIBRARY|PERSONAL`), `file_name`, `file_type` (`PDF|PPTX`), `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, `slide_count`, timestamps, soft-delete fields.
+`id`, `owner_id`, `owner_role`, `document_scope (TEACHER_LIBRARY|PERSONAL)`, `file_name`, `display_name`, `file_type (PDF|PPTX)`, `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, `slide_count`, timestamps, soft-delete fields.
 
-Quy tắc:
-
-- Personal: owner là Student, chỉ `PDF`.
-- Teacher Library: owner là Teacher, cho phép `PDF|PPTX`.
-- PPTX muốn public phải `READY` để xem Slide.
-- Object key không trả trực tiếp cho browser.
-
-Trạng thái: `UPLOADING → PENDING_PROCESSING → PROCESSING → READY|FAILED`; xóa qua `DELETING → DELETED`.
+- Personal: owner Student, chỉ PDF có text layer cho AI.
+- Teacher Library: owner Teacher, PDF/PPTX.
+- PPTX muốn public phải `READY`; PDF Teacher không AI index.
+- Object key không trả browser.
 
 ### `document_publications`
 
-`id`, `document_id`, `class_subject_id`, `published_by`, `status` (`PUBLISHED|REVOKED`), `published_at`, `revoked_at`.
+`id`, `document_id`, `course_offering_id`, `published_by`, `status (PUBLISHED|REVOKED)`, `published_at`, `revoked_at`.
 
-- Unique: `(document_id, class_subject_id)`.
-- Document phải thuộc Teacher thực hiện.
-- Teacher phải đang được phân công cho ClassSubject.
-- Một file có thể public cho nhiều ClassSubject mà không nhân bản.
+- Unique `(document_id, course_offering_id)`.
+- Document owner và Course Offering owner phải là Teacher hiện tại.
+- Re-public re-activate row cũ; không tạo duplicate hoặc nhân bản file.
 
 ### `slides`
 
 `id`, `document_id`, `slide_number`, `rendered_key`, `preview_key`, `extracted_text`, `processing_status`.
 
-- Unique: `(document_id, slide_number)`.
-- Chỉ dùng cho PPTX Teacher.
-- Frontend không nhận file PPTX gốc.
+- Unique `(document_id, slide_number)`.
+- Chỉ PPTX Teacher; frontend không nhận file gốc.
 
 ### `slide_notes`
 
-`id`, `user_id`, `document_id`, `slide_number`, `content`, timestamps.
+`id`, `student_id`, `document_id`, `slide_number`, `content`, timestamps.
 
-- Unique: `(user_id, document_id, slide_number)`.
-- Khi đọc/ghi phải kiểm publication và membership còn hiệu lực.
+- Unique `(student_id, document_id, slide_number)`.
+- Mọi read/write kiểm enrollment `APPROVED`, publication và archive/lock policy hiện tại.
 
-## 5. AI data trong schema `ai`
+## 5. Chat và AI data
 
-### `ai.index_jobs`
+### Schema `app`
 
-`id`, `request_id`, `idempotency_key`, `document_id`, `document_version`, `pipeline_type` (`PERSONAL_RAG|TEACHER_SLIDE`), `status`, `attempts`, `next_retry_at`, `error_code`, timestamps.
+`chat_conversations`: `id`, `student_id`, `type (PERSONAL_RAG|SLIDE_TUTOR)`, `title`, `status`, timestamps.
 
-- Unique: `idempotency_key`.
-- Signed URL chỉ dùng lúc tải và không ghi log.
+`conversation_documents`: `conversation_id`, `document_id`, `document_version`, timestamps.
 
-### `ai.document_indexes`
+- Unique `(conversation_id, document_id)`.
+- Chỉ Personal PDF owner/READY được thêm vào Personal conversation.
+- Đây là snapshot scope do Java sở hữu; client không tự mở rộng scope khi gửi message.
 
-`document_id`, `document_version`, `pipeline_type`, `embedding_model`, `dimensions`, `status`, `activated_at`.
+`chat_messages`: `id`, `conversation_id`, `role`, `content`, `answer_status`, `citations_json`, `trace_id`, timestamps.
 
-- Chỉ một version active cho mỗi document/pipeline.
+- Retention theo system setting; system log không sao chép message content.
+- Citation JSON chỉ lưu structured document/page hoặc document/slide data đã Java revalidate.
 
-### `ai.document_chunks`
+### Schema `ai`
 
-`id`, `document_id`, `document_version`, `owner_id`, `source_type` (`PERSONAL|TEACHER_SLIDE`), `slide_number` hoặc `page_number`, `chunk_index`, `content`, `embedding vector(n)`, timestamps.
+`ai.index_jobs`: `id`, `request_id`, `idempotency_key`, `operation`, document/version/pipeline, safe status/attempt/error, transient signed URL và timestamps.
 
-- Unique: `(document_id, document_version, chunk_index)`.
-- B-tree index cho document/version/owner/source/location.
-- Vector index chỉ thêm sau khi đo dữ liệu; MVP có thể dùng exact cosine search.
-- PDF Teacher public không cần index.
+`ai.document_indexes`: document/version/pipeline, embedding provider/model/dimensions, status, activated_at.
 
-### Chat metadata
+`ai.document_chunks`: `id`, document/version/owner/source_type, page/slide, chunk_index, content, `embedding vector(1024)`, timestamps.
 
-`chat_conversations`: user, type `PERSONAL_RAG|SLIDE_TUTOR`, context metadata.
+- Unique job idempotency key.
+- Unique `(document_id, document_version, chunk_index)`.
+- Scope B-tree index trước vector search; HNSW cosine cho 1024 chiều.
+- Query và document phải cùng embedding model/dimensions/index version.
+- Signed URL được xóa sau terminal status và không bao giờ log.
 
-`chat_messages`: conversation, role, content, citation JSON, timestamps.
-
-Nếu lưu hội thoại, Java sở hữu bảng và áp dụng retention. Không log bản sao message ở system log.
-
-## 6. Tiến độ và kế hoạch
+## 6. Progress và Learning Events
 
 ### `learning_progress`
 
-`id`, `student_id`, `class_subject_id`, `document_id`, `last_slide`, `viewed_slide_count`, `progress_percent`, `completed_at`, `updated_at`.
+`id`, `student_id`, `course_offering_id`, `document_id`, `last_slide`, `viewed_slide_count`, `progress_percent`, `completed_at`, `updated_at`.
 
-- Unique: `(student_id, document_id)`.
-- Chỉ PPTX/Slide có document progress; PDF Teacher không có page progress.
+- Unique `(student_id, document_id)`.
+- Chỉ PPTX/Slide có document progress; PDF Teacher không page progress.
+- Mọi update kiểm enrollment `APPROVED` hoặc archive access policy.
 
 ### `learning_events`
 
 `id`, `student_id`, `event_type`, `target_type`, `target_id`, `metadata`, `occurred_at`.
 
-Event chính: `VIEW_SLIDE`, `NOTE_SAVED`, `PERSONAL_DOCUMENT_UPLOADED`, `PERSONAL_DOCUMENT_INDEXED`, `ASK_AI`, `QUIZ_GENERATED`, `QUIZ_ACCEPTED`, `QUIZ_COMPLETED`, `STUDY_PLAN_CREATED`, `STUDY_PLAN_COMPLETED`.
+Event chính:
 
-### `study_plans` và `study_plan_items`
+```text
+COURSE_JOIN_REQUESTED
+COURSE_JOIN_APPROVED
+VIEW_SLIDE
+NOTE_SAVED
+PERSONAL_DOCUMENT_UPLOADED
+PERSONAL_DOCUMENT_INDEXED
+ASK_AI
+STUDY_PLAN_CREATED
+STUDY_PLAN_COMPLETED
+QUIZ_GENERATED
+QUIZ_ACCEPTED
+QUIZ_COMPLETED
+```
 
-- Plan: owner, title, description, start/end date, status.
-- Item: plan, title, `scheduled_start`, `scheduled_end`, deadline, duration, status, class_subject tham chiếu tùy chọn.
-- Calendar là projection của plan items, không cần bảng sự kiện trùng lặp.
-- Index theo `(student_id, scheduled_start)` thông qua quan hệ plan; Java kiểm thời gian hợp lệ và phát hiện lịch chồng nhau.
+Metadata không chứa join code, prompt, document text hay secret.
 
-Không có bảng recommendation trong MVP.
+## 7. Study Plan và Calendar
 
-## 7. Ôn tập và Quiz
+`study_plans`: owner, title, description, start/end, status, timestamps.
+
+`study_plan_items`: plan, title, schedule/deadline/duration, status, optional `course_offering_id`, timestamps.
+
+- Calendar là projection của plan items, không tạo bảng calendar trùng.
+- Java validate time range và xung đột của cùng Student.
+- Index theo owner/scheduled start thông qua plan.
+
+## 8. Quiz
 
 ### `quizzes`
 
-`id`, `student_id`, `title`, `description`, `generation_type` (`AI_PERSONAL_RAG`), `status` (`GENERATING|REVIEW_REQUIRED|READY|REJECTED|GENERATION_FAILED|ARCHIVED`), `question_count`, timestamps.
+`id`, `student_id`, `conversation_id`, title/description, `generation_type=AI_PERSONAL_RAG`, status, question_count, timestamps.
 
-- Quiz AI luôn thuộc Student đã yêu cầu tạo.
-- Sau khi Java validate kết quả Python, Quiz ở `REVIEW_REQUIRED`.
-- Chỉ Student owner được `ACCEPT`; thao tác này chuyển Quiz sang `READY`.
-- Quiz chưa `READY` không tạo attempt.
+State: `GENERATING → REVIEW_REQUIRED → READY|REJECTED`; generation lỗi → `GENERATION_FAILED`; lịch sử → `ARCHIVED`.
 
-### `quiz_sources`
+### Source/question/attempt
 
-`quiz_id`, `document_id`, `document_version`, `source_type`, timestamps.
+- `quiz_sources`: quiz + Personal document/version; unique `(quiz_id, document_id)`.
+- `quiz_questions`: `MCQ_SINGLE`, options, one correct index, explanation, order.
+- `quiz_question_sources`: question + document/page/excerpt.
+- `quiz_attempts`: quiz/student/start/submit/score/status.
+- `quiz_answers`: attempt/question/selected option/correctness/score; unique `(attempt_id, question_id)`.
 
-- Source của Quiz AI chỉ là Personal Documents thuộc Student và đã được chọn khi sinh.
-- Unique: `(quiz_id, document_id)`.
-- Giữ version để audit câu hỏi được sinh từ bản tài liệu nào.
+Java validate structured output và chấm trong transaction. Python/LLM không tạo attempt và không chấm điểm.
 
-### `quiz_questions`
+## 9. Admin và vận hành
 
-`id`, `quiz_id`, `content`, `question_type` (`MCQ_SINGLE`), `options`, `correct_option_index`, `explanation`, `display_order`.
+- `feedback_reports`: reporter/type/title/content/status/resolution metadata.
+- `system_logs`: actor/action/target/status/trace/safe metadata/timestamp.
+- `system_settings`: allowlisted typed key/value; không chứa secret.
 
-- Mỗi câu có tối thiểu hai options khác nhau và đúng một `correct_option_index` hợp lệ.
-- MVP chưa có câu tự luận, nhiều đáp án đúng hoặc partial scoring.
+Audit tối thiểu: auth, role/status, Semester/Subject, Course Offering create/archive/lock, join-code enable/regenerate, enrollment decision, publication/revoke và setting change.
 
-### `quiz_question_sources`
+## 10. Tính nhất quán và xóa
 
-`question_id`, `document_id`, `location_kind`, `location_value`, `excerpt`.
+- Revoke publication không xóa Teacher Document.
+- Xóa Teacher Document yêu cầu không còn publication active.
+- Xóa Personal Document: Java chuyển `DELETING`, loại ngay khỏi conversation/Quiz authorization, gọi deindex rồi xóa object/metadata.
+- Reindex ghi version mới, activate nguyên tử rồi dọn version cũ.
+- Archive Course Offering giữ enrollment, publication, Note/progress theo retention; lock ưu tiên chặn access.
+- Backup PostgreSQL và Object Storage; restore drill trước demo.
 
-Java đối chiếu document/version với authorized scope trước khi lưu.
+## 11. Migration từ baseline cũ
 
-### `quiz_attempts` và `quiz_answers`
+Không sửa migration đã chạy. Nếu schema cũ đã tồn tại, tạo forward migration:
 
-- Attempt: quiz, student, start/submit time, total score, status, duration.
-- Answer: attempt, question, `selected_option_id`, correctness và awarded score.
-- Unique: `(attempt_id, question_id)`.
-- Java chấm điểm trong transaction; Python/LLM không chấm attempt.
-
-## 8. Admin và vận hành
-
-- `feedback_reports`: reporter, type, title, content, status, resolution timestamps.
-- `system_logs`: actor, action, target type/ID, safe metadata, timestamp.
-- `system_settings`: typed key/value, description, updated_by; không chứa secret.
-
-Audit các sự kiện: login, role/status change, membership, ClassSubject assignment, publication/revoke và settings.
-
-## 9. Xóa và tính nhất quán
-
-- Thu hồi publication không xóa file khỏi Teacher Library.
-- Xóa Teacher Document chỉ được thực hiện khi đã xử lý publication liên quan.
-- Xóa Personal Document: Java chuyển `DELETING`, lập tức loại khỏi authorized scope, yêu cầu Python deindex, sau đó xóa object và metadata.
-- Reindex ghi version mới, activate nguyên tử trong schema AI rồi dọn version cũ.
-- Backup PostgreSQL và Object Storage; phải thử restore trước demo.
+1. Tạo `semesters`, `course_offerings`, `course_enrollments`.
+2. Chuyển dữ liệu có thể ánh xạ từ `class_subjects` sang offering và `class_students` sang enrollment `APPROVED` với audit migration.
+3. Thêm `course_offering_id` vào publication/progress/plan item.
+4. Chuyển read/write sang bảng mới.
+5. Chỉ deprecate bảng cũ sau kiểm tra đối soát; không drop trong cùng release migration dữ liệu.

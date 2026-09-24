@@ -1,3 +1,3 @@
 # Publications
 
-Public/revoke một Teacher Document cho ClassSubject được phân công.
+Public/revoke Teacher Document vào Course Offering do chính Teacher sở hữu.

@@ -1,3 +1,3 @@
 # Teacher dashboard
 
-Assigned ClassSubjects, library và publication overview.
+Course Offering đang mở, Enrollment chờ duyệt, Library và publication overview.

@@ -1,6 +1,6 @@
 # Cấu trúc repository StudyFlow
 
-Các thư mục boundary đã được tạo để code triển khai sau bám đúng kiến trúc hiện tại. Route con của Next.js sẽ được tạo trong các group tương ứng khi scaffold ứng dụng thật.
+Đây là cấu trúc đích theo baseline Course Offering. Frontend đã có route động và README boundary; Backend hiện mới có package marker cũ, sẽ được scaffold/migrate theo `docs/backend-implementation-plan.md` ở BE-M0 thay vì coi cây dưới đây là source đã hoàn tất.
 
 ```text
 DATN/
@@ -18,7 +18,7 @@ DATN/
 │       │   │   ├── (auth)/
 │       │   │   ├── (student)/
 │       │   │   │   ├── dashboard/
-│       │   │   │   ├── classes/
+│       │   │   │   ├── course-offerings/
 │       │   │   │   ├── materials/
 │       │   │   │   ├── personal-documents/
 │       │   │   │   ├── progress/
@@ -26,13 +26,15 @@ DATN/
 │       │   │   │   └── review/
 │       │   │   ├── teacher/
 │       │   │   │   ├── dashboard/
-│       │   │   │   ├── assignments/
+│       │   │   │   ├── course-offerings/
+│       │   │   │   ├── enrollments/
 │       │   │   │   ├── documents/
 │       │   │   │   └── publications/
 │       │   │   └── admin/
 │       │   │       ├── dashboard/
 │       │   │       ├── users/
-│       │   │       ├── academics/
+│       │   │       ├── catalog/
+│       │   │       ├── course-offerings/
 │       │   │       ├── feedback/
 │       │   │       ├── logs/
 │       │   │       └── settings/
@@ -46,8 +48,9 @@ DATN/
 │   │   ├── src/main/java/com/studyflow/
 │   │   │   ├── auth/
 │   │   │   ├── user/
-│   │   │   ├── classroom/
-│   │   │   ├── subject/
+│   │   │   ├── academic/
+│   │   │   ├── courseoffering/
+│   │   │   ├── enrollment/
 │   │   │   ├── document/
 │   │   │   ├── publication/
 │   │   │   ├── slide/
@@ -73,9 +76,10 @@ DATN/
 │       ├── evals/
 │       └── tests/
 ├── docs/
-│   ├── Plan_do_an_tot_nghiep_dong_bo_toan_bo_kien_truc_CSDL_API.docx
+│   ├── Ke_hoach_do_an_tot_nghiep_phuong_an_Course_Offering.md
 │   ├── architecture.md
 │   ├── low-level-design.md
+│   ├── backend-implementation-plan.md
 │   ├── database-plan.md
 │   ├── api-plan.md
 │   ├── tech-stack.md
@@ -91,7 +95,8 @@ DATN/
 | Vùng | Trách nhiệm |
 |---|---|
 | Web | UI ba vai trò; chỉ gọi Java |
-| Java `classroom/subject` | Class, membership, ClassSubject, Teacher assignment |
+| Java `academic` | Subject và Semester do Admin quản lý |
+| Java `courseoffering/enrollment` | Teacher tự tạo Course Offering/join code; Teacher duyệt Enrollment; Admin giám sát |
 | Java `document/publication` | Kho tài liệu, ownership, public/revoke |
 | Java `slide/note` | Slide access, Note và view event |
 | Java `progress/study/review` | Progress/Statistics, Plan/Calendar, Quiz review/attempt/scoring |

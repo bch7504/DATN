@@ -14,6 +14,8 @@ Cho phép Student quản lý PDF cá nhân, hỏi đáp trên đúng tài liệu
 | PAI-FR-004 | MUST | RAG trả `ANSWERED` hoặc `NO_EVIDENCE` cùng citation đúng scope. |
 | PAI-FR-005 | MUST | Student yêu cầu sinh Quiz từ document scope của conversation. |
 | PAI-FR-006 | MUST | Quiz sinh bất đồng bộ và xuất hiện ở Ôn tập khi `REVIEW_REQUIRED`. |
+| PAI-FR-007 | MUST | Chatbot giữ history theo conversation và chỉ dùng các document đã chọn trong scope đó. |
+| PAI-FR-008 | MUST | Mỗi factual claim phải được evidence hỗ trợ; citation phải entail claim thay vì chỉ có ID hợp lệ. |
 | PAI-BR-001 | MUST | Personal upload chỉ nhận PDF tối đa 20 MB. |
 | PAI-BR-002 | MUST | Client không được thêm document ngoài conversation khi hỏi hoặc sinh Quiz. |
 | PAI-BR-003 | MUST | Quiz dùng `MCQ_SINGLE`: nhiều lựa chọn nhưng chỉ một đáp án đúng. |
@@ -60,6 +62,7 @@ Cho phép Student quản lý PDF cá nhân, hỏi đáp trên đúng tài liệu
 - **Citation:** `{documentId, location:{kind:"PAGE", value}, excerpt}`; `value` là số trang PDF bắt đầu từ 1.
 - **Errors:** `404 CONVERSATION_NOT_FOUND`; `409 DOCUMENT_NOT_READY`; `503 AI_SERVICE_UNAVAILABLE`.
 - **Side effect:** lưu message/citation có retention; ghi event `ASK_AI`.
+- **Grounding:** Python retrieval đúng một lần, generation và reviewer dùng cùng evidence snapshot. Claim `UNSUPPORTED`/`CONTRADICTED` phải bị loại hoặc viết lại; reviewer chỉ retry tối đa một lần.
 
 ### `GET /api/v1/personal-rag/conversations/{id}`
 
@@ -109,7 +112,7 @@ Validation tại Java:
 |---|---|---|---|
 | `POST /internal/v1/documents/index` | requestId, document/version, pipeline, ownerId, signed URL, MIME | `202 {jobId,status}` | Idempotent; retry tối đa 3 |
 | `GET /internal/v1/jobs/{jobId}` | job ID + service credential | status, attempts, errorCode | `404`; poll có backoff |
-| `POST /internal/v1/personal-rag/ask` | userId, authorizedDocumentIds, question | structured answer + citations | Không retry mù sau timeout |
+| `POST /internal/v1/personal-rag/ask` | userId, conversationId, authorized document/version scope, history window, question | `ANSWERED|NO_EVIDENCE`, answer, claim-grounded citations, traceId | Không retry mù sau timeout |
 | `POST /internal/v1/quizzes/generate` | userId, authorized IDs, count, difficulty | structured questions + sources | Job idempotent; malformed output không lưu |
 
 Mọi request có `X-Request-Id`, `X-Schema-Version`, service credential và timeout. Python không nhận user JWT.
@@ -146,3 +149,15 @@ Mọi request có `X-Request-Id`, `X-Schema-Version`, service credential và tim
 - **When** Java kiểm extension, MIME thực và cấu trúc file
 - **Then** từ chối bằng `415 UNSUPPORTED_FILE_TYPE` hoặc `422 INVALID_FILE`.
 - PDF cá nhân không có văn bản trích xuất được chuyển `FAILED` với `PDF_TEXT_REQUIRED`; chưa hỗ trợ OCR trong MVP. File mã hóa cần mật khẩu trả `PDF_ENCRYPTED`. UI hướng dẫn upload bản PDF có lớp văn bản, không cho dùng tài liệu lỗi để hỏi hoặc sinh Quiz.
+
+### PAI-AC-006 — Citation theo claim
+
+- **Given** answer draft chứa nhiều factual claim
+- **When** claim reviewer đối chiếu evidence snapshot đã dùng để generation
+- **Then** mỗi claim được phân loại; response chỉ giữ claim được hỗ trợ và citation trỏ đúng trang/chunk chứng minh claim đó.
+
+### PAI-AC-007 — Evaluation phản ánh production
+
+- **Given** một case trong locked test set
+- **When** chạy benchmark
+- **Then** evaluator đi qua đúng pipeline production, không retrieval lần hai, ghi dataset/prompt/model/retrieval version và chấm riêng Personal RAG với Slide Tutor theo [kế hoạch AI](../ai-implementation-plan.md#7-kiểm-thử-và-kế-hoạch-đánh-giá-chatbot).

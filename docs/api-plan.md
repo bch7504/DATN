@@ -1,228 +1,273 @@
-# StudyFlow — API plan
+# StudyFlow — API Plan
 
-Đây là contract mục tiêu. Browser chỉ gọi Java Spring Boot tại `/api/v1`. Python FastAPI chỉ mở internal API cho Java tại `/internal/v1`.
-
-## Quyết định định dạng — 22/09/2026
-
-| Nguồn upload | Định dạng | Hành vi |
-|---|---|---|
-| Teacher Library | PPTX | Render slide; Viewer, Note, Slide Tutor và slide progress; không tải file gốc |
-| Teacher Library | PDF | Chỉ tải xuống sau kiểm quyền; không viewer, Note, Tutor, page progress hoặc AI index |
-| Personal Document | PDF | Index theo trang cho Personal RAG và Quiz; chỉ owner dùng |
-
-Teacher thực hiện upload/public. Các chức năng xem slide, Note cá nhân và Slide Tutor thuộc Student có membership hợp lệ, không thuộc Teacher.
-
-DOCX bị loại khỏi cả hai luồng upload. Public upload giữ nguyên URL: multipart `file`, tối đa 20 MB với Personal, 50 MB với Teacher. Java kiểm extension, MIME thực và cấu trúc file; `415 UNSUPPORTED_FILE_TYPE`, `413 FILE_TOO_LARGE`, `422 INVALID_FILE` dùng error envelope chung. Chọn sai file ở Web phải hiển thị lỗi trước khi mô phỏng/gửi upload.
-
-Contract nội bộ dùng `X-Schema-Version: 2` vì đã loại DOCX và loại citation `SECTION`. `PERSONAL_RAG` chỉ nhận `mimeType=application/pdf` và ownerId không rỗng; `TEACHER_SLIDE` chỉ nhận MIME PPTX. Sai tổ hợp pipeline/MIME trả `422 INVALID_INDEX_INPUT`. PDF Teacher không được gửi sang AI. Routes `/slides/*`, `currentSlide`, `allowedSlideNumbers`, `slideNumber` tiếp tục phục vụ PPTX.
-
-Personal PDF không trích xuất được văn bản: job `FAILED`, `errorCode=PDF_TEXT_REQUIRED`; PDF cần mật khẩu: `PDF_ENCRYPTED`. MVP chưa có OCR. Java phản ánh lỗi qua status API, UI hướng dẫn chọn PDF có lớp văn bản. PDF Teacher chỉ tải xuống nên không bắt buộc lớp văn bản cho RAG.
-
-**Bàn giao implementation:** Java chưa scaffold endpoint/migration; Python mới có health và schema. Khi triển khai, cần test hợp lệ/sai MIME/output schema hai phía, kiểm quyền download PDF, chặn PDF trên Slide/Note/Tutor API và kiểm tra nội dung file ở server. Không xem kiểm tra file trong HTML prototype là validation production.
+Contract mục tiêu theo Course Offering baseline 2.0. Browser chỉ gọi Java tại `/api/v1`; Python chỉ mở `/internal/v1` cho Java.
 
 ## 1. Quy ước chung
 
-- Auth: access JWT ngắn hạn; refresh token luân phiên trong cookie HttpOnly/Secure/SameSite.
-- Role: `STUDENT`, `TEACHER`, `ADMIN`.
-- List API có `page`, `size`, `sort` và filter tường minh.
+- Role: `STUDENT|TEACHER|ADMIN`.
+- Session: access token ngắn hạn; refresh token rotation trong cookie HttpOnly/Secure/SameSite.
+- JSON camelCase; time ISO-8601 UTC; ID opaque UUID/string.
+- List: `{items,page,size,totalItems,totalPages}`; `size <= 100`.
+- Java kiểm role, Teacher ownership, enrollment, document ownership và publication tại application service.
+- Không trả storage key, join-code hash, service token, prompt nội bộ hoặc provider payload.
 - Error envelope:
 
 ```json
 {
-  "code": "DOCUMENT_NOT_READY",
-  "message": "Tài liệu đang được xử lý",
+  "code": "ENROLLMENT_REQUIRED",
+  "message": "Bạn chưa được duyệt vào lớp học phần",
   "details": {},
   "traceId": "req_..."
 }
 ```
 
-- Java kiểm RBAC, membership, assignment, ownership và publication trong application service.
-- Không trả object key, service token, provider payload hoặc raw internal error cho browser.
-
 ## 2. Auth và profile
 
-| Method | Endpoint | Vai trò | Mục đích |
-|---|---|---|---|
-| POST | `/api/v1/auth/register` | Public | Tự đăng ký tài khoản Student; không nhận role từ client |
-| POST | `/api/v1/auth/login` | Public | Đăng nhập |
-| POST | `/api/v1/auth/refresh` | Session | Rotate refresh token |
-| POST | `/api/v1/auth/logout` | Authenticated | Thu hồi phiên |
-| GET/PATCH | `/api/v1/me` | Authenticated | Xem/cập nhật profile |
+| Method | Endpoint | Contract |
+|---|---|---|
+| POST | `/api/v1/auth/register` | `{displayName,email,password}`; Java tạo `STUDENT`; `204`, `409`, `422` |
+| POST | `/api/v1/auth/login` | `{identifier,password}`; `204` + session cookie; `401|403` |
+| POST | `/api/v1/auth/refresh` | Rotate refresh token; `204|401` |
+| POST | `/api/v1/auth/logout` | Revoke idempotent; `204` |
+| GET/PATCH | `/api/v1/me` | `{id,displayName,email,role}`; PATCH không nhận role/status |
 
-Contract FE-M1:
+Frontend không lưu JWT/service credential trong local storage và không nhận role từ form đăng ký.
 
-- `POST /api/v1/auth/register` nhận `{"displayName":"...","email":"...","password":"..."}`; không nhận trường role. Java luôn tạo `STUDENT`, thiết lập session cookie và trả `204`; email trùng trả `409` với error envelope chung.
-- `POST /api/v1/auth/login` nhận `{"identifier":"...","password":"..."}`. Thành công trả `204`, thiết lập session cookie HttpOnly theo chính sách ở trên; sai thông tin trả `401` với error envelope chung. Web không tự nhận hoặc lưu role từ form.
-- `GET /api/v1/me` trả `{"id":"...","displayName":"...","email":"...","role":"STUDENT|TEACHER|ADMIN"}`. Web dùng response này cho route guard; `401` phải điều hướng về `/login`, role không khớp trả giao diện forbidden.
-- `POST /api/v1/auth/logout` trả `204` sau khi thu hồi phiên và xóa cookie. Frontend không giữ JWT/service credential trong local storage.
+## 3. Catalog dùng chung
 
-## 3. Student API
+### Student/Teacher read
 
-### 3.1 Lớp học và học liệu
+- `GET /api/v1/catalog/subjects?status=ACTIVE`
+- `GET /api/v1/catalog/semesters?status=ACTIVE|UPCOMING|CLOSED`
+
+Chỉ trả metadata tối thiểu. Teacher create form chỉ cho chọn Semester `ACTIVE` có `offeringCreationEnabled=true`.
+
+## 4. Student API
+
+### 4.1 Join code và Enrollment
+
+| Method | Endpoint | Input/Output |
+|---|---|---|
+| POST | `/api/v1/student/course-enrollments/join` | `{joinCode}` → `201/200` enrollment `PENDING` |
+| GET | `/api/v1/student/course-enrollments` | filter `semesterId,status`; trả offering + enrollment state |
+| GET | `/api/v1/student/course-offerings` | offering `APPROVED`; filter `ACTIVE|ARCHIVED` |
+| GET | `/api/v1/student/course-offerings/{offeringId}` | Chi tiết lớp khi enrollment cho phép |
+
+Business/error:
+
+- Join code được normalize server-side, không log và không trả ở Student list.
+- `404 JOIN_CODE_NOT_FOUND`; `409 JOIN_DISABLED|COURSE_NOT_JOINABLE|ENROLLMENT_ALREADY_APPROVED`; `422 INVALID_JOIN_CODE`.
+- Request lặp khi đang `PENDING` trả enrollment cũ; trạng thái `REJECTED/REMOVED` chỉ được re-request theo policy Java.
+- Chỉ `APPROVED` truy cập học liệu. `PENDING/REJECTED` chỉ xem trạng thái request.
+
+### 4.2 Học liệu Course Offering
 
 | Method | Endpoint | Quy tắc |
 |---|---|---|
-| GET | `/api/v1/student/classes` | Chỉ lớp Student đang tham gia |
-| GET | `/api/v1/student/classes/{classId}/subjects` | Trả ClassSubject và Teacher |
-| GET | `/api/v1/student/class-subjects/{id}/materials` | Chỉ publication hiệu lực; PPTX trước PDF |
-| GET | `/api/v1/student/materials/{documentId}/slides` | Chỉ PPTX đã public và READY |
-| GET | `/api/v1/student/materials/{documentId}/slides/{number}` | Artifact xem có kiểm quyền |
-| GET | `/api/v1/student/materials/{documentId}/download` | Chỉ PDF public; không cung cấp download PPTX |
+| GET | `/api/v1/student/course-offerings/{offeringId}/materials` | Enrollment `APPROVED`; publication active; PPTX trước PDF |
+| GET | `/api/v1/student/materials/{documentId}/slides` | PPTX public/READY; artifact có kiểm quyền |
+| GET | `/api/v1/student/materials/{documentId}/slides/{number}` | Một artifact/metadata slide |
+| GET | `/api/v1/student/materials/{documentId}/download` | Chỉ PDF public; PPTX trả `403 FILE_TYPE_NOT_DOWNLOADABLE` |
 
-PDF Teacher không có viewer API, Note hoặc Tutor API.
+Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ khi offering `ARCHIVED`, trừ khi `LOCKED`, publication revoked hoặc policy retention chặn.
 
-### 3.2 Slide Note và Tutor
+### 4.3 Slide Note, view event và Tutor
 
-| Method | Endpoint | Mục đích |
-|---|---|---|
-| GET/PUT | `/api/v1/student/materials/{documentId}/slides/{number}/note` | Note của Student hiện tại |
-| POST | `/api/v1/student/materials/{documentId}/slides/{number}/view-events` | Ghi nhận xem slide idempotent |
-| POST | `/api/v1/student/materials/{documentId}/slides/{number}/tutor` | Hỏi đúng Slide/PPTX đang xem |
+- `GET/PUT /api/v1/student/materials/{documentId}/slides/{number}/note`
+- `POST /api/v1/student/materials/{documentId}/slides/{number}/view-events` với `Idempotency-Key`
+- `POST /api/v1/student/materials/{documentId}/slides/{number}/tutor`
+
+Tutor request:
+
+```json
+{"question":"Giải thích khái niệm trên slide này"}
+```
 
 Tutor response:
 
 ```json
 {
-  "status": "ANSWERED",
-  "answer": "...",
-  "citations": [
-    {"documentId": "doc_1", "slideNumber": 12, "excerpt": "..."}
-  ],
-  "traceId": "req_..."
+  "status":"ANSWERED",
+  "answer":"...",
+  "citations":[{"documentId":"doc_1","slideNumber":12,"excerpt":"..."}],
+  "traceId":"req_..."
 }
 ```
 
-`NO_EVIDENCE` được dùng khi không đủ nguồn.
+Thiếu evidence trả `status=NO_EVIDENCE`, `answer=null`, `citations=[]`. Java tự dựng allowed slide scope sau khi kiểm enrollment/publication.
 
-### 3.3 Personal Documents và RAG
+### 4.4 Personal Documents
 
 | Method | Endpoint | Mục đích |
 |---|---|---|
-| POST | `/api/v1/personal-documents` | Upload PDF |
-| GET | `/api/v1/personal-documents` | Danh sách của owner |
+| POST | `/api/v1/personal-documents` | Multipart PDF tối đa 20 MB |
+| GET | `/api/v1/personal-documents` | Danh sách owner, status/page metadata |
 | GET | `/api/v1/personal-documents/{id}/status` | Poll processing |
-| DELETE | `/api/v1/personal-documents/{id}` | Xóa theo lifecycle |
-| POST | `/api/v1/personal-rag/conversations` | Tạo hội thoại với selectedDocumentIds |
-| POST | `/api/v1/personal-rag/conversations/{id}/messages` | Hỏi đáp có citation |
-| GET | `/api/v1/personal-rag/conversations/{id}` | Lịch sử của owner |
-| POST | `/api/v1/personal-rag/conversations/{id}/quizzes` | Trả `202` và Quiz `GENERATING`; sinh bản nháp từ document đã chọn |
+| DELETE | `/api/v1/personal-documents/{id}` | Owner delete lifecycle |
 
-Java bắt buộc xác minh mọi `selectedDocumentIds` thuộc Student và `READY`. Danh sách rỗng hoặc có document không thuộc owner bị từ chối. API này không nhận Teacher Document.
+- Chỉ PDF có text layer. DOCX/PPTX trả `415`; scan/no text → job `FAILED/PDF_TEXT_REQUIRED`; encrypted → `PDF_ENCRYPTED`.
+- Status `UPLOADING|PENDING_PROCESSING|PROCESSING|READY|FAILED|DELETING`.
 
-### 3.4 Tiến độ & Thống kê
+### 4.5 Personal RAG conversation
+
+UX và contract lấy cảm hứng từ evidence-scoped workspace của repo tham khảo nhưng mọi call vẫn qua Java.
+
+#### `POST /api/v1/personal-rag/conversations`
+
+- Input: `{selectedDocumentIds:[...]}` gồm 1–10 ID duy nhất.
+- Preconditions: mọi document thuộc current Student, PDF, `READY` và cùng embedding index version hợp lệ.
+- Output `201`: `{conversationId,title,selectedDocuments,createdAt}`.
+- Errors: `404 DOCUMENT_NOT_FOUND`; `409 DOCUMENT_NOT_READY|EMBEDDING_VERSION_MISMATCH`; `422 INVALID_DOCUMENT_SCOPE`.
+- Side effect: Java lưu snapshot `conversation_documents`; client không tự thêm ID ở message request.
+
+#### `PATCH /api/v1/personal-rag/conversations/{id}`
+
+- Input cho phép `{title?}` hoặc `{selectedDocumentIds?}`.
+- Thay scope phải revalidate toàn bộ owner/READY và chỉ ảnh hưởng message tiếp theo.
+
+#### `POST /api/v1/personal-rag/conversations/{id}/messages`
+
+- Input: `{message}` dài 1–2.000 ký tự; không nhận model/provider/document IDs.
+- Output:
+
+```json
+{
+  "messageId":"msg_...",
+  "status":"ANSWERED",
+  "answer":"...",
+  "citations":[
+    {
+      "documentId":"doc_...",
+      "documentName":"Ghi chú chuẩn hóa dữ liệu.pdf",
+      "pageNumber":12,
+      "excerpt":"..."
+    }
+  ],
+  "traceId":"req_..."
+}
+```
+
+- `NO_EVIDENCE` trả answer an toàn và citations rỗng; không đoán ngoài nguồn.
+- Java load conversation owner/scope, gọi Python, revalidate mọi citation rồi mới lưu User/Assistant messages.
+- Errors: `404`; `409 DOCUMENT_SCOPE_CHANGED`; `422 INVALID_MESSAGE`; `503 AI_SERVICE_UNAVAILABLE`.
+
+#### History
+
+- `GET /api/v1/personal-rag/conversations`
+- `GET /api/v1/personal-rag/conversations/{id}`
+- `DELETE /api/v1/personal-rag/conversations/{id}`
+
+History chỉ owner đọc; response có selected source metadata và messages/citations đã kiểm định, không có prompt/token/Agent Trace.
+
+#### Quiz từ conversation
+
+`POST /api/v1/personal-rag/conversations/{id}/quizzes`
+
+- Input `{questionCount,difficulty}`; Java dùng scope đã lưu, không nhận thêm document IDs.
+- Output `202 {quizId,status:"GENERATING"}`.
+- Python trả draft; Java validate/lưu `REVIEW_REQUIRED`. Không trả Quiz làm ngay trong chat.
+
+### 4.6 Progress, Statistics, Plan và Quiz
 
 - `GET /api/v1/student/progress/overview`
-- `GET /api/v1/student/progress/class-subjects/{id}`
+- `GET /api/v1/student/progress/course-offerings/{offeringId}`
 - `GET /api/v1/student/statistics?from=&to=`
-
-Chỉ số: slide đã xem, tỷ lệ tài liệu Slide, Personal Document, plan item hoàn thành, thời gian/hoạt động và lịch sử Quiz. Không trả Topic Mastery.
-
-### 3.5 Kế hoạch & Lịch
-
-- CRUD `/api/v1/study-plans`
-- CRUD `/api/v1/study-plans/{planId}/items`
+- CRUD `/api/v1/study-plans` và `/api/v1/study-plans/{planId}/items`
 - `GET /api/v1/calendar?from=&to=`
 - `PATCH /api/v1/study-plan-items/{id}/status`
+- `/api/v1/review/quizzes/*` và `/api/v1/review/attempts/*`
 
-Web hiển thị calendar theo bảng tuần (cột ngày, hàng khung giờ). Tạo item gửi `scheduledStart`, `scheduledEnd` hoặc `durationMinutes`; Java validate thời gian và trả cảnh báo conflict nếu trùng lịch. Student là người tạo và chỉnh kế hoạch. Không có endpoint recommendation trong MVP.
+Plan item optional `courseOfferingId`. Java phát hiện conflict. Không có Topic Mastery hoặc recommendation endpoint. Quiz `REVIEW_REQUIRED` phải accept thành `READY`; Java chấm attempt.
 
-### 3.6 Ôn tập và Quiz
+## 5. Teacher API
 
-- `GET /api/v1/review/quizzes`: danh sách Quiz theo status/history của Student.
-- `GET /api/v1/review/quizzes/{quizId}`: bản nháp, câu hỏi và nguồn.
-- `POST /api/v1/review/quizzes/{quizId}/accept`: `REVIEW_REQUIRED → READY`.
-- `POST /api/v1/review/quizzes/{quizId}/reject`: từ chối bản nháp.
-- `POST /api/v1/review/quizzes/{quizId}/attempts`: chỉ Quiz `READY`.
-- `PUT /api/v1/review/attempts/{attemptId}/answers/{questionId}`.
-- `POST /api/v1/review/attempts/{attemptId}/submit`.
-- `GET /api/v1/review/attempts/{attemptId}/result`.
+### 5.1 Course Offering
 
-Request tạo Quiz không trả Quiz làm được ngay: Java kiểm ownership/scope, gọi Python, validate structured questions/sources và lưu `REVIEW_REQUIRED`. Student phải chấp nhận. Java chấm attempt; LLM không chấm điểm.
+| Method | Endpoint | Contract |
+|---|---|---|
+| POST | `/api/v1/teacher/course-offerings` | `{subjectId,semesterId,code?,name?}` → `201` + join code |
+| GET | `/api/v1/teacher/course-offerings` | Chỉ lớp current Teacher; filter semester/status |
+| GET/PATCH | `/api/v1/teacher/course-offerings/{id}` | Owner-only metadata update |
+| POST | `/api/v1/teacher/course-offerings/{id}/archive` | `ACTIVE → ARCHIVED` |
+| POST | `/api/v1/teacher/course-offerings/{id}/join-code/regenerate` | Sinh code mới, vô hiệu code cũ |
+| PATCH | `/api/v1/teacher/course-offerings/{id}/join-code` | `{enabled:boolean}` |
 
-Quiz dùng `MCQ_SINGLE`: mỗi câu có nhiều lựa chọn và đúng một `correctOptionIndex`. Sinh thành công chuyển `GENERATING → REVIEW_REQUIRED`; lỗi chuyển `GENERATION_FAILED`. Answer API nhận một `selectedOptionId`; Java so sánh trực tiếp với answer key.
+- Không nhận `teacherId` từ client.
+- `409 SEMESTER_NOT_ACTIVE|COURSE_CODE_EXISTS|COURSE_LOCKED`; `404` nếu không phải owner.
+- Join code chỉ hiển thị cho Teacher owner/Admin phù hợp; không xuất hiện trong log.
 
-## 4. Teacher API
+### 5.2 Enrollment management
 
-### 4.1 Phạm vi giảng dạy
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET | `/api/v1/teacher/course-offerings/{id}/enrollments` | filter `PENDING|APPROVED|REJECTED|REMOVED` |
+| POST | `/api/v1/teacher/enrollments/{enrollmentId}/approve` | Owner; `PENDING → APPROVED` |
+| POST | `/api/v1/teacher/enrollments/{enrollmentId}/reject` | Owner; optional safe reason |
+| POST | `/api/v1/teacher/enrollments/approve-batch` | `{courseOfferingId,enrollmentIds}` all-or-nothing |
+| DELETE | `/api/v1/teacher/enrollments/{enrollmentId}` | `APPROVED → REMOVED`, giữ history |
 
-- `GET /api/v1/teacher/class-subjects`
-- `GET /api/v1/teacher/class-subjects/{id}/students`: danh sách Student read-only của ClassSubject được phân công; không trả dữ liệu học tập cá nhân.
+Student list chỉ trả account metadata tối thiểu; không trả Personal Documents, Note, chat, plan, Quiz result hoặc progress cá nhân.
 
-Teacher chỉ nhận ClassSubject đang được phân công.
+### 5.3 Teacher Library và publication
 
-### 4.2 Kho tài liệu
-
-- `POST /api/v1/teacher/documents`: upload PDF/PPTX.
-- `GET /api/v1/teacher/documents`
-- `GET /api/v1/teacher/documents/{id}`
+- `POST/GET /api/v1/teacher/documents`
+- `GET/PATCH/DELETE /api/v1/teacher/documents/{id}`
 - `GET /api/v1/teacher/documents/{id}/status`
-- `DELETE /api/v1/teacher/documents/{id}`
-
-Upload response trả `documentId`, `processingStatus`, `fileType`; không trả storage key.
-
-### 4.3 Public và thu hồi
-
-- `POST /api/v1/teacher/documents/{documentId}/publications`
-- `GET /api/v1/teacher/documents/{documentId}/publications`
+- `POST /api/v1/teacher/documents/{id}/retry`
+- `POST /api/v1/teacher/documents/{id}/publications`
+- `GET /api/v1/teacher/documents/{id}/publications`
 - `DELETE /api/v1/teacher/publications/{publicationId}`
 
-Request public chứa `classSubjectIds`. Java kiểm document owner, trạng thái và Teacher assignment cho từng ID. PPTX chưa READY không được public. PDF public để Student tải xuống; chỉ PPTX có Viewer/Note/Tutor.
+Publication input `{courseOfferingIds:[...]}`. Java kiểm document owner + mọi offering owner/status. PPTX phải READY; PDF READY chỉ download. Re-public re-activate row cũ.
 
-## 5. Admin API
+## 6. Admin API
 
 - Dashboard: `GET /api/v1/admin/dashboard`.
-- Users/roles: CRUD/status dưới `/api/v1/admin/users`.
-- Classes/membership: `/api/v1/admin/classes`, `/students`.
-- Subjects: `/api/v1/admin/subjects`.
-- ClassSubjects/assignment: `/api/v1/admin/class-subjects`, `PATCH .../{id}/teacher`.
-- Feedback/reports: `/api/v1/admin/feedback-reports`.
+- Users/roles/status: `/api/v1/admin/users`.
+- Subjects CRUD: `/api/v1/admin/subjects`.
+- Semesters CRUD/status: `/api/v1/admin/semesters`.
+- Monitoring: `GET /api/v1/admin/course-offerings`, `GET .../{id}`.
+- Enforcement: `POST .../{id}/lock`, `POST .../{id}/archive`.
+- Feedback: `/api/v1/admin/feedback-reports`.
 - Audit: `GET /api/v1/admin/system-logs`.
 - Settings: `GET/PATCH /api/v1/admin/system-settings`.
 
-Admin API không có màn quản trị pgvector/RAG và không mặc định đọc Personal Document, chat, plan hoặc kết quả Quiz cá nhân.
+Admin không có endpoint tạo/phân công Teacher cho Course Offering và không cần approve lớp. Admin không mặc định đọc Personal Document/chat/Note/plan/Quiz result.
 
-## 6. Internal Java → Python API
+## 7. Internal Java → Python API
 
-Header chung:
+Header:
 
 ```text
 Authorization: Bearer <service-token>
 X-Request-Id: req_...
 X-Schema-Version: 2
-Idempotency-Key: ...   # với job mutation
+Idempotency-Key: ...   # index/deindex
 ```
 
-| Endpoint | Request chính | Response chính |
+| Endpoint | Request | Response |
 |---|---|---|
-| POST `/internal/v1/documents/index` | document/version, pipelineType, ownerId?, signedFileUrl, mimeType | `202 {requestId, jobId, status}` |
-| POST `/internal/v1/documents/deindex` | document/version/pipelineType | Job idempotent |
-| GET `/internal/v1/jobs/{jobId}` | Job ID | status, attempts, errorCode |
-| POST `/internal/v1/personal-rag/ask` | userId, authorizedDocumentIds, question, conversationId? | answer/NO_EVIDENCE, citations |
-| POST `/internal/v1/quizzes/generate` | userId, authorizedDocumentIds, questionCount, difficulty? | `MCQ_SINGLE` questions, options, `correctOptionIndex`, explanation + sources |
-| POST `/internal/v1/slides/ask` | userId, documentId, allowedSlideNumbers/currentSlide, question | answer/NO_EVIDENCE, slide citations |
-| GET `/internal/v1/health` | Header chung | Liveness/readiness rút gọn |
+| POST `/internal/v1/documents/index` | document/version, pipeline, owner?, signed URL, MIME | `202 {requestId,jobId,status}` |
+| POST `/internal/v1/documents/deindex` | document/version/pipeline | Idempotent job |
+| GET `/internal/v1/jobs/{jobId}` | job ID | status/attempt/error/artifact metadata |
+| POST `/internal/v1/personal-rag/ask` | userId, conversationId, authorized documents, message | answer/NO_EVIDENCE + page citations |
+| POST `/internal/v1/slides/ask` | user/document/current/allowed slides/question | answer/NO_EVIDENCE + slide citations |
+| POST `/internal/v1/quizzes/generate` | user/conversation/authorized docs/count/difficulty | Structured `MCQ_SINGLE` draft |
+| GET `/internal/v1/health` | common headers | Liveness/readiness |
 
-Job mutation trả `202` với `requestId`, `jobId` và trạng thái hiện tại. Gửi lại cùng `Idempotency-Key` và cùng mutation trả đúng job đã có; dùng lại key cho document/version/pipeline/operation khác trả `409 IDEMPOTENCY_CONFLICT`. Thiếu key trả `422 IDEMPOTENCY_KEY_REQUIRED`. Job polling không trả signed URL, nội dung tài liệu hoặc provider payload.
+### Grounding contract
 
-### Index pipeline
+- Retrieval filter được đẩy xuống repository theo document/version/owner/source; filter lại sau retrieval để defense in depth.
+- Citation được dựng từ retrieved chunk, deduplicate và validate document/location/excerpt bằng code.
+- Document content được delimit và xem là untrusted evidence, không phải instruction.
+- Khi evidence thiếu, trả `NO_EVIDENCE` mà không gọi model để bịa.
+- Reviewer nếu dùng chỉ đánh giá grounding và retry tối đa hai lần; không được mở rộng scope.
+- Python response không trả provider payload, prompt, token hoặc user-visible Agent Trace.
 
-- `PERSONAL_RAG`: chỉ PDF Personal; ownerId bắt buộc.
-- `TEACHER_SLIDE`: chỉ PPTX Teacher; tạo render/extracted text/chunk cho viewer và Tutor.
-- PDF Teacher không gọi AI indexing.
+## 8. Timeout, retry và versioning
 
-### Citation và scope
-
-- Personal citation: `documentId`, `pageNumber`, `excerpt`.
-- Slide citation: `documentId`, `slideNumber`, `excerpt`.
-- Python filter active version và đúng source type.
-- Java đối chiếu mọi document/citation với scope đã cấp trước khi trả browser.
-- Personal RAG không nhận Teacher Document ID; Slide AI Tutor không nhận Personal Document ID.
-- Quiz generation chỉ nhận Personal Document ID đã được Java xác thực; mỗi câu hỏi phải có source thuộc scope.
-
-## 7. Timeout, retry và versioning
-
-- GET/poll retry với backoff giới hạn.
-- Index/deindex retry nhờ idempotency key `documentId:version:pipeline:operation`.
-- Không tự động retry request LLM sau timeout nếu có nguy cơ tạo request trùng.
-- Thay đổi wire shape cần tăng schema version, cập nhật tài liệu và contract test hai phía.
-- Internal error không chứa nội dung file, prompt hoặc provider payload.
+- Poll/job GET retry có backoff giới hạn.
+- Index/deindex key: `documentId:version:pipeline:operation`.
+- Không retry mù LLM request sau timeout; Java dùng request/run identity để chống tạo duplicate Quiz/message.
+- Thay wire shape phải tăng schema version và cập nhật contract test Java/Python.
+- Job polling không trả signed URL/content; internal error chỉ có safe code + trace ID.

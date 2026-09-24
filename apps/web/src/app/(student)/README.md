@@ -1,3 +1,3 @@
 # Student routes
 
-Dashboard, Class/Subject materials, Slide Viewer, Personal Documents/RAG, Progress & Statistics, Plan & Calendar tuần và Ôn tập/Quiz.
+Dashboard, Course Offering/Enrollment, materials, Slide Viewer, Personal Documents/RAG, Progress, Plan/Calendar và Quiz.

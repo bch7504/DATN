@@ -1,3 +1,3 @@
 # Admin dashboard
 
-User, role, class, subject và assignment overview.
+User, role, Subject, Semester và Course Offering operational overview.

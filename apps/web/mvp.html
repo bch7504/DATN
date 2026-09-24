@@ -2395,7 +2395,7 @@
             </span>
           </div>
           <h1>Học đúng tài liệu, đúng phạm vi.</h1>
-          <p>ClassSubject, Personal RAG, Slide AI Tutor, Lịch tuần và AI Quiz trong một luồng quản lý ôn thi xuyên suốt.
+          <p>Course Offering, Personal RAG, Slide AI Tutor, Lịch tuần và AI Quiz trong một luồng quản lý ôn thi xuyên suốt.
           </p>
           <div class="auth-tags">
             <span>Student Workspace</span>
@@ -2438,7 +2438,7 @@
             </span>
             <span>
               <b>Teacher Demo</b>
-              <small>Kho học liệu, ClassSubject & Quản lý publication</small>
+              <small>Tự tạo lớp, duyệt Enrollment & Quản lý publication</small>
             </span>
             <strong>→</strong>
           </button>
@@ -2451,7 +2451,7 @@
             </span>
             <span>
               <b>Admin Demo</b>
-              <small>Quản trị User, Lớp/Môn, Phân công & Audit logs</small>
+              <small>Quản trị User, Subject/Semester, giám sát lớp & Audit</small>
             </span>
             <strong>→</strong>
           </button>
@@ -2543,7 +2543,7 @@
             </div>
             <div class="actions">
               <button class="button" data-page="student-plan">Xem lịch tuần</button>
-              <button class="button primary" data-page="student-classes">Vào lớp học</button>
+              <button class="button primary" data-page="student-course-offerings">Vào lớp học phần</button>
             </div>
           </div>
 
@@ -2667,60 +2667,47 @@
           </div>
         </section>
 
-        <!-- STUDENT: Classes & Subjects -->
-        <section class="page" id="page-student-classes" hidden>
+        <!-- STUDENT: Course Offerings & Enrollment -->
+        <section class="page" id="page-student-course-offerings" hidden>
           <div class="page-head">
             <div>
-              <h1>Lớp học & Môn học</h1>
-              <p>Chọn lớp, sau đó chọn môn để truy cập toàn bộ học liệu do giáo viên phụ trách public.</p>
+              <h1>Lớp học phần</h1>
+              <p>Tham gia bằng join code và chỉ mở học liệu sau khi Teacher duyệt Enrollment.</p>
             </div>
           </div>
-          <div class="callout">
-            <div>
-              <b>Quy tắc MVP: Không phân chia Chapter / Topic phức tạp</b>
-              <small>Học liệu được giáo viên public trực tiếp cho ClassSubject để sinh viên tiếp cận nhanh nhất.</small>
-            </div>
-            <span class="status">Đúng kiến trúc</span>
-          </div>
-          <div class="grid g2">
-            <article class="panel class-card">
-              <span class="class-code">KTPM-K21</span>
-              <h3>Kỹ thuật phần mềm · Khóa 21</h3>
-              <p>42 sinh viên · Học kỳ 1 · Năm học 2026–2027</p>
-              <div class="subject-list">
-                <div class="subject">
-                  <span>DB</span>
-                  <span>
-                    <b>Cơ sở dữ liệu</b>
-                    <small>Cô Lan Hoàng · 3 tài liệu public</small>
-                  </span>
-                  <button class="button soft" data-open-materials>Mở môn</button>
-                </div>
-                <div class="subject">
-                  <span>WB</span>
-                  <span>
-                    <b>Lập trình Web</b>
-                    <small>Thầy Nam Phạm · 2 tài liệu public</small>
-                  </span>
-                  <button class="button" data-open-materials>Mở môn</button>
-                </div>
+          <article class="panel pad" style="margin-bottom:18px;background:linear-gradient(135deg,#8f1018,#d71920);color:white">
+            <div class="panel-head">
+              <div>
+                <h3>Tham gia Course Offering mới</h3>
+                <p style="color:#ffe4e6">Nhập mã do giảng viên cung cấp. Yêu cầu sẽ ở trạng thái PENDING.</p>
               </div>
+            </div>
+            <div class="actions">
+              <input aria-label="Join code" placeholder="Ví dụ: AI7X92" maxlength="12" style="max-width:260px;text-transform:uppercase;letter-spacing:.12em">
+              <button class="button" data-action="join">Gửi yêu cầu tham gia</button>
+            </div>
+          </article>
+          <div class="grid g3">
+            <article class="panel class-card">
+              <span class="class-code">DBI-01</span>
+              <span class="status">APPROVED</span>
+              <h3>Cơ sở dữ liệu</h3>
+              <p>Cô Lan Hoàng · HK1 · 2026–2027</p>
+              <button class="button soft" data-open-materials style="margin-top:16px;width:100%">Mở lớp học phần</button>
             </article>
-
             <article class="panel class-card">
-              <span class="class-code">AI-CLUB</span>
-              <h3>Lớp chuyên đề AI & Khoa học Dữ liệu</h3>
-              <p>28 sinh viên · Học kỳ 1 · Năm học 2026–2027</p>
-              <div class="subject-list">
-                <div class="subject">
-                  <span>ML</span>
-                  <span>
-                    <b>Machine Learning</b>
-                    <small>Thầy Huy Nguyễn · 2 tài liệu public</small>
-                  </span>
-                  <button class="button" data-open-materials>Mở môn</button>
-                </div>
-              </div>
+              <span class="class-code">AI-02</span>
+              <span class="status processing">PENDING</span>
+              <h3>Trí tuệ nhân tạo</h3>
+              <p>Thầy Huy Nguyễn · Chờ Teacher duyệt</p>
+              <button class="button" disabled style="margin-top:16px;width:100%">Chưa thể xem học liệu</button>
+            </article>
+            <article class="panel class-card">
+              <span class="class-code">WEB-23</span>
+              <span class="status">ARCHIVED</span>
+              <h3>Lập trình Web</h3>
+              <p>Thầy Nam Phạm · HK2 · 2025–2026</p>
+              <button class="button" data-action="history" style="margin-top:16px;width:100%">Xem lịch sử lớp</button>
             </article>
           </div>
         </section>
@@ -2729,11 +2716,11 @@
         <section class="page" id="page-student-materials" hidden>
           <div class="page-head">
             <div>
-              <h1>Cơ sở dữ liệu · KTPM-K21</h1>
-              <p>Giáo viên: Cô Lan Hoàng · PPTX luôn xếp trước PDF theo kịch bản demo.</p>
+              <h1>Cơ sở dữ liệu · DBI-01</h1>
+              <p>Enrollment APPROVED · Giáo viên: Cô Lan Hoàng · HK1 2026–2027.</p>
             </div>
             <div class="actions">
-              <button class="button" data-page="student-classes">← Đổi môn học</button>
+              <button class="button" data-page="student-course-offerings">← Đổi lớp học phần</button>
             </div>
           </div>
           <div class="callout">
@@ -2889,18 +2876,30 @@
 
           <div id="personal-chat" hidden>
             <div class="grid layout">
+              <aside class="panel pad">
+                <div class="panel-head">
+                  <div><h3>Evidence scope</h3><p>2 Personal PDF · owner verified</p></div>
+                  <button class="button" data-personal-tab-jump="library">Đổi nguồn</button>
+                </div>
+                <div class="cards">
+                  <div class="item-card"><span class="item-icon">PDF</span><span><b>Đề cương ôn tập</b><small>READY · version 3</small></span><span class="status">✓</span></div>
+                  <div class="item-card"><span class="item-icon" style="color:var(--blue);background:var(--blue-bg)">PDF</span><span><b>Ghi chú Transaction</b><small>READY · version 1</small></span><span class="status">✓</span></div>
+                </div>
+                <div class="callout" style="margin:16px 0 0"><div><b>Conversation history</b><small>Chuẩn hóa dữ liệu · đang mở<br>SQL nâng cao · hôm qua</small></div></div>
+                <button class="button" data-action="new-conversation" style="width:100%;margin-top:12px">+ Cuộc trò chuyện mới</button>
+              </aside>
               <article class="panel chat-shell">
                 <div class="chat-context">
-                  <b>2 Personal Documents đã được Java xác minh phạm vi:</b>
+                  <b>Hỏi đáp theo nguồn · Java đã xác minh 2 document/version</b>
                   <div class="selected-docs">
-                    <span class="chip green">Đề cương ôn tập CSDL.pdf</span>
-                    <span class="chip green">Ghi chú Transaction.pdf</span>
+                    <span class="chip green">Không dùng Teacher Documents</span>
+                    <span class="chip">trace: demo-rag-018</span>
                   </div>
                 </div>
                 <div class="chat" id="ragChat">
                   <div class="message">
-                    Xin chào Minh! Mình là trợ lý AI được cấp quyền tra cứu trên 2 tài liệu cá nhân bạn đã chọn. Mình sẽ
-                    luôn trích dẫn nguồn chính xác theo trang hoặc mục.
+                    Hãy hỏi điều bạn cần tìm hiểu. Tôi chỉ dùng evidence trong các PDF đã chọn; thiếu bằng chứng sẽ trả
+                    <b>NO_EVIDENCE</b> thay vì suy đoán.
                   </div>
                   <div class="message user">
                     Giải thích tính cô lập (Isolation) của transaction?
@@ -2909,12 +2908,12 @@
                     Tính cô lập (Isolation) đảm bảo các transaction thực thi đồng thời không can thiệp hay nhìn thấy
                     trạng thái trung gian của nhau. Mức độ cô lập (Isolation level) quyết định những hiện tượng đọc nào
                     được phép xảy ra.
-                    <div class="citation">Đề cương ôn tập CSDL.pdf · Trang 12</div>
-                    <div class="citation">Ghi chú Transaction.pdf · Trang 3</div>
+                    <details class="citation"><summary>Đề cương ôn tập CSDL.pdf · Trang 12</summary><p>“Transaction đồng thời không nhìn thấy trạng thái trung gian của nhau.”</p></details>
+                    <details class="citation"><summary>Ghi chú Transaction.pdf · Trang 3</summary><p>Citation được gắn với claim về mức cô lập.</p></details>
                   </div>
                 </div>
                 <form class="composer" id="ragForm">
-                  <input id="ragInput" placeholder="Hỏi nội dung trên tài liệu cá nhân đã chọn...">
+                  <input id="ragInput" placeholder="Hỏi nội dung trong các tài liệu đã chọn...">
                   <button class="send" title="Gửi câu hỏi">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <line x1="22" x2="11" y1="2" y2="13" />
@@ -2922,38 +2921,10 @@
                     </svg>
                   </button>
                 </form>
+                <small style="display:block;padding:0 18px 14px;color:var(--muted)">Đang truy xuất → đối chiếu từng claim với đúng context đã dùng · Không có model selector hoặc Agent Trace</small>
               </article>
-              <aside class="panel pad">
-                <div class="panel-head">
-                  <div>
-                    <h3>Scope hiện tại</h3>
-                    <p>PERSONAL_RAG</p>
-                  </div>
-                </div>
-                <div class="cards">
-                  <div class="item-card">
-                    <span class="item-icon">PDF</span>
-                    <span>
-                      <b>Đề cương ôn tập</b>
-                      <small>Owner verified · READY</small>
-                    </span>
-                  </div>
-                  <div class="item-card">
-                    <span class="item-icon" style="color:var(--blue);background:var(--blue-bg)">DOC</span>
-                    <span>
-                      <b>Ghi chú Transaction</b>
-                      <small>Owner verified · READY</small>
-                    </span>
-                  </div>
-                </div>
-                <button class="button primary" id="generateQuiz" style="width:100%;margin-top:18px">Sinh Quiz từ 2 tài
-                  liệu</button>
-                <p style="margin:10px 0 0;color:var(--muted);font-size:12.5px;line-height:1.45">
-                  Quiz do AI sinh sẽ chuyển sang mục <b>Ôn tập</b> với trạng thái chờ duyệt
-                  (<code>REVIEW_REQUIRED</code>) để bạn kiểm tra trước khi làm.
-                </p>
-              </aside>
             </div>
+            <div class="actions" style="justify-content:flex-end;margin-top:12px"><button class="button primary" id="generateQuiz">Sinh Quiz từ 2 nguồn đã chọn</button></div>
           </div>
         </section>
 
@@ -2962,7 +2933,7 @@
           <div class="page-head">
             <div>
               <h1>Thiết kế ERD và mô hình quan hệ</h1>
-              <p>KTPM-K21 · Cơ sở dữ liệu · Học liệu PPTX giáo viên public</p>
+              <p>DBI-01 · Enrollment APPROVED · PPTX đang được Teacher public</p>
             </div>
             <div class="actions">
               <button class="button" data-page="student-materials">← Danh sách tài liệu</button>
@@ -2989,12 +2960,12 @@
             <aside class="viewer-ai">
               <div class="viewer-ai-head">
                 <b>Slide AI Tutor</b>
-                <small>Ngữ cảnh giới hạn trong tài liệu PPTX hiện tại</small>
+                <small>Current slide + PPTX được phép · thiếu nguồn trả NO_EVIDENCE</small>
               </div>
               <div class="chat" id="slideChat">
                 <div class="message">
-                  Bạn đang xem Slide 1. Hãy đặt câu hỏi nếu cần giải thích thuật ngữ, mình sẽ trả lời kèm citation trong
-                  bài giảng này!
+                  Bạn đang xem Slide 1. Hãy hỏi nội dung chưa rõ; mỗi claim phải có citation đúng slide và không dùng
+                  kiến thức ngoài bài giảng.
                 </div>
               </div>
               <form class="composer" id="slideForm">
@@ -3448,7 +3419,7 @@
           <div class="page-head">
             <div>
               <h1>Xin chào, cô Lan Hoàng.</h1>
-              <p>Quản lý kho học liệu giảng dạy và phân phối đúng các lớp/môn được phân công.</p>
+              <p>Tự tạo lớp học phần, duyệt Enrollment và phân phối học liệu vào lớp bạn sở hữu.</p>
             </div>
             <div class="actions">
               <button class="button primary" data-page="teacher-library">Upload tài liệu mới</button>
@@ -3456,7 +3427,7 @@
           </div>
           <article class="panel hero">
             <span class="kicker">Teacher Workspace</span>
-            <h2>Một file trong kho, linh hoạt public tới nhiều ClassSubject.</h2>
+            <h2>Một file trong kho, linh hoạt public tới nhiều Course Offering của bạn.</h2>
             <p>Tài liệu upload vào kho cá nhân sẽ ở trạng thái riêng tư cho đến khi giáo viên chủ động tạo publication.
             </p>
             <button class="button" data-page="teacher-publications">Quản lý Publications →</button>
@@ -3475,7 +3446,7 @@
                 <span class="trend">ACTIVE</span>
               </div>
               <h3>2</h3>
-              <p>Lớp phụ trách</p>
+              <p>Course Offering sở hữu</p>
             </article>
             <article class="panel stat">
               <div class="stat-top">
@@ -3487,7 +3458,7 @@
                 <span class="trend" style="color:var(--blue);background:var(--blue-bg)">HK 1 · 26-27</span>
               </div>
               <h3>3</h3>
-              <p>ClassSubjects</p>
+              <p>Enrollment chờ duyệt</p>
             </article>
             <article class="panel stat">
               <div class="stat-top">
@@ -3518,49 +3489,70 @@
           </div>
         </section>
 
-        <!-- TEACHER: Assignments -->
-        <section class="page" id="page-teacher-assignments" hidden>
+        <!-- TEACHER: Course Offerings -->
+        <section class="page" id="page-teacher-course-offerings" hidden>
           <div class="page-head">
             <div>
-              <h1>Lớp / Môn phụ trách</h1>
-              <p>Danh sách ClassSubject do Admin phân công; quyết định phạm vi giáo viên được phép public học liệu.</p>
+              <h1>Lớp học phần của tôi</h1>
+              <p>Teacher tự tạo Course Offering từ Subject + Semester active và quản lý join code.</p>
             </div>
+            <div class="actions"><button class="button primary" data-action="create-offering">+ Tạo lớp học phần</button></div>
           </div>
           <div class="grid g3">
             <article class="panel class-card">
-              <span class="class-code">KTPM-K21</span>
+              <span class="class-code">DBI-01</span>
+              <span class="status">OPEN</span>
               <h3>Cơ sở dữ liệu</h3>
-              <p>42 sinh viên · Học kỳ 1 · 2026–2027</p>
+              <p>42 approved · 3 pending · HK1 2026–2027</p>
               <div class="mini-progress">
-                <span><b>Tài liệu đang public</b><b>3 tài liệu</b></span>
+                <span><b>Join code</b><b>DB7K2A</b></span>
                 <div class="progress"><i style="width:60%"></i></div>
               </div>
-              <button class="button soft" data-page="teacher-publications" style="margin-top:16px;width:100%">Quản lý
-                publication</button>
+              <button class="button soft" data-action="rotate-code" style="margin-top:16px;width:100%">Sao chép / Tạo lại mã</button>
             </article>
             <article class="panel class-card">
-              <span class="class-code">HTTT-K20</span>
-              <h3>Cơ sở dữ liệu</h3>
-              <p>38 sinh viên · Học kỳ 1 · 2026–2027</p>
+              <span class="class-code">AI-02</span>
+              <span class="status">OPEN</span>
+              <h3>Trí tuệ nhân tạo</h3>
+              <p>38 approved · 5 pending · HK1 2026–2027</p>
               <div class="mini-progress">
-                <span><b>Tài liệu đang public</b><b>2 tài liệu</b></span>
+                <span><b>Join code</b><b>AI7X92</b></span>
                 <div class="progress"><i style="width:40%"></i></div>
               </div>
-              <button class="button soft" data-page="teacher-publications" style="margin-top:16px;width:100%">Quản lý
-                publication</button>
+              <button class="button soft" data-action="rotate-code" style="margin-top:16px;width:100%">Sao chép / Tạo lại mã</button>
             </article>
             <article class="panel class-card">
-              <span class="class-code">KTPM-K21</span>
-              <h3>Phân tích thiết kế hệ thống</h3>
-              <p>42 sinh viên · Học kỳ 1 · 2026–2027</p>
+              <span class="class-code">WEB-23</span>
+              <span class="status processing">ARCHIVED</span>
+              <h3>Lập trình Web</h3>
+              <p>40 approved · HK2 2025–2026</p>
               <div class="mini-progress">
-                <span><b>Tài liệu đang public</b><b>3 tài liệu</b></span>
+                <span><b>Lịch sử được giữ</b><b>5 tài liệu</b></span>
                 <div class="progress"><i style="width:60%"></i></div>
               </div>
-              <button class="button soft" data-page="teacher-publications" style="margin-top:16px;width:100%">Quản lý
-                publication</button>
+              <button class="button" data-action="offering-history" style="margin-top:16px;width:100%">Xem lịch sử</button>
             </article>
           </div>
+        </section>
+
+        <!-- TEACHER: Enrollment Requests -->
+        <section class="page" id="page-teacher-enrollments" hidden>
+          <div class="page-head">
+            <div>
+              <h1>Yêu cầu tham gia lớp</h1>
+              <p>Chỉ Teacher sở hữu Course Offering được APPROVE hoặc REJECT Enrollment PENDING.</p>
+            </div>
+          </div>
+          <article class="panel table-wrap">
+            <table>
+              <thead><tr><th>Student</th><th>Mã sinh viên</th><th>Course Offering</th><th>Trạng thái</th><th>Quyết định</th></tr></thead>
+              <tbody>
+                <tr><td><b>Nguyễn Thu Hà</b></td><td>B21DCCN024</td><td>DBI-01</td><td><span class="status processing">PENDING</span></td><td><button class="button" data-action="reject">Từ chối</button> <button class="button soft" data-action="approve">Duyệt</button></td></tr>
+                <tr><td><b>Trần Đức Long</b></td><td>B21DCCN081</td><td>AI-02</td><td><span class="status processing">PENDING</span></td><td><button class="button" data-action="reject">Từ chối</button> <button class="button soft" data-action="approve">Duyệt</button></td></tr>
+                <tr><td><b>Lê Minh Tú</b></td><td>B22DCCN011</td><td>DBI-01</td><td><span class="status processing">PENDING</span></td><td><button class="button" data-action="reject">Từ chối</button> <button class="button soft" data-action="approve">Duyệt</button></td></tr>
+              </tbody>
+            </table>
+          </article>
         </section>
 
         <!-- TEACHER: Library -->
@@ -3598,7 +3590,7 @@
                   </td>
                   <td>Slide PPTX</td>
                   <td><span class="status">READY</span></td>
-                  <td>2 ClassSubjects</td>
+                  <td>2 Course Offerings</td>
                   <td><button class="button soft" data-open-publish>Tạo Public</button></td>
                 </tr>
                 <tr>
@@ -3613,7 +3605,7 @@
                   </td>
                   <td>Giáo trình PDF</td>
                   <td><span class="status">READY</span></td>
-                  <td>1 ClassSubject</td>
+                  <td>1 Course Offering</td>
                   <td><button class="button soft" data-open-publish>Tạo Public</button></td>
                 </tr>
                 <tr>
@@ -3656,7 +3648,7 @@
           <div class="page-head">
             <div>
               <h1>Phân phối học liệu (Publications)</h1>
-              <p>Chỉ được public vào các ClassSubject giáo viên đang được Admin phân công giảng dạy.</p>
+              <p>Chỉ được public vào các Course Offering do chính Teacher sở hữu.</p>
             </div>
             <div class="actions">
               <button class="button primary" data-open-publish>+ Tạo Publication</button>
@@ -3674,7 +3666,7 @@
               <thead>
                 <tr>
                   <th>Tài liệu phân phối</th>
-                  <th>Lớp + Môn học</th>
+                  <th>Course Offering</th>
                   <th>Người thực hiện</th>
                   <th>Trạng thái</th>
                   <th>Thao tác</th>
@@ -3683,21 +3675,21 @@
               <tbody>
                 <tr>
                   <td><b>Thiết kế ERD và mô hình quan hệ.pptx</b></td>
-                  <td>KTPM-K21 · Cơ sở dữ liệu</td>
+                  <td>DBI-01 · Cơ sở dữ liệu</td>
                   <td>Lan Hoàng</td>
                   <td><span class="status">PUBLISHED</span></td>
                   <td><button class="button warn" data-revoke>Thu hồi</button></td>
                 </tr>
                 <tr>
                   <td><b>Thiết kế ERD và mô hình quan hệ.pptx</b></td>
-                  <td>HTTT-K20 · Cơ sở dữ liệu</td>
+                  <td>DBI-02 · Cơ sở dữ liệu</td>
                   <td>Lan Hoàng</td>
                   <td><span class="status">PUBLISHED</span></td>
                   <td><button class="button warn" data-revoke>Thu hồi</button></td>
                 </tr>
                 <tr>
                   <td><b>Giáo trình Cơ sở dữ liệu.pdf</b></td>
-                  <td>KTPM-K21 · Cơ sở dữ liệu</td>
+                  <td>DBI-01 · Cơ sở dữ liệu</td>
                   <td>Lan Hoàng</td>
                   <td><span class="status">PUBLISHED</span></td>
                   <td><button class="button warn" data-revoke>Thu hồi</button></td>
@@ -3712,11 +3704,11 @@
           <div class="page-head">
             <div>
               <h1>Tổng quan Quản trị Hệ thống</h1>
-              <p>Quản trị tài khoản, danh mục lớp/môn học, phân công giảng dạy và vận hành nền tảng.</p>
+              <p>Quản trị tài khoản, Subject/Semester và giám sát Course Offering do Teacher tự tạo.</p>
             </div>
             <div class="actions">
               <button class="button" data-page="admin-logs">Xem Audit Logs</button>
-              <button class="button primary" data-page="admin-academics">Quản lý Lớp & Môn</button>
+              <button class="button primary" data-page="admin-catalog">Môn học & Học kỳ</button>
             </div>
           </div>
           <div class="callout">
@@ -3764,7 +3756,7 @@
                 <span class="trend" style="color:var(--purple);background:var(--purple-bg)">Năm 2026</span>
               </div>
               <h3>12</h3>
-              <p>Lớp học tổ chức</p>
+              <p>Subject đang active</p>
             </article>
             <article class="panel stat">
               <div class="stat-top">
@@ -3776,10 +3768,10 @@
                     <path d="M4 4v16" />
                   </svg>
                 </span>
-                <span class="trend" style="color:var(--amber);background:var(--amber-bg)">3 chưa gán</span>
+                <span class="trend" style="color:var(--amber);background:var(--amber-bg)">Teacher tự tạo</span>
               </div>
               <h3>36</h3>
-              <p>ClassSubjects mở</p>
+              <p>Course Offerings mở</p>
             </article>
           </div>
         </section>
@@ -3857,55 +3849,24 @@
           </article>
         </section>
 
-        <!-- ADMIN: Academics -->
-        <section class="page" id="page-admin-academics" hidden>
+        <!-- ADMIN: Catalog & Course Offering monitoring -->
+        <section class="page" id="page-admin-catalog" hidden>
           <div class="page-head">
             <div>
-              <h1>Lớp học & Danh mục Môn học</h1>
-              <p>Quản lý thực thể Class, môn học Subject, ClassSubject và phân công Teacher.</p>
+              <h1>Môn học, Học kỳ & Giám sát lớp</h1>
+              <p>Admin quản lý Subject/Semester và giám sát Course Offering; không tạo hay phân công từng lớp.</p>
             </div>
             <div class="actions">
               <button class="button" data-action="subject">+ Tạo môn học</button>
-              <button class="button primary" data-action="class">+ Tạo lớp học mới</button>
+              <button class="button primary" data-action="semester">+ Tạo học kỳ</button>
             </div>
           </div>
           <div class="grid g2">
-            <article class="panel class-card">
-              <span class="class-code">KTPM-K21</span>
-              <h3>Kỹ thuật phần mềm · Khóa 21</h3>
-              <p>42 Sinh viên · 3 ClassSubjects đang mở</p>
-              <div class="subject-list">
-                <div class="subject">
-                  <span>DB</span>
-                  <span>
-                    <b>Cơ sở dữ liệu</b>
-                    <small>Giảng viên: Lan Hoàng</small>
-                  </span>
-                  <button class="button" data-action="assign">Đổi Teacher</button>
-                </div>
-                <div class="subject">
-                  <span>WB</span>
-                  <span>
-                    <b>Lập trình Web</b>
-                    <small>Giảng viên: Nam Phạm</small>
-                  </span>
-                  <button class="button" data-action="assign">Đổi Teacher</button>
-                </div>
-                <div class="subject">
-                  <span>AI</span>
-                  <span>
-                    <b>Trí tuệ nhân tạo</b>
-                    <small style="color:var(--amber-text)">Chưa có giáo viên</small>
-                  </span>
-                  <button class="button soft" data-action="assign">Phân công</button>
-                </div>
-              </div>
-            </article>
             <article class="panel pad">
               <div class="panel-head">
                 <div>
                   <h3>Danh mục Môn học chung</h3>
-                  <p>Môn học dùng chung khi mở ClassSubject</p>
+                  <p>Teacher chọn Subject active khi tạo Course Offering</p>
                 </div>
               </div>
               <div class="cards">
@@ -3913,7 +3874,7 @@
                   <span class="item-icon">DB</span>
                   <span>
                     <b>Cơ sở dữ liệu</b>
-                    <small>Mã môn: DBI202 · 4 ClassSubjects mở</small>
+                    <small>Mã môn: DBI202 · ACTIVE</small>
                   </span>
                   <button class="button" data-action="edit">Chỉnh sửa</button>
                 </div>
@@ -3921,7 +3882,7 @@
                   <span class="item-icon" style="color:var(--blue);background:var(--blue-bg)">WB</span>
                   <span>
                     <b>Lập trình Web</b>
-                    <small>Mã môn: WEB301 · 3 ClassSubjects mở</small>
+                    <small>Mã môn: WEB301 · ACTIVE</small>
                   </span>
                   <button class="button" data-action="edit">Chỉnh sửa</button>
                 </div>
@@ -3929,13 +3890,27 @@
                   <span class="item-icon" style="color:var(--purple);background:var(--purple-bg)">AI</span>
                   <span>
                     <b>Trí tuệ nhân tạo</b>
-                    <small>Mã môn: AI302 · 2 ClassSubjects mở</small>
+                    <small>Mã môn: AI302 · ACTIVE</small>
                   </span>
                   <button class="button" data-action="edit">Chỉnh sửa</button>
                 </div>
               </div>
             </article>
+            <article class="panel pad">
+              <div class="panel-head"><div><h3>Học kỳ</h3><p>Kiểm soát thời gian cho phép Teacher mở lớp</p></div></div>
+              <div class="cards">
+                <div class="item-card"><span class="item-icon">HK1</span><span><b>Học kỳ 1 · 2026–2027</b><small>01/08/2026 – 31/01/2027</small></span><span class="status">OPEN</span></div>
+                <div class="item-card"><span class="item-icon">HK2</span><span><b>Học kỳ 2 · 2025–2026</b><small>Đã kết thúc, giữ lịch sử</small></span><span class="status processing">ARCHIVED</span></div>
+              </div>
+            </article>
           </div>
+          <article class="panel table-wrap" style="margin-top:18px">
+            <div class="panel-head" style="padding:18px"><div><h3>Giám sát Course Offering</h3><p>Admin có thể lock/archive với audit reason; không duyệt Enrollment thay Teacher.</p></div></div>
+            <table><thead><tr><th>Lớp học phần</th><th>Teacher owner</th><th>Học kỳ</th><th>Trạng thái</th><th>Vận hành</th></tr></thead><tbody>
+              <tr><td><b>DBI-01 · Cơ sở dữ liệu</b></td><td>Lan Hoàng</td><td>HK1 · 2026–2027</td><td><span class="status">OPEN</span></td><td><button class="button" data-action="lock-offering">Khóa</button> <button class="button warn" data-action="archive-offering">Archive</button></td></tr>
+              <tr><td><b>AI-02 · Trí tuệ nhân tạo</b></td><td>Huy Nguyễn</td><td>HK1 · 2026–2027</td><td><span class="status">OPEN</span></td><td><button class="button" data-action="lock-offering">Khóa</button> <button class="button warn" data-action="archive-offering">Archive</button></td></tr>
+            </tbody></table>
+          </article>
         </section>
 
         <!-- ADMIN: Feedback & Reports -->
@@ -4201,7 +4176,7 @@
           </select>
         </div>
         <div class="field full">
-          <label>Lớp + Môn học được phân công</label>
+          <label>Course Offering do bạn sở hữu</label>
           <select>
             <option>KTPM-K21 · Cơ sở dữ liệu</option>
             <option>HTTT-K20 · Cơ sở dữ liệu</option>
@@ -4306,11 +4281,11 @@
         name: 'Minh Nguyễn',
         email: 'student@demo.vn',
         scopeTitle: 'Student scope',
-        scopeText: 'Lớp của bạn · Personal owner · Không Topic/Mastery',
+        scopeText: 'Enrollment APPROVED · Personal owner · Không Topic/Mastery',
         home: 'student-dashboard',
         nav: [
           ['student-dashboard', 'DB', 'Tổng quan'],
-          ['student-classes', 'CL', 'Lớp học & Môn học'],
+          ['student-course-offerings', 'CL', 'Lớp học phần'],
           ['student-personal', 'PD', 'Tài liệu cá nhân'],
           ['student-progress', 'PG', 'Tiến độ & Thống kê'],
           ['student-plan', 'PL', 'Kế hoạch & Lịch'],
@@ -4324,11 +4299,12 @@
         name: 'Lan Hoàng',
         email: 'teacher@demo.vn',
         scopeTitle: 'Teacher scope',
-        scopeText: 'Kho của bạn · Public đúng ClassSubject được gán',
+        scopeText: 'Course Offering sở hữu · Duyệt Enrollment · Public đúng lớp',
         home: 'teacher-dashboard',
         nav: [
           ['teacher-dashboard', 'DB', 'Tổng quan'],
-          ['teacher-assignments', 'CS', 'Lớp/Môn phụ trách'],
+          ['teacher-course-offerings', 'CS', 'Lớp học phần của tôi'],
+          ['teacher-enrollments', 'US', 'Yêu cầu tham gia'],
           ['teacher-library', 'DC', 'Kho tài liệu'],
           ['teacher-publications', 'PB', 'Public & Quản lý']
         ]
@@ -4340,12 +4316,12 @@
         name: 'An Trần',
         email: 'admin@demo.vn',
         scopeTitle: 'Admin scope',
-        scopeText: 'User · Lớp/Môn · Assignment · Audit',
+        scopeText: 'User · Subject/Semester · Course Offering monitoring · Audit',
         home: 'admin-dashboard',
         nav: [
           ['admin-dashboard', 'DB', 'Tổng quan hệ thống'],
           ['admin-users', 'US', 'Người dùng & Vai trò'],
-          ['admin-academics', 'AC', 'Lớp học & Môn học'],
+          ['admin-catalog', 'AC', 'Môn học & Học kỳ'],
           ['admin-feedback', 'FB', 'Feedback & Reports'],
           ['admin-logs', 'LG', 'Logs & Audit'],
           ['admin-settings', 'ST', 'Cấu hình']
@@ -4490,16 +4466,26 @@
       const input = document.getElementById('ragInput');
       const value = input.value.trim();
       if (!value) return;
-      document.getElementById('ragChat').insertAdjacentHTML('beforeend', `
+      const chat = document.getElementById('ragChat');
+      chat.insertAdjacentHTML('beforeend', `
         <div class="message user">${escapeHtml(value)}</div>
-        <div class="message">
-          Phản hồi fixture được giới hạn trên 2 Personal Documents đã chọn. Java Backend xác minh ownership trước khi chuyển qua Python AI retrieval.
-          <div class="citation">Đề cương ôn tập CSDL.pdf · Trang 12</div>
-        </div>
+        <div class="message" id="ragRetrieving"><b>Đang truy xuất và đối chiếu nguồn…</b><br><small>Dùng đúng evidence snapshot cho generation và reviewer.</small></div>
       `);
       input.value = '';
-      const chat = document.getElementById('ragChat');
       chat.scrollTop = chat.scrollHeight;
+      setTimeout(() => {
+        document.getElementById('ragRetrieving')?.remove();
+        const noEvidence = /học phí|điểm thi|thời tiết|ngoài tài liệu/i.test(value);
+        chat.insertAdjacentHTML('beforeend', noEvidence ? `
+          <div class="message"><b>NO_EVIDENCE</b><br>Không tìm thấy đủ bằng chứng trong 2 PDF đã chọn. Hãy đổi nguồn hoặc hỏi cụ thể hơn.</div>
+        ` : `
+          <div class="message">
+            Phản hồi fixture chỉ dùng 2 Personal Documents đã chọn. Mỗi claim phải được evidence hỗ trợ trước khi trả lời.
+            <details class="citation"><summary>Đề cương ôn tập CSDL.pdf · Trang 12</summary><p>Citation chứng minh trực tiếp claim phía trên.</p></details>
+          </div>
+        `);
+        chat.scrollTop = chat.scrollHeight;
+      }, 450);
     });
 
     document.getElementById('generateQuiz').addEventListener('click', () => {
@@ -4568,11 +4554,12 @@
       const input = document.getElementById('slideInput');
       const value = input.value.trim();
       if (!value) return;
+      const noEvidence = /học phí|điểm thi|thời tiết|ngoài slide/i.test(value);
       document.getElementById('slideChat').insertAdjacentHTML('beforeend', `
         <div class="message user">${escapeHtml(value)}</div>
         <div class="message">
-          ${escapeHtml(slides[slideIndex].p)}
-          <div class="citation">Thiết kế ERD.pptx · Slide ${slideIndex + 1}</div>
+          ${noEvidence ? '<b>NO_EVIDENCE</b><br>Không đủ bằng chứng trong PPTX được phép.' : escapeHtml(slides[slideIndex].p)}
+          ${noEvidence ? '' : `<details class="citation"><summary>Thiết kế ERD.pptx · Slide ${slideIndex + 1}</summary><p>Citation chứng minh claim vừa trả lời.</p></details>`}
         </div>
       `);
       input.value = '';
@@ -4792,7 +4779,7 @@
       }
       button.closest('.modal-layer').classList.remove('show');
       showToast(button.dataset.submit === 'publish'
-        ? 'Demo: mô phỏng public tài liệu cho lớp/môn.'
+        ? 'Demo: mô phỏng public tài liệu vào Course Offering do Teacher sở hữu.'
         : 'Demo: file được chọn tại máy; chưa upload hoặc xử lý trên server.');
     }
     document.querySelectorAll('[data-submit]').forEach(button => {
