@@ -338,16 +338,19 @@ Idempotency-Key: ...   # index/deindex/Quiz generation
 | GET `/internal/v1/jobs/{jobId}` | job ID | status/attempt/error/artifact metadata |
 | POST `/internal/v1/personal-rag/ask` | userId, conversationId, authorized documents, message | answer/NO_EVIDENCE + page citations |
 | POST `/internal/v1/slides/ask` | user/document/current/allowed slides/question | answer/NO_EVIDENCE + slide citations |
-| POST `/internal/v1/quizzes/generate` | user/conversation/authorized docs/untrusted `userPrompt` | Structured `MCQ_SINGLE` draft |
+| POST `/internal/v1/quizzes/generate` | userId, authorized document/version scope, untrusted `userPrompt`; không nhận conversation/chat context | Structured `MCQ_SINGLE` draft; mỗi câu đúng 4 options, một correctOptionIndex và citation |
 | GET `/internal/v1/health` | common headers | Liveness/readiness |
 
 ### Grounding contract
+
+- Index/deindex trả `202 {requestId,jobId,status}` sau khi nhận job, không giữ request chờ xử lý xong. Java poll `GET /internal/v1/jobs/{jobId}` với backoff; cập nhật document `READY` khi index thành công hoặc `FAILED` với safe error code khi thất bại. Browser chỉ poll trạng thái document qua Java.
+- Các nội dung trên làm rõ contract schema version 3 đã chốt; không thêm endpoint hoặc callback mới. Contract test Java/Python cho scope Quiz, output 4 options và vòng đời job cần được triển khai khi scaffold service theo kế hoạch.
 
 - Retrieval filter được đẩy xuống repository theo document/version/owner/source; filter lại sau retrieval để defense in depth.
 - Citation được dựng từ retrieved chunk, deduplicate và validate document/location/excerpt bằng code.
 - Document content được delimit và xem là untrusted evidence, không phải instruction.
 - Khi evidence thiếu, trả `NO_EVIDENCE` mà không gọi model để bịa.
-- Reviewer nếu dùng chỉ đánh giá grounding và retry tối đa hai lần; không được mở rộng scope.
+- Reviewer nếu dùng chỉ đánh giá grounding trên cùng evidence snapshot; rewrite tối đa một lần theo kế hoạch AI, sau đó trả kết quả có căn cứ hoặc `NO_EVIDENCE`; không được mở rộng scope.
 - Python response không trả provider payload, prompt, token hoặc user-visible Agent Trace.
 
 ## 8. Timeout, retry và versioning

@@ -1,0 +1,912 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3580" height="3810" viewBox="0 0 3580 3810" role="img" aria-labelledby="title desc">
+<title id="title">StudyFlow — ERD tổng quan</title><desc id="desc">30 bảng của schema app và ai. Bảng màu cam với tên cột, kiểu dữ liệu, PK, FK và quan hệ chân quạ. Bản thiết kế dự kiến theo database-plan.md.</desc>
+<defs>
+<marker id="one" viewBox="0 0 24 24" refX="1" refY="12" markerWidth="24" markerHeight="24" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M9 3V21 M15 3V21" fill="none" stroke="#38404a" stroke-width="2"/></marker>
+<marker id="optional" viewBox="0 0 30 24" refX="1" refY="12" markerWidth="30" markerHeight="24" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M8 3V21" stroke="#38404a" stroke-width="2"/><circle cx="21" cy="12" r="5" fill="white" stroke="#38404a" stroke-width="2"/></marker>
+<marker id="many" viewBox="0 0 34 24" refX="33" refY="12" markerWidth="34" markerHeight="24" orient="auto" markerUnits="userSpaceOnUse"><path d="M33 3L18 12L33 21 M18 12H33" fill="none" stroke="#38404a" stroke-width="2"/><circle cx="9" cy="12" r="5" fill="white" stroke="#38404a" stroke-width="2"/></marker>
+<marker id="zeroone" viewBox="0 0 34 24" refX="33" refY="12" markerWidth="34" markerHeight="24" orient="auto" markerUnits="userSpaceOnUse"><path d="M27 3V21" stroke="#38404a" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="white" stroke="#38404a" stroke-width="2"/></marker>
+</defs>
+<style>text{font-family:Arial,Segoe UI,sans-serif;fill:#202a34}.heading{font-size:29px;font-weight:700}.sub{font-size:17px;fill:#56616d}.name{font-size:20px;font-weight:700}.field{font-size:16px}.type{font-size:15px;fill:#354353}.tag{font-size:12px;font-weight:700}.nullable{font-size:13px;fill:#66717c}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text x="120" y="70" class="heading" style="font-size:42px">STUDYFLOW · LƯỢC ĐỒ CƠ SỞ DỮ LIỆU TỔNG QUAN</text>
+<text x="120" y="116" class="sub" style="font-size:23px">30 bảng · PostgreSQL · Schema app: Java Spring Boot · Schema ai: Python FastAPI</text>
+<text x="120" y="157" class="sub" style="font-size:21px">PK: khóa chính   FK: khóa ngoại   UQ: duy nhất   N: NULL   REF: tham chiếu logic   ||: đúng 1   o&lt;: 0..n</text>
+<text x="120" y="194" class="sub" style="font-size:19px">Kiểu dữ liệu/độ dài là đề xuất thiết kế. Đường đứt: FK; đường chấm: liên hệ logic trong AI. Timestamps chung được giản lược.</text><path d="M205 440 V770 H309 V920" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M827 524 V784 H361 V920" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1449 524 V798 H413 V920" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1501 524 V812 H1035 V920" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1553 524 V826 H1345 V920" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1605 524 V840 H1967 V468" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1345 524 V854 H2019 V920" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1397 524 V805 H1807 V1525 H1501 V1610" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1449 524 V820 H1768 V1540 H2693 V1610" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1501 524 V835 H1781 V1555 H3315 V1610" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#zeroone)"/><path d="M1553 524 V775 H1794 V2185 H775 V2300" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1605 524 V790 H1807 V2200 H1967 V2300" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1345 524 V826 H2589 V496" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1397 524 V840 H3211 V920" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#optional)" marker-end="url(#many)"/><path d="M1449 524 V835 H1794 V2245 H413 V2300" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M361 1326 V1558 H1035 V1242" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M413 1326 V1460 H205 V1610" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1605 1382 V1474 H257 V1610" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1345 1382 V1488 H879 V1610" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M827 1876 V2192 H1501 V1820" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M2019 1130 V1516 H2693 V1186" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M2071 1130 V1530 H2175 V1610" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1553 1382 V1544 H1915 V1610" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1605 1382 V1510 H1807 V2230 H257 V2300" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M205 1326 V1525 H628 V2245 H309 V2300" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M257 1326 V1465 H641 V2185 H1501 V2300" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#optional)" marker-end="url(#many)"/><path d="M879 2566 V2868 H1553 V2622" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M361 1326 V1495 H667 V2215 H2175 V2300" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#optional)" marker-end="url(#many)"/><path d="M2123 2650 V2896 H2485 V2454" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1605 1382 V1525 H1781 V2245 H2537 V2300" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1915 2650 V2924 H309 V2990" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1967 2650 V2938 H1501 V2990" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M309 3284 V3530 H983 V3228" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1501 1382 V1510 H1781 V2920 H1035 V2990" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M413 3284 V3558 H1915 V3228" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M1605 3256 V3572 H1967 V3228" fill="none" stroke="#727980" stroke-width="1.8" stroke-dasharray="10 5" marker-start="url(#one)" marker-end="url(#many)"/><path d="M2485 3284 V3586 H3159 V3340" fill="none" stroke="#477683" stroke-width="1.8" stroke-dasharray="3 7" marker-start="url(#one)" marker-end="url(#many)"/><path d="M2537 2990 V2910 H3211 V2678" fill="none" stroke="#477683" stroke-width="1.8" stroke-dasharray="3 7" marker-start="url(#one)" marker-end="url(#many)"/><g transform="translate(60 76)"><g><rect x="60" y="154" width="480" height="210" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M60 196 H540" stroke="#45413c" stroke-width="1.8"/><text x="300" y="182" text-anchor="middle" class="name">app.subjects</text><path d="M61 224 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="202" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="215" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="216" class="field" font-weight="700">id</text>
+<text x="382" y="216" class="type">uuid</text>
+<path d="M61 252 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="230" width="47" height="17" rx="3" fill="#dce8ee"/><text x="90" y="243" text-anchor="middle" class="tag">UQ</text>
+<text x="124" y="244" class="field" >code</text>
+<text x="382" y="244" class="type">varchar(50)</text>
+<path d="M61 280 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="272" class="field" >name</text>
+<text x="382" y="272" class="type">varchar(255)</text>
+<path d="M61 308 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="300" class="field" >description</text>
+<text x="382" y="300" class="type">text</text>
+<text x="522" y="300" class="nullable">N</text><path d="M61 336 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="328" class="field" >status</text>
+<text x="382" y="328" class="type">varchar(20)</text>
+<text x="74" y="356" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(-510 76)"><g><rect x="1200" y="154" width="480" height="294" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M1200 196 H1680" stroke="#45413c" stroke-width="1.8"/><text x="1440" y="182" text-anchor="middle" class="name">app.semesters</text><path d="M1201 224 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="202" width="47" height="17" rx="3" fill="#f7df8a"/><text x="1230" y="215" text-anchor="middle" class="tag">PK</text>
+<text x="1264" y="216" class="field" font-weight="700">id</text>
+<text x="1522" y="216" class="type">uuid</text>
+<path d="M1201 252 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="230" width="47" height="17" rx="3" fill="#dce8ee"/><text x="1230" y="243" text-anchor="middle" class="tag">UQ</text>
+<text x="1264" y="244" class="field" >code</text>
+<text x="1522" y="244" class="type">varchar(50)</text>
+<path d="M1201 280 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="272" class="field" >name</text>
+<text x="1522" y="272" class="type">varchar(255)</text>
+<path d="M1201 308 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="300" class="field" >academic_year</text>
+<text x="1522" y="300" class="type">varchar(20)</text>
+<path d="M1201 336 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="328" class="field" >start_date</text>
+<text x="1522" y="328" class="type">date</text>
+<path d="M1201 364 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="356" class="field" >end_date</text>
+<text x="1522" y="356" class="type">date</text>
+<path d="M1201 392 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="384" class="field" >status</text>
+<text x="1522" y="384" class="type">varchar(20)</text>
+<path d="M1201 420 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="412" class="field" >offering_creation_enabled</text>
+<text x="1522" y="412" class="type">boolean</text>
+<text x="1214" y="440" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(630 76)"><g><rect x="630" y="154" width="480" height="294" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 196 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="182" text-anchor="middle" class="name">app.users</text><path d="M631 224 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="202" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="215" text-anchor="middle" class="tag">PK</text>
+<text x="694" y="216" class="field" font-weight="700">id</text>
+<text x="952" y="216" class="type">uuid</text>
+<path d="M631 252 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="230" width="47" height="17" rx="3" fill="#dce8ee"/><text x="660" y="243" text-anchor="middle" class="tag">UQ</text>
+<text x="694" y="244" class="field" >email</text>
+<text x="952" y="244" class="type">varchar(255)</text>
+<path d="M631 280 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="258" width="47" height="17" rx="3" fill="#dce8ee"/><text x="660" y="271" text-anchor="middle" class="tag">UQ</text>
+<text x="694" y="272" class="field" >username</text>
+<text x="952" y="272" class="type">varchar(100)</text>
+<path d="M631 308 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="300" class="field" >password_hash</text>
+<text x="952" y="300" class="type">text</text>
+<path d="M631 336 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="328" class="field" >full_name</text>
+<text x="952" y="328" class="type">varchar(255)</text>
+<path d="M631 364 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="356" class="field" >time_zone</text>
+<text x="952" y="356" class="type">varchar(64)</text>
+<path d="M631 392 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="384" class="field" >role</text>
+<text x="952" y="384" class="type">varchar(20)</text>
+<path d="M631 420 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="412" class="field" >status</text>
+<text x="952" y="412" class="type">varchar(20)</text>
+<text x="644" y="440" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(630 -584)"><g><rect x="1200" y="814" width="480" height="238" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M1200 856 H1680" stroke="#45413c" stroke-width="1.8"/><text x="1440" y="842" text-anchor="middle" class="name">app.refresh_tokens</text><path d="M1201 884 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="1230" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="1264" y="876" class="field" font-weight="700">id</text>
+<text x="1522" y="876" class="type">uuid</text>
+<path d="M1201 912 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="1230" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="1264" y="904" class="field" >user_id</text>
+<text x="1522" y="904" class="type">uuid</text>
+<path d="M1201 940 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="932" class="field" >token_hash</text>
+<text x="1522" y="932" class="type">text</text>
+<path d="M1201 968 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="960" class="field" >expires_at</text>
+<text x="1522" y="960" class="type">timestamptz</text>
+<path d="M1201 996 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="988" class="field" >revoked_at</text>
+<text x="1522" y="988" class="type">timestamptz</text>
+<text x="1662" y="988" class="nullable">N</text><path d="M1201 1024 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="1002" width="47" height="17" rx="3" fill="#bce1c2"/><text x="1230" y="1015" text-anchor="middle" class="tag">FK</text>
+<text x="1264" y="1016" class="field" >replaced_by_id</text>
+<text x="1522" y="1016" class="type">uuid</text>
+<text x="1662" y="1016" class="nullable">N</text><text x="1214" y="1044" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(1770 76)"><g><rect x="630" y="154" width="480" height="266" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 196 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="182" text-anchor="middle" class="name">app.feedback_reports</text><path d="M631 224 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="202" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="215" text-anchor="middle" class="tag">PK</text>
+<text x="694" y="216" class="field" font-weight="700">id</text>
+<text x="952" y="216" class="type">uuid</text>
+<path d="M631 252 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="230" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="243" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="244" class="field" >reporter_id</text>
+<text x="952" y="244" class="type">uuid</text>
+<path d="M631 280 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="272" class="field" >type</text>
+<text x="952" y="272" class="type">varchar(30)</text>
+<path d="M631 308 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="300" class="field" >title</text>
+<text x="952" y="300" class="type">varchar(255)</text>
+<path d="M631 336 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="328" class="field" >content</text>
+<text x="952" y="328" class="type">text</text>
+<path d="M631 364 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="356" class="field" >status</text>
+<text x="952" y="356" class="type">varchar(30)</text>
+<path d="M631 392 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="384" class="field" >resolution_metadata</text>
+<text x="952" y="384" class="type">jsonb</text>
+<text x="1092" y="384" class="nullable">N</text><text x="644" y="412" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(1770 76)"><g><rect x="1200" y="154" width="480" height="154" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M1200 196 H1680" stroke="#45413c" stroke-width="1.8"/><text x="1440" y="182" text-anchor="middle" class="name">app.system_settings</text><path d="M1201 224 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="202" width="47" height="17" rx="3" fill="#f7df8a"/><text x="1230" y="215" text-anchor="middle" class="tag">PK</text>
+<text x="1264" y="216" class="field" font-weight="700">key</text>
+<text x="1522" y="216" class="type">varchar(100)</text>
+<path d="M1201 252 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="244" class="field" >value</text>
+<text x="1522" y="244" class="type">jsonb</text>
+<path d="M1201 280 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="272" class="field" >value_type</text>
+<text x="1522" y="272" class="type">varchar(30)</text>
+<text x="1214" y="300" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(60 106)"><g><rect x="60" y="814" width="480" height="406" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M60 856 H540" stroke="#45413c" stroke-width="1.8"/><text x="300" y="842" text-anchor="middle" class="name">app.course_offerings</text><path d="M61 884 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="876" class="field" font-weight="700">id</text>
+<text x="382" y="876" class="type">uuid</text>
+<path d="M61 912 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="904" class="field" >subject_id</text>
+<text x="382" y="904" class="type">uuid</text>
+<path d="M61 940 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="918" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="931" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="932" class="field" >semester_id</text>
+<text x="382" y="932" class="type">uuid</text>
+<path d="M61 968 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="946" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="959" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="960" class="field" >teacher_id</text>
+<text x="382" y="960" class="type">uuid</text>
+<path d="M61 996 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="988" class="field" >code</text>
+<text x="382" y="988" class="type">varchar(50)</text>
+<path d="M61 1024 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1016" class="field" >name</text>
+<text x="382" y="1016" class="type">varchar(255)</text>
+<path d="M61 1052 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="1030" width="47" height="17" rx="3" fill="#dce8ee"/><text x="90" y="1043" text-anchor="middle" class="tag">UQ</text>
+<text x="124" y="1044" class="field" >join_code_hash</text>
+<text x="382" y="1044" class="type">text</text>
+<path d="M61 1080 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1072" class="field" >join_code_hint</text>
+<text x="382" y="1072" class="type">varchar(20)</text>
+<text x="522" y="1072" class="nullable">N</text><path d="M61 1108 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1100" class="field" >join_enabled</text>
+<text x="382" y="1100" class="type">boolean</text>
+<path d="M61 1136 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1128" class="field" >status</text>
+<text x="382" y="1128" class="type">varchar(20)</text>
+<path d="M61 1164 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1156" class="field" >archived_at</text>
+<text x="382" y="1156" class="type">timestamptz</text>
+<text x="522" y="1156" class="nullable">N</text><path d="M61 1192 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1184" class="field" >locked_at</text>
+<text x="382" y="1184" class="type">timestamptz</text>
+<text x="522" y="1184" class="nullable">N</text><text x="74" y="1212" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(60 106)"><g><rect x="630" y="814" width="480" height="322" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 856 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="842" text-anchor="middle" class="name">app.course_enrollments</text><path d="M631 884 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="694" y="876" class="field" font-weight="700">id</text>
+<text x="952" y="876" class="type">uuid</text>
+<path d="M631 912 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="904" class="field" >course_offering_id</text>
+<text x="952" y="904" class="type">uuid</text>
+<path d="M631 940 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="918" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="931" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="932" class="field" >student_id</text>
+<text x="952" y="932" class="type">uuid</text>
+<path d="M631 968 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="960" class="field" >status</text>
+<text x="952" y="960" class="type">varchar(20)</text>
+<path d="M631 996 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="988" class="field" >requested_at</text>
+<text x="952" y="988" class="type">timestamptz</text>
+<path d="M631 1024 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1016" class="field" >decided_at</text>
+<text x="952" y="1016" class="type">timestamptz</text>
+<text x="1092" y="1016" class="nullable">N</text><path d="M631 1052 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="1030" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="1043" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="1044" class="field" >decided_by</text>
+<text x="952" y="1044" class="type">uuid</text>
+<text x="1092" y="1044" class="nullable">N</text><path d="M631 1080 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1072" class="field" >removed_at</text>
+<text x="952" y="1072" class="type">timestamptz</text>
+<text x="1092" y="1072" class="nullable">N</text><path d="M631 1108 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1100" class="field" >decision_note</text>
+<text x="952" y="1100" class="type">text</text>
+<text x="1092" y="1100" class="nullable">N</text><text x="644" y="1128" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(630 766)"><g><rect x="630" y="154" width="480" height="462" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 196 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="182" text-anchor="middle" class="name">app.documents</text><path d="M631 224 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="202" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="215" text-anchor="middle" class="tag">PK</text>
+<text x="694" y="216" class="field" font-weight="700">id</text>
+<text x="952" y="216" class="type">uuid</text>
+<path d="M631 252 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="230" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="243" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="244" class="field" >owner_id</text>
+<text x="952" y="244" class="type">uuid</text>
+<path d="M631 280 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="272" class="field" >owner_role</text>
+<text x="952" y="272" class="type">varchar(20)</text>
+<path d="M631 308 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="300" class="field" >document_scope</text>
+<text x="952" y="300" class="type">varchar(30)</text>
+<path d="M631 336 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="328" class="field" >file_name</text>
+<text x="952" y="328" class="type">varchar(255)</text>
+<path d="M631 364 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="356" class="field" >display_name</text>
+<text x="952" y="356" class="type">varchar(255)</text>
+<path d="M631 392 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="384" class="field" >file_type</text>
+<text x="952" y="384" class="type">varchar(10)</text>
+<path d="M631 420 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="412" class="field" >mime_type</text>
+<text x="952" y="412" class="type">varchar(100)</text>
+<path d="M631 448 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="440" class="field" >file_size</text>
+<text x="952" y="440" class="type">bigint</text>
+<path d="M631 476 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="468" class="field" >storage_key</text>
+<text x="952" y="468" class="type">text</text>
+<path d="M631 504 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="496" class="field" >processing_status</text>
+<text x="952" y="496" class="type">varchar(30)</text>
+<path d="M631 532 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="524" class="field" >document_version</text>
+<text x="952" y="524" class="type">integer</text>
+<path d="M631 560 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="552" class="field" >page_count</text>
+<text x="952" y="552" class="type">integer</text>
+<text x="1092" y="552" class="nullable">N</text><path d="M631 588 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="580" class="field" >slide_count</text>
+<text x="952" y="580" class="type">integer</text>
+<text x="1092" y="580" class="nullable">N</text><text x="644" y="608" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(1200 766)"><g><rect x="630" y="154" width="480" height="210" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 196 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="182" text-anchor="middle" class="name">app.chat_conversations</text><path d="M631 224 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="202" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="215" text-anchor="middle" class="tag">PK</text>
+<text x="694" y="216" class="field" font-weight="700">id</text>
+<text x="952" y="216" class="type">uuid</text>
+<path d="M631 252 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="230" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="243" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="244" class="field" >student_id</text>
+<text x="952" y="244" class="type">uuid</text>
+<path d="M631 280 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="272" class="field" >type</text>
+<text x="952" y="272" class="type">varchar(20)</text>
+<path d="M631 308 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="300" class="field" >title</text>
+<text x="952" y="300" class="type">varchar(255)</text>
+<path d="M631 336 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="328" class="field" >status</text>
+<text x="952" y="328" class="type">varchar(20)</text>
+<text x="644" y="356" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(2340 106)"><g><rect x="60" y="814" width="480" height="266" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M60 856 H540" stroke="#45413c" stroke-width="1.8"/><text x="300" y="842" text-anchor="middle" class="name">app.chat_messages</text><path d="M61 884 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="876" class="field" font-weight="700">id</text>
+<text x="382" y="876" class="type">uuid</text>
+<path d="M61 912 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="904" class="field" >conversation_id</text>
+<text x="382" y="904" class="type">uuid</text>
+<path d="M61 940 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="932" class="field" >role</text>
+<text x="382" y="932" class="type">varchar(20)</text>
+<path d="M61 968 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="960" class="field" >content</text>
+<text x="382" y="960" class="type">text</text>
+<path d="M61 996 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="988" class="field" >answer_status</text>
+<text x="382" y="988" class="type">varchar(20)</text>
+<text x="522" y="988" class="nullable">N</text><path d="M61 1024 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1016" class="field" >citations_json</text>
+<text x="382" y="1016" class="type">jsonb</text>
+<text x="522" y="1016" class="nullable">N</text><path d="M61 1052 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1044" class="field" >trace_id</text>
+<text x="382" y="1044" class="type">varchar(100)</text>
+<text x="522" y="1044" class="nullable">N</text><text x="74" y="1072" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(2910 106)"><g><rect x="60" y="814" width="480" height="322" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M60 856 H540" stroke="#45413c" stroke-width="1.8"/><text x="300" y="842" text-anchor="middle" class="name">app.system_logs</text><path d="M61 884 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="876" class="field" font-weight="700">id</text>
+<text x="382" y="876" class="type">uuid</text>
+<path d="M61 912 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="904" class="field" >actor_id</text>
+<text x="382" y="904" class="type">uuid</text>
+<text x="522" y="904" class="nullable">N</text><path d="M61 940 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="932" class="field" >action</text>
+<text x="382" y="932" class="type">varchar(100)</text>
+<path d="M61 968 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="960" class="field" >target_type</text>
+<text x="382" y="960" class="type">varchar(50)</text>
+<path d="M61 996 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="988" class="field" >target_id</text>
+<text x="382" y="988" class="type">uuid</text>
+<text x="522" y="988" class="nullable">N</text><path d="M61 1024 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1016" class="field" >status</text>
+<text x="382" y="1016" class="type">varchar(30)</text>
+<path d="M61 1052 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1044" class="field" >trace_id</text>
+<text x="382" y="1044" class="type">varchar(100)</text>
+<text x="522" y="1044" class="nullable">N</text><path d="M61 1080 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1072" class="field" >metadata</text>
+<text x="382" y="1072" class="type">jsonb</text>
+<text x="522" y="1072" class="nullable">N</text><path d="M61 1108 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1100" class="field" >created_at</text>
+<text x="382" y="1100" class="type">timestamptz</text>
+<text x="74" y="1128" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(-1080 796)"><g><rect x="1200" y="814" width="480" height="266" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M1200 856 H1680" stroke="#45413c" stroke-width="1.8"/><text x="1440" y="842" text-anchor="middle" class="name">app.document_publications</text><path d="M1201 884 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="1230" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="1264" y="876" class="field" font-weight="700">id</text>
+<text x="1522" y="876" class="type">uuid</text>
+<path d="M1201 912 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="1230" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="1264" y="904" class="field" >document_id</text>
+<text x="1522" y="904" class="type">uuid</text>
+<path d="M1201 940 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="918" width="47" height="17" rx="3" fill="#bce1c2"/><text x="1230" y="931" text-anchor="middle" class="tag">FK</text>
+<text x="1264" y="932" class="field" >course_offering_id</text>
+<text x="1522" y="932" class="type">uuid</text>
+<path d="M1201 968 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="946" width="47" height="17" rx="3" fill="#bce1c2"/><text x="1230" y="959" text-anchor="middle" class="tag">FK</text>
+<text x="1264" y="960" class="field" >published_by</text>
+<text x="1522" y="960" class="type">uuid</text>
+<path d="M1201 996 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="988" class="field" >status</text>
+<text x="1522" y="988" class="type">varchar(20)</text>
+<path d="M1201 1024 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="1016" class="field" >published_at</text>
+<text x="1522" y="1016" class="type">timestamptz</text>
+<path d="M1201 1052 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="1044" class="field" >revoked_at</text>
+<text x="1522" y="1044" class="type">timestamptz</text>
+<text x="1662" y="1044" class="nullable">N</text><text x="1214" y="1072" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(60 796)"><g><rect x="630" y="814" width="480" height="266" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 856 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="842" text-anchor="middle" class="name">app.slides</text><path d="M631 884 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="694" y="876" class="field" font-weight="700">id</text>
+<text x="952" y="876" class="type">uuid</text>
+<path d="M631 912 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="904" class="field" >document_id</text>
+<text x="952" y="904" class="type">uuid</text>
+<path d="M631 940 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="932" class="field" >slide_number</text>
+<text x="952" y="932" class="type">integer</text>
+<path d="M631 968 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="960" class="field" >rendered_key</text>
+<text x="952" y="960" class="type">text</text>
+<path d="M631 996 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="988" class="field" >preview_key</text>
+<text x="952" y="988" class="type">text</text>
+<text x="1092" y="988" class="nullable">N</text><path d="M631 1024 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1016" class="field" >extracted_text</text>
+<text x="952" y="1016" class="type">text</text>
+<text x="1092" y="1016" class="nullable">N</text><path d="M631 1052 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1044" class="field" >processing_status</text>
+<text x="952" y="1044" class="type">varchar(30)</text>
+<text x="644" y="1072" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(1200 796)"><g><rect x="60" y="814" width="480" height="210" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M60 856 H540" stroke="#45413c" stroke-width="1.8"/><text x="300" y="842" text-anchor="middle" class="name">app.slide_notes</text><path d="M61 884 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="876" class="field" font-weight="700">id</text>
+<text x="382" y="876" class="type">uuid</text>
+<path d="M61 912 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="904" class="field" >student_id</text>
+<text x="382" y="904" class="type">uuid</text>
+<path d="M61 940 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="918" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="931" text-anchor="middle" class="tag">FK*</text>
+<text x="124" y="932" class="field" >document_id</text>
+<text x="382" y="932" class="type">uuid</text>
+<path d="M61 968 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="946" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="959" text-anchor="middle" class="tag">FK*</text>
+<text x="124" y="960" class="field" >slide_number</text>
+<text x="382" y="960" class="type">integer</text>
+<path d="M61 996 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="988" class="field" >content</text>
+<text x="382" y="988" class="type">text</text>
+<text x="74" y="1016" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(1200 796)"><g><rect x="630" y="814" width="480" height="154" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 856 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="842" text-anchor="middle" class="name">app.conversation_documents</text><path d="M631 884 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="875" text-anchor="middle" class="tag">PK/FK</text>
+<text x="694" y="876" class="field" font-weight="700">conversation_id</text>
+<text x="952" y="876" class="type">uuid</text>
+<path d="M631 912 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="890" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="903" text-anchor="middle" class="tag">PK/FK</text>
+<text x="694" y="904" class="field" font-weight="700">document_id</text>
+<text x="952" y="904" class="type">uuid</text>
+<path d="M631 940 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="932" class="field" >document_version</text>
+<text x="952" y="932" class="type">integer</text>
+<text x="644" y="960" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(2340 136)"><g><rect x="60" y="1474" width="480" height="350" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M60 1516 H540" stroke="#45413c" stroke-width="1.8"/><text x="300" y="1502" text-anchor="middle" class="name">app.learning_events</text><path d="M61 1544 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="1522" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="1535" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="1536" class="field" font-weight="700">id</text>
+<text x="382" y="1536" class="type">uuid</text>
+<path d="M61 1572 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="1550" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="1563" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="1564" class="field" >student_id</text>
+<text x="382" y="1564" class="type">uuid</text>
+<path d="M61 1600 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1592" class="field" >event_type</text>
+<text x="382" y="1592" class="type">varchar(40)</text>
+<path d="M61 1628 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1620" class="field" >target_type</text>
+<text x="382" y="1620" class="type">varchar(40)</text>
+<path d="M61 1656 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1648" class="field" >target_id</text>
+<text x="382" y="1648" class="type">uuid</text>
+<path d="M61 1684 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1676" class="field" >activity_date</text>
+<text x="382" y="1676" class="type">date</text>
+<path d="M61 1712 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1704" class="field" >quantity</text>
+<text x="382" y="1704" class="type">integer</text>
+<path d="M61 1740 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1732" class="field" >idempotency_key</text>
+<text x="382" y="1732" class="type">varchar(255)</text>
+<path d="M61 1768 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1760" class="field" >metadata</text>
+<text x="382" y="1760" class="type">jsonb</text>
+<text x="522" y="1760" class="nullable">N</text><path d="M61 1796 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1788" class="field" >occurred_at</text>
+<text x="382" y="1788" class="type">timestamptz</text>
+<text x="74" y="1816" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(2340 136)"><g><rect x="630" y="1474" width="480" height="210" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 1516 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="1502" text-anchor="middle" class="name">app.daily_goals</text><path d="M631 1544 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="1522" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="1535" text-anchor="middle" class="tag">PK/FK</text>
+<text x="694" y="1536" class="field" font-weight="700">student_id</text>
+<text x="952" y="1536" class="type">uuid</text>
+<path d="M631 1572 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1564" class="field" >slide_target</text>
+<text x="952" y="1564" class="type">integer</text>
+<path d="M631 1600 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1592" class="field" >quiz_question_target</text>
+<text x="952" y="1592" class="type">integer</text>
+<path d="M631 1628 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1620" class="field" >task_target</text>
+<text x="952" y="1620" class="type">integer</text>
+<path d="M631 1656 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1648" class="field" >updated_at</text>
+<text x="952" y="1648" class="type">timestamptz</text>
+<text x="644" y="1676" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(60 1486)"><g><rect x="60" y="814" width="480" height="322" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M60 856 H540" stroke="#45413c" stroke-width="1.8"/><text x="300" y="842" text-anchor="middle" class="name">app.learning_progress</text><path d="M61 884 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="876" class="field" font-weight="700">id</text>
+<text x="382" y="876" class="type">uuid</text>
+<path d="M61 912 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="904" class="field" >student_id</text>
+<text x="382" y="904" class="type">uuid</text>
+<path d="M61 940 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="918" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="931" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="932" class="field" >course_offering_id</text>
+<text x="382" y="932" class="type">uuid</text>
+<path d="M61 968 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="946" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="959" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="960" class="field" >document_id</text>
+<text x="382" y="960" class="type">uuid</text>
+<path d="M61 996 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="988" class="field" >last_slide</text>
+<text x="382" y="988" class="type">integer</text>
+<text x="522" y="988" class="nullable">N</text><path d="M61 1024 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1016" class="field" >viewed_slide_count</text>
+<text x="382" y="1016" class="type">integer</text>
+<path d="M61 1052 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1044" class="field" >progress_percent</text>
+<text x="382" y="1044" class="type">numeric(5,2)</text>
+<path d="M61 1080 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1072" class="field" >completed_at</text>
+<text x="382" y="1072" class="type">timestamptz</text>
+<text x="522" y="1072" class="nullable">N</text><path d="M61 1108 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1100" class="field" >updated_at</text>
+<text x="382" y="1100" class="type">timestamptz</text>
+<text x="74" y="1128" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(60 1486)"><g><rect x="630" y="814" width="480" height="266" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 856 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="842" text-anchor="middle" class="name">app.study_plans</text><path d="M631 884 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="694" y="876" class="field" font-weight="700">id</text>
+<text x="952" y="876" class="type">uuid</text>
+<path d="M631 912 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="904" class="field" >student_id</text>
+<text x="952" y="904" class="type">uuid</text>
+<path d="M631 940 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="932" class="field" >title</text>
+<text x="952" y="932" class="type">varchar(255)</text>
+<path d="M631 968 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="960" class="field" >description</text>
+<text x="952" y="960" class="type">text</text>
+<text x="1092" y="960" class="nullable">N</text><path d="M631 996 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="988" class="field" >start_date</text>
+<text x="952" y="988" class="type">date</text>
+<path d="M631 1024 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1016" class="field" >end_date</text>
+<text x="952" y="1016" class="type">date</text>
+<path d="M631 1052 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1044" class="field" >status</text>
+<text x="952" y="1044" class="type">varchar(20)</text>
+<text x="644" y="1072" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(60 1486)"><g><rect x="1200" y="814" width="480" height="322" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M1200 856 H1680" stroke="#45413c" stroke-width="1.8"/><text x="1440" y="842" text-anchor="middle" class="name">app.study_plan_items</text><path d="M1201 884 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="1230" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="1264" y="876" class="field" font-weight="700">id</text>
+<text x="1522" y="876" class="type">uuid</text>
+<path d="M1201 912 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="1230" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="1264" y="904" class="field" >plan_id</text>
+<text x="1522" y="904" class="type">uuid</text>
+<path d="M1201 940 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="918" width="47" height="17" rx="3" fill="#bce1c2"/><text x="1230" y="931" text-anchor="middle" class="tag">FK</text>
+<text x="1264" y="932" class="field" >course_offering_id</text>
+<text x="1522" y="932" class="type">uuid</text>
+<text x="1662" y="932" class="nullable">N</text><path d="M1201 968 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="960" class="field" >title</text>
+<text x="1522" y="960" class="type">varchar(255)</text>
+<path d="M1201 996 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="988" class="field" >scheduled_start</text>
+<text x="1522" y="988" class="type">timestamptz</text>
+<text x="1662" y="988" class="nullable">N</text><path d="M1201 1024 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="1016" class="field" >scheduled_end</text>
+<text x="1522" y="1016" class="type">timestamptz</text>
+<text x="1662" y="1016" class="nullable">N</text><path d="M1201 1052 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="1044" class="field" >deadline</text>
+<text x="1522" y="1044" class="type">timestamptz</text>
+<text x="1662" y="1044" class="nullable">N</text><path d="M1201 1080 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="1072" class="field" >duration_minutes</text>
+<text x="1522" y="1072" class="type">integer</text>
+<text x="1662" y="1072" class="nullable">N</text><path d="M1201 1108 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="1100" class="field" >status</text>
+<text x="1522" y="1100" class="type">varchar(20)</text>
+<text x="1214" y="1128" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(1200 2146)"><g><rect x="630" y="154" width="480" height="350" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 196 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="182" text-anchor="middle" class="name">app.quizzes</text><path d="M631 224 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="202" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="215" text-anchor="middle" class="tag">PK</text>
+<text x="694" y="216" class="field" font-weight="700">id</text>
+<text x="952" y="216" class="type">uuid</text>
+<path d="M631 252 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="230" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="243" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="244" class="field" >student_id</text>
+<text x="952" y="244" class="type">uuid</text>
+<path d="M631 280 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="258" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="271" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="272" class="field" >course_offering_id</text>
+<text x="952" y="272" class="type">uuid</text>
+<text x="1092" y="272" class="nullable">N</text><path d="M631 308 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="300" class="field" >title</text>
+<text x="952" y="300" class="type">varchar(255)</text>
+<path d="M631 336 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="328" class="field" >description</text>
+<text x="952" y="328" class="type">text</text>
+<text x="1092" y="328" class="nullable">N</text><path d="M631 364 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="356" class="field" >user_prompt</text>
+<text x="952" y="356" class="type">text</text>
+<path d="M631 392 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="384" class="field" >generation_type</text>
+<text x="952" y="384" class="type">varchar(40)</text>
+<path d="M631 420 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="412" class="field" >status</text>
+<text x="952" y="412" class="type">varchar(30)</text>
+<path d="M631 448 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="440" class="field" >question_count</text>
+<text x="952" y="440" class="type">integer</text>
+<path d="M631 476 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="454" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="467" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="468" class="field" >regenerated_from_quiz_id</text>
+<text x="952" y="468" class="type">uuid</text>
+<text x="1092" y="468" class="nullable">N</text><text x="644" y="496" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(1200 1486)"><g><rect x="1200" y="814" width="480" height="154" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M1200 856 H1680" stroke="#45413c" stroke-width="1.8"/><text x="1440" y="842" text-anchor="middle" class="name">app.quiz_sources</text><path d="M1201 884 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="1230" y="875" text-anchor="middle" class="tag">PK/FK</text>
+<text x="1264" y="876" class="field" font-weight="700">quiz_id</text>
+<text x="1522" y="876" class="type">uuid</text>
+<path d="M1201 912 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="890" width="47" height="17" rx="3" fill="#f7df8a"/><text x="1230" y="903" text-anchor="middle" class="tag">PK/FK</text>
+<text x="1264" y="904" class="field" font-weight="700">document_id</text>
+<text x="1522" y="904" class="type">uuid</text>
+<path d="M1201 940 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="932" class="field" >document_version</text>
+<text x="1522" y="932" class="type">integer</text>
+<text x="1214" y="960" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(1770 2146)"><g><rect x="1200" y="154" width="480" height="378" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M1200 196 H1680" stroke="#45413c" stroke-width="1.8"/><text x="1440" y="182" text-anchor="middle" class="name">ai.index_jobs</text><path d="M1201 224 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="202" width="47" height="17" rx="3" fill="#f7df8a"/><text x="1230" y="215" text-anchor="middle" class="tag">PK</text>
+<text x="1264" y="216" class="field" font-weight="700">id</text>
+<text x="1522" y="216" class="type">uuid</text>
+<path d="M1201 252 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="244" class="field" >request_id</text>
+<text x="1522" y="244" class="type">varchar(100)</text>
+<path d="M1201 280 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="258" width="47" height="17" rx="3" fill="#dce8ee"/><text x="1230" y="271" text-anchor="middle" class="tag">UQ</text>
+<text x="1264" y="272" class="field" >idempotency_key</text>
+<text x="1522" y="272" class="type">varchar(255)</text>
+<path d="M1201 308 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="300" class="field" >operation</text>
+<text x="1522" y="300" class="type">varchar(30)</text>
+<path d="M1201 336 H1679" stroke="#fff7eb" stroke-width="1"/>
+<rect x="1207" y="314" width="47" height="17" rx="3" fill="#dce8ee"/><text x="1230" y="327" text-anchor="middle" class="tag">REF</text>
+<text x="1264" y="328" class="field" >document_id</text>
+<text x="1522" y="328" class="type">uuid</text>
+<path d="M1201 364 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="356" class="field" >document_version</text>
+<text x="1522" y="356" class="type">integer</text>
+<path d="M1201 392 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="384" class="field" >pipeline</text>
+<text x="1522" y="384" class="type">varchar(30)</text>
+<path d="M1201 420 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="412" class="field" >status</text>
+<text x="1522" y="412" class="type">varchar(30)</text>
+<path d="M1201 448 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="440" class="field" >attempts</text>
+<text x="1522" y="440" class="type">integer</text>
+<path d="M1201 476 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="468" class="field" >error_code</text>
+<text x="1522" y="468" class="type">varchar(100)</text>
+<text x="1662" y="468" class="nullable">N</text><path d="M1201 504 H1679" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="1264" y="496" class="field" >signed_url</text>
+<text x="1522" y="496" class="type">text</text>
+<text x="1662" y="496" class="nullable">N</text><text x="1214" y="524" class="nullable">Schema: ai · Python · Xem ràng buộc trong README</text></g></g><g transform="translate(-510 2176)"><g><rect x="630" y="814" width="480" height="294" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 856 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="842" text-anchor="middle" class="name">app.quiz_questions</text><path d="M631 884 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="694" y="876" class="field" font-weight="700">id</text>
+<text x="952" y="876" class="type">uuid</text>
+<path d="M631 912 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="904" class="field" >quiz_id</text>
+<text x="952" y="904" class="type">uuid</text>
+<path d="M631 940 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="932" class="field" >question_type</text>
+<text x="952" y="932" class="type">varchar(20)</text>
+<path d="M631 968 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="960" class="field" >content</text>
+<text x="952" y="960" class="type">text</text>
+<path d="M631 996 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="988" class="field" >options</text>
+<text x="952" y="988" class="type">jsonb</text>
+<path d="M631 1024 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1016" class="field" >correct_option_index</text>
+<text x="952" y="1016" class="type">integer</text>
+<path d="M631 1052 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1044" class="field" >explanation</text>
+<text x="952" y="1044" class="type">text</text>
+<path d="M631 1080 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1072" class="field" >question_order</text>
+<text x="952" y="1072" class="type">integer</text>
+<text x="644" y="1100" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(60 1516)"><g><rect x="630" y="1474" width="480" height="238" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 1516 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="1502" text-anchor="middle" class="name">app.quiz_question_sources</text><path d="M631 1544 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="1522" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="1535" text-anchor="middle" class="tag">PK</text>
+<text x="694" y="1536" class="field" font-weight="700">id</text>
+<text x="952" y="1536" class="type">uuid</text>
+<path d="M631 1572 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="1550" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="1563" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="1564" class="field" >question_id</text>
+<text x="952" y="1564" class="type">uuid</text>
+<path d="M631 1600 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="1578" width="47" height="17" rx="3" fill="#bce1c2"/><text x="660" y="1591" text-anchor="middle" class="tag">FK</text>
+<text x="694" y="1592" class="field" >document_id</text>
+<text x="952" y="1592" class="type">uuid</text>
+<path d="M631 1628 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1620" class="field" >document_version</text>
+<text x="952" y="1620" class="type">integer</text>
+<path d="M631 1656 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1648" class="field" >page_number</text>
+<text x="952" y="1648" class="type">integer</text>
+<path d="M631 1684 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="1676" class="field" >excerpt</text>
+<text x="952" y="1676" class="type">text</text>
+<text x="644" y="1704" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(1200 2176)"><g><rect x="60" y="814" width="480" height="266" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M60 856 H540" stroke="#45413c" stroke-width="1.8"/><text x="300" y="842" text-anchor="middle" class="name">app.quiz_attempts</text><path d="M61 884 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="862" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="875" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="876" class="field" font-weight="700">id</text>
+<text x="382" y="876" class="type">uuid</text>
+<path d="M61 912 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="890" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="903" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="904" class="field" >quiz_id</text>
+<text x="382" y="904" class="type">uuid</text>
+<path d="M61 940 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="918" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="931" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="932" class="field" >student_id</text>
+<text x="382" y="932" class="type">uuid</text>
+<path d="M61 968 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="960" class="field" >started_at</text>
+<text x="382" y="960" class="type">timestamptz</text>
+<path d="M61 996 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="988" class="field" >submitted_at</text>
+<text x="382" y="988" class="type">timestamptz</text>
+<text x="522" y="988" class="nullable">N</text><path d="M61 1024 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1016" class="field" >score</text>
+<text x="382" y="1016" class="type">numeric(6,2)</text>
+<text x="522" y="1016" class="nullable">N</text><path d="M61 1052 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1044" class="field" >status</text>
+<text x="382" y="1044" class="type">varchar(20)</text>
+<text x="74" y="1072" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(1770 1516)"><g><rect x="60" y="1474" width="480" height="238" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M60 1516 H540" stroke="#45413c" stroke-width="1.8"/><text x="300" y="1502" text-anchor="middle" class="name">app.quiz_answers</text><path d="M61 1544 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="1522" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="1535" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="1536" class="field" font-weight="700">id</text>
+<text x="382" y="1536" class="type">uuid</text>
+<path d="M61 1572 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="1550" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="1563" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="1564" class="field" >attempt_id</text>
+<text x="382" y="1564" class="type">uuid</text>
+<path d="M61 1600 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="1578" width="47" height="17" rx="3" fill="#bce1c2"/><text x="90" y="1591" text-anchor="middle" class="tag">FK</text>
+<text x="124" y="1592" class="field" >question_id</text>
+<text x="382" y="1592" class="type">uuid</text>
+<path d="M61 1628 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1620" class="field" >selected_option_index</text>
+<text x="382" y="1620" class="type">integer</text>
+<text x="522" y="1620" class="nullable">N</text><path d="M61 1656 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1648" class="field" >is_correct</text>
+<text x="382" y="1648" class="type">boolean</text>
+<text x="522" y="1648" class="nullable">N</text><path d="M61 1684 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="1676" class="field" >score</text>
+<text x="382" y="1676" class="type">numeric(6,2)</text>
+<text x="522" y="1676" class="nullable">N</text><text x="74" y="1704" class="nullable">Schema: app · Java · Xem ràng buộc trong README</text></g></g><g transform="translate(2340 2836)"><g><rect x="60" y="154" width="480" height="294" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M60 196 H540" stroke="#45413c" stroke-width="1.8"/><text x="300" y="182" text-anchor="middle" class="name">ai.document_indexes</text><path d="M61 224 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="202" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="215" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="216" class="field" font-weight="700">document_id</text>
+<text x="382" y="216" class="type">uuid</text>
+<path d="M61 252 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="230" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="243" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="244" class="field" font-weight="700">document_version</text>
+<text x="382" y="244" class="type">integer</text>
+<path d="M61 280 H539" stroke="#fff7eb" stroke-width="1"/>
+<rect x="67" y="258" width="47" height="17" rx="3" fill="#f7df8a"/><text x="90" y="271" text-anchor="middle" class="tag">PK</text>
+<text x="124" y="272" class="field" font-weight="700">pipeline</text>
+<text x="382" y="272" class="type">varchar(30)</text>
+<path d="M61 308 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="300" class="field" >embedding_provider</text>
+<text x="382" y="300" class="type">varchar(50)</text>
+<path d="M61 336 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="328" class="field" >embedding_model</text>
+<text x="382" y="328" class="type">varchar(100)</text>
+<path d="M61 364 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="356" class="field" >embedding_dimensions</text>
+<text x="382" y="356" class="type">integer</text>
+<path d="M61 392 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="384" class="field" >status</text>
+<text x="382" y="384" class="type">varchar(30)</text>
+<path d="M61 420 H539" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="124" y="412" class="field" >activated_at</text>
+<text x="382" y="412" class="type">timestamptz</text>
+<text x="522" y="412" class="nullable">N</text><text x="74" y="440" class="nullable">Schema: ai · Python · Xem ràng buộc trong README</text></g></g><g transform="translate(2340 2836)"><g><rect x="630" y="154" width="480" height="350" rx="15" fill="#edbd86" stroke="#45413c" stroke-width="2"/><path d="M630 196 H1110" stroke="#45413c" stroke-width="1.8"/><text x="870" y="182" text-anchor="middle" class="name">ai.document_chunks</text><path d="M631 224 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="202" width="47" height="17" rx="3" fill="#f7df8a"/><text x="660" y="215" text-anchor="middle" class="tag">PK</text>
+<text x="694" y="216" class="field" font-weight="700">id</text>
+<text x="952" y="216" class="type">uuid</text>
+<path d="M631 252 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="230" width="47" height="17" rx="3" fill="#dce8ee"/><text x="660" y="243" text-anchor="middle" class="tag">REF</text>
+<text x="694" y="244" class="field" >document_id</text>
+<text x="952" y="244" class="type">uuid</text>
+<path d="M631 280 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="258" width="47" height="17" rx="3" fill="#dce8ee"/><text x="660" y="271" text-anchor="middle" class="tag">REF</text>
+<text x="694" y="272" class="field" >document_version</text>
+<text x="952" y="272" class="type">integer</text>
+<path d="M631 308 H1109" stroke="#fff7eb" stroke-width="1"/>
+<rect x="637" y="286" width="47" height="17" rx="3" fill="#dce8ee"/><text x="660" y="299" text-anchor="middle" class="tag">REF</text>
+<text x="694" y="300" class="field" >owner_id</text>
+<text x="952" y="300" class="type">uuid</text>
+<path d="M631 336 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="328" class="field" >source_type</text>
+<text x="952" y="328" class="type">varchar(30)</text>
+<path d="M631 364 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="356" class="field" >page_number</text>
+<text x="952" y="356" class="type">integer</text>
+<text x="1092" y="356" class="nullable">N</text><path d="M631 392 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="384" class="field" >slide_number</text>
+<text x="952" y="384" class="type">integer</text>
+<text x="1092" y="384" class="nullable">N</text><path d="M631 420 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="412" class="field" >chunk_index</text>
+<text x="952" y="412" class="type">integer</text>
+<path d="M631 448 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="440" class="field" >content</text>
+<text x="952" y="440" class="type">text</text>
+<path d="M631 476 H1109" stroke="#fff7eb" stroke-width="1"/>
+
+<text x="694" y="468" class="field" >embedding</text>
+<text x="952" y="468" class="type">vector(1024)</text>
+<text x="644" y="496" class="nullable">Schema: ai · Python · Xem ràng buộc trong README</text></g></g><text x="120" y="3710" class="sub" style="font-size:21px">FK phụ và tự tham chiếu: xem README. FK* của slide_notes là (document_id, slide_number) → slides.</text>
+<text x="120" y="3750" class="sub" style="font-size:21px">learning_progress theo Student/Document · Course Offering của kế hoạch nằm trên study_plan_items · options của Quiz lưu JSONB.</text>
+<text x="120" y="3790" class="sub" style="font-size:21px">Không có FK xuyên schema app ↔ ai. Daily Goal actual, Streak, Calendar và nội dung cần ôn lại là dữ liệu tổng hợp.</text></svg>

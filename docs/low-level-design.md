@@ -30,7 +30,7 @@ Web không gọi Python, database, Object Storage hoặc model provider trực t
 `createCourseOffering(subjectId, semesterId, name, capacity?)`:
 
 - Input: Teacher đã xác thực; Subject/Semester phải active; semester cho phép tạo lớp.
-- Output: Course Offering `OPEN` và join code duy nhất dạng dễ nhập.
+- Output: Course Offering `ACTIVE` và join code duy nhất dạng dễ nhập.
 - Errors: `403 ROLE_REQUIRED`, `404 SUBJECT_OR_SEMESTER_NOT_FOUND`, `409 OFFERING_CONFLICT`, `422 INVALID_CAPACITY`.
 - Side effect: lưu hash/hint của join code và audit `COURSE_OFFERING_CREATED`.
 

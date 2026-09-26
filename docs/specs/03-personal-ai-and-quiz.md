@@ -59,9 +59,9 @@ Cho phép Student quản lý PDF cá nhân, hỏi đáp trên đúng tài liệu
 
 ### `POST /api/v1/personal-rag/conversations/{id}/messages`
 
-- **Input:** `{question}` 1–2.000 ký tự; scope lấy từ conversation do Java sở hữu.
+- **Input:** `{message}` 1–2.000 ký tự; scope lấy từ conversation do Java sở hữu.
 - **Output:** `{messageId, status:"ANSWERED|NO_EVIDENCE", answer, citations, traceId}`.
-- **Citation:** `{documentId, location:{kind:"PAGE", value}, excerpt}`; `value` là số trang PDF bắt đầu từ 1.
+- **Citation:** `{documentId, documentName, pageNumber, excerpt}`; `pageNumber` là số nguyên bắt đầu từ 1 theo public contract.
 - **Errors:** `404 CONVERSATION_NOT_FOUND`; `409 DOCUMENT_NOT_READY`; `503 AI_SERVICE_UNAVAILABLE`.
 - **Side effect:** lưu message/citation có retention; ghi event `ASK_AI`.
 - **Grounding:** Python retrieval đúng một lần, generation và reviewer dùng cùng evidence snapshot. Claim `UNSUPPORTED`/`CONTRADICTED` phải bị loại hoặc viết lại; reviewer chỉ retry tối đa một lần.
@@ -98,7 +98,8 @@ Mỗi question Python trả về:
   "options": [
     {"id": "A", "text": "Giảm ảnh hưởng giữa transaction"},
     {"id": "B", "text": "Luôn loại bỏ mọi anomaly"},
-    {"id": "C", "text": "Xóa toàn bộ ràng buộc dữ liệu"}
+    {"id": "C", "text": "Xóa toàn bộ ràng buộc dữ liệu"},
+    {"id": "D", "text": "Thay thế cơ chế phục hồi dữ liệu"}
   ],
   "correctOptionIndex": 0,
   "explanation": "...",
@@ -110,9 +111,9 @@ Mỗi question Python trả về:
 
 Validation tại Java:
 
-- Có ít nhất hai option, text không rỗng và không trùng sau normalize.
+- Có đúng 4 options, text không rỗng và không trùng sau normalize.
 - `correctOptionIndex` là một số nguyên duy nhất nằm trong phạm vi options.
-- Có ít nhất một distractor và một source thuộc đúng authorized document/version.
+- Có đúng một đáp án đúng, ba distractors và ít nhất một source thuộc đúng authorized document/version.
 - Toàn bộ batch bị từ chối nếu một question malformed hoặc citation sai scope.
 - Thành công: `GENERATING → REVIEW_REQUIRED`; thất bại: `GENERATING → GENERATION_FAILED` với safe error code.
 
@@ -122,7 +123,7 @@ Validation tại Java:
 |---|---|---|---|
 | `POST /internal/v1/documents/index` | requestId, document/version, pipeline, ownerId, signed URL, MIME | `202 {jobId,status}` | Idempotent; retry tối đa 3 |
 | `GET /internal/v1/jobs/{jobId}` | job ID + service credential | status, attempts, errorCode | `404`; poll có backoff |
-| `POST /internal/v1/personal-rag/ask` | userId, conversationId, authorized document/version scope, history window, question | `ANSWERED|NO_EVIDENCE`, answer, claim-grounded citations, traceId | Không retry mù sau timeout |
+| `POST /internal/v1/personal-rag/ask` | userId, conversationId, authorized document/version scope, history window, message | `ANSWERED|NO_EVIDENCE`, answer, claim-grounded citations, traceId | Không retry mù sau timeout |
 | `POST /internal/v1/quizzes/generate` | userId, authorized IDs, untrusted userPrompt; không có chat context bắt buộc | structured questions + sources | Job idempotent; prompt không vượt system rule; malformed output không lưu |
 
 Mọi request có `X-Request-Id`, `X-Schema-Version`, service credential và timeout. Python không nhận user JWT.

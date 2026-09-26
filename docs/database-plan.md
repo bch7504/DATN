@@ -2,6 +2,8 @@
 
 PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `app`; Python/Alembic sở hữu schema `ai` và pgvector. Hai service dùng database role riêng.
 
+[Xem ERD tổng quan](diagrams/erd/index.html) và [giả định kiểu dữ liệu/ràng buộc](diagrams/erd/README.md). ERD là bản thiết kế đề xuất phục vụ báo cáo; kiểu dữ liệu, độ dài, nullable và khóa ghép chưa được chốt bằng migration.
+
 ## 1. Nguyên tắc
 
 - Mô hình học vụ: `semesters → course_offerings → course_enrollments`.
@@ -198,7 +200,7 @@ State: `GENERATING → REVIEW_REQUIRED → READY|REJECTED`; generation lỗi →
 ### Source/question/attempt
 
 - `quiz_sources`: quiz + Personal document/version; unique `(quiz_id, document_id)`.
-- `quiz_questions`: `MCQ_SINGLE`, options, one correct index, explanation, order.
+- `quiz_questions`: `MCQ_SINGLE`, đúng 4 options, một correct index, explanation, order.
 - `quiz_question_sources`: question + document/page/excerpt.
 - `quiz_attempts`: quiz/student/start/submit/score/status.
 - `quiz_answers`: attempt/question/selected option/correctness/score; unique `(attempt_id, question_id)`.

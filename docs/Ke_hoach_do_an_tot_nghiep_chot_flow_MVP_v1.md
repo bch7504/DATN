@@ -28,7 +28,7 @@ từng lớp, hệ thống mới áp dụng mô hình phân quyền nhẹ hơn:
 -   Teacher duyệt hoặc từ chối yêu cầu.
 -   Khi được duyệt, Student trở thành thành viên của lớp học phần và
     được truy cập học liệu Teacher public.
--   Khi kết thúc học kỳ, lớp chuyển sang `ARCHIVED/COMPLETED` thay vì bị
+-   Khi kết thúc học kỳ, lớp chuyển sang `ARCHIVED` thay vì bị
     xóa, giúp Student tiếp tục xem lại học liệu và phục vụ ôn tập.
 
 Student xem Slide/PPTX trực tiếp trên web, ghi Note theo từng slide và
@@ -76,8 +76,8 @@ tiến độ, kế hoạch, vòng đời Quiz và chấm điểm.
     -   PDF Teacher public: chỉ tải xuống.
 -   Xây dựng Tài liệu cá nhân cho Student: upload PDF và hỏi đáp RAG có
     citation.
--   Hiển thị tiến độ học tập trực tiếp trên **Dashboard** và trong từng
-    Course Offering; không tạo module **Tiến độ & Thống kê** độc lập.
+-   Hiển thị toàn bộ tiến độ tổng quan và tiến độ từng Course Offering
+    trực tiếp trên **Dashboard**; không tạo màn tiến độ độc lập.
 -   Bổ sung **Study Streak (Chuỗi ôn tập)** để khuyến khích Student duy
     trì hoạt động học tập hằng ngày.
 -   Bổ sung **Daily Goal (Mục tiêu hằng ngày)** để Student đặt mục tiêu
@@ -168,7 +168,7 @@ Teacher dạy và public học liệu
   ↓
 Kết thúc học kỳ
   ↓
-ARCHIVED / COMPLETED
+ARCHIVED
 ```
 
 Không xóa lớp sau mỗi học kỳ. Student vẫn có thể xem lịch sử lớp, Slide,
@@ -225,7 +225,7 @@ Student chấp nhận → `READY` → làm bài → Java chấm điểm và lưu
                                           deadline và tiến độ học tập. Hiển thị
                                           Study Streak, Daily Goal, tiến độ
                                           Slide, Quiz và Study Plan ở mức tổng
-                                          quan.
+                                          quan và chi tiết từng Course Offering.
 
   2                   **Lớp học phần**    Xem lớp đang học theo học kỳ; nhập
                                           join code để gửi yêu cầu tham gia; xem
@@ -251,9 +251,9 @@ Student chấp nhận → `READY` → làm bài → Java chấm điểm và lưu
 
   7                   **Ôn tập**          Quản lý Quiz AI sinh từ Personal
                                           Documents; review, accept/reject, làm
-                                          Quiz READY và xem kết quả. Tiến độ ôn
-                                          tập chi tiết được hiển thị trong từng
-                                          Course Offering.
+                                          Quiz READY và xem kết quả. Tiến độ
+                                          từng Course Offering được hiển thị
+                                          trực tiếp trên Dashboard.
   ------------------------------------------------------------------------------
 
 ### Quyền truy cập Student
@@ -493,9 +493,10 @@ liệu được public sang Course Offering khác.
 
 ## 10. Theo dõi học tập, Study Streak và Daily Goal
 
-Không xây dựng **Tiến độ & Thống kê** thành một menu độc lập. Các chỉ số
-tổng quan được hiển thị trên Dashboard; thông tin chi tiết theo môn được
-hiển thị trong từng Course Offering.
+Không xây dựng **Tiến độ & Thống kê** thành một menu độc lập. Dashboard
+hiển thị cả chỉ số tổng quan và tiến độ chi tiết theo từng Course Offering.
+Course Offering Detail tập trung vào thông tin lớp và học liệu; Ôn tập
+tập trung vào Quiz, câu sai, nguồn cần xem lại và lịch sử attempt.
 
 ### 10.1. Tiến độ học tập
 
@@ -1165,9 +1166,8 @@ Không bắt buộc trong MVP.
 8.  Student vào **Tài liệu cá nhân** → upload PDF → hỏi RAG có citation.
 9.  Student tạo Quiz từ Personal Documents → review → accept → làm Quiz
     → xem điểm.
-10. Mở **Dashboard** để xem Study Streak, Daily Goal và tiến độ tổng
-    quan; sau đó mở một Course Offering để xem tiến độ ôn tập chi tiết
-    và **Kế hoạch & Lịch**.
+10. Mở **Dashboard** để xem Study Streak, Daily Goal, tiến độ tổng quan
+    và tiến độ chi tiết từng Course Offering; sau đó mở **Kế hoạch & Lịch**.
 11. **Admin** xem Course Offering do Teacher tạo và Audit Log để chứng
     minh khả năng giám sát.
 12. Toàn bộ luồng chạy trên phiên bản deploy.
@@ -1202,7 +1202,7 @@ mô hình lớp học phần tín chỉ:
 6.  Student tham gia bằng join code.
 7.  Teacher approve/reject enrollment.
 8.  Tài khoản Student/Teacher tồn tại xuyên nhiều học kỳ.
-9.  Hết kỳ không xóa lớp; chuyển `ARCHIVED/COMPLETED`.
+9.  Hết kỳ không xóa lớp; chuyển `ARCHIVED` và tắt join code.
 10. Student có thể xem lịch sử lớp cũ.
 11. Teacher PPTX: xem trên web + Note + AI Tutor, không download file
     gốc.
