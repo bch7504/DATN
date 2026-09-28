@@ -1,0 +1,27 @@
+flowchart TD
+    N0["Student / Web<br/>Chọn Personal PDF và tự nhập prompt<br/>POST /api/v1/quizzes {selectedDocumentIds, prompt}"]
+    N1["Java<br/>Kiểm tra owner / READY / version<br/>Không lấy chat context làm điều kiện sinh Quiz"]
+    N0 --> N1
+    N1 -.-> S1["Sai scope / chưa READY<br/>Từ chối request; không sinh Quiz."]
+    N2["Java / app → Web<br/>Lưu GENERATING, trả 202 + quizId<br/>Java xử lý generation nền; Web đọc trạng thái qua Java"]
+    N1 --> N2
+    N3["Java → Python<br/>Gọi /internal/v1/quizzes/generate<br/>authorized document/version scope + userPrompt + idempotency key"]
+    N2 --> N3
+    N4["Python / pgvector<br/>Retrieval phục vụ prompt<br/>Chỉ Personal PDF đã chọn"]
+    N3 --> N4
+    N4 -.-> S4["Nguồn không đủ<br/>Generation thất bại an toàn; không bịa câu hỏi/nguồn."]
+    N5["Python / LLM<br/>Sinh structured Quiz draft<br/>MCQ_SINGLE · 4 options · 1 đáp án · explanation · sources"]
+    N4 --> N5
+    N6["Java<br/>Validate toàn bộ batch<br/>Schema, options, answer index và citation đúng scope"]
+    N5 --> N6
+    N6 -.-> S6["Draft không hợp lệ<br/>GENERATING → GENERATION_FAILED; safe error code."]
+    N7["Java / app → Student<br/>Lưu REVIEW_REQUIRED<br/>Student xem lại bộ câu hỏi"]
+    N6 --> N7
+    N7 -.-> S7["Không accept<br/>Reject → REJECTED; regenerate → Quiz mới GENERATING, giữ lịch sử."]
+    N8["Student / Web → Java<br/>Accept và chọn nơi ôn tập<br/>COURSE_OFFERING hoặc PERSONAL"]
+    N7 --> N8
+    N9["Java<br/>Kiểm tra destination<br/>Lớp cần enrollment APPROVED; PERSONAL có courseOfferingId=null"]
+    N8 --> N9
+    N9 -.-> S9["Destination không hợp lệ<br/>Không chuyển READY; Student chọn lại nơi ôn tập."]
+    N10["Java / app<br/>Chuyển READY<br/>Nguồn tạo Quiz độc lập nơi ôn tập; Quiz sẵn sàng làm bài"]
+    N9 --> N10

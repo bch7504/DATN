@@ -1,0 +1,22 @@
+flowchart TD
+    N0["Student / Web<br/>Mở slide của PPTX public<br/>documentId + slide number trên route"]
+    N0 -.-> S0["Các thao tác độc lập<br/>VIEW_SLIDE ghi tiến độ; lưu Note không tạo ngày Streak."]
+    N1["Web → Java<br/>Gửi {question}<br/>POST /student/materials/{documentId}/slides/{number}/tutor"]
+    N0 --> N1
+    N2["Java<br/>Xác minh quyền trước khi hỏi<br/>Enrollment, publication, version, trạng thái lớp"]
+    N1 --> N2
+    N2 -.-> S2["Ngoài scope / revoke / lock<br/>Từ chối truy cập; không gọi AI."]
+    N3["Java → Python<br/>Cấp authorized scope nội bộ<br/>user + document/version + current/allowed slides"]
+    N2 --> N3
+    N4["Python / pgvector<br/>Truy xuất trong deck được phép<br/>Ưu tiên slide hiện tại; không mở rộng sang tài liệu khác"]
+    N3 --> N4
+    N5["Python<br/>Evidence đủ để trả lời?<br/>Có → generation; không → NO_EVIDENCE"]
+    N4 --> N5
+    N5 -.-> S5["Không đủ evidence<br/>Không gọi LLM generation để đoán ngoài slide."]
+    N6["Python / LLM<br/>Sinh và kiểm tra câu trả lời<br/>Giữ cùng snapshot; kiểm tra claim và citation"]
+    N5 --> N6
+    N6 -.-> S6["Grounding không đạt<br/>Rewrite tối đa một lần; vẫn thiếu căn cứ → NO_EVIDENCE."]
+    N7["Java<br/>Validate output/citation<br/>document/version/slide phải thuộc authorized scope"]
+    N6 --> N7
+    N8["Web / Student<br/>Answer + citation theo slide<br/>NO_EVIDENCE hiển thị rõ; ASK_AI không tính Streak"]
+    N7 --> N8

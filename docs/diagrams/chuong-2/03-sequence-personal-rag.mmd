@@ -1,0 +1,18 @@
+sequenceDiagram
+  actor Student
+  participant Web
+  participant Java
+  participant Python
+  participant DB
+  Student->>Web: Gửi câu hỏi
+  Web->>Java: POST message
+  Java->>DB: Kiểm owner/READY/scope
+  Java->>Python: ask + authorized scope
+  Python->>Python: retrieve + evidence gate
+  alt đủ evidence
+    Python-->>Java: ANSWERED + citations
+  else thiếu evidence
+    Python-->>Java: NO_EVIDENCE
+  end
+  Java->>Java: Revalidate output
+  Java-->>Web: Structured response

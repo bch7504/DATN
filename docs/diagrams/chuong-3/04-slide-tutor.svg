@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1720" viewBox="0 0 1280 1720" role="img" aria-labelledby="title desc">
+<title id="title">Hình 3.5 · Slide Viewer, Note và AI Tutor</title><desc id="desc">Luồng thiết kế theo contract StudyFlow, chưa phải minh chứng thực thi. Cột trái là luồng chính; cột phải là nhánh lỗi hoặc thao tác thay thế.</desc>
+<defs><marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto"><path d="M1 1L11 6L1 11" fill="none" stroke="#536474" stroke-width="2"/></marker></defs>
+<style>text{font-family:Arial,Segoe UI,sans-serif;fill:#172033}.title{font-size:26px;font-weight:700}.sub{font-size:16px;fill:#526273}.actor{font-size:13px;font-weight:700;fill:#a80f18}.node{font-size:20px;font-weight:700}.body{font-size:16px}.side{font-size:17px;font-weight:700}.label{font-size:13px;fill:#526273}</style>
+<rect width="1280" height="1720" fill="white"/>
+<rect width="1280" height="8" fill="#d71920"/>
+<text x="48" y="52" class="title">Hình 3.5 · Slide Viewer, Note và AI Tutor</text>
+<text x="48" y="83" class="sub">Đối chiếu mục 3.3.3–3.3.5 · Luồng dự kiến theo API/thiết kế hiện hành · Chưa xác minh runtime</text>
+<text x="48" y="112" class="sub">Luồng chính đi xuống khi điều kiện hợp lệ; nhánh bên phải ghi kết quả lỗi hoặc thao tác thay thế.</text><g><rect x="48" y="145" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="159" width="4" height="97" fill="#16806b"/>
+<text x="68" y="170" class="actor">01 · Student / Web</text>
+<text x="68" y="199" class="node">Mở slide của PPTX public</text><text x="68" y="227" class="body">documentId + slide number trên route</text></g><path d="M393 271V309" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><path d="M738 208H800" fill="none" stroke="#536474" stroke-dasharray="5 4" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="810" y="145" width="420" height="126" rx="12" fill="#fff5e9" stroke="#ddba8b"/><text x="826" y="170" class="side">Các thao tác độc lập</text><text x="826" y="198" class="body">VIEW_SLIDE ghi tiến độ; lưu Note không tạo ngày</text><text x="826" y="218" class="body">Streak.</text><g><rect x="48" y="315" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="329" width="4" height="97" fill="#d71920"/>
+<text x="68" y="340" class="actor">02 · Web → Java</text>
+<text x="68" y="369" class="node">Gửi {question}</text><text x="68" y="397" class="body">POST /student/materials/{documentId}/slides/{number}/tutor</text></g><path d="M393 441V479" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><g><rect x="48" y="485" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="499" width="4" height="97" fill="#d71920"/>
+<text x="68" y="510" class="actor">03 · Java</text>
+<text x="68" y="539" class="node">Xác minh quyền trước khi hỏi</text><text x="68" y="567" class="body">Enrollment, publication, version, trạng thái lớp</text></g><path d="M393 611V649" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><path d="M738 548H800" fill="none" stroke="#536474" stroke-dasharray="5 4" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="810" y="485" width="420" height="126" rx="12" fill="#fff5e9" stroke="#ddba8b"/><text x="826" y="510" class="side">Ngoài scope / revoke / lock</text><text x="826" y="538" class="body">Từ chối truy cập; không gọi AI.</text><g><rect x="48" y="655" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="669" width="4" height="97" fill="#2563a6"/>
+<text x="68" y="680" class="actor">04 · Java → Python</text>
+<text x="68" y="709" class="node">Cấp authorized scope nội bộ</text><text x="68" y="737" class="body">user + document/version + current/allowed slides</text></g><path d="M393 781V819" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><g><rect x="48" y="825" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="839" width="4" height="97" fill="#2563a6"/>
+<text x="68" y="850" class="actor">05 · Python / pgvector</text>
+<text x="68" y="879" class="node">Truy xuất trong deck được phép</text><text x="68" y="907" class="body">Ưu tiên slide hiện tại; không mở rộng sang tài liệu khác</text></g><path d="M393 951V989" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><g><rect x="48" y="995" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="1009" width="4" height="97" fill="#2563a6"/>
+<text x="68" y="1020" class="actor">06 · Python</text>
+<text x="68" y="1049" class="node">Evidence đủ để trả lời?</text><text x="68" y="1077" class="body">Có → generation; không → NO_EVIDENCE</text></g><path d="M393 1121V1159" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><path d="M738 1058H800" fill="none" stroke="#536474" stroke-dasharray="5 4" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="810" y="995" width="420" height="126" rx="12" fill="#fff5e9" stroke="#ddba8b"/><text x="826" y="1020" class="side">Không đủ evidence</text><text x="826" y="1048" class="body">Không gọi LLM generation để đoán ngoài slide.</text><g><rect x="48" y="1165" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="1179" width="4" height="97" fill="#2563a6"/>
+<text x="68" y="1190" class="actor">07 · Python / LLM</text>
+<text x="68" y="1219" class="node">Sinh và kiểm tra câu trả lời</text><text x="68" y="1247" class="body">Giữ cùng snapshot; kiểm tra claim và citation</text></g><path d="M393 1291V1329" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><path d="M738 1228H800" fill="none" stroke="#536474" stroke-dasharray="5 4" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="810" y="1165" width="420" height="126" rx="12" fill="#fff5e9" stroke="#ddba8b"/><text x="826" y="1190" class="side">Grounding không đạt</text><text x="826" y="1218" class="body">Rewrite tối đa một lần; vẫn thiếu căn cứ →</text><text x="826" y="1238" class="body">NO_EVIDENCE.</text><g><rect x="48" y="1335" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="1349" width="4" height="97" fill="#d71920"/>
+<text x="68" y="1360" class="actor">08 · Java</text>
+<text x="68" y="1389" class="node">Validate output/citation</text><text x="68" y="1417" class="body">document/version/slide phải thuộc authorized scope</text></g><path d="M393 1461V1499" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><g><rect x="48" y="1505" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="1519" width="4" height="97" fill="#16806b"/>
+<text x="68" y="1530" class="actor">09 · Web / Student</text>
+<text x="68" y="1559" class="node">Answer + citation theo slide</text><text x="68" y="1587" class="body">NO_EVIDENCE hiển thị rõ; ASK_AI không tính Streak</text></g><text x="48" y="1704" class="label">Public API viết tương đối với /api/v1 khi lược prefix; internal API dùng /internal/v1. Java sở hữu quyền và trạng thái nghiệp vụ.</text></svg>

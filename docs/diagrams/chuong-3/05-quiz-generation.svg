@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="2060" viewBox="0 0 1280 2060" role="img" aria-labelledby="title desc">
+<title id="title">Hình 3.6 · Sinh, review và chấp nhận Quiz</title><desc id="desc">Luồng thiết kế theo contract StudyFlow, chưa phải minh chứng thực thi. Cột trái là luồng chính; cột phải là nhánh lỗi hoặc thao tác thay thế.</desc>
+<defs><marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto"><path d="M1 1L11 6L1 11" fill="none" stroke="#536474" stroke-width="2"/></marker></defs>
+<style>text{font-family:Arial,Segoe UI,sans-serif;fill:#172033}.title{font-size:26px;font-weight:700}.sub{font-size:16px;fill:#526273}.actor{font-size:13px;font-weight:700;fill:#a80f18}.node{font-size:20px;font-weight:700}.body{font-size:16px}.side{font-size:17px;font-weight:700}.label{font-size:13px;fill:#526273}</style>
+<rect width="1280" height="2060" fill="white"/>
+<rect width="1280" height="8" fill="#d71920"/>
+<text x="48" y="52" class="title">Hình 3.6 · Sinh, review và chấp nhận Quiz</text>
+<text x="48" y="83" class="sub">Đối chiếu mục 3.4.1–3.4.5 · Luồng dự kiến theo API/thiết kế hiện hành · Chưa xác minh runtime</text>
+<text x="48" y="112" class="sub">Luồng chính đi xuống khi điều kiện hợp lệ; nhánh bên phải ghi kết quả lỗi hoặc thao tác thay thế.</text><g><rect x="48" y="145" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="159" width="4" height="97" fill="#16806b"/>
+<text x="68" y="170" class="actor">01 · Student / Web</text>
+<text x="68" y="199" class="node">Chọn Personal PDF và tự nhập prompt</text><text x="68" y="227" class="body">POST /api/v1/quizzes {selectedDocumentIds, prompt}</text></g><path d="M393 271V309" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><g><rect x="48" y="315" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="329" width="4" height="97" fill="#d71920"/>
+<text x="68" y="340" class="actor">02 · Java</text>
+<text x="68" y="369" class="node">Kiểm tra owner / READY / version</text><text x="68" y="397" class="body">Không lấy chat context làm điều kiện sinh Quiz</text></g><path d="M393 441V479" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><path d="M738 378H800" fill="none" stroke="#536474" stroke-dasharray="5 4" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="810" y="315" width="420" height="126" rx="12" fill="#fff5e9" stroke="#ddba8b"/><text x="826" y="340" class="side">Sai scope / chưa READY</text><text x="826" y="368" class="body">Từ chối request; không sinh Quiz.</text><g><rect x="48" y="485" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="499" width="4" height="97" fill="#d71920"/>
+<text x="68" y="510" class="actor">03 · Java / app → Web</text>
+<text x="68" y="539" class="node">Lưu GENERATING, trả 202 + quizId</text><text x="68" y="567" class="body">Java xử lý generation nền; Web đọc trạng thái qua Java</text></g><path d="M393 611V649" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><g><rect x="48" y="655" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="669" width="4" height="97" fill="#2563a6"/>
+<text x="68" y="680" class="actor">04 · Java → Python</text>
+<text x="68" y="709" class="node">Gọi /internal/v1/quizzes/generate</text><text x="68" y="737" class="body">authorized document/version scope + userPrompt + idempotency key</text></g><path d="M393 781V819" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><g><rect x="48" y="825" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="839" width="4" height="97" fill="#2563a6"/>
+<text x="68" y="850" class="actor">05 · Python / pgvector</text>
+<text x="68" y="879" class="node">Retrieval phục vụ prompt</text><text x="68" y="907" class="body">Chỉ Personal PDF đã chọn</text></g><path d="M393 951V989" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><path d="M738 888H800" fill="none" stroke="#536474" stroke-dasharray="5 4" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="810" y="825" width="420" height="126" rx="12" fill="#fff5e9" stroke="#ddba8b"/><text x="826" y="850" class="side">Nguồn không đủ</text><text x="826" y="878" class="body">Generation thất bại an toàn; không bịa câu</text><text x="826" y="898" class="body">hỏi/nguồn.</text><g><rect x="48" y="995" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="1009" width="4" height="97" fill="#2563a6"/>
+<text x="68" y="1020" class="actor">06 · Python / LLM</text>
+<text x="68" y="1049" class="node">Sinh structured Quiz draft</text><text x="68" y="1077" class="body">MCQ_SINGLE · 4 options · 1 đáp án · explanation · sources</text></g><path d="M393 1121V1159" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><g><rect x="48" y="1165" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="1179" width="4" height="97" fill="#d71920"/>
+<text x="68" y="1190" class="actor">07 · Java</text>
+<text x="68" y="1219" class="node">Validate toàn bộ batch</text><text x="68" y="1247" class="body">Schema, options, answer index và citation đúng scope</text></g><path d="M393 1291V1329" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><path d="M738 1228H800" fill="none" stroke="#536474" stroke-dasharray="5 4" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="810" y="1165" width="420" height="126" rx="12" fill="#fff5e9" stroke="#ddba8b"/><text x="826" y="1190" class="side">Draft không hợp lệ</text><text x="826" y="1218" class="body">GENERATING → GENERATION_FAILED; safe error code.</text><g><rect x="48" y="1335" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="1349" width="4" height="97" fill="#d71920"/>
+<text x="68" y="1360" class="actor">08 · Java / app → Student</text>
+<text x="68" y="1389" class="node">Lưu REVIEW_REQUIRED</text><text x="68" y="1417" class="body">Student xem lại bộ câu hỏi</text></g><path d="M393 1461V1499" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><path d="M738 1398H800" fill="none" stroke="#536474" stroke-dasharray="5 4" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="810" y="1335" width="420" height="126" rx="12" fill="#fff5e9" stroke="#ddba8b"/><text x="826" y="1360" class="side">Không accept</text><text x="826" y="1388" class="body">Reject → REJECTED; regenerate → Quiz mới</text><text x="826" y="1408" class="body">GENERATING, giữ lịch sử.</text><g><rect x="48" y="1505" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="1519" width="4" height="97" fill="#d71920"/>
+<text x="68" y="1530" class="actor">09 · Student / Web → Java</text>
+<text x="68" y="1559" class="node">Accept và chọn nơi ôn tập</text><text x="68" y="1587" class="body">COURSE_OFFERING hoặc PERSONAL</text></g><path d="M393 1631V1669" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><g><rect x="48" y="1675" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="1689" width="4" height="97" fill="#d71920"/>
+<text x="68" y="1700" class="actor">10 · Java</text>
+<text x="68" y="1729" class="node">Kiểm tra destination</text><text x="68" y="1757" class="body">Lớp cần enrollment APPROVED; PERSONAL có courseOfferingId=null</text></g><path d="M393 1801V1839" fill="none" stroke="#536474" stroke-width="2" marker-end="url(#arrow)"/><path d="M738 1738H800" fill="none" stroke="#536474" stroke-dasharray="5 4" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="810" y="1675" width="420" height="126" rx="12" fill="#fff5e9" stroke="#ddba8b"/><text x="826" y="1700" class="side">Destination không hợp lệ</text><text x="826" y="1728" class="body">Không chuyển READY; Student chọn lại nơi ôn tập.</text><g><rect x="48" y="1845" width="690" height="126" rx="12" fill="#f8fafc" stroke="#c8d2dc" stroke-width="1.5"/>
+<rect x="48" y="1859" width="4" height="97" fill="#d71920"/>
+<text x="68" y="1870" class="actor">11 · Java / app</text>
+<text x="68" y="1899" class="node">Chuyển READY</text><text x="68" y="1927" class="body">Nguồn tạo Quiz độc lập nơi ôn tập; Quiz sẵn sàng làm bài</text></g><text x="48" y="2044" class="label">Public API viết tương đối với /api/v1 khi lược prefix; internal API dùng /internal/v1. Java sở hữu quyền và trạng thái nghiệp vụ.</text></svg>
