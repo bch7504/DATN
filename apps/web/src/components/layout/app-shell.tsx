@@ -223,15 +223,73 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-xs sm:text-sm">
                 <span className="font-semibold text-slate-800">
-                  {role ? roleNameMap[role] : "StudyFlow"}
+                  {role ? roleNameMap[role] : "Sinh viên"}
                 </span>
                 <span className="text-slate-300">/</span>
-                <span className="text-slate-500 font-medium capitalize">
-                  {navItems.find((n) => pathname?.startsWith(n.href))?.label ||
-                    "Trang chính"}
-                </span>
+                {(() => {
+                  const crumbs: string[] = [];
+                  if (pathname?.startsWith("/materials/") && pathname?.includes("/viewer")) {
+                    crumbs.push("Lớp học phần", "Xem slide bài giảng");
+                  } else if (pathname?.startsWith("/materials")) {
+                    crumbs.push("Lớp học phần", "Kho học liệu");
+                  } else if (pathname === "/dashboard") {
+                    crumbs.push("Bảng điều khiển");
+                  } else if (pathname?.startsWith("/course-offerings")) {
+                    crumbs.push("Lớp học phần");
+                  } else if (pathname?.startsWith("/personal-documents")) {
+                    crumbs.push("Tài liệu cá nhân");
+                  } else if (pathname?.startsWith("/chat")) {
+                    crumbs.push("Hỏi đáp tài liệu (RAG)");
+                  } else if (pathname?.startsWith("/quiz/create")) {
+                    crumbs.push("Ôn tập & Quiz", "Sinh đề thi trắc nghiệm AI");
+                  } else if (pathname?.startsWith("/review/")) {
+                    crumbs.push("Ôn tập & Quiz", "Không gian môn học");
+                  } else if (pathname?.startsWith("/review")) {
+                    crumbs.push("Ôn tập & Quiz");
+                  } else if (pathname?.startsWith("/plan")) {
+                    crumbs.push("Kế hoạch học tập");
+                  } else if (pathname === "/teacher/dashboard") {
+                    crumbs.push("Bảng điều khiển");
+                  } else if (pathname?.startsWith("/teacher/course-offerings")) {
+                    crumbs.push("Quản lý Lớp học phần");
+                  } else if (pathname?.startsWith("/teacher/enrollments")) {
+                    crumbs.push("Phê duyệt sinh viên");
+                  } else if (pathname?.startsWith("/teacher/documents")) {
+                    crumbs.push("Kho tài liệu giảng dạy");
+                  } else if (pathname === "/admin/dashboard") {
+                    crumbs.push("Bảng điều khiển");
+                  } else if (pathname?.startsWith("/admin/users")) {
+                    crumbs.push("Quản lý người dùng");
+                  } else if (pathname?.startsWith("/admin/catalog")) {
+                    crumbs.push("Môn học & Học kỳ");
+                  } else if (pathname?.startsWith("/admin/course-offerings")) {
+                    crumbs.push("Giám sát Lớp học phần");
+                  } else if (pathname?.startsWith("/admin/logs")) {
+                    crumbs.push("Nhật ký hệ thống");
+                  } else {
+                    crumbs.push(
+                      navItems.find((n) => pathname?.startsWith(n.href))?.label ||
+                        "Bảng điều khiển"
+                    );
+                  }
+
+                  return crumbs.map((crumb, idx) => (
+                    <React.Fragment key={idx}>
+                      {idx > 0 && <span className="text-slate-300">/</span>}
+                      <span
+                        className={
+                          idx === crumbs.length - 1
+                            ? "text-ptit-red font-bold"
+                            : "text-slate-600 font-medium"
+                        }
+                      >
+                        {crumb}
+                      </span>
+                    </React.Fragment>
+                  ));
+                })()}
               </div>
             </div>
 
