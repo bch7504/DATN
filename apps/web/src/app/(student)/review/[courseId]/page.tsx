@@ -12,8 +12,6 @@ import {
 import { Quiz, QuizAttempt, QuizQuestion } from "@/types/quiz";
 import {
   ReviewItem,
-  CourseWorkspaceProgress,
-  CourseReviewSummary,
 } from "@/types/review";
 import { CourseOffering } from "@/types/course-offering";
 import { LoadingSpinner } from "@/components/ui/loading-states";
@@ -51,13 +49,12 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
   const courseId = unwrappedParams.courseId;
   const isPersonal = courseId === "PERSONAL";
 
-  const [activeTab, setActiveTab] = useState<"QUIZZES" | "REVIEW_ITEMS" | "PROGRESS">("QUIZZES");
+  const [activeTab, setActiveTab] = useState<"QUIZZES" | "REVIEW_ITEMS">("QUIZZES");
 
   // Data states
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
-  const [progress, setProgress] = useState<CourseWorkspaceProgress | null>(null);
   const [courseOffering, setCourseOffering] = useState<CourseOffering | null>(null);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -73,20 +70,14 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [quizList, attemptList, revList, progData, offerings] = await Promise.all([
-        quizApi.getQuizzes(courseId),
-        quizApi.getAttempts(),
-        reviewApi.getReviewItems(courseId),
-        !isPersonal ? reviewApi.getCourseWorkspaceProgress(courseId) : Promise.resolve(null),
+      const [workspace, offerings] = await Promise.all([
+        reviewApi.getCourseWorkspace(courseId),
         !isPersonal ? studentApi.getOfferings() : Promise.resolve([]),
       ]);
 
-      setQuizzes(quizList);
-      // Filter attempts belonging to this course's quizzes
-      const quizIds = quizList.map((q) => q.id);
-      setAttempts(attemptList.filter((a) => quizIds.includes(a.quizId)));
-      setReviewItems(revList);
-      setProgress(progData);
+      setQuizzes(workspace.quizzes);
+      setAttempts(workspace.attempts);
+      setReviewItems(workspace.reviewItems);
 
       if (!isPersonal) {
         const found = offerings.find((o) => o.id === courseId);
@@ -134,12 +125,9 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
 
       setLatestAttemptResult(result);
       // Refresh attempts & review items
-      const updatedAttempts = await quizApi.getAttempts();
-      const quizIds = quizzes.map((q) => q.id);
-      setAttempts(updatedAttempts.filter((a) => quizIds.includes(a.quizId)));
-
-      const updatedReviewItems = await reviewApi.getReviewItems(courseId);
-      setReviewItems(updatedReviewItems);
+      const workspace = await reviewApi.getCourseWorkspace(courseId);
+      setAttempts(workspace.attempts);
+      setReviewItems(workspace.reviewItems);
     } catch (err: unknown) {
       if (err instanceof ApiClientError) {
         alert(err.message);
@@ -204,7 +192,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
         <ErrorAlert message={errorMessage} onRetry={() => loadData()} />
       )}
 
-      {/* 3 Sub-tabs Navigation */}
+      {/* Review is limited to Quiz history and wrong-answer sources. Course progress belongs on Dashboard. */}
       <div className="flex items-center gap-2 border-b border-slate-200">
         <button
           onClick={() => setActiveTab("QUIZZES")}
@@ -230,19 +218,6 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
           <span>2. Nội dung cần ôn lại ({reviewItems.length})</span>
         </button>
 
-        {!isPersonal && (
-          <button
-            onClick={() => setActiveTab("PROGRESS")}
-            className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-              activeTab === "PROGRESS"
-                ? "border-ptit-red text-ptit-red"
-                : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <Presentation className="w-4 h-4" />
-            <span>3. Xem tiến độ môn học</span>
-          </button>
-        )}
       </div>
 
       {/* SUB-TAB CONTENTS */}
@@ -474,112 +449,6 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
             </div>
           )}
 
-          {/* ======================================================== */}
-          {/* SUB-TAB 3: XEM TIẾN ĐỘ MÔN HỌC & NHẬT KÝ HOẠT ĐỘNG 7 NGÀY */}
-          {/* ======================================================== */}
-          {activeTab === "PROGRESS" && progress && (
-            <div className="space-y-6">
-              {/* Viewing Progress Header Card */}
-              <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
-                      Tiến độ xem slide bài giảng: {progress.documentTitle}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Đã xem {progress.viewedSlides} trên tổng số {progress.totalSlides} slide bài giảng
-                    </p>
-                  </div>
-                  <span className="text-2xl font-extrabold text-ptit-red">
-                    {progress.viewingPercentage}%
-                  </span>
-                </div>
-
-                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-ptit-red rounded-full transition-all duration-500"
-                    style={{ width: `${progress.viewingPercentage}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Slides Grid Checklist */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Danh sách Slide bài giảng & Trạng thái đã học:
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {progress.slides.map((slide) => (
-                    <div
-                      key={slide.slideNumber}
-                      className={`p-3.5 rounded-2xl border text-xs flex items-start gap-3 transition ${
-                        slide.viewed
-                          ? "bg-emerald-50/60 border-emerald-200 text-slate-800"
-                          : "bg-slate-50 border-slate-200 text-slate-500"
-                      }`}
-                    >
-                      <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                          slide.viewed
-                            ? "bg-emerald-600 text-white"
-                            : "bg-slate-200 text-slate-500"
-                        }`}
-                      >
-                        {slide.slideNumber}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold truncate">{slide.title}</div>
-                        <div className="text-[10px] mt-0.5 flex items-center gap-1.5">
-                          {slide.viewed ? (
-                            <span className="text-emerald-700 font-bold flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" /> Đã hoàn thành xem
-                            </span>
-                          ) : (
-                            <span className="text-slate-400">Chưa xem</span>
-                          )}
-                          {slide.viewedAt && (
-                            <span className="text-slate-400">
-                              • {new Date(slide.viewedAt).toLocaleDateString("vi-VN")}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 7 Days Learning Activity Log */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Nhật ký hoạt động học tập môn này (7 ngày gần nhất):
-                </h4>
-
-                {progress.recentActivities.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">Chưa có hoạt động nào trong 7 ngày qua.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {progress.recentActivities.map((act) => (
-                      <div
-                        key={act.id}
-                        className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-ptit-red" />
-                          <span className="text-slate-700 font-medium">{act.description}</span>
-                        </div>
-                        <span className="text-[10px] text-slate-400">
-                          {new Date(act.timestamp).toLocaleString("vi-VN")}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       )}
 

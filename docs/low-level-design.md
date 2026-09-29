@@ -1,7 +1,7 @@
 # Low-level Design — StudyFlow Course Offering
 
 **Baseline:** 24/09/2026
-**Nguồn nghiệp vụ:** `Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`
+**Nguồn nghiệp vụ:** `bao-cao/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`
 
 ## 1. Module và boundary
 
@@ -95,7 +95,7 @@ Note key là `(studentId, slideId)`. View progress idempotent theo event/key. Sl
 - Streak chỉ xét `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`; distinct local date quyết định chuỗi hiện tại/kỷ lục.
 - Daily Goal lưu ba target và Java tính actual: slide phân biệt, số câu Quiz đã chấm, task hoàn thành trong ngày. Client không gửi actual.
 - Daily Goal và Streak độc lập; chưa có XP, Level, Achievement hoặc leaderboard.
-- Study Plan/Calendar do Student chủ động tạo; AI không tự điều phối.
+- Kế hoạch & Lịch do Student chủ động tạo: task/deadline được chiếu lên lịch tuần theo khung giờ. AI không tự điều phối; Daily Goal/Streak/progress không lặp trong màn lịch.
 
 ## 7. Idempotency, lỗi và quan sát
 

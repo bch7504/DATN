@@ -24,7 +24,8 @@ import {
   FolderKanban,
   FileClock,
   Sparkles,
-  MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { UserRole } from "@/types/auth";
 
@@ -39,30 +40,31 @@ const STUDENT_NAV: NavItem[] = [
   { label: "Tổng quan", href: "/dashboard", icon: LayoutDashboard },
   { label: "Lớp học phần", href: "/course-offerings", icon: GraduationCap },
   { label: "Tài liệu cá nhân", href: "/personal-documents", icon: FileText },
-  { label: "Hỏi đáp tài liệu (RAG)", href: "/chat", icon: MessageSquare },
-  { label: "Kế hoạch học tập", href: "/plan", icon: CalendarCheck },
-  { label: "Ôn tập & Quiz", href: "/review", icon: RotateCcw },
+  { label: "Kế hoạch & Lịch", href: "/plan", icon: CalendarCheck },
+  { label: "Ôn tập", href: "/review", icon: RotateCcw },
 ];
 
 const TEACHER_NAV: NavItem[] = [
-  { label: "Bảng điều khiển", href: "/teacher/dashboard", icon: LayoutDashboard },
-  { label: "Quản lý Lớp học phần", href: "/teacher/course-offerings", icon: GraduationCap },
-  { label: "Phê duyệt sinh viên", href: "/teacher/enrollments", icon: UserCheck },
-  { label: "Kho tài liệu giảng dạy", href: "/teacher/documents", icon: FolderKanban },
+  { label: "Tổng quan", href: "/teacher/dashboard", icon: LayoutDashboard },
+  { label: "Lớp học phần của tôi", href: "/teacher/course-offerings", icon: GraduationCap },
+  { label: "Yêu cầu tham gia", href: "/teacher/enrollments", icon: UserCheck },
+  { label: "Kho tài liệu & Public", href: "/teacher/documents", icon: FolderKanban },
 ];
 
 const ADMIN_NAV: NavItem[] = [
-  { label: "Bảng điều khiển", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Quản lý người dùng", href: "/admin/users", icon: Users },
+  { label: "Tổng quan hệ thống", href: "/admin/dashboard", icon: LayoutDashboard },
+  { label: "Người dùng & Vai trò", href: "/admin/users", icon: Users },
   { label: "Môn học & Học kỳ", href: "/admin/catalog", icon: Layers },
-  { label: "Giám sát Lớp học phần", href: "/admin/course-offerings", icon: GraduationCap },
-  { label: "Nhật ký hệ thống", href: "/admin/logs", icon: FileClock },
+  { label: "Feedback & Reports", href: "/admin/feedback", icon: ShieldAlert },
+  { label: "Logs & Audit", href: "/admin/audit", icon: FileClock },
+  { label: "Cấu hình", href: "/admin/settings", icon: Settings },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, role, logout, isDemo, switchDemoRole } = useAuth();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
 
   let navItems: NavItem[] = STUDENT_NAV;
   let roleTitle = "HỌC VIÊN";
@@ -97,12 +99,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-68 bg-white border-r border-[#e5e7eb] flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-50 w-68 bg-white border-r border-[#e5e7eb] flex flex-col transition-all duration-200 ease-in-out lg:translate-x-0 ${
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-          } lg:static lg:z-auto`}
+          } lg:static lg:z-auto ${desktopSidebarCollapsed ? "lg:w-20" : "lg:w-68"}`}
         >
           {/* Brand Header */}
-          <div className="p-4 border-b border-[#f1f5f9] flex items-center justify-between">
+          <div className={`p-4 border-b border-[#f1f5f9] flex items-center justify-between ${desktopSidebarCollapsed ? "lg:flex-col lg:gap-3 lg:px-2" : ""}`}>
             <Link
               href="/"
               className="flex items-center gap-3 group focus:outline-none"
@@ -111,7 +113,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="w-10 h-10 rounded-full border-2 border-[#d71920] bg-white flex items-center justify-center shadow-sm flex-shrink-0 group-hover:scale-105 transition-transform">
                 <PtitLogo size={24} />
               </div>
-              <div className="leading-tight">
+              <div className={`leading-tight ${desktopSidebarCollapsed ? "lg:hidden" : ""}`}>
                 <span className="font-extrabold text-[#172033] text-base tracking-tight block">
                   StudyFlow <span className="text-[#d71920]">· PTIT</span>
                 </span>
@@ -128,16 +130,26 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <X className="w-5 h-5" />
             </button>
+            <button
+              type="button"
+              onClick={() => setDesktopSidebarCollapsed((current) => !current)}
+              className="hidden lg:inline-flex p-1.5 rounded-lg text-slate-500 hover:text-[#d71920] hover:bg-red-50"
+              aria-label={desktopSidebarCollapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
+              title={desktopSidebarCollapsed ? "Mở rộng menu" : "Thu gọn menu"}
+            >
+              {desktopSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            </button>
           </div>
 
           {/* Role Indicator */}
-          <div className="px-4 py-3 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between">
+          <div className={`px-4 py-3 bg-slate-50/70 border-b border-slate-100 flex items-center ${desktopSidebarCollapsed ? "lg:justify-center" : "justify-between"}`}>
             <span
               className={`text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md border ${roleBadgeColor}`}
             >
-              {roleTitle}
+              <span className={desktopSidebarCollapsed ? "lg:hidden" : ""}>{roleTitle}</span>
+              <span className={`hidden ${desktopSidebarCollapsed ? "lg:inline" : ""}`}>{roleTitle.slice(0, 2)}</span>
             </span>
-            {isDemo && (
+            {isDemo && !desktopSidebarCollapsed && (
               <span className="text-[10px] font-medium text-amber-700 bg-amber-100/70 px-1.5 py-0.5 rounded flex items-center gap-1">
                 <Sparkles className="w-2.5 h-2.5" /> Demo
               </span>
@@ -146,7 +158,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {/* Navigation Links */}
           <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-            <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <div className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 ${desktopSidebarCollapsed ? "lg:hidden" : ""}`}>
               Chức năng
             </div>
             {navItems.map((item) => {
@@ -163,6 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
+                  title={desktopSidebarCollapsed ? item.label : undefined}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${
                     isActive
                       ? "bg-[#fff1f2] text-[#d71920] font-semibold border border-[#fecdd3]"
@@ -174,8 +187,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                       isActive ? "text-[#d71920]" : "text-[#64748b]"
                     }`}
                   />
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {isActive && (
+                  <span className={`flex-1 truncate ${desktopSidebarCollapsed ? "lg:hidden" : ""}`}>{item.label}</span>
+                  {isActive && !desktopSidebarCollapsed && (
                     <ChevronRight className="w-3.5 h-3.5 text-[#d71920]" />
                   )}
                 </Link>
@@ -185,11 +198,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {/* User Account & Logout in Sidebar Footer */}
           <div className="p-3 border-t border-[#e5e7eb] bg-white">
-            <div className="p-2 rounded-xl bg-slate-50 flex items-center gap-3">
+            <div className={`p-2 rounded-xl bg-slate-50 flex items-center gap-3 ${desktopSidebarCollapsed ? "lg:justify-center" : ""}`}>
               <div className="w-9 h-9 rounded-full bg-red-100 text-red-700 font-bold flex items-center justify-center text-sm border border-red-200 flex-shrink-0">
                 {user?.displayName ? user.displayName.charAt(0) : "U"}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className={`flex-1 min-w-0 ${desktopSidebarCollapsed ? "lg:hidden" : ""}`}>
                 <div className="text-xs font-bold text-slate-800 truncate">
                   {user?.displayName || "Người dùng PTIT"}
                 </div>
@@ -200,7 +213,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={logout}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                className={`p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition ${desktopSidebarCollapsed ? "lg:hidden" : ""}`}
                 title="Đăng xuất"
                 aria-label="Đăng xuất"
               >
@@ -243,13 +256,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                   } else if (pathname?.startsWith("/chat")) {
                     crumbs.push("Hỏi đáp tài liệu (RAG)");
                   } else if (pathname?.startsWith("/quiz/create")) {
-                    crumbs.push("Ôn tập & Quiz", "Sinh đề thi trắc nghiệm AI");
+                    crumbs.push("Ôn tập", "Sinh đề thi trắc nghiệm AI");
                   } else if (pathname?.startsWith("/review/")) {
-                    crumbs.push("Ôn tập & Quiz", "Không gian môn học");
+                    crumbs.push("Ôn tập", "Không gian môn học");
                   } else if (pathname?.startsWith("/review")) {
-                    crumbs.push("Ôn tập & Quiz");
+                    crumbs.push("Ôn tập");
                   } else if (pathname?.startsWith("/plan")) {
-                    crumbs.push("Kế hoạch học tập");
+                    crumbs.push("Kế hoạch & Lịch");
                   } else if (pathname === "/teacher/dashboard") {
                     crumbs.push("Bảng điều khiển");
                   } else if (pathname?.startsWith("/teacher/course-offerings")) {
@@ -266,8 +279,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                     crumbs.push("Môn học & Học kỳ");
                   } else if (pathname?.startsWith("/admin/course-offerings")) {
                     crumbs.push("Giám sát Lớp học phần");
-                  } else if (pathname?.startsWith("/admin/logs")) {
+                  } else if (pathname?.startsWith("/admin/feedback")) {
+                    crumbs.push("Phản hồi");
+                  } else if (pathname?.startsWith("/admin/audit")) {
                     crumbs.push("Nhật ký hệ thống");
+                  } else if (pathname?.startsWith("/admin/settings")) {
+                    crumbs.push("Cài đặt hệ thống");
                   } else {
                     crumbs.push(
                       navItems.find((n) => pathname?.startsWith(n.href))?.label ||

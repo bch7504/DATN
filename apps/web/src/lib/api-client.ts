@@ -17,7 +17,6 @@ import {
   demoDailyGoalConfig,
   demoDailyGoalProgress,
   demoStudyStreak,
-  demoCourseWorkspaceProgress,
 } from "./demo-data";
 import { User, LoginRequest, RegisterRequest } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
@@ -49,9 +48,8 @@ import {
   SubmitQuizAttemptRequest,
 } from "@/types/quiz";
 import {
-  ReviewItem,
   CourseReviewSummary,
-  CourseWorkspaceProgress,
+  CourseReviewWorkspace,
   DailyGoalProgress,
   DailyGoalConfig,
   StudyStreak,
@@ -1129,43 +1127,6 @@ export const chatApi = {
  * Java backend owns quiz lifecycle, attempts, and scoring.
  */
 export const quizApi = {
-  async getQuizzes(courseOfferingId?: string): Promise<Quiz[]> {
-    try {
-      const endpoint = courseOfferingId
-        ? `/student/quizzes?courseOfferingId=${courseOfferingId}`
-        : "/student/quizzes";
-      const res = await apiFetch<PaginatedList<Quiz>>(endpoint);
-      return res.items;
-    } catch (err) {
-      if (isDemoMode()) {
-        if (!courseOfferingId) return [...demoQuizzes];
-        if (courseOfferingId === "PERSONAL") {
-          return demoQuizzes.filter((q) => q.isPersonal);
-        }
-        return demoQuizzes.filter((q) => q.courseOfferingId === courseOfferingId);
-      }
-      throw err;
-    }
-  },
-
-  async getQuiz(id: string): Promise<Quiz> {
-    try {
-      return await apiFetch<Quiz>(`/student/quizzes/${id}`);
-    } catch (err) {
-      if (isDemoMode()) {
-        const found = demoQuizzes.find((q) => q.id === id);
-        if (!found) {
-          throw new ApiClientError(404, {
-            code: "QUIZ_NOT_FOUND",
-            message: "Không tìm thấy bài Quiz yêu cầu.",
-          });
-        }
-        return found;
-      }
-      throw err;
-    }
-  },
-
   async createDraft(req: CreateQuizDraftRequest): Promise<QuizDraft> {
     if (!req.sourceDocumentIds || req.sourceDocumentIds.length === 0) {
       throw new ApiClientError(422, {
@@ -1175,9 +1136,12 @@ export const quizApi = {
     }
 
     try {
-      return await apiFetch<QuizDraft>("/student/quizzes/draft", {
+      return await apiFetch<QuizDraft>("/quizzes", {
         method: "POST",
-        body: JSON.stringify(req),
+        body: JSON.stringify({
+          selectedDocumentIds: req.sourceDocumentIds,
+          prompt: req.prompt,
+        }),
       });
     } catch (err) {
       if (isDemoMode()) {
@@ -1234,10 +1198,11 @@ export const quizApi = {
     }
   },
 
-  async regenerateDraft(draftId: string): Promise<QuizDraft> {
+  async regenerateDraft(draftId: string, prompt: string): Promise<QuizDraft> {
     try {
-      return await apiFetch<QuizDraft>(`/student/quizzes/draft/${draftId}/regenerate`, {
+      return await apiFetch<QuizDraft>(`/review/quizzes/${draftId}/regenerate`, {
         method: "POST",
+        body: JSON.stringify({ prompt }),
       });
     } catch (err) {
       if (isDemoMode()) {
@@ -1275,9 +1240,9 @@ export const quizApi = {
     }
   },
 
-  async acceptQuiz(req: AcceptQuizRequest): Promise<Quiz> {
+  async acceptQuiz(quizId: string, req: AcceptQuizRequest): Promise<Quiz> {
     try {
-      return await apiFetch<Quiz>("/student/quizzes/accept", {
+      return await apiFetch<Quiz>(`/review/quizzes/${quizId}/accept`, {
         method: "POST",
         body: JSON.stringify(req),
       });
@@ -1290,7 +1255,7 @@ export const quizApi = {
 
         const newQuiz: Quiz = {
           id: `quiz_${Date.now()}`,
-          title: req.title || "Bộ câu hỏi ôn tập mới",
+          title: "Bộ câu hỏi ôn tập mới",
           courseOfferingId: isPersonal ? undefined : req.courseOfferingId,
           courseOfferingCode: targetOffering?.code,
           isPersonal,
@@ -1348,7 +1313,7 @@ export const quizApi = {
 
   async submitAttempt(req: SubmitQuizAttemptRequest): Promise<QuizAttempt> {
     try {
-      return await apiFetch<QuizAttempt>(`/student/quizzes/${req.quizId}/attempts`, {
+      return await apiFetch<QuizAttempt>(`/review/quizzes/${req.quizId}/attempts`, {
         method: "POST",
         body: JSON.stringify(req),
       });
@@ -1427,21 +1392,6 @@ export const quizApi = {
     }
   },
 
-  async getAttempts(quizId?: string): Promise<QuizAttempt[]> {
-    try {
-      const endpoint = quizId
-        ? `/student/quizzes/${quizId}/attempts`
-        : "/student/quiz-attempts";
-      const res = await apiFetch<PaginatedList<QuizAttempt>>(endpoint);
-      return res.items;
-    } catch (err) {
-      if (isDemoMode()) {
-        if (!quizId) return [...demoQuizAttempts];
-        return demoQuizAttempts.filter((a) => a.quizId === quizId);
-      }
-      throw err;
-    }
-  },
 };
 
 /**
@@ -1451,7 +1401,7 @@ export const quizApi = {
 export const reviewApi = {
   async getCourseSummaries(): Promise<CourseReviewSummary[]> {
     try {
-      const res = await apiFetch<PaginatedList<CourseReviewSummary>>("/student/review/summaries");
+      const res = await apiFetch<PaginatedList<CourseReviewSummary>>("/review/course-offerings");
       return res.items;
     } catch (err) {
       if (isDemoMode()) {
@@ -1465,9 +1415,8 @@ export const reviewApi = {
             totalQuizzes: 1,
             totalAttempts: 2,
             reviewItemsCount: demoReviewItems.filter((r) => r.quizId === "quiz_01").length,
-            slideViewCount: 6,
-            totalSlides: 8,
-            viewingPercentage: 75,
+            averageScore: 10,
+            latestAttemptAt: "2026-09-25T16:30:00Z",
           },
           {
             courseOfferingId: "offering_02",
@@ -1478,9 +1427,8 @@ export const reviewApi = {
             totalQuizzes: 1,
             totalAttempts: 1,
             reviewItemsCount: demoReviewItems.filter((r) => r.quizId === "quiz_02").length,
-            slideViewCount: 8,
-            totalSlides: 12,
-            viewingPercentage: 67,
+            averageScore: 5,
+            latestAttemptAt: "2026-09-26T14:00:00Z",
           },
           {
             courseOfferingId: "PERSONAL",
@@ -1490,9 +1438,7 @@ export const reviewApi = {
             totalQuizzes: demoQuizzes.filter((q) => q.isPersonal).length,
             totalAttempts: 0,
             reviewItemsCount: 0,
-            slideViewCount: 0,
-            totalSlides: 0,
-            viewingPercentage: 0,
+            averageScore: null,
           },
         ];
         return summaries;
@@ -1501,48 +1447,29 @@ export const reviewApi = {
     }
   },
 
-  async getReviewItems(courseOfferingId?: string): Promise<ReviewItem[]> {
+  async getCourseWorkspace(courseOfferingId: string): Promise<CourseReviewWorkspace> {
     try {
-      const endpoint = courseOfferingId
-        ? `/student/review/items?courseOfferingId=${courseOfferingId}`
-        : "/student/review/items";
-      const res = await apiFetch<PaginatedList<ReviewItem>>(endpoint);
-      return res.items;
-    } catch (err) {
-      if (isDemoMode()) {
-        if (!courseOfferingId) return [...demoReviewItems];
-        if (courseOfferingId === "offering_01") {
-          return demoReviewItems.filter((r) => r.quizId === "quiz_01");
-        }
-        if (courseOfferingId === "offering_02") {
-          return demoReviewItems.filter((r) => r.quizId === "quiz_02");
-        }
-        return [];
-      }
-      throw err;
-    }
-  },
-
-  async getCourseWorkspaceProgress(courseOfferingId: string): Promise<CourseWorkspaceProgress> {
-    try {
-      return await apiFetch<CourseWorkspaceProgress>(`/student/course-offerings/${courseOfferingId}/progress`);
-    } catch (err) {
-      if (isDemoMode()) {
-        const found = demoCourseWorkspaceProgress[courseOfferingId];
-        if (found) return found;
+      if (courseOfferingId === "PERSONAL") {
+        const quizzes = await apiFetch<PaginatedList<Quiz>>("/review/personal-quizzes");
         return {
           courseOfferingId,
-          courseCode: "DEMO_COURSE",
-          documentId: "doc_pptx_01",
-          documentTitle: "Slide bài giảng",
-          totalSlides: 8,
-          viewedSlides: 4,
-          viewingPercentage: 50,
-          slides: [
-            { slideNumber: 1, title: "Mở đầu", viewed: true },
-            { slideNumber: 2, title: "Khái niệm", viewed: true },
-          ],
-          recentActivities: [],
+          quizzes: quizzes.items,
+          attempts: [],
+          reviewItems: [],
+        };
+      }
+      return await apiFetch<CourseReviewWorkspace>(`/review/course-offerings/${courseOfferingId}`);
+    } catch (err) {
+      if (isDemoMode()) {
+        const quizzes = courseOfferingId === "PERSONAL"
+          ? demoQuizzes.filter((quiz) => quiz.isPersonal)
+          : demoQuizzes.filter((quiz) => quiz.courseOfferingId === courseOfferingId);
+        const quizIds = new Set(quizzes.map((quiz) => quiz.id));
+        return {
+          courseOfferingId,
+          quizzes,
+          attempts: demoQuizAttempts.filter((attempt) => quizIds.has(attempt.quizId)),
+          reviewItems: demoReviewItems.filter((item) => quizIds.has(item.quizId)),
         };
       }
       throw err;
@@ -1590,5 +1517,3 @@ export const reviewApi = {
     }
   },
 };
-
-

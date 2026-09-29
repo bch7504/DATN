@@ -57,7 +57,6 @@ export default function StudentQuizCreatePage() {
   const [showAcceptModal, setShowAcceptModal] = useState<boolean>(false);
   const [destinationType, setDestinationType] = useState<"COURSE_OFFERING" | "PERSONAL">("COURSE_OFFERING");
   const [selectedCourseOfferingId, setSelectedCourseOfferingId] = useState<string>("");
-  const [quizTitle, setQuizTitle] = useState<string>("");
   const [isAccepting, setIsAccepting] = useState<boolean>(false);
 
   // Load initial READY docs and APPROVED course offerings
@@ -127,7 +126,6 @@ export default function StudentQuizCreatePage() {
         sourceDocumentIds: selectedDocIds,
       });
       setDraft(generatedDraft);
-      setQuizTitle(prompt.length > 35 ? prompt.substring(0, 35) + "..." : prompt);
     } catch (err: unknown) {
       if (err instanceof ApiClientError) {
         setErrorMessage(err.message);
@@ -144,7 +142,7 @@ export default function StudentQuizCreatePage() {
     setIsRegenerating(true);
     setErrorMessage(null);
     try {
-      const regenerated = await quizApi.regenerateDraft(draft.id);
+      const regenerated = await quizApi.regenerateDraft(draft.id, prompt);
       setDraft(regenerated);
     } catch (err: unknown) {
       if (err instanceof ApiClientError) {
@@ -167,11 +165,9 @@ export default function StudentQuizCreatePage() {
     setIsAccepting(true);
     setErrorMessage(null);
     try {
-      const acceptedQuiz = await quizApi.acceptQuiz({
-        draftId: draft.id,
+      const acceptedQuiz = await quizApi.acceptQuiz(draft.id, {
         destinationType,
         courseOfferingId: destinationType === "COURSE_OFFERING" ? selectedCourseOfferingId : undefined,
-        title: quizTitle.trim() || "Bộ câu hỏi ôn tập trắc nghiệm",
       });
 
       setShowAcceptModal(false);
@@ -523,19 +519,6 @@ export default function StudentQuizCreatePage() {
               >
                 ✕
               </button>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Tên bài Quiz:
-              </label>
-              <input
-                type="text"
-                value={quizTitle}
-                onChange={(e) => setQuizTitle(e.target.value)}
-                placeholder="Nhập tên bài thi..."
-                className="w-full p-2.5 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
             </div>
 
             <div>

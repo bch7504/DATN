@@ -7,6 +7,8 @@
 
 ## 1. Mục tiêu và kiến trúc
 
+Baseline chức năng/tên màn hình FE đã chốt tại `docs/frontend-functional-baseline.md`; `apps/web/mvp.html` là prototype chuẩn để đối chiếu FE thật.
+
 StudyFlow hỗ trợ học theo `Semester → Course Offering → Documents`, hỏi đáp tài liệu có nguồn, tạo/làm Quiz và quản lý hoạt động tự học.
 
 ```text
@@ -27,7 +29,7 @@ Next.js Web → Java Spring Boot → Python FastAPI
 | Hạng mục | Trạng thái |
 |---|---|
 | Nghiệp vụ | Có kế hoạch MVP, specification, feature specs và demo flow |
-| Frontend | Có mock và cấu trúc dự kiến; chưa có Next.js implementation hoàn chỉnh |
+| Frontend | Có scaffold Next.js, UI demo ba role, route guard, API client, test/lint/build; chưa kết nối Java Backend production và chưa có E2E thật |
 | Backend | Có README/plan/package structure; chưa có application/migration nghiệp vụ hoàn chỉnh |
 | AI Service | Có README/plan/module structure; chưa có FastAPI pipeline/migration/test hoàn chỉnh |
 | CSDL/API | Có database plan, ERD và API plan; chưa đồng nghĩa database đã migrate |
@@ -49,7 +51,7 @@ Không dùng lịch sử build cũ hoặc mock để kết luận milestone hi�
 | `docs/backend-implementation-plan.md` | Lộ trình Java Backend |
 | `docs/ai-implementation-plan.md` | Lộ trình AI và evaluation |
 | `docs/docker-deployment-plan.md` | Lộ trình Docker, chưa triển khai |
-| `docs/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md` | Kế hoạch/flow đồ án đã chốt |
+| `docs/bao-cao/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md` | Kế hoạch/flow đồ án đã chốt |
 
 Nếu có mâu thuẫn: `AGENTS.md` chi phối luật bắt buộc; API plan chi phối wire shape; database plan chi phối dữ liệu; mock chỉ là tham khảo UI.
 
@@ -101,7 +103,7 @@ Request có service credential, `X-Request-Id`, `X-Schema-Version: 3`, authorize
 | AI | Config/provider → schema/worker → parser/index → RAG/Tutor → Quiz → evaluation/hardening |
 | Docker | Convention → images → local Compose → migration/worker → production hardening |
 
-Sếp từng yêu cầu FE và AI chỉ giữ cấu trúc; không tự triển khai milestone mới khi chưa được giao.
+Frontend đã được triển khai ở mức demo theo kế hoạch mới; AI vẫn ở mức cấu trúc/kế hoạch. Không tự triển khai milestone mới khi chưa được giao.
 
 ## 9. Backlog ưu tiên
 

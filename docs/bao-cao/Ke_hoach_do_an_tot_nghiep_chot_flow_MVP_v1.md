@@ -1691,8 +1691,7 @@ QUIZ_COMPLETED
  └─ Learning Event
 ```
 
-`Tiến độ & Ôn tập` là lớp **đọc/tổng hợp dữ liệu**, không phải nơi tạo
-progress.
+Dashboard là lớp **đọc/tổng hợp tiến độ**, không phải nơi tạo progress.
 
 ``` text
 Slide Progress
@@ -1701,12 +1700,10 @@ Quiz Attempts
 Quiz Answers
 Question Sources
       ↓
-Tiến độ & Ôn tập
+Dashboard và Ôn tập
       ↓
-- Tiến độ học liệu
-- Kết quả Quiz
-- Nội dung cần ôn lại
-- Điều hướng quay lại học
+- Dashboard: tiến độ học liệu và số liệu tổng quan
+- Ôn tập: kết quả Quiz, câu sai, nguồn cần xem lại và lịch sử attempt
 ```
 
 ------------------------------------------------------------------------
@@ -2024,7 +2021,7 @@ Learning Events
 
 ## Nguyên tắc triển khai
 
-Không xây Dashboard, Streak hoặc `Tiến độ & Ôn tập` trước khi có dữ liệu
+Không xây Dashboard, Streak hoặc phần tổng hợp tiến độ/ôn tập trước khi có dữ liệu
 học thực tế.
 
 Cần xây trước:
@@ -2043,7 +2040,7 @@ Sau đó mới xây:
 Dashboard
 Study Streak
 Daily Goal
-Tiến độ & Ôn tập
+Dashboard và Ôn tập
 ```
 
 ------------------------------------------------------------------------

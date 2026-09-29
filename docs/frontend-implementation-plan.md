@@ -2,7 +2,7 @@
 
 **Người phụ trách:** Chủ dự án, thực hiện theo boundary `FRONTEND_AGENT`.
 **Baseline nghiệp vụ:** Semester → Course Offering → Course Enrollment.
-**Trạng thái:** mới chốt cấu trúc, route và mock `apps/web/mvp.html`; chưa scaffold hoặc triển khai Next.js.
+**Trạng thái:** đã có scaffold Next.js và các màn hình demo đang được đồng bộ theo Flow MVP mới; chưa kết nối Java Backend production.
 
 ## 1. Nguyên tắc
 
@@ -14,6 +14,7 @@
 - Production không tự tính điểm/progress/quyền; mọi dữ liệu nghiệp vụ nhận từ Java.
 - Demo fixtures chỉ hoạt động khi `NEXT_PUBLIC_DEMO_MODE=true` và luôn hiện “Dữ liệu demo”.
 - Responsive từ 360px, keyboard/focus visible, WCAG AA; mọi route có loading/empty/error/forbidden/processing.
+- Danh sách màn hình, tên điều hướng và hành vi đã chốt tại `docs/frontend-functional-baseline.md`. FE thật phải đối chiếu file này khi chuyển prototype sang Next.js.
 
 ## 2. Route và màn hình
 
@@ -31,13 +32,11 @@
   - In-Chat Citation Inspector: Nhấn trực tiếp vào chip trích dẫn trong tin nhắn để mở **Drawer trích dẫn tương tác** trượt ngay bên trong khung chatbot, hiển thị trích đoạn chi tiết, số trang, tên tài liệu và mã đối chiếu grounding SHA-256.
 - Tạo Quiz: luồng riêng không phụ thuộc Chatbot; chọn Personal Documents `READY`, nhập prompt trống theo ý Student, theo dõi `GENERATING`, review/regenerate toàn bộ draft.
 - Accept Quiz: chọn Course Offering có enrollment `APPROVED` hoặc Quiz cá nhân; UI không trộn nguồn sinh với nơi ôn tập.
-- Ôn tập (Review Hub): Cấu trúc 2 tầng (2 levels):
-  - **Level 1 (Course Picker):** Danh sách các Course Offering có enrollment `APPROVED` (`DBI-01`, `AI-02`, ...) và nhóm Quiz cá nhân (`PERSONAL`) dưới dạng thẻ trực quan kèm thống kê nhanh (số câu cần ôn lại, số bài quiz, tiến độ slide).
-  - **Level 2 (Course Workspace):** Breadcrumb quay lại chọn môn; gồm 3 sub-tab chuyên biệt:
-    1. *Quản lý Quiz:* Nút tạo quiz mới từ Personal Documents, danh sách bài quiz của môn, bảng lịch sử làm bài (Attempt history) **không ghi đè**, theo dõi điểm số và sự tiến bộ qua các lần làm.
-    2. *Nội dung cần ôn lại:* Tự động tổng hợp từ các câu trả lời sai của các lần làm quiz, hiển thị câu hỏi, đáp án đã chọn sai, giải thích và **link/nút nhảy trực tiếp đến slide hoặc trang tài liệu** để ôn lại ngay.
-    3. *Xem tiến độ môn học:* Tiến độ xem slide của môn học đó (danh sách slide bài giảng kèm trạng thái đã xem/chưa xem), cùng nhật ký hoạt động học tập gần nhất (7 ngày qua).
-- Plan: Calendar do Student chủ động; hiển thị điểm/progress do Java tính.
+- Ôn tập (Review Hub): Cấu trúc 2 tầng:
+  - **Level 1 (Course Picker):** Course Offering có enrollment `APPROVED` và nhóm Quiz cá nhân (`PERSONAL`), kèm số Quiz, điểm trung bình và số nội dung cần ôn lại.
+  - **Level 2 (Course Workspace):** Tổng quan ôn tập, danh sách Quiz `READY`, lịch sử attempt không ghi đè, nội dung cần ôn tổng hợp từ câu sai và link mở nguồn trang/slide.
+  - Không hiển thị viewing progress hoặc nhật ký học trong Review Hub; toàn bộ tiến độ tổng quan và theo Course Offering nằm trên Dashboard.
+- Kế hoạch & Lịch (`/plan`): lịch tuần Thứ 2–Chủ nhật theo khung giờ, chuyển tuần, bấm ô trống/thêm lịch, thêm task ôn tập và cập nhật trạng thái task. Không hiển thị Daily Goal, Streak hoặc progress trong màn này vì các số liệu đó thuộc Dashboard.
 - Không tạo nav/route/màn `Progress` riêng; Dashboard hiển thị cả aggregate và tiến độ từng Course Offering.
 
 ### Teacher
@@ -76,7 +75,7 @@ Không đưa model/provider selector, Agent Trace, Supervisor/multi-agent hoặc
 | FE-M2 | Course Offering/Enrollment cho 3 role | Create/join/approve/monitor đúng quyền |
 | FE-M3 | Materials, Viewer, Note và Personal Documents | Policy PPTX/PDF đúng |
 | FE-M4 | Personal Chat 2 cột (Chat bên trái + Session bar header, Source compact bên phải, In-chat Citation Drawer) + Slide Tutor UX | History/scope/citation/NO_EVIDENCE đủ trạng thái |
-| FE-M5 | Quiz prompt/review/destination, Ôn tập 2 tầng theo môn (Quản lý Quiz + Attempt history không ghi đè, Nội dung cần ôn lại + link nguồn/slide, Xem tiến độ môn học), Dashboard/Streak/Daily Goal, Plan | Client không tính Streak/actual/điểm/progress/review inference |
+| FE-M5 | Quiz prompt/review/destination, Ôn tập 2 tầng theo môn, Dashboard chứa toàn bộ progress/Streak/Daily Goal, Kế hoạch & Lịch tuần theo mock | Client không tính Streak/actual/điểm/progress/review inference; `/plan` không lặp Daily Goal |
 | FE-M6 | Accessibility/E2E/hardening | Demo flow và negative paths đạt |
 
 ## 5. Kiểm thử
@@ -88,9 +87,10 @@ Không đưa model/provider selector, Agent Trace, Supervisor/multi-agent hoặc
 - PPTX viewer/no-download; Teacher PDF download-only.
 - Chatbot Personal RAG: Bố cục 2 cột (Chat bên trái, chọn tài liệu bên phải ~280px); thanh phiên hội thoại ở header chuyển đúng conversation; click citation mở In-Chat Drawer với excerpt, page và SHA-256 grounding; trạng thái loading/`NO_EVIDENCE`; không có model selector hoặc direct AI URL.
 - Quiz prompt tự do `GENERATING → REVIEW_REQUIRED`; regenerate toàn bộ; accept bắt buộc destination hợp lệ; không có scoring/progress formula trong client.
-- Ôn tập: Level 1 chỉ liệt kê Course Offering được phép và Quiz cá nhân; Level 2 có 3 sub-tab (Quản lý Quiz với attempt history không ghi đè, Nội dung cần ôn lại tổng hợp từ câu sai kèm link/nút nhảy đến slide nguồn, Xem tiến độ môn học); dữ liệu lấy từ Java, không suy luận “yếu/mạnh” ở client.
+- Ôn tập: Level 1 chỉ liệt kê Course Offering được phép và Quiz cá nhân; Level 2 chỉ chứa Quiz, attempt history và nội dung cần ôn từ câu sai kèm link nguồn. Không lặp viewing progress của Dashboard và không suy luận “yếu/mạnh” ở client.
 - Dashboard không có menu Progress riêng; hiển thị `currentStreak`, `longestStreak`, activity week và ba Daily Goal progress từ Java.
 - PUT Daily Goal chỉ gửi target hợp lệ; UI không coi hoàn thành 100% goal là điều kiện giữ Streak.
+- Kế hoạch & Lịch có đủ chuyển tuần, thêm lịch, thêm task, click ô trống và trạng thái task; bảng cuộn ngang an toàn ở mobile.
 - Không có XP, Level, Achievement, badge hoặc leaderboard trong UI MVP.
 - 360px, keyboard, focus, contrast và loading/empty/error/forbidden.
 

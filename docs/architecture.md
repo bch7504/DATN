@@ -1,6 +1,6 @@
 # StudyFlow — High-level Architecture
 
-> Baseline MVP v1.0 theo `Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`.
+> Baseline MVP v1.0 theo `bao-cao/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`.
 > Product requirements nằm trong `specification.md` và `specs/`.
 
 ## 1. Mô hình nghiệp vụ
@@ -54,7 +54,7 @@ Ranh giới bắt buộc:
 
 | Thành phần | Sở hữu |
 |---|---|
-| Next.js | UI ba role, join flow, Course Offering, materials, viewer, chatbot/citation, free-prompt Quiz, review theo môn, Dashboard/Streak/Daily Goal, plan/calendar |
+| Next.js | UI ba role theo `mvp.html` và `frontend-functional-baseline.md`: join flow, Course Offering, materials, viewer, chatbot/citation, free-prompt Quiz, review theo môn, Dashboard/Streak/Daily Goal, Kế hoạch & Lịch tuần |
 | Spring Boot | Auth/RBAC, User, Subject, Semester, Course Offering/join code, Enrollment, Document/Publication, Note, Dashboard/Streak/Daily Goal, Plan, Quiz lifecycle/destination/scoring/wrong-answer review, audit |
 | FastAPI | PDF/PPTX extraction, render/chunk/embed, retrieval, Personal RAG, Slide Tutor, grounded citation, Quiz draft |
 | PostgreSQL + pgvector | Schema nghiệp vụ `app`; job/index/chunk/vector ở schema `ai` |

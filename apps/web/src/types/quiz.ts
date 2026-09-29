@@ -26,7 +26,7 @@ export interface QuizQuestion {
   citation?: QuizCitation;
 }
 
-export type QuizDraftStatus = "GENERATING" | "REVIEW_REQUIRED" | "ACCEPTED" | "REJECTED";
+export type QuizDraftStatus = "GENERATING" | "REVIEW_REQUIRED" | "READY" | "REJECTED" | "GENERATION_FAILED";
 
 export interface QuizDraft {
   id: string;
@@ -73,10 +73,8 @@ export interface CreateQuizDraftRequest {
 }
 
 export interface AcceptQuizRequest {
-  draftId: string;
   destinationType: "COURSE_OFFERING" | "PERSONAL";
   courseOfferingId?: string;
-  title: string;
 }
 
 export interface SubmitQuizAttemptRequest {

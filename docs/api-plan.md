@@ -242,6 +242,8 @@ Không có API/menu/màn Progress độc lập. Dashboard là endpoint duy nhấ
 
 ### 4.7 Study Plan, Calendar và Quiz
 
+Frontend thể hiện nhóm này dưới tên **Kế hoạch & Lịch** theo `frontend-functional-baseline.md`: lịch tuần Thứ 2–Chủ nhật, task, deadline và các khung giờ. Daily Goal/Streak/progress không thuộc response của màn lịch và chỉ hiển thị trên Dashboard.
+
 - CRUD `/api/v1/study-plans` và `/api/v1/study-plans/{planId}/items`.
 - `GET /api/v1/calendar?from=&to=`.
 - `PATCH /api/v1/study-plan-items/{id}/status` phát `STUDY_TASK_COMPLETED` idempotent khi chuyển sang completed.
@@ -253,6 +255,10 @@ Không có API/menu/màn Progress độc lập. Dashboard là endpoint duy nhấ
   - Input `{prompt,selectedDocumentIds?}` mới; Quiz hiện tại thuộc Student và ở trạng thái cho phép tạo lại.
   - Output `202 {quizId,status:"GENERATING",regeneratedFromQuizId}`; không ghi đè draft/attempt cũ.
   - Errors: `404 QUIZ_NOT_FOUND`; `409 INVALID_QUIZ_STATE|GENERATION_IN_PROGRESS`; `422 INVALID_QUIZ_PROMPT`.
+- `POST /api/v1/review/quizzes/{id}/reject`
+  - Input `{reason?}`; Quiz hiện tại thuộc Student và ở `REVIEW_REQUIRED`.
+  - Output `200 {quizId,status:"REJECTED"}`; giữ generation/draft để audit, không tạo attempt.
+  - Errors: `404 QUIZ_NOT_FOUND`; `409 INVALID_QUIZ_STATE`; `422 INVALID_REJECT_REASON`.
 - `POST /api/v1/review/quizzes/{id}/accept`
   - Input `{destinationType:"COURSE_OFFERING"|"PERSONAL",courseOfferingId?}`.
   - `COURSE_OFFERING` yêu cầu enrollment `APPROVED`; `PERSONAL` yêu cầu `courseOfferingId=null`.

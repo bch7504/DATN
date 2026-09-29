@@ -179,7 +179,9 @@ Chỉ `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` được dùng đ�
 - Chỉ lưu target. `slide_actual`, `quiz_question_actual`, `task_actual` và `completed` được Java tính từ dữ liệu/event của `activity_date` hiện tại, không lưu để client cập nhật.
 - Streak không phụ thuộc `completed`; một event học hợp lệ là đủ duy trì ngày học.
 
-## 7. Study Plan và Calendar
+## 7. Kế hoạch & Lịch (Study Plan/Calendar)
+
+Các bảng phần này phục vụ task, deadline và projection lịch tuần theo khung giờ. Daily Goal, Study Streak và viewing progress được tổng hợp riêng cho Dashboard.
 
 `study_plans`: owner, title, description, start/end, status, timestamps.
 

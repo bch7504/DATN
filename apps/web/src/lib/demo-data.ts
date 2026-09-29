@@ -16,7 +16,6 @@ import { Quiz, QuizDraft, QuizAttempt } from "@/types/quiz";
 import {
   ReviewItem,
   CourseReviewSummary,
-  CourseWorkspaceProgress,
   DailyGoalProgress,
   DailyGoalConfig,
   StudyStreak,
@@ -735,97 +734,5 @@ export let demoStudyStreak: StudyStreak = {
     { day: "T2", date: "2026-09-28", active: true, count: 3 },
     { day: "T3", date: "2026-09-29", active: true, count: 8 },
   ],
-};
-
-// Course Workspace Progress details for Sub-tab 3
-export let demoCourseWorkspaceProgress: Record<string, CourseWorkspaceProgress> = {
-  offering_01: {
-    courseOfferingId: "offering_01",
-    courseCode: "INT1340_01",
-    documentId: "doc_pptx_01",
-    documentTitle: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
-    totalSlides: 8,
-    viewedSlides: 6,
-    viewingPercentage: 75,
-    slides: [
-      { slideNumber: 1, title: "Giới thiệu Môn học & Giảng viên", viewed: true, viewedAt: "2026-09-22T08:10:00Z" },
-      { slideNumber: 2, title: "Định nghĩa Tác tử Thông minh", viewed: true, viewedAt: "2026-09-22T08:25:00Z" },
-      { slideNumber: 3, title: "Hành vi Hợp lý & Đo lường Hiệu năng", viewed: true, viewedAt: "2026-09-23T09:00:00Z" },
-      { slideNumber: 4, title: "Mô hình PEAS & Ví dụ Minh họa", viewed: true, viewedAt: "2026-09-24T08:15:00Z" },
-      { slideNumber: 5, title: "Các đặc tính của Môi trường", viewed: true, viewedAt: "2026-09-25T10:00:00Z" },
-      { slideNumber: 6, title: "Các loại Cấu trúc Tác tử cơ bản", viewed: true, viewedAt: "2026-09-26T14:30:00Z" },
-      { slideNumber: 7, title: "Tác tử dựa trên Mục tiêu", viewed: false },
-      { slideNumber: 8, title: "Tổng kết & Bài tập Chương 1", viewed: false },
-    ],
-    recentActivities: [
-      {
-        id: "act_01",
-        type: "VIEW_SLIDE",
-        description: "Đã xem Slide 6: Các loại Cấu trúc Tác tử cơ bản",
-        courseCode: "INT1340_01",
-        timestamp: "2026-09-26T14:30:00Z",
-      },
-      {
-        id: "act_02",
-        type: "QUIZ_COMPLETED",
-        description: "Hoàn thành bài Quiz: Kiến trúc Tác tử AI (Lần 2, 100%)",
-        courseCode: "INT1340_01",
-        timestamp: "2026-09-25T16:30:00Z",
-      },
-      {
-        id: "act_03",
-        type: "VIEW_SLIDE",
-        description: "Đã xem Slide 5: Các đặc tính của Môi trường",
-        courseCode: "INT1340_01",
-        timestamp: "2026-09-25T10:00:00Z",
-      },
-      {
-        id: "act_04",
-        type: "STUDY_TASK_COMPLETED",
-        description: "Hoàn thành nhiệm vụ: Phân tích mô hình PEAS xe tự hành",
-        courseCode: "INT1340_01",
-        timestamp: "2026-09-24T11:00:00Z",
-      },
-    ],
-  },
-  offering_02: {
-    courseOfferingId: "offering_02",
-    courseCode: "DBI202_K21",
-    documentId: "doc_pptx_02",
-    documentTitle: "DBI202_Lecture_01_Introduction.pptx",
-    totalSlides: 12,
-    viewedSlides: 8,
-    viewingPercentage: 67,
-    slides: [
-      { slideNumber: 1, title: "Giới thiệu Hệ Quản trị CSDL", viewed: true },
-      { slideNumber: 2, title: "Mô hình Dữ liệu Quan hệ", viewed: true },
-      { slideNumber: 3, title: "Khóa chính & Khóa ngoại", viewed: true },
-      { slideNumber: 4, title: "Đại số quan hệ cơ bản", viewed: true },
-      { slideNumber: 5, title: "Các phép chọn, chiếu, tích Descartes", viewed: true },
-      { slideNumber: 6, title: "Phép kết nối (Join)", viewed: true },
-      { slideNumber: 7, title: "Phụ thuộc hàm (Functional Dependency)", viewed: true },
-      { slideNumber: 8, title: "Dạng chuẩn 1NF và 2NF", viewed: true },
-      { slideNumber: 9, title: "Dạng chuẩn 3NF", viewed: false },
-      { slideNumber: 10, title: "Dạng chuẩn BCNF", viewed: false },
-      { slideNumber: 11, title: "Bảo toàn phụ thuộc hàm", viewed: false },
-      { slideNumber: 12, title: "Tổng kết chương chuẩn hóa", viewed: false },
-    ],
-    recentActivities: [
-      {
-        id: "act_05",
-        type: "QUIZ_COMPLETED",
-        description: "Làm bài Quiz: Chuẩn hóa CSDL (Lần 1, 50%)",
-        courseCode: "DBI202_K21",
-        timestamp: "2026-09-26T14:00:00Z",
-      },
-      {
-        id: "act_06",
-        type: "VIEW_SLIDE",
-        description: "Đã xem Slide 8: Dạng chuẩn 1NF và 2NF",
-        courseCode: "DBI202_K21",
-        timestamp: "2026-09-25T11:00:00Z",
-      },
-    ],
-  },
 };
 

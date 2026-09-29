@@ -13,7 +13,7 @@ Java Spring Boot là public API duy nhất cho Web và system of record của to
 - Teacher Library, publication, slide metadata, Note;
 - Personal Document metadata và conversation history;
 - Quiz prompt/lifecycle, destination, validation, attempt/scoring và wrong-answer review projection;
-- Dashboard aggregate, Content Progress, Study Streak, Daily Goal và Study Plan/Calendar;
+- Dashboard aggregate, Content Progress, Study Streak, Daily Goal và dữ liệu Kế hoạch & Lịch tuần;
 - feedback, audit, settings;
 - authorization trước khi cấp signed URL hoặc gọi Python.
 
@@ -63,7 +63,7 @@ services/backend/
 │   ├── conversation/         # Personal RAG conversation/history/citation record
 │   ├── review/               # Quiz draft/review/attempt/scoring
 │   ├── progress/             # Dashboard aggregate, Content Progress, Streak, Daily Goal
-│   ├── study/                # Study Plan/Task/Session/Calendar
+│   ├── study/                # Kế hoạch/Task/Session/Calendar projection theo tuần
 │   ├── feedback/
 │   ├── audit/
 │   ├── settings/
@@ -122,7 +122,7 @@ courseoffering/
 ### Course Offering/Enrollment
 
 ```text
-Course Offering: DRAFT/OPEN → LOCKED → ARCHIVED
+Course Offering: ACTIVE → LOCKED | ARCHIVED
 Enrollment:      PENDING → APPROVED | REJECTED
 ```
 
@@ -136,7 +136,8 @@ Enrollment:      PENDING → APPROVED | REJECTED
 
 ```text
 Document: UPLOADING → PENDING_PROCESSING → PROCESSING → READY | FAILED → DELETING
-Quiz:     GENERATING → REVIEW_REQUIRED → READY | REJECTED | GENERATION_FAILED → ARCHIVED
+Quiz:     GENERATING → REVIEW_REQUIRED → READY | REJECTED → ARCHIVED
+          GENERATING → GENERATION_FAILED
 ```
 
 - Teacher PDF không gọi AI; Teacher PPTX và Personal PDF gọi pipeline đúng loại.
@@ -192,7 +193,7 @@ Chi tiết bảng/constraint tại `docs/database-plan.md`. Không tạo bảng 
 | BE-M4 | Document/publication/storage/PPTX handoff | file policy, owner scope, async status đạt |
 | BE-M5 | Slide/Note/Personal conversation + AI adapter | contract v3, citation revalidation, NO_EVIDENCE đạt |
 | BE-M6 | Quiz prompt/lifecycle/destination/scoring/review | REVIEW_REQUIRED, approved destination, wrong-answer citation và Java scoring đạt |
-| BE-M7 | Dashboard/Streak/Daily Goal/Study Plan | event idempotent, timezone/day boundary và no Topic Mastery đạt |
+| BE-M7 | Dashboard/Streak/Daily Goal/Kế hoạch & Lịch | event idempotent, timezone/day boundary, calendar projection và no Topic Mastery đạt |
 | BE-M8 | Admin/audit/hardening/E2E | demo flow, performance/security đạt |
 
 ## 9. Test strategy

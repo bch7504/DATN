@@ -1,6 +1,6 @@
 # Cấu trúc repository StudyFlow
 
-Đây là cấu trúc đích theo baseline Course Offering. Frontend và AI hiện chỉ giữ cấu trúc thư mục, README, kế hoạch và HTML mock; chưa có source triển khai, dependency, migration hay test thực thi. Backend được quản lý theo `docs/backend-implementation-plan.md`. Cây dưới đây là cấu trúc dự kiến, không phải xác nhận rằng các module đã được code.
+Đây là cấu trúc repository theo baseline Course Offering. Frontend đã có scaffold Next.js, các màn hình demo và test; chưa kết nối Java Backend production. Backend và AI hiện chủ yếu giữ cấu trúc, README và kế hoạch, chưa có runtime/migration hoàn chỉnh. Cây dưới đây kết hợp phần đã có với cấu trúc đích, không mặc định mọi module đã được triển khai.
 
 ```text
 DATN/
@@ -79,12 +79,13 @@ DATN/
 │       ├── evals/
 │       └── tests/
 ├── docs/
-│   ├── Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md
+│   ├── bao-cao/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md
 │   ├── architecture.md
 │   ├── low-level-design.md
 │   ├── backend-implementation-plan.md
 │   ├── database-plan.md
 │   ├── api-plan.md
+│   ├── frontend-functional-baseline.md
 │   ├── tech-stack.md
 │   └── demo-flow.md
 ├── infrastructure/
@@ -102,7 +103,7 @@ DATN/
 | Java `courseoffering/enrollment` | Teacher tự tạo Course Offering/join code; Teacher duyệt Enrollment; Admin giám sát |
 | Java `document/publication` | Kho tài liệu, ownership, public/revoke |
 | Java `slide/note` | Slide access, Note và view event |
-| Java `progress/study/review` | Dashboard/Streak/Daily Goal, Plan/Calendar, Quiz destination, attempt/scoring và wrong-answer review |
+| Java `progress/study/review` | Dashboard/Streak/Daily Goal, Kế hoạch & Lịch tuần, Quiz destination, attempt/scoring và wrong-answer review |
 | Python `pipelines` | Personal PDF indexing và Teacher PPTX render/index |
 | Python `services` | Retrieval, RAG, Slide AI Tutor, citation và sinh Quiz draft |
 | PostgreSQL `app` | Dữ liệu nghiệp vụ do Java sở hữu |

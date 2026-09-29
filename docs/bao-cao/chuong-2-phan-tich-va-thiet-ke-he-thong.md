@@ -31,7 +31,7 @@ Hệ thống cung cấp quy trình từ tạo lớp, tham gia, công bố học 
 - Chọn 1–10 PDF `READY`, tạo conversation và hỏi đáp có citation.
 - Tạo Quiz bằng prompt tự do từ tài liệu đã chọn; review/accept/reject/regenerate.
 - Làm Quiz, xem điểm, lịch sử attempt và nguồn của câu sai.
-- Quản lý Study Plan, Calendar, Daily Goal; xem Dashboard và Study Streak.
+- Quản lý Kế hoạch & Lịch tuần, task và deadline; cấu hình Daily Goal và xem Dashboard/Study Streak.
 
 ### 2.2.2. Yêu cầu chức năng Teacher
 
@@ -179,7 +179,7 @@ Request có service credential, `X-Request-Id`, `X-Schema-Version: 3`, timeout v
 
 ### 2.8.1. Student
 
-App shell đỏ–trắng PTIT gồm sidebar/drawer, topbar, breadcrumb và profile. Các màn hình: Dashboard, lớp, học liệu, Slide Viewer + Note + Tutor, Personal Documents, chatbot riêng, Quiz review/attempt/result, Study Plan và Calendar. Không có menu Progress độc lập; Dashboard hiển thị toàn bộ tiến độ.
+App shell đỏ–trắng PTIT gồm sidebar/drawer có thể thu gọn, topbar, breadcrumb và profile. Các màn hình bám `mvp.html`: Dashboard, lớp, học liệu, Slide Viewer + Note + Tutor, Personal Documents, chatbot riêng, Quiz review/attempt/result và Kế hoạch & Lịch tuần. Không có menu Progress độc lập; Dashboard hiển thị toàn bộ tiến độ, Streak và Daily Goal.
 
 ### 2.8.2. Teacher
 

@@ -1,6 +1,8 @@
-# StudyFlow Web — cấu trúc dự kiến
+# StudyFlow Web
 
-Frontend hiện **chưa triển khai Next.js**. Thư mục này chỉ giữ cấu trúc, mô tả route/component và mock giao diện [`mvp.html`](mvp.html) để thống nhất nghiệp vụ trước khi code.
+Frontend đã có scaffold Next.js và các màn hình demo cho ba vai trò. [`mvp.html`](mvp.html) tiếp tục là tài liệu tham chiếu luồng/giao diện; fixture chỉ hoạt động khi demo mode được bật.
+
+Baseline đối chiếu bắt buộc giữa mock và FE thật nằm tại [`../../docs/frontend-functional-baseline.md`](../../docs/frontend-functional-baseline.md).
 
 ## Cấu trúc mục tiêu
 
@@ -28,11 +30,10 @@ apps/web/
   - Cột chọn nguồn tài liệu cá nhân đặt gọn ở bên **phải** (~280px) kèm tìm kiếm, nút chọn tất cả / bỏ chọn và badge trạng thái `READY`.
   - **In-Chat Citation Drawer:** Click vào chip trích dẫn trong tin nhắn để mở Drawer kiểm chứng trích đoạn (excerpt), số trang, file gốc và mã đối chiếu SHA-256 ngay trong khung chatbot.
 - **Ôn tập (Review Hub - 2 tầng):**
-  - **Level 1 (Course Picker):** Danh sách thẻ môn học (`DBI-01`, `AI-02`, ...) và nhóm Quiz cá nhân (`PERSONAL`) kèm thống kê nhanh.
-  - **Level 2 (Course Workspace):** Breadcrumb quay lại và 3 sub-tab chuyên biệt:
-    1. *Quản lý Quiz:* Tạo quiz mới, danh sách bài quiz của môn, bảng lịch sử làm bài (Attempt history) **không ghi đè**, theo dõi tiến bộ điểm số.
-    2. *Nội dung cần ôn lại:* Tự động tổng hợp từ các câu trả lời sai, kèm link/nút mở trực tiếp slide/trang tài liệu để ôn tập ngay.
-    3. *Xem tiến độ môn học:* Tỷ lệ xem slide của môn học đó (trạng thái từng slide) và nhật ký hoạt động học gần nhất (7 ngày).
+  - **Level 1:** Course Offering được phép và Quiz cá nhân, kèm số Quiz, điểm trung bình và số câu cần ôn.
+  - **Level 2:** Quiz `READY`, attempt history không ghi đè và nội dung cần ôn từ câu sai kèm link nguồn.
+  - Viewing progress chỉ xuất hiện trên Dashboard, không lặp lại trong Ôn tập.
+- **Kế hoạch & Lịch:** lịch tuần theo khung giờ giống mock, hỗ trợ chuyển tuần, thêm lịch bằng nút hoặc ô trống, thêm task và đánh dấu hoàn thành. Daily Goal/Streak vẫn ở Dashboard.
 
 ## Boundary bắt buộc
 
@@ -43,4 +44,4 @@ apps/web/
 - Chatbot và Tạo Quiz là hai luồng riêng. Tạo Quiz cho phép Student chọn Personal Documents và tự nhập prompt.
 - `mvp.html` chỉ dùng dữ liệu demo, không được xem là implementation production.
 
-Kế hoạch triển khai nằm tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md). Chỉ tạo lại package/config/source khi bắt đầu milestone FE-M0.
+Kế hoạch triển khai nằm tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md).

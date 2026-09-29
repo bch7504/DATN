@@ -13,15 +13,16 @@
 
 ## 2. API chính
 
-- `POST /api/v1/teacher/course-offerings`: `{subjectId,semesterId,name,capacity?}` → lớp `OPEN` + join code one-time display.
+- `POST /api/v1/teacher/course-offerings`: `{subjectId,semesterId,code?,name?}` → lớp `ACTIVE` + join code.
 - `GET/PATCH /api/v1/teacher/course-offerings/{id}`: owner-only metadata/status.
 - `POST /api/v1/teacher/course-offerings/{id}/join-code/regenerate`: rotate code, code cũ vô hiệu.
 - `PATCH /api/v1/teacher/course-offerings/{id}/join-code`: `{enabled}`.
 - `GET /api/v1/teacher/course-offerings/{id}/enrollments`: filter status/search/pagination.
-- `POST /api/v1/teacher/course-offerings/{id}/enrollments/{enrollmentId}/approve|reject`: idempotent transition.
+- `POST /api/v1/teacher/enrollments/{enrollmentId}/approve|reject`: owner-only, idempotent transition.
+- `POST /api/v1/teacher/enrollments/approve-batch`: `{courseOfferingId,enrollmentIds}`; all-or-nothing.
 - `POST /api/v1/teacher/documents`: PDF/PPTX <= 50 MB; trả processing status.
 - `POST /api/v1/teacher/documents/{id}/publications`: `{courseOfferingIds}` owner-only.
-- `DELETE /api/v1/teacher/documents/{id}/publications/{offeringId}`: revoke idempotent.
+- `DELETE /api/v1/teacher/publications/{publicationId}`: revoke idempotent.
 
 ## 3. Acceptance
 

@@ -38,7 +38,7 @@ Xây dựng nền tảng web hỗ trợ sinh viên quản lý hoạt động t�
 - Xây dựng Slide AI Tutor trong Slide Viewer, trả citation theo slide.
 - Sinh Quiz `MCQ_SINGLE` từ Personal Documents và prompt tự do; Student review trước khi làm.
 - Chấm điểm bằng Java, lưu attempt, tổng hợp câu sai về nguồn cần ôn lại.
-- Hiển thị tiến độ, Study Streak, Daily Goal và kế hoạch học trên Dashboard/lịch.
+- Dashboard hiển thị tiến độ, Study Streak và Daily Goal; Kế hoạch & Lịch hiển thị task/deadline theo lịch tuần riêng.
 - Đánh giá retrieval, groundedness, citation, refusal và tính hợp lệ của Quiz bằng dữ liệu tổng hợp.
 
 ## 1.4. Đối tượng sử dụng

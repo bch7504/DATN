@@ -12,11 +12,11 @@
 
 ## 2. Contract
 
-- `POST /api/v1/auth/register`: `{displayName,email,password}` → `201` Student `ACTIVE`; không tạo enrollment.
-- `POST /api/v1/auth/login`: `{identifier,password}` → access token/session + user profile.
-- `POST /api/v1/auth/refresh`: refresh cookie/token hợp lệ → rotate token.
-- `POST /api/v1/auth/logout`: revoke current refresh session; idempotent.
-- `GET /api/v1/me`: trả `{id,displayName,email,role,status}`.
+- `POST /api/v1/auth/register`: `{displayName,email,password}` → `204`; Java tạo Student, không tạo enrollment.
+- `POST /api/v1/auth/login`: `{identifier,password}` → `204` và session cookie an toàn.
+- `POST /api/v1/auth/refresh`: refresh cookie hợp lệ → rotate token, trả `204`.
+- `POST /api/v1/auth/logout`: revoke current refresh session, idempotent, trả `204`.
+- `GET /api/v1/me`: trả `{id,displayName,email,role}`.
 
 Lỗi dùng envelope `{code,message,details,traceId}`. Không phân biệt email tồn tại ở response đăng nhập; không log password/token.
 

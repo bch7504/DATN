@@ -10,7 +10,9 @@
 | DASH-FR-004 | Streak chỉ dùng `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`, không dùng login/Note/ASK_AI. |
 | DASH-FR-005 | Student cấu hình target Slide/câu Quiz/Study Task; Java tính actual theo local date. |
 | DASH-BR-001 | Daily Goal completion không quyết định Streak; một hoạt động hợp lệ là đủ duy trì ngày học. |
-| PLAN-FR-001 | Student tự CRUD Study Plan/task/deadline/calendar; AI không tự điều phối. |
+| PLAN-FR-001 | Student tự CRUD Kế hoạch/task/deadline và xem projection lịch tuần theo khung giờ; AI không tự điều phối. |
+| PLAN-FR-002 | Màn Kế hoạch & Lịch hỗ trợ chuyển tuần, thêm lịch bằng nút hoặc ô trống, thêm task và cập nhật trạng thái task. |
+| PLAN-FR-003 | Daily Goal, Study Streak và viewing progress chỉ nằm trên Dashboard, không lặp trong Kế hoạch & Lịch. |
 | QUIZ-FR-001 | Quiz AI phải được accept ở `REVIEW_REQUIRED` trước attempt; Java chấm điểm. |
 | QUIZ-FR-002 | Màn Ôn tập bắt đầu bằng Course Offering được phép và nhóm Quiz cá nhân. |
 | QUIZ-FR-003 | “Nội dung cần ôn lại” chỉ tổng hợp từ câu trả lời sai và `quiz_question_sources`, không dùng AI suy đoán năng lực. |

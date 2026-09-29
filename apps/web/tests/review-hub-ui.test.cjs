@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
   await t.test("Quiz MCQ_SINGLE contract: exactly one correct option per question", () => {
@@ -172,4 +174,39 @@ test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
       false
     );
   });
+
+  await t.test("Review Hub must not duplicate Course Offering progress from Dashboard", () => {
+    const workspacePath = path.join(
+      process.cwd(),
+      "src/app/(student)/review/[courseId]/page.tsx"
+    );
+    const source = fs.readFileSync(workspacePath, "utf8");
+
+    assert.equal(source.includes('setActiveTab("PROGRESS")'), false);
+    assert.equal(source.includes("Xem tiến độ môn học"), false);
+    assert.equal(source.includes("Nội dung cần ôn lại"), true);
+    assert.equal(source.includes("Attempt History"), true);
+  });
+
+  await t.test("Desktop app shell provides an accessible collapse control", () => {
+    const shellPath = path.join(process.cwd(), "src/components/layout/app-shell.tsx");
+    const source = fs.readFileSync(shellPath, "utf8");
+
+    assert.equal(source.includes("desktopSidebarCollapsed"), true);
+    assert.equal(source.includes("Thu gọn thanh điều hướng"), true);
+    assert.equal(source.includes("Mở rộng thanh điều hướng"), true);
+  });
+
+  await t.test("Plan route follows the weekly calendar mock and keeps Daily Goal on Dashboard", () => {
+    const planPath = path.join(process.cwd(), "src/app/(student)/plan/page.tsx");
+    const source = fs.readFileSync(planPath, "utf8");
+
+    assert.equal(source.includes("Kế hoạch &amp; Lịch ôn tập"), true);
+    assert.equal(source.includes("Thêm task ôn tập"), true);
+    assert.equal(source.includes("Thêm lịch học"), true);
+    assert.equal(source.includes("Bấm vào ô trống trên bảng"), true);
+    assert.equal(source.includes("Daily Goal"), true);
+    assert.equal(source.includes("getDailyGoalProgress"), false);
+  });
+
 });

@@ -14,9 +14,6 @@ import {
   ChevronRight,
   AlertCircle,
   CheckCircle2,
-  BookOpen,
-  Award,
-  Plus,
 } from "lucide-react";
 
 export default function StudentReviewLevel1Page() {
@@ -150,37 +147,20 @@ export default function StudentReviewLevel1Page() {
                     </div>
                     <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                       <div className="text-[10px] uppercase font-bold text-slate-400">
-                        {isPersonal ? "Số lần làm" : "Tiến độ slide"}
+                        Điểm trung bình
                       </div>
                       <div className="text-sm font-extrabold text-slate-800 mt-0.5">
-                        {isPersonal
-                          ? `${summary.totalAttempts} lượt`
-                          : `${summary.viewingPercentage}%`}
+                        {summary.averageScore === null ? "Chưa có" : `${summary.averageScore.toFixed(1)}/10`}
                       </div>
                     </div>
                   </div>
 
-                  {/* Slide Progress bar (for Course Offerings) */}
-                  {!isPersonal && summary.totalSlides > 0 && (
-                    <div className="space-y-1 mb-4">
-                      <div className="flex justify-between text-[11px] text-slate-500">
-                        <span>Đã xem: {summary.slideViewCount}/{summary.totalSlides} slide</span>
-                        <span className="font-bold text-slate-700">{summary.viewingPercentage}%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-ptit-red rounded-full"
-                          style={{ width: `${summary.viewingPercentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Footer Action */}
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-xs text-slate-400">
-                    Cấu trúc ôn tập 3 sub-tab
+                    Quiz · câu sai · lịch sử
                   </span>
                   <Link
                     href={`/review/${summary.courseOfferingId}`}

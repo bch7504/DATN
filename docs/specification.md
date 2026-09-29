@@ -3,7 +3,7 @@
 - **Trạng thái:** Baseline triển khai theo phương án Course Offering
 - **Phiên bản:** 3.0 — Chốt Flow MVP v1.0 (24/09/2026)
 - **Phạm vi:** MVP đồ án tốt nghiệp trong 12 tuần
-- **Nguồn nghiệp vụ:** `Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`
+- **Nguồn nghiệp vụ:** `bao-cao/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`
 - **Nguồn tham khảo chatbot:** [Multi-Agent Document Intelligence Assistant](https://github.com/bch7504/Multi-Agent-Document-Intelligence-Assistant), chỉ dùng làm mẫu UX/grounding, không thay thế kiến trúc StudyFlow
 
 ## 1. Mục tiêu sản phẩm
@@ -53,8 +53,9 @@ Admin duyệt quyền Teacher ở cấp tài khoản, không tạo/phân công v
 - Personal PDF, multi-document RAG, lịch sử hội thoại và citation theo page.
 - AI sinh Quiz `MCQ_SINGLE` từ Personal Documents đã chọn và prompt tự do; Student review/regenerate/accept/reject trước attempt.
 - Khi accept, Student gắn Quiz vào Course Offering `APPROVED` hoặc giữ là Quiz cá nhân; nguồn sinh Quiz độc lập với nơi ôn tập.
-- Ôn tập (Review Hub) theo cấu trúc 2 tầng: Level 1 chọn môn/Quiz cá nhân; Level 2 gồm 3 sub-tab (Quản lý Quiz & lịch sử attempt không ghi đè, Nội dung cần ôn lại tổng hợp từ câu sai kèm link tài liệu/slide, Xem tiến độ slide của môn). Không dùng AI suy luận năng lực.
-- Dashboard tổng hợp viewing progress, Study Streak và Daily Goal; chi tiết tiến độ nằm trong Course Offering.
+- Ôn tập (Review Hub) theo cấu trúc 2 tầng: Level 1 chọn môn/Quiz cá nhân; Level 2 gồm tổng quan ôn tập, Quiz `READY`, lịch sử attempt không ghi đè và nội dung cần ôn tổng hợp từ câu sai kèm link tài liệu/slide. Không hiển thị viewing progress và không dùng AI suy luận năng lực.
+- Dashboard tổng hợp đầy đủ viewing progress tổng quan và theo từng Course Offering, Study Streak, Daily Goal, Quiz và tóm tắt task sắp tới.
+- Màn `Kế hoạch & Lịch` tách khỏi Dashboard: Student quản lý task/lịch tuần theo khung giờ; Daily Goal, Streak và viewing progress không lặp lại tại đây.
 - Study Plan, task, deadline và lịch tuần.
 - Admin monitoring, feedback/report, audit log và typed settings.
 - Deploy end-to-end, test và seed data tổng hợp.

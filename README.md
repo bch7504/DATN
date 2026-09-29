@@ -14,14 +14,14 @@ StudyFlow là nền tảng web giúp sinh viên học theo lớp học phần, q
 - Personal RAG hỏi đáp trên các PDF do Student lựa chọn, trả citation theo trang.
 - Sinh Quiz từ Personal Documents và prompt tự do; Student review trước khi làm.
 - Java chấm `MCQ_SINGLE`, lưu từng attempt và liên kết câu sai với nguồn cần ôn lại.
-- Dashboard tổng hợp tiến độ theo lớp, Study Streak, Daily Goal và kế hoạch học.
+- Dashboard tổng hợp tiến độ theo lớp, Study Streak và Daily Goal; màn Kế hoạch & Lịch quản lý task và lịch tuần riêng.
 - Giao diện đỏ–trắng theo định hướng nhận diện PTIT, hỗ trợ Student, Teacher và Admin.
 
 ## Vai trò trong MVP
 
 | Vai trò | Chức năng chính |
 |---|---|
-| Student | Tham gia lớp, sử dụng học liệu, Personal RAG, Slide Tutor, Quiz, Dashboard và Study Plan |
+| Student | Tham gia lớp, sử dụng học liệu, Personal RAG, Slide Tutor, Quiz, Dashboard và Kế hoạch & Lịch tuần |
 | Teacher | Tạo Course Offering, quản lý join code/enrollment, upload và public PDF/PPTX |
 | Admin | Quản lý tài khoản, Subject, Semester, giám sát lớp, feedback, audit và settings |
 

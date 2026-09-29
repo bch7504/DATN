@@ -18,8 +18,8 @@
 - `/api/v1/admin/subjects`: CRUD/activate; code unique.
 - `/api/v1/admin/semesters`: CRUD/open/close/archive; date range hợp lệ.
 - `GET /api/v1/admin/course-offerings`: filter/pagination, chỉ metadata vận hành.
-- `PATCH /api/v1/admin/course-offerings/{id}/status`: `{status:"LOCKED|ARCHIVED",reason}`; audit bắt buộc.
-- `/api/v1/admin/feedback`, `/audit-logs`, `/settings`: không trả nội dung riêng tư/secret.
+- `POST /api/v1/admin/course-offerings/{id}/lock` và `/archive`: audit reason theo contract; không hard-delete.
+- `/api/v1/admin/feedback-reports`, `/system-logs`, `/system-settings`: không trả nội dung riêng tư hoặc secret.
 
 ## 3. Acceptance
 
