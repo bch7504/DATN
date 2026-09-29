@@ -38,7 +38,6 @@ interface NavItem {
 const STUDENT_NAV: NavItem[] = [
   { label: "Tổng quan", href: "/dashboard", icon: LayoutDashboard },
   { label: "Lớp học phần", href: "/course-offerings", icon: GraduationCap },
-  { label: "Học liệu & Slide", href: "/materials", icon: BookOpen },
   { label: "Tài liệu cá nhân", href: "/personal-documents", icon: FileText },
   { label: "Hỏi đáp tài liệu (RAG)", href: "/chat", icon: MessageSquare },
   { label: "Kế hoạch học tập", href: "/plan", icon: CalendarCheck },

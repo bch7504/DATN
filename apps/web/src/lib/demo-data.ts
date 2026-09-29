@@ -12,6 +12,15 @@ import {
   PersonalDocument,
 } from "@/types/material";
 import { ChatConversation } from "@/types/chat";
+import { Quiz, QuizDraft, QuizAttempt } from "@/types/quiz";
+import {
+  ReviewItem,
+  CourseReviewSummary,
+  CourseWorkspaceProgress,
+  DailyGoalProgress,
+  DailyGoalConfig,
+  StudyStreak,
+} from "@/types/review";
 
 export const DEMO_USERS: Record<UserRole, User> = {
   STUDENT: {
@@ -410,3 +419,413 @@ export function findDemoUser(identifier: string): User | undefined {
   }
   return DEMO_USERS.STUDENT;
 }
+
+// ==========================================
+// FE-M5: Quiz, Review Hub, Daily Goal & Streak
+// ==========================================
+
+export let demoQuizzes: Quiz[] = [
+  {
+    id: "quiz_01",
+    title: "Kiến trúc Tác tử AI & Mô hình PEAS (Chương 1)",
+    courseOfferingId: "offering_01", // INT1340 - Trí tuệ nhân tạo
+    courseOfferingCode: "INT1340_01",
+    isPersonal: false,
+    questionCount: 3,
+    questions: [
+      {
+        id: "q_01",
+        type: "MCQ_SINGLE",
+        questionText: "Trong mô hình PEAS của tác tử thông minh, chữ 'E' đại diện cho thành phần nào sau đây?",
+        options: [
+          { id: "A", text: "Evaluation (Đánh giá hiệu suất)" },
+          { id: "B", text: "Environment (Môi trường hoạt động)" },
+          { id: "C", text: "Effectors (Bộ phận truyền động)" },
+          { id: "D", text: "Execution (Quy trình thực thi)" },
+        ],
+        correctOptionId: "B",
+        explanation: "Mô hình PEAS gồm Performance measure, Environment, Actuators, Sensors. Chữ E là Environment (Môi trường).",
+        citation: {
+          documentId: "doc_pptx_01",
+          documentName: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
+          slideNumber: 4,
+          excerpt: "PEAS: P (Performance), E (Environment), A (Actuators), S (Sensors).",
+        },
+      },
+      {
+        id: "q_02",
+        type: "MCQ_SINGLE",
+        questionText: "Tác tử nào sau đây duy trì trạng thái bên trong để theo dõi phần môi trường không quan sát được?",
+        options: [
+          { id: "A", text: "Simple reflex agent (Tác tử phản xạ đơn giản)" },
+          { id: "B", text: "Model-based reflex agent (Tác tử phản xạ dựa trên mô hình)" },
+          { id: "C", text: "Goal-based agent (Tác tử dựa trên mục tiêu)" },
+          { id: "D", text: "Utility-based agent (Tác tử dựa trên độ thỏa dụng)" },
+        ],
+        correctOptionId: "B",
+        explanation: "Tác tử phản xạ dựa trên mô hình (Model-based reflex agent) lưu giữ trạng thái bên trong để bù đắp cho môi trường quan sát một phần.",
+        citation: {
+          documentId: "doc_pptx_01",
+          documentName: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
+          slideNumber: 6,
+          excerpt: "2. Tác tử phản xạ dựa trên mô hình: Duy trì trạng thái bên trong để theo dõi thế giới không quan sát được.",
+        },
+      },
+      {
+        id: "q_03",
+        type: "MCQ_SINGLE",
+        questionText: "Hàm tác tử (Agent function) ánh xạ chuỗi nhận thức (Percept sequence) thành thành phần nào?",
+        options: [
+          { id: "A", text: "Sensor input (Dữ liệu cảm biến mới)" },
+          { id: "B", text: "Internal state (Trạng thái nội vi)" },
+          { id: "C", text: "Action (Hành động của tác tử)" },
+          { id: "D", text: "Performance score (Điểm số hiệu năng)" },
+        ],
+        correctOptionId: "C",
+        explanation: "Hàm tác tử f: P* -> A ánh xạ mọi chuỗi nhận thức P* thành một hành động A cụ thể.",
+        citation: {
+          documentId: "doc_pptx_01",
+          documentName: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
+          slideNumber: 2,
+          excerpt: "Hàm tác tử: f: P* -> A (từ chuỗi nhận thức sang hành động).",
+        },
+      },
+    ],
+    createdAt: "2026-09-24T08:00:00Z",
+    acceptedAt: "2026-09-24T08:05:00Z",
+  },
+  {
+    id: "quiz_02",
+    title: "Chuẩn hóa Cơ sở Dữ liệu & Dạng chuẩn 3NF",
+    courseOfferingId: "offering_02", // DBI202_K21 - Cơ sở dữ liệu
+    courseOfferingCode: "DBI202_K21",
+    isPersonal: false,
+    questionCount: 2,
+    questions: [
+      {
+        id: "q_04",
+        type: "MCQ_SINGLE",
+        questionText: "Một lược đồ quan hệ đạt dạng chuẩn 3 (3NF) khi nào?",
+        options: [
+          { id: "A", text: "Đạt 1NF và mọi thuộc tính đều phụ thuộc hàm đầy đủ vào khóa chính" },
+          { id: "B", text: "Đạt 2NF và không có thuộc tính không khóa nào phụ thuộc bắc cầu vào khóa chính" },
+          { id: "C", text: "Chỉ chứa các giá trị nguyên tố trong mọi trường" },
+          { id: "D", text: "Không tồn tại bất kỳ phụ thuộc hàm đa trị nào" },
+        ],
+        correctOptionId: "B",
+        explanation: "Theo định nghĩa chuẩn 3NF: Lược đồ phải đạt 2NF và loại bỏ hoàn toàn phụ thuộc bắc cầu của thuộc tính không khóa.",
+        citation: {
+          documentId: "pdoc_01",
+          documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+          pageNumber: 8,
+          excerpt: "Dạng chuẩn 3 (3NF): Lược đồ đạt 2NF và không có phụ thuộc bắc cầu.",
+        },
+      },
+      {
+        id: "q_05",
+        type: "MCQ_SINGLE",
+        questionText: "Nếu X -> A là một phụ thuộc hàm không tầm thường và X không phải siêu khóa, thì lược đồ vi phạm dạng chuẩn nào?",
+        options: [
+          { id: "A", text: "1NF" },
+          { id: "B", text: "2NF" },
+          { id: "C", text: "BCNF (Boyce-Codd Normal Form)" },
+          { id: "D", text: "4NF" },
+        ],
+        correctOptionId: "C",
+        explanation: "BCNF yêu cầu mọi phụ thuộc hàm không tầm thường X -> A thì X bắt buộc phải là một siêu khóa (Superkey).",
+        citation: {
+          documentId: "pdoc_01",
+          documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+          pageNumber: 10,
+          excerpt: "BCNF đòi hỏi với mọi X -> A, X phải là siêu khóa.",
+        },
+      },
+    ],
+    createdAt: "2026-09-26T10:00:00Z",
+    acceptedAt: "2026-09-26T10:02:00Z",
+  },
+  {
+    id: "quiz_03",
+    title: "Thực hành Truy vấn SQL: Phép nối & Subquery",
+    isPersonal: true,
+    questionCount: 2,
+    questions: [
+      {
+        id: "q_06",
+        type: "MCQ_SINGLE",
+        questionText: "Khi truy vấn lồng kiểm tra sự tồn tại trên tập dữ liệu rất lớn, mệnh đề nào sau đây tối ưu hơn nhờ cơ chế short-circuiting?",
+        options: [
+          { id: "A", text: "WHERE column IN (...)" },
+          { id: "B", text: "WHERE EXISTS (...)" },
+          { id: "C", text: "WHERE column = ANY (...)" },
+          { id: "D", text: "WHERE column NOT IN (...)" },
+        ],
+        correctOptionId: "B",
+        explanation: "EXISTS kiểm tra sự tồn tại và dừng lại ngay khi tìm thấy dòng đầu tiên thỏa mãn điều kiện.",
+        citation: {
+          documentId: "pdoc_02",
+          documentName: "Tài liệu thực hành Truy vấn SQL nâng cao.pdf",
+          pageNumber: 5,
+          excerpt: "Toán tử EXISTS áp dụng cơ chế short-circuiting tối ưu hơn IN.",
+        },
+      },
+      {
+        id: "q_07",
+        type: "MCQ_SINGLE",
+        questionText: "Phép nối nào trả về toàn bộ các dòng của bảng bên trái cùng các dòng khớp của bảng bên phải, các trường không khớp nhận NULL?",
+        options: [
+          { id: "A", text: "INNER JOIN" },
+          { id: "B", text: "LEFT OUTER JOIN" },
+          { id: "C", text: "RIGHT OUTER JOIN" },
+          { id: "D", text: "FULL OUTER JOIN" },
+        ],
+        correctOptionId: "B",
+        explanation: "LEFT JOIN (hoặc LEFT OUTER JOIN) giữ lại mọi bản ghi từ bảng bên trái.",
+        citation: {
+          documentId: "pdoc_02",
+          documentName: "Tài liệu thực hành Truy vấn SQL nâng cao.pdf",
+          pageNumber: 2,
+          excerpt: "LEFT JOIN bảo toàn toàn bộ dòng của bảng bên trái.",
+        },
+      },
+    ],
+    createdAt: "2026-09-27T15:00:00Z",
+    acceptedAt: "2026-09-27T15:05:00Z",
+  },
+];
+
+export let demoQuizAttempts: QuizAttempt[] = [
+  {
+    id: "att_01",
+    quizId: "quiz_01",
+    quizTitle: "Kiến trúc Tác tử AI & Mô hình PEAS (Chương 1)",
+    attemptNumber: 1,
+    score: 1,
+    maxScore: 3,
+    percentage: 33,
+    completedAt: "2026-09-24T09:00:00Z",
+    answers: [
+      { questionId: "q_01", selectedOptionId: "A", isCorrect: false },
+      { questionId: "q_02", selectedOptionId: "B", isCorrect: true },
+      { questionId: "q_03", selectedOptionId: "B", isCorrect: false },
+    ],
+  },
+  {
+    id: "att_02",
+    quizId: "quiz_01",
+    quizTitle: "Kiến trúc Tác tử AI & Mô hình PEAS (Chương 1)",
+    attemptNumber: 2,
+    score: 3,
+    maxScore: 3,
+    percentage: 100,
+    completedAt: "2026-09-25T16:30:00Z",
+    answers: [
+      { questionId: "q_01", selectedOptionId: "B", isCorrect: true },
+      { questionId: "q_02", selectedOptionId: "B", isCorrect: true },
+      { questionId: "q_03", selectedOptionId: "C", isCorrect: true },
+    ],
+  },
+  {
+    id: "att_03",
+    quizId: "quiz_02",
+    quizTitle: "Chuẩn hóa Cơ sở Dữ liệu & Dạng chuẩn 3NF",
+    attemptNumber: 1,
+    score: 1,
+    maxScore: 2,
+    percentage: 50,
+    completedAt: "2026-09-26T14:00:00Z",
+    answers: [
+      { questionId: "q_04", selectedOptionId: "A", isCorrect: false },
+      { questionId: "q_05", selectedOptionId: "C", isCorrect: true },
+    ],
+  },
+];
+
+// Review Items aggregated strictly from wrong quiz answers (NO AI guessing)
+export let demoReviewItems: ReviewItem[] = [
+  {
+    id: "rev_01",
+    quizId: "quiz_01",
+    quizTitle: "Kiến trúc Tác tử AI & Mô hình PEAS (Chương 1)",
+    questionId: "q_01",
+    questionText: "Trong mô hình PEAS của tác tử thông minh, chữ 'E' đại diện cho thành phần nào sau đây?",
+    wrongOptionText: "A: Evaluation (Đánh giá hiệu suất)",
+    correctOptionText: "B: Environment (Môi trường hoạt động)",
+    explanation: "Mô hình PEAS: P (Performance), E (Environment), A (Actuators), S (Sensors). Chữ E là Environment.",
+    citation: {
+      documentId: "doc_pptx_01",
+      documentName: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
+      slideNumber: 4,
+      excerpt: "PEAS: P (Performance), E (Environment), A (Actuators), S (Sensors).",
+    },
+    lastAttemptAt: "2026-09-24T09:00:00Z",
+    timesWrong: 1,
+  },
+  {
+    id: "rev_02",
+    quizId: "quiz_01",
+    quizTitle: "Kiến trúc Tác tử AI & Mô hình PEAS (Chương 1)",
+    questionId: "q_03",
+    questionText: "Hàm tác tử (Agent function) ánh xạ chuỗi nhận thức (Percept sequence) thành thành phần nào?",
+    wrongOptionText: "B: Internal state (Trạng thái nội vi)",
+    correctOptionText: "C: Action (Hành động của tác tử)",
+    explanation: "Hàm tác tử f: P* -> A ánh xạ chuỗi nhận thức P* thành một hành động A cụ thể.",
+    citation: {
+      documentId: "doc_pptx_01",
+      documentName: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
+      slideNumber: 2,
+      excerpt: "Hàm tác tử: f: P* -> A (từ chuỗi nhận thức sang hành động).",
+    },
+    lastAttemptAt: "2026-09-24T09:00:00Z",
+    timesWrong: 1,
+  },
+  {
+    id: "rev_03",
+    quizId: "quiz_02",
+    quizTitle: "Chuẩn hóa Cơ sở Dữ liệu & Dạng chuẩn 3NF",
+    questionId: "q_04",
+    questionText: "Một lược đồ quan hệ đạt dạng chuẩn 3 (3NF) khi nào?",
+    wrongOptionText: "A: Đạt 1NF và mọi thuộc tính đều phụ thuộc hàm đầy đủ vào khóa chính",
+    correctOptionText: "B: Đạt 2NF và không có thuộc tính không khóa nào phụ thuộc bắc cầu vào khóa chính",
+    explanation: "Định nghĩa chuẩn 3NF: Lược đồ phải đạt 2NF và loại bỏ hoàn toàn phụ thuộc bắc cầu.",
+    citation: {
+      documentId: "pdoc_01",
+      documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+      pageNumber: 8,
+      excerpt: "Dạng chuẩn 3 (3NF): Lược đồ đạt 2NF và không có phụ thuộc bắc cầu.",
+    },
+    lastAttemptAt: "2026-09-26T14:00:00Z",
+    timesWrong: 1,
+  },
+];
+
+// Daily Goal Configuration (Student configures target only)
+export let demoDailyGoalConfig: DailyGoalConfig = {
+  targetSlides: 8,
+  targetQuizQuestions: 10,
+  targetTasks: 2,
+};
+
+// Daily Goal Progress computed by Java backend
+export let demoDailyGoalProgress: DailyGoalProgress = {
+  date: "2026-09-29",
+  targetSlides: 8,
+  actualSlides: 6,
+  slidesPercentage: 75,
+  targetQuizQuestions: 10,
+  actualQuizQuestions: 8,
+  quizPercentage: 80,
+  targetTasks: 2,
+  actualTasks: 2,
+  tasksPercentage: 100,
+  isCompleted: false, // overall completed only when all targets reached
+};
+
+// Study Streak computed by Java backend (Streak is based on VIEW_SLIDE, STUDY_TASK_COMPLETED, QUIZ_COMPLETED)
+export let demoStudyStreak: StudyStreak = {
+  currentStreak: 5,
+  longestStreak: 12,
+  lastActiveDate: "2026-09-29",
+  weeklyActivity: [
+    { day: "T4", date: "2026-09-23", active: true, count: 4 },
+    { day: "T5", date: "2026-09-24", active: true, count: 7 },
+    { day: "T6", date: "2026-09-25", active: true, count: 6 },
+    { day: "T7", date: "2026-09-26", active: true, count: 5 },
+    { day: "CN", date: "2026-09-27", active: false, count: 0 },
+    { day: "T2", date: "2026-09-28", active: true, count: 3 },
+    { day: "T3", date: "2026-09-29", active: true, count: 8 },
+  ],
+};
+
+// Course Workspace Progress details for Sub-tab 3
+export let demoCourseWorkspaceProgress: Record<string, CourseWorkspaceProgress> = {
+  offering_01: {
+    courseOfferingId: "offering_01",
+    courseCode: "INT1340_01",
+    documentId: "doc_pptx_01",
+    documentTitle: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
+    totalSlides: 8,
+    viewedSlides: 6,
+    viewingPercentage: 75,
+    slides: [
+      { slideNumber: 1, title: "Giới thiệu Môn học & Giảng viên", viewed: true, viewedAt: "2026-09-22T08:10:00Z" },
+      { slideNumber: 2, title: "Định nghĩa Tác tử Thông minh", viewed: true, viewedAt: "2026-09-22T08:25:00Z" },
+      { slideNumber: 3, title: "Hành vi Hợp lý & Đo lường Hiệu năng", viewed: true, viewedAt: "2026-09-23T09:00:00Z" },
+      { slideNumber: 4, title: "Mô hình PEAS & Ví dụ Minh họa", viewed: true, viewedAt: "2026-09-24T08:15:00Z" },
+      { slideNumber: 5, title: "Các đặc tính của Môi trường", viewed: true, viewedAt: "2026-09-25T10:00:00Z" },
+      { slideNumber: 6, title: "Các loại Cấu trúc Tác tử cơ bản", viewed: true, viewedAt: "2026-09-26T14:30:00Z" },
+      { slideNumber: 7, title: "Tác tử dựa trên Mục tiêu", viewed: false },
+      { slideNumber: 8, title: "Tổng kết & Bài tập Chương 1", viewed: false },
+    ],
+    recentActivities: [
+      {
+        id: "act_01",
+        type: "VIEW_SLIDE",
+        description: "Đã xem Slide 6: Các loại Cấu trúc Tác tử cơ bản",
+        courseCode: "INT1340_01",
+        timestamp: "2026-09-26T14:30:00Z",
+      },
+      {
+        id: "act_02",
+        type: "QUIZ_COMPLETED",
+        description: "Hoàn thành bài Quiz: Kiến trúc Tác tử AI (Lần 2, 100%)",
+        courseCode: "INT1340_01",
+        timestamp: "2026-09-25T16:30:00Z",
+      },
+      {
+        id: "act_03",
+        type: "VIEW_SLIDE",
+        description: "Đã xem Slide 5: Các đặc tính của Môi trường",
+        courseCode: "INT1340_01",
+        timestamp: "2026-09-25T10:00:00Z",
+      },
+      {
+        id: "act_04",
+        type: "STUDY_TASK_COMPLETED",
+        description: "Hoàn thành nhiệm vụ: Phân tích mô hình PEAS xe tự hành",
+        courseCode: "INT1340_01",
+        timestamp: "2026-09-24T11:00:00Z",
+      },
+    ],
+  },
+  offering_02: {
+    courseOfferingId: "offering_02",
+    courseCode: "DBI202_K21",
+    documentId: "doc_pptx_02",
+    documentTitle: "DBI202_Lecture_01_Introduction.pptx",
+    totalSlides: 12,
+    viewedSlides: 8,
+    viewingPercentage: 67,
+    slides: [
+      { slideNumber: 1, title: "Giới thiệu Hệ Quản trị CSDL", viewed: true },
+      { slideNumber: 2, title: "Mô hình Dữ liệu Quan hệ", viewed: true },
+      { slideNumber: 3, title: "Khóa chính & Khóa ngoại", viewed: true },
+      { slideNumber: 4, title: "Đại số quan hệ cơ bản", viewed: true },
+      { slideNumber: 5, title: "Các phép chọn, chiếu, tích Descartes", viewed: true },
+      { slideNumber: 6, title: "Phép kết nối (Join)", viewed: true },
+      { slideNumber: 7, title: "Phụ thuộc hàm (Functional Dependency)", viewed: true },
+      { slideNumber: 8, title: "Dạng chuẩn 1NF và 2NF", viewed: true },
+      { slideNumber: 9, title: "Dạng chuẩn 3NF", viewed: false },
+      { slideNumber: 10, title: "Dạng chuẩn BCNF", viewed: false },
+      { slideNumber: 11, title: "Bảo toàn phụ thuộc hàm", viewed: false },
+      { slideNumber: 12, title: "Tổng kết chương chuẩn hóa", viewed: false },
+    ],
+    recentActivities: [
+      {
+        id: "act_05",
+        type: "QUIZ_COMPLETED",
+        description: "Làm bài Quiz: Chuẩn hóa CSDL (Lần 1, 50%)",
+        courseCode: "DBI202_K21",
+        timestamp: "2026-09-26T14:00:00Z",
+      },
+      {
+        id: "act_06",
+        type: "VIEW_SLIDE",
+        description: "Đã xem Slide 8: Dạng chuẩn 1NF và 2NF",
+        courseCode: "DBI202_K21",
+        timestamp: "2026-09-25T11:00:00Z",
+      },
+    ],
+  },
+};
+

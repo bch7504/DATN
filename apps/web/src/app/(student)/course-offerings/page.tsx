@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { studentApi } from "@/lib/api-client";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { studentApi, materialApi } from "@/lib/api-client";
 import { CourseOffering, CourseEnrollment } from "@/types/course-offering";
+import { TeacherDocument } from "@/types/material";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
@@ -17,10 +19,19 @@ import {
   ChevronRight,
   ShieldAlert,
   ArrowRight,
+  Download,
+  Presentation,
+  FileText,
+  Sparkles,
+  ArrowLeft,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 
-export default function StudentCourseOfferingsPage() {
+function CourseOfferingsContent() {
+  const searchParams = useSearchParams();
+  const initialOfferingId = searchParams.get("offeringId");
+
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
   const [enrollments, setEnrollments] = useState<CourseEnrollment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,6 +39,13 @@ export default function StudentCourseOfferingsPage() {
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"APPROVED" | "PENDING" | "ARCHIVED">("APPROVED");
+
+  // In-course materials & slide viewing state
+  const [selectedOfferingId, setSelectedOfferingId] = useState<string | null>(
+    initialOfferingId
+  );
+  const [materials, setMaterials] = useState<TeacherDocument[]>([]);
+  const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
 
   const loadData = async () => {
     try {
@@ -47,6 +65,34 @@ export default function StudentCourseOfferingsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // When selectedOfferingId changes, load its materials
+  useEffect(() => {
+    if (!selectedOfferingId) {
+      setMaterials([]);
+      return;
+    }
+
+    let mounted = true;
+    async function fetchMaterials() {
+      setIsLoadingMaterials(true);
+      try {
+        const docs = await materialApi.getMaterials(selectedOfferingId || undefined);
+        if (mounted) {
+          setMaterials(docs);
+        }
+      } catch (err: unknown) {
+        console.error("Failed to load materials for course:", err);
+      } finally {
+        if (mounted) setIsLoadingMaterials(false);
+      }
+    }
+
+    fetchMaterials();
+    return () => {
+      mounted = false;
+    };
+  }, [selectedOfferingId]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,16 +121,20 @@ export default function StudentCourseOfferingsPage() {
   const approvedOfferings = offerings.filter((o) => o.status === "ACTIVE");
   const archivedOfferings = offerings.filter((o) => o.status === "ARCHIVED");
 
+  const currentSelectedOffering = approvedOfferings.find(
+    (o) => o.id === selectedOfferingId
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight font-display">
             Lớp học phần của bạn
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Nhập mã tham gia lớp từ Giảng viên để đăng ký vào Lớp học phần
+            Quản lý các lớp học phần đã tham gia, theo dõi học liệu bài giảng và slide trực tiếp trong từng lớp.
           </p>
         </div>
 
@@ -102,7 +152,7 @@ export default function StudentCourseOfferingsPage() {
           <button
             type="submit"
             disabled={isJoining || !joinCode.trim()}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm flex-shrink-0"
+            className="px-4 py-2 bg-ptit-red hover:bg-red-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm flex-shrink-0 cursor-pointer"
           >
             {isJoining ? (
               <LoadingSpinner size="sm" />
@@ -123,10 +173,13 @@ export default function StudentCourseOfferingsPage() {
       <div className="flex items-center gap-2 border-b border-slate-200">
         <button
           type="button"
-          onClick={() => setActiveTab("APPROVED")}
-          className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
+          onClick={() => {
+            setActiveTab("APPROVED");
+            setSelectedOfferingId(null);
+          }}
+          className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "APPROVED"
-              ? "border-red-600 text-red-600"
+              ? "border-ptit-red text-ptit-red"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
@@ -136,10 +189,13 @@ export default function StudentCourseOfferingsPage() {
 
         <button
           type="button"
-          onClick={() => setActiveTab("PENDING")}
-          className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
+          onClick={() => {
+            setActiveTab("PENDING");
+            setSelectedOfferingId(null);
+          }}
+          className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "PENDING"
-              ? "border-red-600 text-red-600"
+              ? "border-ptit-red text-ptit-red"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
@@ -149,10 +205,13 @@ export default function StudentCourseOfferingsPage() {
 
         <button
           type="button"
-          onClick={() => setActiveTab("ARCHIVED")}
-          className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
+          onClick={() => {
+            setActiveTab("ARCHIVED");
+            setSelectedOfferingId(null);
+          }}
+          className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "ARCHIVED"
-              ? "border-red-600 text-red-600"
+              ? "border-ptit-red text-ptit-red"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
@@ -176,7 +235,143 @@ export default function StudentCourseOfferingsPage() {
                   title="Chưa có Lớp học phần được duyệt"
                   description="Bạn chưa được duyệt vào lớp học phần nào. Hãy nhập mã tham gia lớp từ Giảng viên ở ô phía trên."
                 />
+              ) : selectedOfferingId && currentSelectedOffering ? (
+                /* IN-COURSE MATERIALS & SLIDE VIEW (Directly inside Course Offering) */
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  {/* Top Bar for Selected Course */}
+                  <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setSelectedOfferingId(null)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" /> Quay lại danh sách lớp
+                      </button>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded bg-red-100 text-ptit-red font-mono font-bold text-xs">
+                            {currentSelectedOffering.code}
+                          </span>
+                          <h2 className="text-base font-bold text-slate-900">
+                            {currentSelectedOffering.name}
+                          </h2>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Giảng viên: <span className="font-medium text-slate-700">{currentSelectedOffering.teacherName}</span> • Học kỳ: {currentSelectedOffering.semesterName}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Link
+                      href={`/review/${currentSelectedOffering.id}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-ptit-red rounded-xl text-xs font-bold transition flex-shrink-0"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" /> Xem nội dung cần ôn tập lớp này
+                    </Link>
+                  </div>
+
+                  {/* Policy Info Box */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600 flex items-start gap-2.5">
+                    <Info className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-slate-800">Quy định truy cập học liệu trong lớp:</span> Bài giảng slide PPTX được đọc trực tuyến có tích hợp AI Slide Tutor và ghi chú cá nhân (không tải file gốc). Tài liệu tham khảo PDF cho phép tải tệp trực tiếp về máy.
+                    </div>
+                  </div>
+
+                  {/* Materials List */}
+                  {isLoadingMaterials ? (
+                    <div className="py-12 flex justify-center">
+                      <LoadingSpinner size="md" text="Đang tải học liệu của lớp học phần..." />
+                    </div>
+                  ) : materials.length === 0 ? (
+                    <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
+                      <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                      <h4 className="text-sm font-bold text-slate-800">Chưa có học liệu nào được công bố</h4>
+                      <p className="text-xs text-slate-500 mt-1">Giảng viên phụ trách chưa tải lên bài giảng hoặc tài liệu cho lớp học phần này.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {materials.map((doc) => {
+                        const isPPTX = doc.fileType === "PPTX";
+                        return (
+                          <div
+                            key={doc.id}
+                            className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-red-200 hover:shadow-md transition flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1 ${
+                                    isPPTX
+                                      ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                      : "bg-red-100 text-ptit-red border border-red-200"
+                                  }`}
+                                >
+                                  {isPPTX ? (
+                                    <>
+                                      <Presentation className="w-3.5 h-3.5" /> PPTX Bài giảng
+                                    </>
+                                  ) : (
+                                    <>
+                                      <FileText className="w-3.5 h-3.5" /> PDF Tài liệu
+                                    </>
+                                  )}
+                                </span>
+                                <span className="text-[11px] text-slate-400">
+                                  {(doc.fileSize / (1024 * 1024)).toFixed(1)} MB
+                                </span>
+                              </div>
+
+                              <h3 className="font-bold text-slate-900 text-sm mb-1 line-clamp-2">
+                                {doc.title}
+                              </h3>
+                              <p className="text-xs text-slate-400 mb-3 truncate">
+                                Tên tệp: {doc.fileName}
+                              </p>
+
+                              {isPPTX && (
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-800 text-[11px] font-semibold rounded-lg mb-4">
+                                  <Sparkles className="w-3 h-3 text-amber-600" />
+                                  <span>Tích hợp AI Slide Tutor & Ghi chú tự động</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                              {isPPTX ? (
+                                <>
+                                  <span className="text-xs text-slate-500">Chỉ đọc web</span>
+                                  <Link
+                                    href={`/materials/${doc.id}/viewer`}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+                                  >
+                                    <Presentation className="w-4 h-4" /> Xem slide & Hỏi Tutor
+                                  </Link>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-xs text-slate-500">Tải về máy tính</span>
+                                  <a
+                                    href={`#download-${doc.id}`}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      alert(`Đang bắt đầu tải tệp PDF: ${doc.fileName}`);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold shadow-sm transition"
+                                  >
+                                    <Download className="w-4 h-4" /> Tải tệp PDF
+                                  </a>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               ) : (
+                /* DEFAULT APPROVED OFFERINGS LIST */
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {approvedOfferings.map((offering) => (
                     <div
@@ -185,7 +380,7 @@ export default function StudentCourseOfferingsPage() {
                     >
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-0.5 rounded-lg bg-red-100 text-red-800 font-mono font-bold text-xs">
+                          <span className="px-2.5 py-0.5 rounded-lg bg-red-100 text-ptit-red font-mono font-bold text-xs">
                             {offering.code}
                           </span>
                           <StatusBadge status="APPROVED" size="sm" />
@@ -204,14 +399,14 @@ export default function StudentCourseOfferingsPage() {
 
                       <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                         <span className="text-xs text-slate-500">
-                          Học liệu: <b>{offering.materialsCount || 4} tài liệu</b>
+                          Học liệu lớp: <b>{offering.materialsCount || 4} tài liệu</b>
                         </span>
-                        <Link
-                          href={`/materials?offeringId=${offering.id}`}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-xl transition"
+                        <button
+                          onClick={() => setSelectedOfferingId(offering.id)}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-ptit-red hover:text-red-700 bg-red-50 hover:bg-red-100 px-3.5 py-2 rounded-xl transition cursor-pointer"
                         >
-                          <BookOpen className="w-3.5 h-3.5" /> Mở học liệu
-                        </Link>
+                          <BookOpen className="w-3.5 h-3.5" /> Xem học liệu & slide
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -230,35 +425,37 @@ export default function StudentCourseOfferingsPage() {
                 />
               ) : (
                 <div className="space-y-3">
-                  {pendingEnrollments.map((enr) => (
-                    <div
-                      key={enr.id}
-                      className="p-5 rounded-2xl border border-amber-200 bg-amber-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-900 font-mono font-bold text-xs">
+                  <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span>
+                      Theo chính sách hệ thống: Sinh viên chưa được xem học liệu và slide khi yêu cầu chưa được Giảng viên phê duyệt.
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {pendingEnrollments.map((enr) => (
+                      <div
+                        key={enr.id}
+                        className="p-5 rounded-2xl border border-amber-200 bg-white shadow-2xs"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-mono font-bold text-xs">
                             {enr.offeringCode}
                           </span>
                           <StatusBadge status="PENDING" size="sm" />
-                          <span className="text-xs text-slate-500">
-                            Yêu cầu lúc: {new Date(enr.requestedAt).toLocaleDateString("vi-VN")}
-                          </span>
                         </div>
-                        <h4 className="font-bold text-slate-800 text-sm">
+                        <h3 className="font-bold text-slate-800 text-base mb-1">
                           {enr.offeringName}
-                        </h4>
-                        <p className="text-xs text-slate-500">
-                          Giảng viên phụ trách: <b>{enr.teacherName}</b>
+                        </h3>
+                        <p className="text-xs text-slate-500 mb-3">
+                          Giảng viên: <span className="font-medium text-slate-700">{enr.teacherName}</span>
                         </p>
+                        <div className="pt-3 border-t border-slate-100 text-xs text-slate-400">
+                          Yêu cầu gửi lúc: {new Date(enr.requestedAt).toLocaleString("vi-VN")}
+                        </div>
                       </div>
-
-                      <div className="flex items-center gap-2 text-xs text-amber-800 bg-amber-100/70 px-3 py-2 rounded-xl">
-                        <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-                        <span>Chưa thể mở học liệu khi chưa được duyệt</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -269,27 +466,27 @@ export default function StudentCourseOfferingsPage() {
             <div>
               {archivedOfferings.length === 0 ? (
                 <EmptyState
-                  title="Không có lớp học phần lưu trữ"
-                  description="Các lớp học phần thuộc các học kỳ trước sẽ xuất hiện tại đây."
+                  title="Không có Lớp học phần lưu trữ"
+                  description="Không có lớp học phần nào đã kết thúc hoặc lưu trữ."
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {archivedOfferings.map((offering) => (
                     <div
                       key={offering.id}
-                      className="p-5 rounded-2xl border border-slate-200 bg-slate-50"
+                      className="p-5 rounded-2xl border border-slate-200 bg-slate-50 opacity-80"
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-mono text-xs font-bold text-slate-600">
+                        <span className="px-2.5 py-0.5 rounded-lg bg-slate-200 text-slate-700 font-mono font-bold text-xs">
                           {offering.code}
                         </span>
                         <StatusBadge status="ARCHIVED" size="sm" />
                       </div>
-                      <h4 className="font-bold text-slate-700 text-sm">
+                      <h3 className="font-bold text-slate-800 text-base mb-1">
                         {offering.name}
-                      </h4>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {offering.semesterName}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Giảng viên: {offering.teacherName} • {offering.semesterName}
                       </p>
                     </div>
                   ))}
@@ -300,5 +497,13 @@ export default function StudentCourseOfferingsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function StudentCourseOfferingsPage() {
+  return (
+    <Suspense fallback={<div className="py-12 flex justify-center"><LoadingSpinner size="lg" /></div>}>
+      <CourseOfferingsContent />
+    </Suspense>
   );
 }

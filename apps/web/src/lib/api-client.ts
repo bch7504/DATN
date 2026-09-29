@@ -11,6 +11,13 @@ import {
   demoSlideNotes,
   demoPersonalDocs,
   demoConversations,
+  demoQuizzes,
+  demoQuizAttempts,
+  demoReviewItems,
+  demoDailyGoalConfig,
+  demoDailyGoalProgress,
+  demoStudyStreak,
+  demoCourseWorkspaceProgress,
 } from "./demo-data";
 import { User, LoginRequest, RegisterRequest } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
@@ -33,6 +40,22 @@ import {
   CreateConversationRequest,
   SendMessageRequest,
 } from "@/types/chat";
+import {
+  Quiz,
+  QuizDraft,
+  QuizAttempt,
+  CreateQuizDraftRequest,
+  AcceptQuizRequest,
+  SubmitQuizAttemptRequest,
+} from "@/types/quiz";
+import {
+  ReviewItem,
+  CourseReviewSummary,
+  CourseWorkspaceProgress,
+  DailyGoalProgress,
+  DailyGoalConfig,
+  StudyStreak,
+} from "@/types/review";
 
 /**
  * Standard typed API client error encapsulating the Java backend error envelope.
@@ -1100,4 +1123,472 @@ export const chatApi = {
     }
   },
 };
+
+/**
+ * Quiz & Assessment API (docs/api-plan.md Section 4.6)
+ * Java backend owns quiz lifecycle, attempts, and scoring.
+ */
+export const quizApi = {
+  async getQuizzes(courseOfferingId?: string): Promise<Quiz[]> {
+    try {
+      const endpoint = courseOfferingId
+        ? `/student/quizzes?courseOfferingId=${courseOfferingId}`
+        : "/student/quizzes";
+      const res = await apiFetch<PaginatedList<Quiz>>(endpoint);
+      return res.items;
+    } catch (err) {
+      if (isDemoMode()) {
+        if (!courseOfferingId) return [...demoQuizzes];
+        if (courseOfferingId === "PERSONAL") {
+          return demoQuizzes.filter((q) => q.isPersonal);
+        }
+        return demoQuizzes.filter((q) => q.courseOfferingId === courseOfferingId);
+      }
+      throw err;
+    }
+  },
+
+  async getQuiz(id: string): Promise<Quiz> {
+    try {
+      return await apiFetch<Quiz>(`/student/quizzes/${id}`);
+    } catch (err) {
+      if (isDemoMode()) {
+        const found = demoQuizzes.find((q) => q.id === id);
+        if (!found) {
+          throw new ApiClientError(404, {
+            code: "QUIZ_NOT_FOUND",
+            message: "Không tìm thấy bài Quiz yêu cầu.",
+          });
+        }
+        return found;
+      }
+      throw err;
+    }
+  },
+
+  async createDraft(req: CreateQuizDraftRequest): Promise<QuizDraft> {
+    if (!req.sourceDocumentIds || req.sourceDocumentIds.length === 0) {
+      throw new ApiClientError(422, {
+        code: "INVALID_DOCUMENT_SELECTION",
+        message: "Phải chọn ít nhất 1 tài liệu nguồn (tối đa 10 tài liệu).",
+      });
+    }
+
+    try {
+      return await apiFetch<QuizDraft>("/student/quizzes/draft", {
+        method: "POST",
+        body: JSON.stringify(req),
+      });
+    } catch (err) {
+      if (isDemoMode()) {
+        const newDraft: QuizDraft = {
+          id: `draft_${Date.now()}`,
+          prompt: req.prompt || "Tạo câu hỏi trắc nghiệm ôn tập",
+          sourceDocumentIds: [...req.sourceDocumentIds],
+          status: "REVIEW_REQUIRED",
+          questions: [
+            {
+              id: `q_draft_${Date.now()}_1`,
+              type: "MCQ_SINGLE",
+              questionText: "Khái niệm 'Khóa chính' (Primary Key) trong mô hình cơ sở dữ liệu quan hệ có đặc điểm nào?",
+              options: [
+                { id: "A", text: "Có thể nhận giá trị NULL đối với một số bản ghi đặc biệt" },
+                { id: "B", text: "Giá trị là duy nhất và không được phép mang giá trị NULL (Entity Integrity)" },
+                { id: "C", text: "Phải bao gồm tất cả các thuộc tính của bảng quan hệ" },
+                { id: "D", text: "Chỉ được phép đặt trên trường có kiểu dữ liệu là số nguyên" },
+              ],
+              correctOptionId: "B",
+              explanation: "Ràng buộc toàn vẹn thực thể (Entity Integrity) quy định khóa chính không bao giờ được phép mang giá trị NULL và phải duy nhất xác định mỗi bộ dữ liệu.",
+              citation: {
+                documentId: req.sourceDocumentIds[0],
+                documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+                pageNumber: 3,
+                excerpt: "Khóa chính: Tập thuộc tính tối thiểu xác định duy nhất mỗi bộ, không chấp nhận giá trị NULL.",
+              },
+            },
+            {
+              id: `q_draft_${Date.now()}_2`,
+              type: "MCQ_SINGLE",
+              questionText: "Phụ thuộc hàm X -> Y được gọi là 'phụ thuộc hàm đầy đủ' khi nào?",
+              options: [
+                { id: "A", text: "Khi loại bỏ bất kỳ thuộc tính nào khỏi X thì phụ thuộc hàm không còn đúng" },
+                { id: "B", text: "Khi X chỉ chứa duy nhất một thuộc tính nguyên tố" },
+                { id: "C", text: "Khi Y là một tập con của X (tầm thường)" },
+                { id: "D", text: "Khi X phụ thuộc bắc cầu vào Y qua một tập trung gian Z" },
+              ],
+              correctOptionId: "A",
+              explanation: "X -> Y là phụ thuộc hàm đầy đủ nếu không tồn tại bất kỳ tập con thực sự nào của X có thể xác định được Y.",
+              citation: {
+                documentId: req.sourceDocumentIds[0],
+                documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+                pageNumber: 6,
+                excerpt: "Phụ thuộc hàm đầy đủ: Loại bỏ bất kỳ thuộc tính nào của vế trái sẽ làm mất phụ thuộc.",
+              },
+            },
+          ],
+          createdAt: new Date().toISOString(),
+        };
+        return newDraft;
+      }
+      throw err;
+    }
+  },
+
+  async regenerateDraft(draftId: string): Promise<QuizDraft> {
+    try {
+      return await apiFetch<QuizDraft>(`/student/quizzes/draft/${draftId}/regenerate`, {
+        method: "POST",
+      });
+    } catch (err) {
+      if (isDemoMode()) {
+        const regenerated: QuizDraft = {
+          id: draftId,
+          prompt: "Tạo lại bộ câu hỏi với độ khó tương đương",
+          sourceDocumentIds: ["pdoc_01"],
+          status: "REVIEW_REQUIRED",
+          questions: [
+            {
+              id: `q_regen_${Date.now()}_1`,
+              type: "MCQ_SINGLE",
+              questionText: "Chuẩn BCNF (Boyce-Codd) nghiêm ngặt hơn chuẩn 3NF ở điều kiện nào?",
+              options: [
+                { id: "A", text: "Không cho phép thuộc tính khóa phụ thuộc vào thuộc tính không khóa" },
+                { id: "B", text: "Mọi phụ thuộc hàm X -> A không tầm thường thì X đều phải là một siêu khóa (Superkey)" },
+                { id: "C", text: "Chỉ áp dụng cho các bảng có từ 5 cột trở lên" },
+                { id: "D", text: "Yêu cầu tất cả các khóa ngoại phải tham chiếu đến cùng một bảng" },
+              ],
+              correctOptionId: "B",
+              explanation: "BCNF loại bỏ trường hợp ngoại lệ của 3NF: Trong BCNF, vế trái X bắt buộc phải là siêu khóa mà không cần quan tâm A có phải thuộc tính nguyên tố hay không.",
+              citation: {
+                documentId: "pdoc_01",
+                documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+                pageNumber: 10,
+                excerpt: "BCNF: Mọi phụ thuộc hàm không tầm thường X -> A thì X phải là siêu khóa.",
+              },
+            },
+          ],
+          createdAt: new Date().toISOString(),
+        };
+        return regenerated;
+      }
+      throw err;
+    }
+  },
+
+  async acceptQuiz(req: AcceptQuizRequest): Promise<Quiz> {
+    try {
+      return await apiFetch<Quiz>("/student/quizzes/accept", {
+        method: "POST",
+        body: JSON.stringify(req),
+      });
+    } catch (err) {
+      if (isDemoMode()) {
+        const isPersonal = req.destinationType === "PERSONAL" || !req.courseOfferingId;
+        const targetOffering = !isPersonal
+          ? demoOfferings.find((o) => o.id === req.courseOfferingId)
+          : undefined;
+
+        const newQuiz: Quiz = {
+          id: `quiz_${Date.now()}`,
+          title: req.title || "Bộ câu hỏi ôn tập mới",
+          courseOfferingId: isPersonal ? undefined : req.courseOfferingId,
+          courseOfferingCode: targetOffering?.code,
+          isPersonal,
+          questionCount: 2,
+          questions: [
+            {
+              id: `q_acc_${Date.now()}_1`,
+              type: "MCQ_SINGLE",
+              questionText: "Khái niệm 'Khóa chính' (Primary Key) trong mô hình cơ sở dữ liệu quan hệ có đặc điểm nào?",
+              options: [
+                { id: "A", text: "Có thể nhận giá trị NULL đối với một số bản ghi đặc biệt" },
+                { id: "B", text: "Giá trị là duy nhất và không được phép mang giá trị NULL (Entity Integrity)" },
+                { id: "C", text: "Phải bao gồm tất cả các thuộc tính của bảng quan hệ" },
+                { id: "D", text: "Chỉ được phép đặt trên trường có kiểu dữ liệu là số nguyên" },
+              ],
+              correctOptionId: "B",
+              explanation: "Ràng buộc toàn vẹn thực thể (Entity Integrity) quy định khóa chính không bao giờ được phép mang giá trị NULL.",
+              citation: {
+                documentId: "pdoc_01",
+                documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+                pageNumber: 3,
+                excerpt: "Khóa chính: Không chấp nhận giá trị NULL.",
+              },
+            },
+            {
+              id: `q_acc_${Date.now()}_2`,
+              type: "MCQ_SINGLE",
+              questionText: "Phụ thuộc hàm X -> Y được gọi là 'phụ thuộc hàm đầy đủ' khi nào?",
+              options: [
+                { id: "A", text: "Khi loại bỏ bất kỳ thuộc tính nào khỏi X thì phụ thuộc hàm không còn đúng" },
+                { id: "B", text: "Khi X chỉ chứa duy nhất một thuộc tính nguyên tố" },
+                { id: "C", text: "Khi Y là một tập con của X (tầm thường)" },
+                { id: "D", text: "Khi X phụ thuộc bắc cầu vào Y qua một tập trung gian Z" },
+              ],
+              correctOptionId: "A",
+              explanation: "X -> Y là phụ thuộc hàm đầy đủ nếu không tồn tại bất kỳ tập con thực sự nào của X có thể xác định được Y.",
+              citation: {
+                documentId: "pdoc_01",
+                documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+                pageNumber: 6,
+                excerpt: "Phụ thuộc hàm đầy đủ: Loại bỏ bất kỳ thuộc tính nào của vế trái sẽ làm mất phụ thuộc.",
+              },
+            },
+          ],
+          createdAt: new Date().toISOString(),
+          acceptedAt: new Date().toISOString(),
+        };
+
+        demoQuizzes.unshift(newQuiz);
+        return newQuiz;
+      }
+      throw err;
+    }
+  },
+
+  async submitAttempt(req: SubmitQuizAttemptRequest): Promise<QuizAttempt> {
+    try {
+      return await apiFetch<QuizAttempt>(`/student/quizzes/${req.quizId}/attempts`, {
+        method: "POST",
+        body: JSON.stringify(req),
+      });
+    } catch (err) {
+      if (isDemoMode()) {
+        const quiz = demoQuizzes.find((q) => q.id === req.quizId);
+        if (!quiz) {
+          throw new ApiClientError(404, {
+            code: "QUIZ_NOT_FOUND",
+            message: "Không tìm thấy bài Quiz để nộp bài.",
+          });
+        }
+
+        // Java backend calculates score and checks correctness
+        let correctCount = 0;
+        const answerResults = req.answers.map((ans) => {
+          const question = quiz.questions.find((q) => q.id === ans.questionId);
+          const isCorrect = question ? question.correctOptionId === ans.selectedOptionId : false;
+          if (isCorrect) correctCount++;
+          return {
+            questionId: ans.questionId,
+            selectedOptionId: ans.selectedOptionId,
+            isCorrect,
+          };
+        });
+
+        const totalQuestions = quiz.questions.length;
+        const percentage = Math.round((correctCount / totalQuestions) * 100);
+
+        // Previous attempts for this quiz to calculate attemptNumber
+        const prevAttempts = demoQuizAttempts.filter((a) => a.quizId === req.quizId);
+        const attemptNumber = prevAttempts.length + 1;
+
+        const newAttempt: QuizAttempt = {
+          id: `att_${Date.now()}`,
+          quizId: quiz.id,
+          quizTitle: quiz.title,
+          attemptNumber,
+          score: correctCount,
+          maxScore: totalQuestions,
+          percentage,
+          completedAt: new Date().toISOString(),
+          answers: answerResults,
+        };
+
+        demoQuizAttempts.unshift(newAttempt);
+
+        // Aggregate wrong answers to demoReviewItems without AI guessing
+        for (const ans of answerResults) {
+          if (!ans.isCorrect) {
+            const question = quiz.questions.find((q) => q.id === ans.questionId);
+            if (question) {
+              const wrongOpt = question.options.find((o) => o.id === ans.selectedOptionId);
+              const correctOpt = question.options.find((o) => o.id === question.correctOptionId);
+
+              demoReviewItems.unshift({
+                id: `rev_${Date.now()}_${question.id}`,
+                quizId: quiz.id,
+                quizTitle: quiz.title,
+                questionId: question.id,
+                questionText: question.questionText,
+                wrongOptionText: `${ans.selectedOptionId}: ${wrongOpt?.text || "Chưa chọn"}`,
+                correctOptionText: `${question.correctOptionId}: ${correctOpt?.text || ""}`,
+                explanation: question.explanation,
+                citation: question.citation,
+                lastAttemptAt: new Date().toISOString(),
+                timesWrong: 1,
+              });
+            }
+          }
+        }
+
+        return newAttempt;
+      }
+      throw err;
+    }
+  },
+
+  async getAttempts(quizId?: string): Promise<QuizAttempt[]> {
+    try {
+      const endpoint = quizId
+        ? `/student/quizzes/${quizId}/attempts`
+        : "/student/quiz-attempts";
+      const res = await apiFetch<PaginatedList<QuizAttempt>>(endpoint);
+      return res.items;
+    } catch (err) {
+      if (isDemoMode()) {
+        if (!quizId) return [...demoQuizAttempts];
+        return demoQuizAttempts.filter((a) => a.quizId === quizId);
+      }
+      throw err;
+    }
+  },
+};
+
+/**
+ * Review Hub & Learning Progress API (docs/frontend-implementation-plan.md Section 2 & 4)
+ * Client never infers review items or computes Streak/Topic Mastery.
+ */
+export const reviewApi = {
+  async getCourseSummaries(): Promise<CourseReviewSummary[]> {
+    try {
+      const res = await apiFetch<PaginatedList<CourseReviewSummary>>("/student/review/summaries");
+      return res.items;
+    } catch (err) {
+      if (isDemoMode()) {
+        const summaries: CourseReviewSummary[] = [
+          {
+            courseOfferingId: "offering_01",
+            courseCode: "INT1340_01",
+            courseName: "Trí tuệ nhân tạo",
+            teacherName: "TS. Trần Thị Giảng Viên",
+            isPersonal: false,
+            totalQuizzes: 1,
+            totalAttempts: 2,
+            reviewItemsCount: demoReviewItems.filter((r) => r.quizId === "quiz_01").length,
+            slideViewCount: 6,
+            totalSlides: 8,
+            viewingPercentage: 75,
+          },
+          {
+            courseOfferingId: "offering_02",
+            courseCode: "DBI202_K21",
+            courseName: "Cơ sở dữ liệu",
+            teacherName: "TS. Nguyễn Văn B",
+            isPersonal: false,
+            totalQuizzes: 1,
+            totalAttempts: 1,
+            reviewItemsCount: demoReviewItems.filter((r) => r.quizId === "quiz_02").length,
+            slideViewCount: 8,
+            totalSlides: 12,
+            viewingPercentage: 67,
+          },
+          {
+            courseOfferingId: "PERSONAL",
+            courseCode: "PERSONAL",
+            courseName: "Kho Quiz & Ôn tập cá nhân",
+            isPersonal: true,
+            totalQuizzes: demoQuizzes.filter((q) => q.isPersonal).length,
+            totalAttempts: 0,
+            reviewItemsCount: 0,
+            slideViewCount: 0,
+            totalSlides: 0,
+            viewingPercentage: 0,
+          },
+        ];
+        return summaries;
+      }
+      throw err;
+    }
+  },
+
+  async getReviewItems(courseOfferingId?: string): Promise<ReviewItem[]> {
+    try {
+      const endpoint = courseOfferingId
+        ? `/student/review/items?courseOfferingId=${courseOfferingId}`
+        : "/student/review/items";
+      const res = await apiFetch<PaginatedList<ReviewItem>>(endpoint);
+      return res.items;
+    } catch (err) {
+      if (isDemoMode()) {
+        if (!courseOfferingId) return [...demoReviewItems];
+        if (courseOfferingId === "offering_01") {
+          return demoReviewItems.filter((r) => r.quizId === "quiz_01");
+        }
+        if (courseOfferingId === "offering_02") {
+          return demoReviewItems.filter((r) => r.quizId === "quiz_02");
+        }
+        return [];
+      }
+      throw err;
+    }
+  },
+
+  async getCourseWorkspaceProgress(courseOfferingId: string): Promise<CourseWorkspaceProgress> {
+    try {
+      return await apiFetch<CourseWorkspaceProgress>(`/student/course-offerings/${courseOfferingId}/progress`);
+    } catch (err) {
+      if (isDemoMode()) {
+        const found = demoCourseWorkspaceProgress[courseOfferingId];
+        if (found) return found;
+        return {
+          courseOfferingId,
+          courseCode: "DEMO_COURSE",
+          documentId: "doc_pptx_01",
+          documentTitle: "Slide bài giảng",
+          totalSlides: 8,
+          viewedSlides: 4,
+          viewingPercentage: 50,
+          slides: [
+            { slideNumber: 1, title: "Mở đầu", viewed: true },
+            { slideNumber: 2, title: "Khái niệm", viewed: true },
+          ],
+          recentActivities: [],
+        };
+      }
+      throw err;
+    }
+  },
+
+  async getDailyGoalProgress(): Promise<DailyGoalProgress> {
+    try {
+      return await apiFetch<DailyGoalProgress>("/student/daily-goal");
+    } catch (err) {
+      if (isDemoMode()) return demoDailyGoalProgress;
+      throw err;
+    }
+  },
+
+  async updateDailyGoalConfig(config: DailyGoalConfig): Promise<DailyGoalProgress> {
+    try {
+      return await apiFetch<DailyGoalProgress>("/student/daily-goal", {
+        method: "PUT",
+        body: JSON.stringify(config),
+      });
+    } catch (err) {
+      if (isDemoMode()) {
+        Object.assign(demoDailyGoalConfig, config);
+        Object.assign(demoDailyGoalProgress, {
+          targetSlides: config.targetSlides,
+          targetQuizQuestions: config.targetQuizQuestions,
+          targetTasks: config.targetTasks,
+          slidesPercentage: Math.min(100, Math.round((demoDailyGoalProgress.actualSlides / config.targetSlides) * 100)),
+          quizPercentage: Math.min(100, Math.round((demoDailyGoalProgress.actualQuizQuestions / config.targetQuizQuestions) * 100)),
+          tasksPercentage: Math.min(100, Math.round((demoDailyGoalProgress.actualTasks / config.targetTasks) * 100)),
+        });
+        return demoDailyGoalProgress;
+      }
+      throw err;
+    }
+  },
+
+  async getStudyStreak(): Promise<StudyStreak> {
+    try {
+      return await apiFetch<StudyStreak>("/student/streak");
+    } catch (err) {
+      if (isDemoMode()) return demoStudyStreak;
+      throw err;
+    }
+  },
+};
+
 

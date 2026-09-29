@@ -231,10 +231,10 @@ export default function StudentDashboardPage() {
                   Điểm TB: {offering.averageQuizScore}
                 </span>
                 <Link
-                  href="/materials"
-                  className="font-bold text-red-600 hover:underline flex items-center gap-0.5"
+                  href={`/course-offerings?offeringId=${offering.id}`}
+                  className="font-bold text-ptit-red hover:underline flex items-center gap-0.5"
                 >
-                  Học ngay <ChevronRight className="w-3.5 h-3.5" />
+                  Vào lớp học <ChevronRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
             </div>
