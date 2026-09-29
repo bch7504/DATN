@@ -1,63 +1,191 @@
-# StudyFlow — Đồ án tốt nghiệp
+# StudyFlow
 
-Nền tảng hỗ trợ học tập và ôn luyện tích hợp AI cho ba vai trò Student, Teacher và Admin.
+**Hệ thống hỗ trợ học tập và ôn luyện ứng dụng Trí tuệ Nhân tạo**
 
-## Phạm vi MVP
+StudyFlow là nền tảng web giúp sinh viên học theo lớp học phần, quản lý tài liệu cá nhân, hỏi đáp nội dung có trích dẫn và tạo Quiz để ôn tập. Hệ thống tách rõ nghiệp vụ học tập khỏi AI: Java Backend quyết định quyền truy cập, chấm điểm và tiến độ; Python AI Service chỉ xử lý tài liệu, truy xuất bằng chứng và sinh nội dung có cấu trúc.
 
-- **Student:** nhập join code, chờ Teacher duyệt Enrollment, học theo Course Offering, xem PPTX/Note/Tutor, dùng Personal RAG và Quiz; theo dõi Dashboard, Study Streak, Daily Goal và tự quản lý lịch tuần.
-- **Teacher:** tự tạo Course Offering từ Subject + Semester, quản lý join code/Enrollment, kho PDF/PPTX và publication của lớp mình sở hữu.
-- **Admin:** quản lý user/role, Subject/Semester, giám sát/lock/archive Course Offering, feedback, audit và settings.
+> Trạng thái hiện tại: Frontend Next.js đang được xây dựng và có thể chạy bằng dữ liệu demo. Java Backend, Python AI Service và Docker mới ở giai đoạn cấu trúc/kế hoạch, chưa có runtime hoàn chỉnh.
 
-MVP không có Chapter/Topic, Quiz do Teacher tạo, Topic Mastery, Exam/Mock Exam, recommendation nâng cao, XP, Level, Achievement, badge hoặc leaderboard.
+## Điểm nổi bật
 
-## Quy tắc học liệu
+- Học theo mô hình `Semester → Course Offering → Documents`.
+- Teacher tự tạo Course Offering, quản lý join code, duyệt Student và công bố học liệu.
+- Student xem PPTX trên web, ghi chú theo slide và hỏi Slide AI Tutor.
+- Personal RAG hỏi đáp trên các PDF do Student lựa chọn, trả citation theo trang.
+- Sinh Quiz từ Personal Documents và prompt tự do; Student review trước khi làm.
+- Java chấm `MCQ_SINGLE`, lưu từng attempt và liên kết câu sai với nguồn cần ôn lại.
+- Dashboard tổng hợp tiến độ theo lớp, Study Streak, Daily Goal và kế hoạch học.
+- Giao diện đỏ–trắng theo định hướng nhận diện PTIT, hỗ trợ Student, Teacher và Admin.
 
-- PPTX Teacher public: xem trên web, không tải file gốc; có Note và Slide AI Tutor.
-- PDF Teacher public: chỉ tải xuống; không viewer, Note hoặc AI Tutor.
-- Personal Document: Student chỉ upload PDF; chatbot chỉ retrieval trên tài liệu của chính Student đã chọn.
-- Quiz AI được sinh khi Student chủ động chọn Personal Documents và tự nhập prompt, không phụ thuộc chatbot. Student review/regenerate rồi chọn nơi ôn trước khi làm.
+## Vai trò trong MVP
+
+| Vai trò | Chức năng chính |
+|---|---|
+| Student | Tham gia lớp, sử dụng học liệu, Personal RAG, Slide Tutor, Quiz, Dashboard và Study Plan |
+| Teacher | Tạo Course Offering, quản lý join code/enrollment, upload và public PDF/PPTX |
+| Admin | Quản lý tài khoản, Subject, Semester, giám sát lớp, feedback, audit và settings |
+
+Ngoài phạm vi MVP: DOCX, OCR cho PDF scan, Topic Mastery, Teacher Quiz, Exam/Mock Exam, recommendation tự động, XP, level, badge và leaderboard.
+
+## Quy tắc học liệu và AI
+
+| Nguồn | Chính sách MVP |
+|---|---|
+| PPTX của Teacher | Student được duyệt có thể xem web, ghi Note và dùng Slide Tutor; không tải file gốc |
+| PDF của Teacher | Chỉ tải xuống; không Viewer, Note, Tutor hoặc AI indexing |
+| Personal Document | Chỉ PDF có text layer, thuộc Student owner |
+| Personal RAG | Chỉ truy xuất trong các tài liệu `READY` đã chọn; thiếu bằng chứng trả `NO_EVIDENCE` |
+| Quiz AI | Dùng Personal Documents + prompt tự do; đúng 4 phương án và 1 đáp án; Java validate/chấm điểm |
 
 ## Kiến trúc
 
 ```text
-Next.js Web → Java Spring Boot → PostgreSQL + pgvector
-                         ├────→ Object Storage
-                         └────→ Python FastAPI → LLM/Embedding API
+Next.js Web
+    │ /api/v1
+    ▼
+Java Spring Boot ───────► PostgreSQL schema app
+    │                   └► Object Storage
+    │ /internal/v1
+    ▼
+Python FastAPI ─────────► PostgreSQL schema ai + pgvector
+    └───────────────────► LLM / Embedding Provider
 ```
 
-Frontend chỉ gọi Java. Java sở hữu luật nghiệp vụ, quyền, vòng đời Quiz và chấm điểm. Python xử lý parsing/rendering, chunking, embedding, RAG, citation, Slide AI Tutor và sinh bản nháp Quiz có nguồn.
+- **Frontend** chỉ gọi public Java API.
+- **Java Backend** là system of record: auth/RBAC, Course Offering, enrollment, publication, Quiz lifecycle/scoring, progress và plan.
+- **Python AI Service** xử lý PDF/PPTX, chunking, embedding, retrieval, RAG, citation và Quiz draft.
+- PostgreSQL dùng chung một cluster nhưng tách schema và database role; Java không đọc vector, Python không đọc bảng nghiệp vụ.
 
-## Xem prototype
+Xem chi tiết tại [Architecture](docs/architecture.md) và [API plan](docs/api-plan.md).
 
-- Mở `index.html` để xem kiến trúc, rule và demo flow.
-- Mở `apps/web/mvp.html` để chạy prototype ba vai trò.
+## Cấu trúc repository
 
-Hai file dùng fixture tổng hợp và không gọi backend thật.
+```text
+DATN/
+├── apps/web/                 # Next.js frontend và HTML prototype
+├── services/backend/         # Cấu trúc Java Spring Boot mục tiêu
+├── services/ai/              # Cấu trúc Python FastAPI mục tiêu
+├── docs/
+│   ├── bao-cao/              # Báo cáo tách theo Chương 1, 2, 3
+│   ├── diagrams/             # SVG và nguồn Mermaid
+│   ├── specs/                # Feature specifications
+│   └── *-plan.md             # Kiến trúc, API, CSDL và kế hoạch triển khai
+├── infrastructure/           # Kế hoạch Docker và CI
+├── index.html                # Trang giới thiệu/prototype tĩnh
+├── AGENTS.md                 # Quy tắc bắt buộc cho AI coding agents
+└── PROJECT_STRUCTURE.md      # Cấu trúc chi tiết
+```
 
-## Trạng thái triển khai
+## Chạy dự án hiện tại
 
-- Frontend hiện chỉ có cấu trúc route dự kiến, README và HTML mock; chưa có mã Next.js hay dependency để build.
-- AI Service hiện chỉ có cấu trúc module, README và kế hoạch; chưa có mã FastAPI, migration hoặc test thực thi.
-- Việc triển khai sẽ bắt đầu lại từ milestone M0 trong từng kế hoạch tương ứng.
+### 1. Yêu cầu
+
+- Git.
+- Node.js 20 trở lên và npm để chạy frontend Next.js.
+- Trình duyệt hiện đại.
+
+Backend Java, AI Service, PostgreSQL, pgvector và Object Storage chưa cần thiết khi chạy frontend ở chế độ demo.
+
+### 2. Clone repository
+
+```bash
+git clone https://github.com/bch7504/DATN.git
+cd DATN
+```
+
+### 3. Chạy Frontend Next.js ở chế độ demo
+
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+
+Mở [http://localhost:3000](http://localhost:3000). Cấu hình mặc định của source là:
+
+```text
+NEXT_PUBLIC_DEMO_MODE=true
+NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+```
+
+Không cần tạo file môi trường để chạy demo vì ứng dụng có giá trị mặc định an toàn. Khi tích hợp Java Backend, đặt `NEXT_PUBLIC_DEMO_MODE=false` và trỏ `NEXT_PUBLIC_API_URL` đến public API `/api/v1`. Không đưa AI key hoặc service credential vào biến `NEXT_PUBLIC_*`.
+
+### 4. Kiểm tra Frontend
+
+Chạy trong `apps/web`:
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+Các lệnh tương ứng kiểm tra ESLint, test contract/UI bằng Node test runner và production build.
+
+### 5. Xem prototype HTML không cần cài dependency
+
+Có thể mở trực tiếp hai file sau bằng trình duyệt:
+
+- [`index.html`](index.html): tổng quan kiến trúc, quy tắc và demo flow.
+- [`apps/web/mvp.html`](apps/web/mvp.html): mock giao diện ba vai trò.
+
+Hai trang HTML sử dụng fixture tổng hợp, không gọi Backend hoặc model thật.
+
+### 6. Backend, AI và Docker
+
+Các phần này hiện **chưa có manifest/runtime hoàn chỉnh**, vì vậy repository chưa cung cấp lệnh Maven, FastAPI hoặc Docker Compose có thể chạy end-to-end. Không dùng các lệnh giả như `docker compose up` cho đến khi các milestone tương ứng được triển khai.
+
+Tài liệu chuẩn bị triển khai:
+
+- [Backend implementation plan](docs/backend-implementation-plan.md)
+- [AI implementation plan](docs/ai-implementation-plan.md)
+- [Docker deployment plan](docs/docker-deployment-plan.md)
+- [Tech stack](docs/tech-stack.md)
+
+## Luồng demo dự kiến
+
+1. Admin tạo Subject/Semester và quản lý tài khoản.
+2. Teacher tạo Course Offering, lấy join code và duyệt Student.
+3. Teacher upload/public PPTX; Student mở Slide Viewer, ghi Note và hỏi Tutor.
+4. Student upload Personal PDF, chọn nguồn và hỏi chatbot RAG.
+5. Student nhập prompt tạo Quiz, review, accept, làm bài và xem câu sai.
+6. Dashboard cập nhật tiến độ, Streak, Daily Goal và công việc sắp tới.
+
+Chi tiết xem tại [demo flow](docs/demo-flow.md).
 
 ## Tài liệu
 
-- `docs/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`: kế hoạch đồ án và flow MVP v1.0 hiện hành.
-- `docs/architecture.md`: high-level architecture.
-- `docs/low-level-design.md`: module, state machine và rule chi tiết.
-- `docs/database-plan.md`: schema PostgreSQL + pgvector.
-- `docs/api-plan.md`: public/internal API contract.
-- `docs/tech-stack.md`: stack và triển khai.
-- `docs/demo-flow.md`: kịch bản bảo vệ.
+- [Mục lục báo cáo Chương 1–3](docs/bao-cao/README.md)
+- [Kế hoạch và flow MVP](docs/bao-cao/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md)
+- [Master specification](docs/specification.md)
+- [High-level architecture](docs/architecture.md)
+- [Low-level design](docs/low-level-design.md)
+- [Database plan](docs/database-plan.md)
+- [API plan](docs/api-plan.md)
+- [ERD tổng quan](docs/diagrams/erd/index.html)
+- [Cấu trúc repository](PROJECT_STRUCTURE.md)
 
-## Nguyên tắc cốt lõi
+## Nguyên tắc phát triển
 
-1. Student/Teacher/Admin chỉ thao tác đúng scope.
-2. Personal Document thuộc owner; Admin/Teacher không mặc định được xem.
-3. Teacher chỉ public vào Course Offering mình sở hữu; Student chỉ truy cập khi Enrollment `APPROVED`.
-4. Personal RAG và Slide AI Tutor là hai scope AI tách biệt.
-5. Dashboard hiển thị đầy đủ tổng quan và tiến độ theo từng Course Offering; không có menu/màn Progress độc lập.
-6. Study Streak chỉ tính ngày có `VIEW_SLIDE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; hoàn thành Daily Goal không phải điều kiện duy trì streak.
-7. Student chỉ chỉnh target Daily Goal; Java tính actual và phần trăm từ Learning Event theo múi giờ người dùng.
-8. Student chủ động quản lý kế hoạch.
-9. Nội dung cần ôn lại lấy từ câu sai và citation; mỗi lượt làm Quiz tạo attempt mới, không ghi đè lịch sử.
+1. Không vượt quyền owner, role, Course Offering hoặc authorized document scope.
+2. Thiếu bằng chứng phải trả `NO_EVIDENCE`; không để LLM đoán ngoài nguồn.
+3. Java sở hữu Quiz lifecycle, scoring, progress, Study Streak và Daily Goal.
+4. Mỗi lần làm Quiz tạo attempt mới; không ghi đè lịch sử.
+5. Dashboard là nơi hiển thị toàn bộ tiến độ; không tạo màn Progress độc lập.
+6. Không commit secret, tài liệu cá nhân, log sản xuất hoặc vector dump.
+7. Mock/fixture phải được đánh dấu rõ và không được xem là tính năng production.
+
+## Trạng thái phát triển
+
+- [x] Phân tích nghiệp vụ, kiến trúc, CSDL và API mục tiêu.
+- [x] HTML mock và thiết kế giao diện PTIT.
+- [x] Bộ báo cáo Chương 1–3 và sơ đồ thiết kế.
+- [ ] Hoàn thiện Frontend Next.js và kết nối public Java API.
+- [ ] Triển khai Java Backend và Flyway migrations.
+- [ ] Triển khai Python AI Service, Alembic và pgvector pipeline.
+- [ ] Hoàn thiện Docker Compose, CI và kiểm thử end-to-end.
+- [ ] Chạy AI evaluation và bổ sung kết quả thực đo vào báo cáo.
+
+## Quy tắc dành cho AI coding agents
+
+Mọi agent phải đọc [`AGENTS.md`](AGENTS.md) trước khi làm việc, chọn đúng vai trò và chỉ đọc/sửa phạm vi được phép. File [bàn giao Claude](ban-giao-du-an-claude.md) mô tả trạng thái hiện tại và backlog tích hợp.

@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-display: 'Manrope', var(--font-sans);
+    --bg: #f6f7f9;
+    --paper: #ffffff;
+    --surface: #ffffff;
+    --ink: #172033;
+    --ink-secondary: #334155;
+    --muted: #64748b;
+    --muted-light: #94a3b8;
+    --line: #e5e7eb;
+    --line-subtle: #f1f5f9;
+
+    /* PTIT Brand Colors */
+    --primary: #d71920;
+    --primary-hover: #b9151b;
+    --primary-dark: #a80f18;
+    --primary-glow: rgba(215, 25, 32, 0.16);
+    --red: #d71920;
+    --red-dark: #a80f18;
+    --red-soft: #fff1f2;
+    --red-border: #fecdd3;
+    --red-text: #991b1b;
+    --gold: #f4c300;
+    --gold-dark: #b89c0e;
+    --gold-soft: #fffbeb;
+    --gold-border: #fde68a;
+    --gold-text: #92400e;
+
+    /* Mint / Green Status */
+    --mint: #f0fdf4;
+    --mint-border: #bbf7d0;
+    --mint-text: #166534;
+  }
+
+  body {
+    min-width: 320px;
+    color: var(--ink);
+    background: var(--bg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.015em;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
