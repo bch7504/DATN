@@ -11,6 +11,7 @@ import {
   SlideNote,
   PersonalDocument,
 } from "@/types/material";
+import { ChatConversation } from "@/types/chat";
 
 export const DEMO_USERS: Record<UserRole, User> = {
   STUDENT: {
@@ -323,6 +324,76 @@ export let demoPersonalDocs: PersonalDocument[] = [
     status: "READY",
     sha256: "9871239abcef19034871239abcef1903487a3b91c89f4e2d8109867cbaef19034",
     uploadedAt: "2026-09-22T16:00:00Z",
+  },
+];
+
+// Personal RAG Conversations (FE-M4)
+export let demoConversations: ChatConversation[] = [
+  {
+    id: "conv_01",
+    title: "Chuẩn hóa CSDL & Dạng chuẩn 3NF",
+    selectedDocumentIds: ["pdoc_01"],
+    createdAt: "2026-09-25T14:00:00Z",
+    updatedAt: "2026-09-25T14:15:00Z",
+    messages: [
+      {
+        id: "msg_01",
+        role: "user",
+        content: "Điều kiện để một lược đồ quan hệ đạt dạng chuẩn 3NF là gì?",
+        createdAt: "2026-09-25T14:01:00Z",
+      },
+      {
+        id: "msg_02",
+        role: "assistant",
+        content:
+          "Theo tài liệu 'Ghi chú ôn tập Cơ sở dữ liệu.pdf', một lược đồ quan hệ R đạt dạng chuẩn 3 (3NF) nếu thỏa mãn 2 điều kiện:\n1. R đã đạt dạng chuẩn 2 (2NF).\n2. Không có thuộc tính không khóa nào phụ thuộc bắc cầu vào khóa chính (mọi phụ thuộc hàm X -> A, thì X là siêu khóa hoặc A là thuộc tính khóa nguyên tố).",
+        status: "ANSWERED",
+        citations: [
+          {
+            documentId: "pdoc_01",
+            documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+            pageNumber: 8,
+            excerpt:
+              "Dạng chuẩn 3 (3NF): Lược đồ đạt 2NF và không tồn tại phụ thuộc bắc cầu giữa các thuộc tính không khóa với khóa chính.",
+            sha256: "a3b91c89f4e2d8109867cbaef19034871239abcef19034871239abcef1903487",
+          },
+        ],
+        createdAt: "2026-09-25T14:01:05Z",
+      },
+    ],
+  },
+  {
+    id: "conv_02",
+    title: "Tối ưu hóa Truy vấn lồng trong SQL",
+    selectedDocumentIds: ["pdoc_02"],
+    createdAt: "2026-09-26T09:00:00Z",
+    updatedAt: "2026-09-26T09:10:00Z",
+    messages: [
+      {
+        id: "msg_03",
+        role: "user",
+        content: "Khi nào nên dùng EXISTS thay cho IN trong truy vấn con?",
+        createdAt: "2026-09-26T09:01:00Z",
+      },
+      {
+        id: "msg_04",
+        role: "assistant",
+        content:
+          "Dựa trên tài liệu 'Tài liệu thực hành Truy vấn SQL nâng cao.pdf' (Trang 5):\n- Nên sử dụng `EXISTS` khi tập dữ liệu của bảng trong truy vấn con rất lớn, vì `EXISTS` sẽ dừng quét ngay khi tìm thấy bản ghi đầu tiên thỏa mãn điều kiện (short-circuit evaluation).\n- Sử dụng `IN` khi tập kết quả của truy vấn con tương đối nhỏ.",
+        status: "ANSWERED",
+        citations: [
+          {
+            documentId: "pdoc_02",
+            documentName: "Tài liệu thực hành Truy vấn SQL nâng cao.pdf",
+            pageNumber: 5,
+            excerpt:
+              "Toán tử EXISTS áp dụng cơ chế short-circuiting: dừng kiểm tra ngay khi gặp điều kiện TRUE, tối ưu hơn IN khi bảng con có số dòng lớn.",
+            sha256: "9871239abcef19034871239abcef1903487a3b91c89f4e2d8109867cbaef19034",
+          },
+        ],
+        createdAt: "2026-09-26T09:01:06Z",
+      },
+    ],
   },
 ];
 

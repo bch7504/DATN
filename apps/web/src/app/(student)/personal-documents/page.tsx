@@ -108,12 +108,14 @@ export default function StudentPersonalDocumentsPage() {
           </p>
         </div>
 
-        <Link
-          href="/review"
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
-        >
-          <MessageSquare className="w-4 h-4" /> Vào Chatbot & Tạo Quiz
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/chat"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+          >
+            <MessageSquare className="w-4 h-4" /> Hỏi đáp AI RAG
+          </Link>
+        </div>
       </div>
 
       {/* Policy Box */}

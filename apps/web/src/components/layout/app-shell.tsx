@@ -24,6 +24,7 @@ import {
   FolderKanban,
   FileClock,
   Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import { UserRole } from "@/types/auth";
 
@@ -38,7 +39,8 @@ const STUDENT_NAV: NavItem[] = [
   { label: "Tổng quan", href: "/dashboard", icon: LayoutDashboard },
   { label: "Lớp học phần", href: "/course-offerings", icon: GraduationCap },
   { label: "Học liệu & Slide", href: "/materials", icon: BookOpen },
-  { label: "Tài liệu & Hỏi AI", href: "/personal-documents", icon: FileText },
+  { label: "Tài liệu cá nhân", href: "/personal-documents", icon: FileText },
+  { label: "Hỏi đáp tài liệu (RAG)", href: "/chat", icon: MessageSquare },
   { label: "Kế hoạch học tập", href: "/plan", icon: CalendarCheck },
   { label: "Ôn tập & Quiz", href: "/review", icon: RotateCcw },
 ];

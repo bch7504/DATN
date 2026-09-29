@@ -10,6 +10,7 @@ import {
   DEMO_SLIDES_AI,
   demoSlideNotes,
   demoPersonalDocs,
+  demoConversations,
 } from "./demo-data";
 import { User, LoginRequest, RegisterRequest } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
@@ -26,6 +27,12 @@ import {
   SlideTutorResponse,
   PersonalDocument,
 } from "@/types/material";
+import {
+  ChatConversation,
+  ChatMessage,
+  CreateConversationRequest,
+  SendMessageRequest,
+} from "@/types/chat";
 
 /**
  * Standard typed API client error encapsulating the Java backend error envelope.
@@ -912,3 +919,185 @@ export const adminApi = {
 };
 
 export const teacherDocApi = teacherApi;
+ 
+/**
+ * Personal RAG Chat API (docs/api-plan.md Section 4.5)
+ */
+export const chatApi = {
+  async getConversations(): Promise<ChatConversation[]> {
+    try {
+      const res = await apiFetch<PaginatedList<ChatConversation>>("/student/chat/conversations");
+      return res.items;
+    } catch (err) {
+      if (isDemoMode()) return [...demoConversations];
+      throw err;
+    }
+  },
+
+  async getConversation(id: string): Promise<ChatConversation> {
+    try {
+      return await apiFetch<ChatConversation>(`/student/chat/conversations/${id}`);
+    } catch (err) {
+      if (isDemoMode()) {
+        const conv = demoConversations.find((c) => c.id === id);
+        if (!conv) {
+          throw new ApiClientError(404, {
+            code: "CONVERSATION_NOT_FOUND",
+            message: "Không tìm thấy phiên trò chuyện yêu cầu.",
+          });
+        }
+        return conv;
+      }
+      throw err;
+    }
+  },
+
+  async createConversation(req: CreateConversationRequest): Promise<ChatConversation> {
+    if (!req.selectedDocumentIds || req.selectedDocumentIds.length === 0) {
+      throw new ApiClientError(422, {
+        code: "INVALID_DOCUMENT_SELECTION",
+        message: "Phải chọn ít nhất 1 tài liệu nguồn (tối đa 10 tài liệu).",
+      });
+    }
+    if (req.selectedDocumentIds.length > 10) {
+      throw new ApiClientError(422, {
+        code: "TOO_MANY_DOCUMENTS",
+        message: "Chỉ được chọn tối đa 10 tài liệu làm nguồn đối chiếu.",
+      });
+    }
+
+    try {
+      return await apiFetch<ChatConversation>("/student/chat/conversations", {
+        method: "POST",
+        body: JSON.stringify(req),
+      });
+    } catch (err) {
+      if (isDemoMode()) {
+        const newConv: ChatConversation = {
+          id: `conv_${Date.now()}`,
+          title: req.title || "Phiên thảo luận mới",
+          selectedDocumentIds: [...req.selectedDocumentIds],
+          messages: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        demoConversations.unshift(newConv);
+        return newConv;
+      }
+      throw err;
+    }
+  },
+
+  async sendMessage(conversationId: string, req: SendMessageRequest): Promise<ChatMessage> {
+    const text = req.message?.trim();
+    if (!text || text.length === 0) {
+      throw new ApiClientError(422, {
+        code: "EMPTY_MESSAGE",
+        message: "Nội dung câu hỏi không được để trống.",
+      });
+    }
+    if (text.length > 2000) {
+      throw new ApiClientError(422, {
+        code: "MESSAGE_TOO_LONG",
+        message: "Nội dung câu hỏi vượt quá giới hạn cho phép (tối đa 2000 ký tự).",
+      });
+    }
+
+    try {
+      return await apiFetch<ChatMessage>(`/student/chat/conversations/${conversationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify(req),
+      });
+    } catch (err) {
+      if (isDemoMode()) {
+        const conv = demoConversations.find((c) => c.id === conversationId);
+        if (!conv) {
+          throw new ApiClientError(404, {
+            code: "CONVERSATION_NOT_FOUND",
+            message: "Không tìm thấy phiên trò chuyện.",
+          });
+        }
+
+        const userMsg: ChatMessage = {
+          id: `msg_u_${Date.now()}`,
+          role: "user",
+          content: text,
+          createdAt: new Date().toISOString(),
+        };
+        conv.messages.push(userMsg);
+
+        const lowerQuery = text.toLowerCase();
+        const isOffTopic =
+          lowerQuery.includes("thời tiết") ||
+          lowerQuery.includes("chứng khoán") ||
+          lowerQuery.includes("nấu ăn") ||
+          lowerQuery.includes("bóng đá") ||
+          lowerQuery.includes("bitcoin");
+
+        let assistantMsg: ChatMessage;
+
+        if (isOffTopic) {
+          assistantMsg = {
+            id: `msg_a_${Date.now()}`,
+            role: "assistant",
+            content:
+              "Không tìm thấy bằng chứng phù hợp trong các tài liệu đã chọn để trả lời câu hỏi này (NO_EVIDENCE). Vui lòng đặt câu hỏi liên quan đến nội dung tài liệu.",
+            status: "NO_EVIDENCE",
+            citations: [],
+            createdAt: new Date().toISOString(),
+          };
+        } else {
+          const matchingDoc =
+            demoPersonalDocs.find((d) => conv.selectedDocumentIds.includes(d.id)) ||
+            demoPersonalDocs[0];
+
+          assistantMsg = {
+            id: `msg_a_${Date.now()}`,
+            role: "assistant",
+            content: `Dựa trên tài liệu '${matchingDoc?.title || "Tài liệu cá nhân"}' (Trang 3):\n\nCâu trả lời chi tiết cho câu hỏi "${text}":\nNội dung đã được đối chiếu chính xác với các định nghĩa và nguyên lý trong tài liệu. Mọi thông tin phản hồi đều được neo chắc chắn (grounding) vào tài liệu nguồn bạn đã cung cấp.`,
+            status: "ANSWERED",
+            citations: [
+              {
+                documentId: matchingDoc?.id || "pdoc_01",
+                documentName: matchingDoc?.title || "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+                pageNumber: 3,
+                excerpt: `Trích đoạn đối chiếu từ ${matchingDoc?.title || "tài liệu"}: "Định nghĩa và các nguyên tắc cốt lõi áp dụng trực tiếp cho vấn đề được nêu trong câu hỏi."`,
+                sha256:
+                  matchingDoc?.sha256 ||
+                  "a3b91c89f4e2d8109867cbaef19034871239abcef19034871239abcef1903487",
+              },
+            ],
+            createdAt: new Date().toISOString(),
+          };
+        }
+
+        conv.messages.push(assistantMsg);
+        conv.updatedAt = new Date().toISOString();
+        if (conv.title === "Phiên thảo luận mới" || !conv.title) {
+          conv.title = text.length > 30 ? text.substring(0, 30) + "..." : text;
+        }
+
+        return assistantMsg;
+      }
+      throw err;
+    }
+  },
+
+  async deleteConversation(conversationId: string): Promise<void> {
+    try {
+      await apiFetch<void>(`/student/chat/conversations/${conversationId}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      if (isDemoMode()) {
+        const idx = demoConversations.findIndex((c) => c.id === conversationId);
+        if (idx !== -1) {
+          demoConversations.splice(idx, 1);
+        }
+        return;
+      }
+      throw err;
+    }
+  },
+};
+
