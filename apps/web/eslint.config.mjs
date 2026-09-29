@@ -17,7 +17,6 @@ const eslintConfig = [
       "build/**",
       "*.cjs",
       "tests/**",
-      "mvp.html",
       "next-env.d.ts",
     ],
   },
