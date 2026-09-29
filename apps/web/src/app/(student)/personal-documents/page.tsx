@@ -111,7 +111,7 @@ export default function StudentPersonalDocumentsPage() {
         <div className="flex items-center gap-2">
           <Link
             href="/chat"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition"
           >
             <MessageSquare className="w-4 h-4" /> Hỏi đáp AI RAG
           </Link>
@@ -141,7 +141,7 @@ export default function StudentPersonalDocumentsPage() {
       )}
 
       {/* Upload Zone */}
-      <div className="bg-white p-6 rounded-3xl border-2 border-dashed border-red-200 hover:border-red-400 bg-red-50/20 transition flex flex-col items-center justify-center text-center">
+      <div className="bg-white p-6 rounded-3xl border-2 border-dashed border-red-200  bg-red-50/20 transition flex flex-col items-center justify-center text-center">
         <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-3">
           <Upload className="w-6 h-6" />
         </div>
@@ -163,7 +163,7 @@ export default function StudentPersonalDocumentsPage() {
 
         <label
           htmlFor="personal-pdf-upload"
-          className="cursor-pointer px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm"
+          className="cursor-pointer px-4 py-2 bg-red-600  text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm"
         >
           {isUploading ? (
             <LoadingSpinner size="sm" text="Đang xử lý tệp..." />
@@ -195,7 +195,7 @@ export default function StudentPersonalDocumentsPage() {
             {documents.map((doc) => (
               <div
                 key={doc.id}
-                className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm  transition flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-2">
@@ -209,7 +209,7 @@ export default function StudentPersonalDocumentsPage() {
                     <button
                       type="button"
                       onClick={() => handleDelete(doc.id, doc.title)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition"
+                      className="p-1.5 text-slate-400  rounded-lg  transition"
                       title="Xóa tài liệu"
                     >
                       <Trash2 className="w-4 h-4" />

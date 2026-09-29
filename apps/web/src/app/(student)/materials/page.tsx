@@ -121,7 +121,7 @@ export default function StudentMaterialsPage() {
             return (
               <div
                 key={doc.id}
-                className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm  transition flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-3">
@@ -176,7 +176,7 @@ export default function StudentMaterialsPage() {
                   {isPptx ? (
                     <Link
                       href={`/materials/${doc.id}/viewer`}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600  text-white rounded-xl text-xs font-bold shadow-sm transition"
                     >
                       <BookOpen className="w-4 h-4" /> Xem slide & Hỏi Tutor
                     </Link>
@@ -185,7 +185,7 @@ export default function StudentMaterialsPage() {
                       href={doc.downloadUrl || "#"}
                       download={doc.fileName}
                       onClick={() => alert(`Bắt đầu tải tệp: ${doc.fileName}`)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600  text-white rounded-xl text-xs font-bold shadow-sm transition"
                     >
                       <Download className="w-4 h-4" /> Tải tệp PDF
                     </a>

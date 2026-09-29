@@ -41,7 +41,7 @@ export function DemoBanner() {
               <button
                 type="button"
                 onClick={() => switchDemoRole("STUDENT")}
-                className={`px-1.5 py-0.2 rounded hover:bg-white/20 transition ${
+                className={`px-1.5 py-0.2 rounded  transition ${
                   role === "STUDENT" ? "bg-white/30 font-bold" : ""
                 }`}
                 title="Chuyển sang Sinh viên"
@@ -51,7 +51,7 @@ export function DemoBanner() {
               <button
                 type="button"
                 onClick={() => switchDemoRole("TEACHER")}
-                className={`px-1.5 py-0.2 rounded hover:bg-white/20 transition ${
+                className={`px-1.5 py-0.2 rounded  transition ${
                   role === "TEACHER" ? "bg-white/30 font-bold" : ""
                 }`}
                 title="Chuyển sang Giảng viên"
@@ -61,7 +61,7 @@ export function DemoBanner() {
               <button
                 type="button"
                 onClick={() => switchDemoRole("ADMIN")}
-                className={`px-1.5 py-0.2 rounded hover:bg-white/20 transition ${
+                className={`px-1.5 py-0.2 rounded  transition ${
                   role === "ADMIN" ? "bg-white/30 font-bold" : ""
                 }`}
                 title="Chuyển sang Quản trị viên"

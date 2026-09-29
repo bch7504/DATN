@@ -259,7 +259,7 @@ export default function SlideViewerPage({ params }: PageProps) {
         <div className="mt-4 text-center">
           <Link
             href="/course-offerings"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red  text-white rounded-xl text-xs font-bold transition shadow-xs"
           >
             <ArrowLeft className="w-4 h-4" /> Quay lại Lớp học phần
           </Link>
@@ -275,7 +275,7 @@ export default function SlideViewerPage({ params }: PageProps) {
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => router.back()}
-            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-500   transition cursor-pointer"
             title="Quay lại"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -319,7 +319,7 @@ export default function SlideViewerPage({ params }: PageProps) {
                 className={`w-full text-left p-2.5 rounded-xl text-xs transition border cursor-pointer ${
                   isActive
                     ? "bg-red-50 border-red-300 text-ptit-red font-bold shadow-xs ring-1 ring-red-200"
-                    : "bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    : "bg-white border-slate-200 text-slate-700  "
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
@@ -392,7 +392,7 @@ export default function SlideViewerPage({ params }: PageProps) {
                 type="button"
                 disabled={currentSlideIndex === 0}
                 onClick={() => setCurrentSlideIndex((prev) => prev - 1)}
-                className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 disabled:opacity-40 border border-slate-300 shadow-2xs transition flex items-center gap-1.5 font-semibold text-slate-700 cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-white  disabled:opacity-40 border border-slate-300 shadow-2xs transition flex items-center gap-1.5 font-semibold text-slate-700 cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" /> Slide trước
               </button>
@@ -401,7 +401,7 @@ export default function SlideViewerPage({ params }: PageProps) {
                 type="button"
                 disabled={currentSlideIndex === slides.length - 1}
                 onClick={() => setCurrentSlideIndex((prev) => prev + 1)}
-                className="px-3.5 py-1.5 rounded-xl bg-ptit-red hover:bg-red-700 text-white disabled:opacity-40 shadow-2xs transition flex items-center gap-1.5 font-bold cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-ptit-red  text-white disabled:opacity-40 shadow-2xs transition flex items-center gap-1.5 font-bold cursor-pointer"
               >
                 Slide kế tiếp <ChevronRight className="w-4 h-4" />
               </button>
@@ -428,7 +428,7 @@ export default function SlideViewerPage({ params }: PageProps) {
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeRightTab === "TUTOR"
                   ? "bg-ptit-red text-white shadow-xs"
-                  : "text-slate-500 hover:text-slate-800 hover:bg-white"
+                  : "text-slate-500  "
               }`}
             >
               <Bot className="w-4 h-4" /> AI Slide Tutor
@@ -440,7 +440,7 @@ export default function SlideViewerPage({ params }: PageProps) {
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeRightTab === "NOTES"
                   ? "bg-slate-800 text-white shadow-xs"
-                  : "text-slate-500 hover:text-slate-800 hover:bg-white"
+                  : "text-slate-500  "
               }`}
             >
               <FileEdit className="w-4 h-4" /> Ghi chú cá nhân
@@ -504,14 +504,14 @@ export default function SlideViewerPage({ params }: PageProps) {
                 <button
                   type="button"
                   onClick={() => handleAskTutor("Tóm tắt ý chính của slide này")}
-                  className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-ptit-red border border-slate-200 transition cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-slate-50  text-slate-700  border border-slate-200 transition cursor-pointer"
                 >
                   💡 Tóm tắt ý chính
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAskTutor("Đưa ra ví dụ minh họa cho nội dung slide này")}
-                  className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-ptit-red border border-slate-200 transition cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-slate-50  text-slate-700  border border-slate-200 transition cursor-pointer"
                 >
                   🔍 Ví dụ minh họa
                 </button>
@@ -535,7 +535,7 @@ export default function SlideViewerPage({ params }: PageProps) {
                 <button
                   type="submit"
                   disabled={tutorLoading || !tutorQuestion.trim()}
-                  className="p-2 bg-ptit-red hover:bg-red-700 disabled:opacity-40 text-white rounded-xl transition cursor-pointer shadow-xs"
+                  className="p-2 bg-ptit-red  disabled:opacity-40 text-white rounded-xl transition cursor-pointer shadow-xs"
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -570,7 +570,7 @@ export default function SlideViewerPage({ params }: PageProps) {
                   type="button"
                   onClick={handleSaveNote}
                   disabled={isSavingNote}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red  text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   {isSavingNote ? <LoadingSpinner size="sm" /> : <Save className="w-3.5 h-3.5" />}
                   <span>Lưu ghi chú</span>

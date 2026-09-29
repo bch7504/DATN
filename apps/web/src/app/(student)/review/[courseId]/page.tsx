@@ -149,7 +149,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
     <div className="space-y-6 pb-12">
       {/* Top Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-slate-500">
-        <Link href="/review" className="hover:text-ptit-red flex items-center gap-1 font-semibold">
+        <Link href="/review" className=" flex items-center gap-1 font-semibold">
           <ArrowLeft className="w-3.5 h-3.5" /> Danh sách môn học
         </Link>
         <span>/</span>
@@ -181,10 +181,10 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
 
         <Link
           href="/quiz/create"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex-shrink-0 cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition flex-shrink-0 cursor-pointer"
         >
           <Sparkles className="w-4 h-4" />
-          <span>+ Tạo Quiz mới từ PDF</span>
+          <span>Tạo Quiz mới từ PDF</span>
         </Link>
       </div>
 
@@ -199,7 +199,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
           className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "QUIZZES"
               ? "border-ptit-red text-ptit-red"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              : "border-transparent text-slate-500 "
           }`}
         >
           <Sparkles className="w-4 h-4" />
@@ -211,7 +211,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
           className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "REVIEW_ITEMS"
               ? "border-ptit-red text-ptit-red"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              : "border-transparent text-slate-500 "
           }`}
         >
           <AlertCircle className="w-4 h-4" />
@@ -247,7 +247,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                     {quizzes.map((quiz) => (
                       <div
                         key={quiz.id}
-                        className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-red-200 shadow-2xs transition flex flex-col justify-between"
+                        className="p-5 rounded-2xl bg-white border border-slate-200  shadow-2xs transition flex flex-col justify-between"
                       >
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-2">
@@ -269,7 +269,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                           </span>
                           <button
                             onClick={() => handleStartQuiz(quiz)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
                           >
                             <Play className="w-3.5 h-3.5" /> Làm bài thi
                           </button>
@@ -309,7 +309,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-700">
                         {attempts.map((att) => (
-                          <tr key={att.id} className="hover:bg-slate-50/60 transition">
+                          <tr key={att.id} className=" transition">
                             <td className="py-3 px-4 font-bold text-slate-900">
                               Lần {att.attemptNumber}
                             </td>
@@ -427,7 +427,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                         {item.citation.slideNumber ? (
                           <Link
                             href={`/materials/${item.citation.documentId}/viewer`}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-ptit-red rounded-xl text-xs font-bold transition self-start sm:self-auto cursor-pointer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50  text-ptit-red rounded-xl text-xs font-bold transition self-start sm:self-auto cursor-pointer"
                           >
                             <Presentation className="w-3.5 h-3.5" />
                             <span>Ôn lại ngay tại Slide {item.citation.slideNumber}</span>
@@ -435,7 +435,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                         ) : (
                           <Link
                             href="/chat"
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition self-start sm:self-auto cursor-pointer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100  text-slate-700 rounded-xl text-xs font-bold transition self-start sm:self-auto cursor-pointer"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                             <span>Mở hỏi AI về tài liệu</span>
@@ -468,7 +468,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
               </div>
               <button
                 onClick={() => setActiveQuizToTake(null)}
-                className="text-slate-400 hover:text-slate-700 text-base font-bold p-1 cursor-pointer"
+                className="text-slate-400  text-base font-bold p-1 cursor-pointer"
               >
                 ✕
               </button>
@@ -490,7 +490,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                   </p>
                   <button
                     onClick={() => setActiveQuizToTake(null)}
-                    className="px-6 py-2.5 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
+                    className="px-6 py-2.5 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
                   >
                     Đóng và xem kết quả
                   </button>
@@ -513,7 +513,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                             className={`p-3 rounded-xl border cursor-pointer transition flex items-center gap-2.5 ${
                               isSelected
                                 ? "bg-red-50 border-red-300 text-ptit-red font-semibold"
-                                : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
+                                : "bg-white border-slate-200 text-slate-700 "
                             }`}
                           >
                             <span
@@ -544,14 +544,14 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setActiveQuizToTake(null)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                    className="px-4 py-2 text-xs font-semibold text-slate-600  rounded-xl transition"
                   >
                     Hủy
                   </button>
                   <button
                     onClick={handleSubmitQuiz}
                     disabled={isSubmittingAttempt || Object.keys(userAnswers).length === 0}
-                    className="inline-flex items-center gap-1.5 px-5 py-2 bg-ptit-red hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-5 py-2 bg-ptit-red  disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
                   >
                     {isSubmittingAttempt ? <LoadingSpinner size="sm" /> : <Check className="w-4 h-4" />}
                     <span>Nộp bài & Chấm điểm</span>

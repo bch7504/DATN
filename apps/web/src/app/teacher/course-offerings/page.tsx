@@ -145,7 +145,7 @@ export default function TeacherCourseOfferingsPage() {
         <button
           type="button"
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-md transition flex-shrink-0"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600  text-white rounded-xl text-xs font-bold shadow-md transition flex-shrink-0"
         >
           <PlusCircle className="w-4 h-4" /> Mở Lớp học phần mới
         </button>
@@ -171,7 +171,7 @@ export default function TeacherCourseOfferingsPage() {
           {offerings.map((offering) => (
             <div
               key={offering.id}
-              className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition space-y-4"
+              className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm  transition space-y-4"
             >
               {/* Header */}
               <div className="flex items-start justify-between gap-3">
@@ -194,7 +194,7 @@ export default function TeacherCourseOfferingsPage() {
                   <button
                     type="button"
                     onClick={() => handleArchive(offering.id)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 text-xs"
+                    className="p-1.5 text-slate-400  rounded-lg  text-xs"
                     title="Lưu trữ lớp"
                   >
                     <Archive className="w-4 h-4" />
@@ -232,7 +232,7 @@ export default function TeacherCourseOfferingsPage() {
                     <button
                       type="button"
                       onClick={() => handleCopyCode(offering.joinCode)}
-                      className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-xs font-semibold text-slate-700 flex items-center gap-1 shadow-sm transition"
+                      className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200  text-xs font-semibold text-slate-700 flex items-center gap-1 shadow-sm transition"
                       title="Sao chép mã"
                     >
                       {copiedCode === offering.joinCode ? (
@@ -250,7 +250,7 @@ export default function TeacherCourseOfferingsPage() {
                     <button
                       type="button"
                       onClick={() => handleRegenerateCode(offering.id)}
-                      className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800 shadow-sm transition"
+                      className="p-2 rounded-lg bg-white border border-slate-200  text-slate-500  shadow-sm transition"
                       title="Tạo lại mã tham gia mới"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
@@ -275,14 +275,14 @@ export default function TeacherCourseOfferingsPage() {
                 <div className="flex items-center gap-2">
                   <Link
                     href={`/teacher/enrollments?offeringId=${offering.id}`}
-                    className="inline-flex items-center gap-1 font-bold text-red-600 hover:underline"
+                    className="inline-flex items-center gap-1 font-bold text-red-600 "
                   >
                     <Users className="w-3.5 h-3.5" /> Duyệt sinh viên
                   </Link>
                   <span>·</span>
                   <Link
                     href={`/teacher/documents?offeringId=${offering.id}`}
-                    className="inline-flex items-center gap-1 font-semibold text-slate-600 hover:text-slate-900"
+                    className="inline-flex items-center gap-1 font-semibold text-slate-600 "
                   >
                     <FolderKanban className="w-3.5 h-3.5" /> Học liệu
                   </Link>
@@ -304,7 +304,7 @@ export default function TeacherCourseOfferingsPage() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 "
               >
                 <X className="w-5 h-5" />
               </button>
@@ -379,14 +379,14 @@ export default function TeacherCourseOfferingsPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 "
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="px-4 py-2 text-xs font-bold rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-md disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-red-600  text-white shadow-md disabled:opacity-60 flex items-center gap-1.5"
                 >
                   {isCreating ? (
                     <LoadingSpinner size="sm" />

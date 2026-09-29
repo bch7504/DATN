@@ -110,7 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="flex items-center gap-3 group focus:outline-none"
               onClick={() => setMobileMenuOpen(false)}
             >
-              <div className="w-10 h-10 rounded-full border-2 border-[#d71920] bg-white flex items-center justify-center shadow-sm flex-shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-10 h-10 rounded-full border-2 border-[#d71920] bg-white flex items-center justify-center shadow-sm flex-shrink-0  transition-transform">
                 <PtitLogo size={24} />
               </div>
               <div className={`leading-tight ${desktopSidebarCollapsed ? "lg:hidden" : ""}`}>
@@ -125,7 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(false)}
-              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              className="lg:hidden p-1.5 rounded-lg text-slate-400  "
               aria-label="Đóng thanh điều hướng"
             >
               <X className="w-5 h-5" />
@@ -133,7 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => setDesktopSidebarCollapsed((current) => !current)}
-              className="hidden lg:inline-flex p-1.5 rounded-lg text-slate-500 hover:text-[#d71920] hover:bg-red-50"
+              className="hidden lg:inline-flex p-1.5 rounded-lg text-slate-500  "
               aria-label={desktopSidebarCollapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
               title={desktopSidebarCollapsed ? "Mở rộng menu" : "Thu gọn menu"}
             >
@@ -179,7 +179,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${
                     isActive
                       ? "bg-[#fff1f2] text-[#d71920] font-semibold border border-[#fecdd3]"
-                      : "text-[#334155] hover:bg-slate-100/80 hover:text-slate-900"
+                      : "text-[#334155]  "
                   }`}
                 >
                   <Icon
@@ -213,7 +213,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={logout}
-                className={`p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition ${desktopSidebarCollapsed ? "lg:hidden" : ""}`}
+                className={`p-1.5 rounded-lg text-slate-400   transition ${desktopSidebarCollapsed ? "lg:hidden" : ""}`}
                 title="Đăng xuất"
                 aria-label="Đăng xuất"
               >
@@ -231,7 +231,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none"
+                className="lg:hidden p-2 rounded-lg text-slate-600  focus:outline-none"
                 aria-label="Mở thanh điều hướng"
               >
                 <Menu className="w-5 h-5" />
@@ -321,7 +321,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={logout}
-                className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-600 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition"
+                className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-600   border border-slate-200 transition"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 Đăng xuất

@@ -152,7 +152,7 @@ function CourseOfferingsContent() {
           <button
             type="submit"
             disabled={isJoining || !joinCode.trim()}
-            className="px-4 py-2 bg-ptit-red hover:bg-red-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm flex-shrink-0 cursor-pointer"
+            className="px-4 py-2 bg-ptit-red  disabled:opacity-60 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm flex-shrink-0 cursor-pointer"
           >
             {isJoining ? (
               <LoadingSpinner size="sm" />
@@ -180,7 +180,7 @@ function CourseOfferingsContent() {
           className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "APPROVED"
               ? "border-ptit-red text-ptit-red"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              : "border-transparent text-slate-500 "
           }`}
         >
           <CheckCircle2 className="w-4 h-4" />
@@ -196,7 +196,7 @@ function CourseOfferingsContent() {
           className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "PENDING"
               ? "border-ptit-red text-ptit-red"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              : "border-transparent text-slate-500 "
           }`}
         >
           <Clock className="w-4 h-4" />
@@ -212,7 +212,7 @@ function CourseOfferingsContent() {
           className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "ARCHIVED"
               ? "border-ptit-red text-ptit-red"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              : "border-transparent text-slate-500 "
           }`}
         >
           <Archive className="w-4 h-4" />
@@ -243,7 +243,7 @@ function CourseOfferingsContent() {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setSelectedOfferingId(null)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100  text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
                       >
                         <ArrowLeft className="w-3.5 h-3.5" /> Quay lại danh sách lớp
                       </button>
@@ -264,7 +264,7 @@ function CourseOfferingsContent() {
 
                     <Link
                       href={`/review/${currentSelectedOffering.id}`}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-ptit-red rounded-xl text-xs font-bold transition flex-shrink-0"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50  text-ptit-red rounded-xl text-xs font-bold transition flex-shrink-0"
                     >
                       <Sparkles className="w-3.5 h-3.5" /> Xem nội dung cần ôn tập lớp này
                     </Link>
@@ -296,7 +296,7 @@ function CourseOfferingsContent() {
                         return (
                           <div
                             key={doc.id}
-                            className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-red-200 hover:shadow-md transition flex flex-col justify-between"
+                            className="p-5 rounded-2xl border border-slate-200 bg-white   transition flex flex-col justify-between"
                           >
                             <div>
                               <div className="flex items-center justify-between gap-2 mb-2">
@@ -343,7 +343,7 @@ function CourseOfferingsContent() {
                                   <span className="text-xs text-slate-500">Chỉ đọc web</span>
                                   <Link
                                     href={`/materials/${doc.id}/viewer`}
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition"
                                   >
                                     <Presentation className="w-4 h-4" /> Xem slide & Hỏi Tutor
                                   </Link>
@@ -357,7 +357,7 @@ function CourseOfferingsContent() {
                                       e.preventDefault();
                                       alert(`Đang bắt đầu tải tệp PDF: ${doc.fileName}`);
                                     }}
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold shadow-sm transition"
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-800  text-white rounded-xl text-xs font-bold shadow-sm transition"
                                   >
                                     <Download className="w-4 h-4" /> Tải tệp PDF
                                   </a>
@@ -376,7 +376,7 @@ function CourseOfferingsContent() {
                   {approvedOfferings.map((offering) => (
                     <div
                       key={offering.id}
-                      className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-red-200 hover:shadow-md transition"
+                      className="p-5 rounded-2xl border border-slate-200 bg-white   transition"
                     >
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex items-center gap-2">
@@ -403,7 +403,7 @@ function CourseOfferingsContent() {
                         </span>
                         <button
                           onClick={() => setSelectedOfferingId(offering.id)}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-ptit-red hover:text-red-700 bg-red-50 hover:bg-red-100 px-3.5 py-2 rounded-xl transition cursor-pointer"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-ptit-red  bg-red-50  px-3.5 py-2 rounded-xl transition cursor-pointer"
                         >
                           <BookOpen className="w-3.5 h-3.5" /> Xem học liệu & slide
                         </button>

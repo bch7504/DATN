@@ -364,7 +364,7 @@ export default function StudentChatPage() {
         <div className="flex items-center gap-2">
           <Link
             href="/personal-documents"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-ptit-red bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-ptit-red bg-red-50  rounded-lg transition-colors"
           >
             <BookOpen className="w-3.5 h-3.5" />
             Quản lý kho PDF cá nhân
@@ -378,7 +378,7 @@ export default function StudentChatPage() {
           <div className="flex-1">{errorMessage}</div>
           <button
             onClick={() => setErrorMessage(null)}
-            className="text-red-600 hover:text-red-900 text-xs font-medium"
+            className="text-red-600  text-xs font-medium"
           >
             Đóng
           </button>
@@ -395,7 +395,7 @@ export default function StudentChatPage() {
             <div className="flex items-center gap-2 overflow-x-auto flex-1 py-1 no-scrollbar">
               <button
                 onClick={handleCreateNewConversation}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-ptit-red hover:bg-red-700 rounded-lg shadow-sm flex-shrink-0 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-ptit-red  rounded-lg shadow-sm flex-shrink-0 transition-colors"
                 title="Tạo phiên hội thoại mới"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -416,17 +416,17 @@ export default function StudentChatPage() {
                       className={`group inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg cursor-pointer transition-all flex-shrink-0 max-w-[200px] border ${
                         isActive
                           ? "bg-white text-ptit-red border-red-200 font-semibold shadow-xs"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200 border-transparent"
+                          : "bg-slate-100 text-slate-600  border-transparent"
                       }`}
                     >
                       <Bot className="w-3.5 h-3.5 flex-shrink-0" />
                       <span className="truncate">{conv.title}</span>
                       <button
                         onClick={(e) => handleDeleteConversation(conv.id, e)}
-                        className="opacity-0 group-hover:opacity-100 hover:text-red-700 p-0.5 rounded transition-opacity"
+                        className="opacity-0   p-0.5 rounded transition-opacity"
                         title="Xóa phiên"
                       >
-                        <Trash2 className="w-3 h-3 text-slate-400 hover:text-red-600" />
+                        <Trash2 className="w-3 h-3 text-slate-400 " />
                       </button>
                     </div>
                   );
@@ -472,10 +472,10 @@ export default function StudentChatPage() {
                     <button
                       key={idx}
                       onClick={() => handleSendMessage(prompt)}
-                      className="w-full text-left p-3 text-xs bg-white hover:bg-red-50/60 border border-slate-200 hover:border-red-200 rounded-xl text-slate-700 hover:text-ptit-red transition-all flex items-center justify-between group shadow-2xs"
+                      className="w-full text-left p-3 text-xs bg-white  border border-slate-200  rounded-xl text-slate-700  transition-all flex items-center justify-between group shadow-2xs"
                     >
                       <span>{prompt}</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-ptit-red flex-shrink-0 ml-2" />
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-400  flex-shrink-0 ml-2" />
                     </button>
                   ))}
                 </div>
@@ -538,14 +538,14 @@ export default function StudentChatPage() {
                               <button
                                 key={cIdx}
                                 onClick={() => setActiveCitation(cite)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50/70 hover:bg-red-100 border border-red-200 text-ptit-red rounded-lg text-[11px] font-semibold transition-colors group cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50/70  border border-red-200 text-ptit-red rounded-lg text-[11px] font-semibold transition-colors group cursor-pointer"
                                 title="Bấm để mở Inspector đối chiếu đoạn trích & SHA-256"
                               >
                                 <FileText className="w-3 h-3 text-ptit-red" />
                                 <span>
                                   Trang {cite.pageNumber} · {cite.documentName}
                                 </span>
-                                <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
+                                <ExternalLink className="w-2.5 h-2.5 opacity-60 " />
                               </button>
                             ))}
                           </div>
@@ -608,7 +608,7 @@ export default function StudentChatPage() {
                   className={`p-2 rounded-lg transition-colors flex items-center justify-center ${
                     !inputMessage.trim() || isSending
                       ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                      : "bg-ptit-red text-white hover:bg-red-700 shadow-xs cursor-pointer"
+                      : "bg-ptit-red text-white  shadow-xs cursor-pointer"
                   }`}
                   title="Gửi câu hỏi"
                 >
@@ -636,7 +636,7 @@ export default function StudentChatPage() {
                 </div>
                 <button
                   onClick={() => setActiveCitation(null)}
-                  className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-white transition-colors"
+                  className="p-1 rounded text-slate-400   transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -683,7 +683,7 @@ export default function StudentChatPage() {
                       <span>Mã Grounding SHA-256:</span>
                       <button
                         onClick={() => handleCopySha(activeCitation.sha256)}
-                        className="inline-flex items-center gap-1 text-[10px] text-ptit-red hover:underline cursor-pointer"
+                        className="inline-flex items-center gap-1 text-[10px] text-ptit-red  cursor-pointer"
                       >
                         {copiedSha ? (
                           <>
@@ -751,13 +751,13 @@ export default function StudentChatPage() {
             <div className="flex items-center justify-between text-[11px]">
               <button
                 onClick={handleSelectAll}
-                className="text-ptit-red hover:underline font-semibold cursor-pointer"
+                className="text-ptit-red  font-semibold cursor-pointer"
               >
                 Chọn tất cả (tối đa 10)
               </button>
               <button
                 onClick={handleDeselectAll}
-                className="text-slate-500 hover:text-slate-800 cursor-pointer"
+                className="text-slate-500  cursor-pointer"
               >
                 Bỏ chọn tất cả
               </button>
@@ -772,7 +772,7 @@ export default function StudentChatPage() {
                 <p>Bạn chưa có tài liệu cá nhân nào.</p>
                 <Link
                   href="/personal-documents"
-                  className="mt-2 inline-block text-ptit-red font-bold hover:underline"
+                  className="mt-2 inline-block text-ptit-red font-bold "
                 >
                   Tải lên PDF ngay
                 </Link>
@@ -791,7 +791,7 @@ export default function StudentChatPage() {
                     className={`pt-2 first:pt-0 p-2 rounded-xl transition-all cursor-pointer flex items-start gap-2.5 ${
                       isSelected
                         ? "bg-red-50/60 border border-red-200/80"
-                        : "hover:bg-slate-50 border border-transparent"
+                        : " border border-transparent"
                     }`}
                   >
                     <div className="mt-0.5 text-ptit-red flex-shrink-0">
@@ -855,7 +855,7 @@ export default function StudentChatPage() {
           <div className="p-3 bg-slate-50 border-t border-slate-200 text-center">
             <Link
               href="/personal-documents"
-              className="text-xs font-semibold text-ptit-red hover:underline inline-flex items-center gap-1"
+              className="text-xs font-semibold text-ptit-red  inline-flex items-center gap-1"
             >
               <span>+ Thêm tài liệu PDF mới</span>
             </Link>

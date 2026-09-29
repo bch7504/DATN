@@ -127,7 +127,7 @@ export default function TeacherEnrollmentsPage() {
           className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
             activeTab === "PENDING"
               ? "border-red-600 text-red-600"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              : "border-transparent text-slate-500 "
           }`}
         >
           <Clock className="w-4 h-4" />
@@ -140,7 +140,7 @@ export default function TeacherEnrollmentsPage() {
           className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
             activeTab === "APPROVED"
               ? "border-red-600 text-red-600"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              : "border-transparent text-slate-500 "
           }`}
         >
           <CheckCircle2 className="w-4 h-4" />
@@ -167,7 +167,7 @@ export default function TeacherEnrollmentsPage() {
                   {pendingList.map((enr) => (
                     <div
                       key={enr.id}
-                      className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/60 transition"
+                      className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4  transition"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -195,7 +195,7 @@ export default function TeacherEnrollmentsPage() {
                           type="button"
                           disabled={processingId === enr.id}
                           onClick={() => handleReject(enr.id)}
-                          className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center gap-1"
+                          className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50  text-rose-700 text-xs font-bold transition flex items-center gap-1"
                         >
                           <UserX className="w-3.5 h-3.5" /> Từ chối
                         </button>
@@ -203,7 +203,7 @@ export default function TeacherEnrollmentsPage() {
                           type="button"
                           disabled={processingId === enr.id}
                           onClick={() => handleApprove(enr.id)}
-                          className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-sm"
+                          className="px-4 py-1.5 rounded-xl bg-emerald-600  text-white text-xs font-bold transition flex items-center gap-1 shadow-sm"
                         >
                           {processingId === enr.id ? (
                             <LoadingSpinner size="sm" />
@@ -247,7 +247,7 @@ export default function TeacherEnrollmentsPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {approvedList.map((enr) => (
-                          <tr key={enr.id} className="hover:bg-slate-50/50">
+                          <tr key={enr.id} className="">
                             <td className="py-3 px-4 font-bold text-slate-800">
                               {enr.studentName}
                             </td>

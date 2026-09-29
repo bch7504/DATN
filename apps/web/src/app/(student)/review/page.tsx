@@ -60,10 +60,10 @@ export default function StudentReviewLevel1Page() {
 
         <Link
           href="/quiz/create"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex-shrink-0 cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition flex-shrink-0 cursor-pointer"
         >
           <Sparkles className="w-4 h-4" />
-          <span>+ Sinh Đề Thi Trắc Nghiệm AI</span>
+          <span>Sinh đề thi trắc nghiệm AI</span>
         </Link>
       </div>
 
@@ -84,7 +84,7 @@ export default function StudentReviewLevel1Page() {
             return (
               <div
                 key={summary.courseOfferingId}
-                className="p-5 rounded-3xl bg-white border border-slate-200 hover:border-red-300 hover:shadow-md transition flex flex-col justify-between group"
+                className="p-5 rounded-3xl bg-white border border-slate-200   transition flex flex-col justify-between group"
               >
                 <div>
                   {/* Top Tags */}
@@ -121,7 +121,7 @@ export default function StudentReviewLevel1Page() {
                   </div>
 
                   {/* Title & Teacher */}
-                  <h3 className="font-bold text-slate-900 text-base mb-1 group-hover:text-ptit-red transition">
+                  <h3 className="font-bold text-slate-900 text-base mb-1  transition">
                     {summary.courseName}
                   </h3>
                   {!isPersonal && summary.teacherName && (
@@ -164,7 +164,7 @@ export default function StudentReviewLevel1Page() {
                   </span>
                   <Link
                     href={`/review/${summary.courseOfferingId}`}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-ptit-red hover:text-red-700 hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-ptit-red  "
                   >
                     <span>Vào ôn tập</span>
                     <ChevronRight className="w-3.5 h-3.5" />

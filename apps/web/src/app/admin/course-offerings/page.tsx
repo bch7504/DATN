@@ -174,7 +174,7 @@ export default function AdminCourseOfferingsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredOfferings.map((offering) => (
-                  <tr key={offering.id} className="hover:bg-slate-50/50">
+                  <tr key={offering.id} className="">
                     <td className="py-3 px-4 font-mono font-bold text-slate-800">
                       {offering.code}
                     </td>
@@ -204,7 +204,7 @@ export default function AdminCourseOfferingsPage() {
                           <button
                             type="button"
                             onClick={() => handleLock(offering.id)}
-                            className="p-1.5 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50"
+                            className="p-1.5 rounded-lg border border-rose-200 text-rose-700 "
                             title="Khóa lớp học phần"
                           >
                             <Lock className="w-3.5 h-3.5" />
@@ -214,7 +214,7 @@ export default function AdminCourseOfferingsPage() {
                           <button
                             type="button"
                             onClick={() => handleArchive(offering.id)}
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 "
                             title="Lưu trữ lớp"
                           >
                             <Archive className="w-3.5 h-3.5" />

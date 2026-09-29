@@ -37,7 +37,7 @@ export function AdminDataPage({
           <p className="mt-1 text-sm text-slate-500">{description}</p>
         </div>
         {primaryActionLabel && (
-          <button type="button" className="rounded-xl bg-[#d71920] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#a80f18]">
+          <button type="button" className="rounded-xl bg-[#d71920] px-4 py-2.5 text-sm font-bold text-white ">
             {primaryActionLabel}
           </button>
         )}
@@ -51,7 +51,7 @@ export function AdminDataPage({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rows.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-50/70">
+                <tr key={row.id} className="">
                   {row.cells.map((cell, index) => <td key={`${row.id}-${index}`} className="px-4 py-3 text-slate-700">{cell}</td>)}
                   {row.status && <td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{row.status}</span></td>}
                 </tr>

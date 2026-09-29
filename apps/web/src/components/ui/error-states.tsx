@@ -44,7 +44,7 @@ export function ErrorAlert({
           <button
             type="button"
             onClick={onRetry}
-            className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 transition"
+            className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-rose-100  text-rose-800 transition"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Thử lại
           </button>
@@ -83,7 +83,7 @@ export function ErrorState({
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl shadow-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-red-600  text-white text-sm font-semibold rounded-xl shadow-sm transition"
         >
           <RefreshCw className="w-4 h-4" /> Thử lại
         </button>
@@ -117,7 +117,7 @@ export function ForbiddenState({
       </p>
       <Link
         href={getDashboardHref()}
-        className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl shadow-md transition"
+        className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600  text-white text-sm font-semibold rounded-xl shadow-md transition"
       >
         <ArrowLeft className="w-4 h-4" /> Về Bảng điều khiển của bạn
       </Link>

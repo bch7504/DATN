@@ -121,7 +121,7 @@ export default function TeacherDashboardPage() {
           </div>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600  text-white rounded-xl text-xs font-bold shadow-sm transition"
           >
             <PlusCircle className="w-4 h-4" /> Mở Lớp học phần mới
           </button>
@@ -131,7 +131,7 @@ export default function TeacherDashboardPage() {
           {myOfferings.map((offering) => (
             <div
               key={offering.id}
-              className="p-5 rounded-2xl border border-slate-200/80 hover:border-amber-300 bg-slate-50/50 hover:bg-white hover:shadow-md transition flex flex-col md:flex-row md:items-center justify-between gap-4"
+              className="p-5 rounded-2xl border border-slate-200/80  bg-slate-50/50   transition flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -162,7 +162,7 @@ export default function TeacherDashboardPage() {
                   <button
                     type="button"
                     onClick={() => navigator.clipboard.writeText(offering.joinCode)}
-                    className="p-1 text-slate-400 hover:text-slate-600"
+                    className="p-1 text-slate-400 "
                     title="Sao chép mã"
                   >
                     <Copy className="w-3.5 h-3.5" />
@@ -172,7 +172,7 @@ export default function TeacherDashboardPage() {
                 {offering.pendingRequests > 0 && (
                   <Link
                     href="/teacher/enrollments"
-                    className="px-3 py-1.5 rounded-xl bg-red-100 hover:bg-red-200 text-red-800 text-xs font-bold transition flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-xl bg-red-100  text-red-800 text-xs font-bold transition flex items-center gap-1"
                   >
                     Duyệt ({offering.pendingRequests})
                   </Link>
@@ -180,7 +180,7 @@ export default function TeacherDashboardPage() {
 
                 <Link
                   href={`/teacher/documents?offeringId=${offering.id}`}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
+                  className="px-3 py-1.5 rounded-xl bg-slate-100  text-slate-700 text-xs font-semibold transition"
                 >
                   Kho học liệu
                 </Link>

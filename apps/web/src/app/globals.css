@@ -1,6 +1,69 @@
 @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --color-ptit-red: #d71920;
+  --color-ptit-red-dark: #b8141a;
+  --color-ptit-red-soft: #fff1f2;
+  --color-ptit-red-border: #fecdd3;
+  --color-ptit-red-text: #991b1b;
+  --color-ptit-gold: #f4c300;
+  --color-ptit-gold-dark: #b89c0e;
+  --color-ptit-gold-soft: #fffbeb;
+  --color-ptit-gold-border: #fde68a;
+  --color-ptit-gold-text: #92400e;
+}
+
+/* Fallback & explicit utilities for PTIT Brand Colors */
+.bg-ptit-red {
+  background-color: #d71920 !important;
+}
+.hover\:bg-ptit-red-dark:hover,
+.hover\:bg-red-700:hover {
+  background-color: #b8141a !important;
+}
+.text-ptit-red {
+  color: #d71920 !important;
+}
+.border-ptit-red {
+  border-color: #d71920 !important;
+}
+.bg-ptit-gold {
+  background-color: #f4c300 !important;
+}
+.text-ptit-gold {
+  color: #92400e !important;
+}
+
+/* High-Contrast, Premium Button Styles */
+button.bg-ptit-red,
+a.bg-ptit-red {
+  background-color: #d71920 !important;
+  color: #ffffff !important;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+button.bg-ptit-red:hover,
+a.bg-ptit-red:hover {
+  background-color: #b8141a !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px -2px rgba(215, 25, 32, 0.3) !important;
+}
+
+button.bg-ptit-red:active,
+a.bg-ptit-red:active {
+  transform: scale(0.97);
+}
+
+button.bg-ptit-red:disabled,
+a.bg-ptit-red:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 @layer base {
   :root {
     --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -17,7 +80,6 @@
 
     /* PTIT Brand Colors */
     --primary: #d71920;
-    --primary-hover: #b9151b;
     --primary-dark: #a80f18;
     --primary-glow: rgba(215, 25, 32, 0.16);
     --red: #d71920;
@@ -66,7 +128,4 @@
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
 }

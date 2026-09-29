@@ -58,7 +58,7 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-[#fff1f2]/30 to-amber-50/20 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex flex-col items-center text-center">
-          <div className="w-16 h-16 rounded-full border-2 border-[#d71920] bg-white flex items-center justify-center shadow-lg mb-4 hover:scale-105 transition-transform">
+          <div className="w-16 h-16 rounded-full border-2 border-[#d71920] bg-white flex items-center justify-center shadow-lg mb-4  transition-transform">
             <PtitLogo size={36} />
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172033] tracking-tight">
@@ -175,7 +175,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full flex justify-center items-center gap-2 py-3 px-4 mt-2 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-[#d71920] hover:bg-[#b9151b] disabled:opacity-60 transition"
+              className="w-full flex justify-center items-center gap-2 py-3 px-4 mt-2 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-[#d71920]  disabled:opacity-60 transition"
             >
               {submitting ? (
                 <LoadingSpinner size="sm" text="Đang tạo tài khoản..." />
@@ -193,7 +193,7 @@ export default function RegisterPage() {
               Đã có tài khoản?{" "}
               <Link
                 href="/login"
-                className="font-semibold text-red-600 hover:text-red-700 underline"
+                className="font-semibold text-red-600  underline"
               >
                 Đăng nhập ngay
               </Link>

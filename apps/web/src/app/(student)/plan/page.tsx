@@ -1,101 +1,589 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Plus, X } from "lucide-react";
+import React, { useState } from "react";
+import {
+  CalendarCheck,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Clock,
+  BookOpen,
+  Sparkles,
+  CheckCircle2,
+  Trash2,
+  Calendar as CalendarIcon,
+  X,
+  Info,
+} from "lucide-react";
 
-type Tone = "green" | "amber";
-interface ScheduleItem { id: string; day: number; slot: string; title: string; time: string; subject: string; tone: Tone }
-interface StudyTask { id: string; date: string; title: string; detail: string; completed: boolean }
-interface Draft { title: string; day: number; slot: string; subject: string }
+interface ScheduleBlock {
+  id: string;
+  day: string; // "Thứ 2" | ... | "Chủ nhật"
+  timeSlot: string; // "07:00" | "09:00" | "13:00" | "15:00" | "19:00"
+  title: string;
+  subtitle: string;
+  type: "CLASS" | "SELF_STUDY" | "QUIZ";
+}
 
-const DAYS = [
-  ["THỨ 2", "21/09"], ["THỨ 3", "22/09"], ["THỨ 4", "23/09"], ["THỨ 5", "24/09"],
-  ["THỨ 6", "25/09"], ["THỨ 7", "26/09"], ["CHỦ NHẬT", "27/09"],
-] as const;
-const SLOTS = ["07:00–09:00", "09:00–11:00", "13:00–15:00", "15:00–17:00", "19:00–21:00"] as const;
-const EMPTY: Draft = { title: "", day: 0, slot: SLOTS[0], subject: "Cơ sở dữ liệu" };
-const INITIAL_SCHEDULE: ScheduleItem[] = [
-  { id: "s1", day: 2, slot: SLOTS[0], title: "Xem Slide ERD", time: "07:30–08:15", subject: "CSDL", tone: "green" },
-  { id: "s2", day: 1, slot: SLOTS[1], title: "Đọc Personal Doc", time: "09:00–10:00", subject: "Tự học", tone: "amber" },
-  { id: "s3", day: 3, slot: SLOTS[2], title: "Ôn Transaction", time: "13:30–14:30", subject: "CSDL", tone: "green" },
-  { id: "s4", day: 5, slot: SLOTS[4], title: "Làm Quiz ERD", time: "19:00–19:30", subject: "Ôn tập", tone: "amber" },
+interface StudyTask {
+  id: string;
+  title: string;
+  courseCode: string;
+  dueDate: string;
+  completed: boolean;
+}
+
+const TIME_SLOTS = [
+  { id: "07:00", label: "07:00 – 09:00", period: "Sáng" },
+  { id: "09:00", label: "09:00 – 11:00", period: "Sáng" },
+  { id: "13:00", label: "13:00 – 15:00", period: "Chiều" },
+  { id: "15:00", label: "15:00 – 17:00", period: "Chiều" },
+  { id: "19:00", label: "19:00 – 21:00", period: "Tối" },
 ];
-const INITIAL_TASKS: StudyTask[] = [
-  { id: "t1", date: "23/09", title: "Xem hết Slide ERD", detail: "45 phút · Môn Cơ sở dữ liệu", completed: false },
-  { id: "t2", date: "24/09", title: "Ôn tập Transaction", detail: "60 phút · Deadline 20:00", completed: false },
-  { id: "t3", date: "26/09", title: "Làm bài Quiz ôn tập ERD", detail: "30 phút · Mục Ôn tập", completed: false },
+
+const DAYS_OF_WEEK = [
+  { day: "Thứ 2", date: "21/09" },
+  { day: "Thứ 3", date: "22/09" },
+  { day: "Thứ 4", date: "23/09" },
+  { day: "Thứ 5", date: "24/09" },
+  { day: "Thứ 6", date: "25/09" },
+  { day: "Thứ 7", date: "26/09" },
+  { day: "Chủ nhật", date: "27/09" },
 ];
 
-/**
- * Args: none. Input is synthetic demo state until Java Study Plan APIs are connected.
- * Returns: the Student weekly Plan & Calendar workspace.
- * Errors: invalid empty titles are rejected by HTML validation; no remote side effects.
- */
-export default function StudentPlanPage(): React.JSX.Element {
-  const [week, setWeek] = useState(0);
-  const [schedule, setSchedule] = useState<ScheduleItem[]>(INITIAL_SCHEDULE);
-  const [tasks, setTasks] = useState<StudyTask[]>(INITIAL_TASKS);
-  const [mode, setMode] = useState<"schedule" | "task" | null>(null);
-  const [draft, setDraft] = useState<Draft>(EMPTY);
-  const weekLabel = useMemo(() => week === 0 ? "21 – 27/09/2026" : week < 0 ? "14 – 20/09/2026" : "28/09 – 04/10/2026", [week]);
+export default function StudentPlanPage() {
+  const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
 
-  /** Opens a typed local form, optionally scoped to a selected calendar cell. */
-  const openForm = (nextMode: "schedule" | "task", day: number = 0, slot: string = SLOTS[0]): void => {
-    setDraft({ ...EMPTY, day, slot });
-    setMode(nextMode);
+  // Initial schedule blocks conforming to mvp.html
+  const [scheduleBlocks, setScheduleBlocks] = useState<ScheduleBlock[]>([
+    {
+      id: "sb_01",
+      day: "Thứ 4",
+      timeSlot: "07:00",
+      title: "Xem Slide ERD & CSDL",
+      subtitle: "07:30–08:15 · DBI-01",
+      type: "CLASS",
+    },
+    {
+      id: "sb_02",
+      day: "Thứ 3",
+      timeSlot: "09:00",
+      title: "Đọc Personal Doc SQL",
+      subtitle: "09:00–10:00 · Tự học",
+      type: "SELF_STUDY",
+    },
+    {
+      id: "sb_03",
+      day: "Thứ 5",
+      timeSlot: "13:00",
+      title: "Bài giảng Tác tử AI",
+      subtitle: "13:30–15:00 · AI-02",
+      type: "CLASS",
+    },
+    {
+      id: "sb_04",
+      day: "Thứ 6",
+      timeSlot: "19:00",
+      title: "Ôn tập Quiz Chương 1",
+      subtitle: "19:30–20:15 · AI-02",
+      type: "QUIZ",
+    },
+    {
+      id: "sb_05",
+      day: "Thứ 7",
+      timeSlot: "15:00",
+      title: "Thực hành Truy vấn lồng",
+      subtitle: "15:00–16:30 · CSDL",
+      type: "SELF_STUDY",
+    },
+  ]);
+
+  // Tasks list
+  const [tasks, setTasks] = useState<StudyTask[]>([
+    {
+      id: "task_01",
+      title: "Xem lại slide 4-6 về Mô hình PEAS môn Trí tuệ nhân tạo",
+      courseCode: "AI-02",
+      dueDate: "Hôm nay, 21:00",
+      completed: true,
+    },
+    {
+      id: "task_02",
+      title: "Làm bài Quiz 2 về Chuẩn hóa Cơ sở dữ liệu và Dạng chuẩn 3NF",
+      courseCode: "DBI-01",
+      dueDate: "Hôm nay, 23:59",
+      completed: true,
+    },
+    {
+      id: "task_03",
+      title: "Ôn tập câu hỏi sai về Khóa chính và Phép kết nối SQL",
+      courseCode: "DBI-01",
+      dueDate: "Ngày mai, 18:00",
+      completed: false,
+    },
+    {
+      id: "task_04",
+      title: "Đọc tài liệu PDF thực hành Truy vấn SQL nâng cao",
+      courseCode: "Tự học",
+      dueDate: "Thứ 6, 20:00",
+      completed: false,
+    },
+  ]);
+
+  // Add Schedule Modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalDay, setModalDay] = useState("Thứ 2");
+  const [modalTime, setModalTime] = useState("07:00");
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalSubtitle, setModalSubtitle] = useState("");
+  const [modalType, setModalType] = useState<"CLASS" | "SELF_STUDY" | "QUIZ">("CLASS");
+
+  // Add Task inline form
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskCourse, setNewTaskCourse] = useState("AI-02");
+
+  const handleOpenAddSchedule = (day?: string, timeSlot?: string) => {
+    if (day) setModalDay(day);
+    if (timeSlot) setModalTime(timeSlot);
+    setModalTitle("");
+    setModalSubtitle("");
+    setIsModalOpen(true);
   };
 
-  /** Validates and appends one local demo schedule/task item; production will call Java only. */
-  const saveItem = (event: React.FormEvent<HTMLFormElement>): void => {
-    event.preventDefault();
-    const title = draft.title.trim();
-    if (!title) return;
-    if (mode === "schedule") {
-      setSchedule((items) => [...items, { id: `s-${Date.now()}`, day: draft.day, slot: draft.slot, title, time: draft.slot, subject: draft.subject, tone: "green" }]);
-    } else {
-      setTasks((items) => [...items, { id: `t-${Date.now()}`, date: DAYS[draft.day][1], title, detail: `45 phút · ${draft.subject}`, completed: false }]);
-    }
-    setMode(null);
+  const handleSaveSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalTitle.trim()) return;
+
+    const newBlock: ScheduleBlock = {
+      id: `sb_${Date.now()}`,
+      day: modalDay,
+      timeSlot: modalTime,
+      title: modalTitle.trim(),
+      subtitle: modalSubtitle.trim() || `${modalDay} · ${modalTime}`,
+      type: modalType,
+    };
+
+    setScheduleBlocks((prev) => [...prev, newBlock]);
+    setIsModalOpen(false);
   };
 
-  /** Toggles one demo task without calculating progress or Daily Goal on the client. */
-  const toggleTask = (taskId: string): void => setTasks((items) => items.map((item) => item.id === taskId ? { ...item, completed: !item.completed } : item));
+  const handleDeleteSchedule = (blockId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setScheduleBlocks((prev) => prev.filter((b) => b.id !== blockId));
+  };
 
-  return <div className="mx-auto max-w-[1500px] space-y-7 pb-12">
-    <header className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-      <div><h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Kế hoạch &amp; Lịch ôn tập</h1><p className="mt-2 text-sm text-slate-500 sm:text-base">Lịch biểu tuần trực quan từ Thứ 2 đến Chủ nhật theo các khung giờ học tập.</p></div>
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <button type="button" onClick={() => openForm("task")} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-800 shadow-sm hover:border-red-200"><Plus className="h-4 w-4" /> Thêm task ôn tập</button>
-        <button type="button" onClick={() => openForm("schedule")} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#d71920] px-5 text-sm font-bold text-white shadow-lg shadow-red-200 hover:bg-[#a80f18]"><Plus className="h-4 w-4" /> Thêm lịch học</button>
-      </div>
-    </header>
+  const handleToggleTask = (taskId: string) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
+    );
+  };
 
-    <section className="rounded-3xl border border-emerald-200 bg-emerald-50/80 px-5 py-5 sm:px-7"><h2 className="font-bold text-emerald-900">Sinh viên chủ động quản lý kế hoạch học tập cá nhân</h2><p className="mt-1 text-sm text-slate-600">Tính năng gợi ý tự động (AI Recommendation) được định vị là hướng mở rộng tiếp theo.</p></section>
+  const handleAddTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
 
-    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-5 border-b border-slate-100 px-5 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-        <div><h2 className="text-xl font-extrabold text-slate-900">Tuần học: {weekLabel}</h2><p className="mt-1 text-sm text-slate-500">Bấm vào ô trống trên bảng để lên lịch học nhanh</p></div>
-        <div className="grid grid-cols-3 gap-2 sm:flex">
-          <button type="button" onClick={() => setWeek(-1)} className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold sm:px-5 sm:text-sm"><ChevronLeft className="h-4 w-4" /> Tuần trước</button>
-          <button type="button" onClick={() => setWeek(0)} className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold text-red-700 sm:px-5 sm:text-sm">Tuần này</button>
-          <button type="button" onClick={() => setWeek(1)} className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold sm:px-5 sm:text-sm">Tuần sau <ChevronRight className="h-4 w-4" /></button>
+    const newTask: StudyTask = {
+      id: `task_${Date.now()}`,
+      title: newTaskTitle.trim(),
+      courseCode: newTaskCourse,
+      dueDate: "Hôm nay, 23:59",
+      completed: false,
+    };
+    setTasks((prev) => [newTask, ...prev]);
+    setNewTaskTitle("");
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  };
+
+  return (
+    <div className="space-y-6 pb-12">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="p-2 rounded-xl bg-red-50 text-ptit-red">
+              <CalendarCheck className="w-5 h-5" />
+            </span>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
+              Kế hoạch &amp; Lịch ôn tập
+            </h1>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Lịch biểu tuần trực quan từ Thứ 2 đến Chủ nhật theo các khung giờ học tập cá nhân.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => handleOpenAddSchedule()}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Thêm lịch học</span>
+          </button>
         </div>
       </div>
-      <div className="overflow-x-auto"><div className="min-w-[1080px]">
-        <div className="grid grid-cols-[135px_repeat(7,minmax(135px,1fr))] bg-slate-50"><div className="flex items-center justify-center border-r border-slate-200 p-4 text-xs font-extrabold uppercase text-slate-500">Khung giờ</div>{DAYS.map(([name, date]) => <div key={name} className="border-r border-slate-200 p-4 text-center last:border-r-0"><b className="text-sm text-slate-900">{name}</b><span className="mt-1 block text-sm font-bold text-slate-500">{date}</span></div>)}</div>
-        {SLOTS.map((slot) => <div key={slot} className="grid min-h-36 grid-cols-[135px_repeat(7,minmax(135px,1fr))] border-t border-slate-200"><div className="flex items-center justify-center border-r border-slate-200 p-4 text-sm font-bold text-slate-500">{slot}</div>{DAYS.map(([name], day) => { const item = schedule.find((entry) => entry.day === day && entry.slot === slot); return <button key={`${name}-${slot}`} type="button" onClick={() => !item && openForm("schedule", day, slot)} className="border-r border-slate-200 p-3 text-left transition last:border-r-0 hover:bg-slate-50" aria-label={item ? item.title : `Thêm lịch ${name}, ${slot}`}>{item && <span className={`block rounded-2xl border-l-4 p-4 shadow-sm ${item.tone === "amber" ? "border-amber-500 bg-amber-50 text-amber-900" : "border-[#d71920] bg-emerald-50 text-emerald-900"}`}><strong className="block text-sm leading-5">{item.title}</strong><span className="mt-2 block text-xs leading-5 text-slate-500">{item.time} · {item.subject}</span></span>}</button>; })}</div>)}
-      </div></div>
-    </section>
 
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-      <div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-extrabold text-slate-900">Kế hoạch: “Ôn thi Cơ sở dữ liệu”</h2><p className="mt-1 text-sm text-slate-500">Khoảng thời gian: 21 – 29/09/2026</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700">ACTIVE</span></div>
-      <div className="mt-5 divide-y divide-slate-100">{tasks.map((task) => <div key={task.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center"><span className="text-sm font-bold text-slate-500 sm:w-20">{task.date}</span><div className="flex-1"><strong className={`block text-sm ${task.completed ? "text-slate-400 line-through" : "text-slate-800"}`}>{task.title}</strong><span className="mt-1 block text-xs text-slate-500">{task.detail}</span></div><button type="button" onClick={() => toggleTask(task.id)} className={`inline-flex w-fit items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold ${task.completed ? "bg-emerald-50 text-emerald-700" : "border border-slate-200 text-slate-700"}`}>{task.completed ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}{task.completed ? "COMPLETED" : "Đánh dấu xong"}</button></div>)}</div>
-    </section>
+      {/* Info Callout */}
+      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-start gap-3">
+        <Info className="w-4 h-4 text-ptit-red flex-shrink-0 mt-0.5" />
+        <div>
+          <span className="font-bold text-slate-800">
+            Sinh viên chủ động quản lý kế hoạch học tập:
+          </span>{" "}
+          Bấm vào bất kỳ ô trống nào trên bảng lịch để lên lịch tự học nhanh hoặc thêm ca ôn thi. Thống kê chuỗi Streak và Mục tiêu ngày (Daily Goal) được cập nhật trên trang Tổng quan.
+        </div>
+      </div>
 
-    {mode && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm" onMouseDown={() => setMode(null)}><form onSubmit={saveItem} onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
-      <div className="flex items-center justify-between"><div className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-red-600" /><h2 className="text-lg font-extrabold">{mode === "schedule" ? "Thêm lịch học" : "Thêm task ôn tập"}</h2></div><button type="button" onClick={() => setMode(null)} aria-label="Đóng" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
-      <div className="mt-5 space-y-4"><label className="block text-sm font-bold text-slate-700">Nội dung<input value={draft.title} onChange={(event) => setDraft((value) => ({ ...value, title: event.target.value }))} required maxLength={120} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-red-400" /></label><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold text-slate-700">Ngày<select value={draft.day} onChange={(event) => setDraft((value) => ({ ...value, day: Number(event.target.value) }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-normal">{DAYS.map(([name, date], index) => <option key={name} value={index}>{name} · {date}</option>)}</select></label><label className="text-sm font-bold text-slate-700">Khung giờ<select value={draft.slot} onChange={(event) => setDraft((value) => ({ ...value, slot: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-normal">{SLOTS.map((slot) => <option key={slot}>{slot}</option>)}</select></label></div><label className="block text-sm font-bold text-slate-700">Môn học<input value={draft.subject} onChange={(event) => setDraft((value) => ({ ...value, subject: event.target.value }))} required maxLength={80} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-red-400" /></label></div>
-      <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setMode(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold">Hủy</button><button type="submit" className="rounded-xl bg-[#d71920] px-5 py-2.5 text-sm font-bold text-white">Lưu</button></div>
-    </form></div>}
-  </div>;
+      {/* Weekly Schedule Panel */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+        {/* Panel Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
+          <div>
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 font-display">
+              Tuần học: {currentWeekOffset === 0 ? "21 – 27/09/2026 (Tuần này)" : `Tuần ${currentWeekOffset > 0 ? `+${currentWeekOffset}` : currentWeekOffset}`}
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Bấm vào ô trống trên bảng để lên lịch học nhanh theo khung giờ
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 self-start sm:self-auto">
+            <button
+              onClick={() => setCurrentWeekOffset((prev) => prev - 1)}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 transition cursor-pointer flex items-center gap-1"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" /> Tuần trước
+            </button>
+            <button
+              onClick={() => setCurrentWeekOffset(0)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                currentWeekOffset === 0
+                  ? "bg-red-50 text-ptit-red border border-red-200"
+                  : "border border-slate-200 hover:bg-slate-50 text-slate-700"
+              }`}
+            >
+              Tuần này
+            </button>
+            <button
+              onClick={() => setCurrentWeekOffset((prev) => prev + 1)}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 transition cursor-pointer flex items-center gap-1"
+            >
+              Tuần sau <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Schedule Table (Horizontal Scrollable on Mobile) */}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-700">
+                <th className="p-3 w-28 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-r border-slate-200 text-center">
+                  Khung giờ
+                </th>
+                {DAYS_OF_WEEK.map((d, idx) => (
+                  <th
+                    key={idx}
+                    className="p-3 font-semibold text-center border-r border-slate-200 last:border-r-0"
+                  >
+                    <div className="font-bold text-slate-900 text-xs font-display">
+                      {d.day}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                      {d.date}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {TIME_SLOTS.map((slot) => (
+                <tr key={slot.id} className="hover:bg-slate-50/40 transition">
+                  {/* Time Slot Header */}
+                  <td className="p-3 border-r border-slate-200 text-center bg-slate-50/40 font-mono text-[11px] text-slate-600 font-medium">
+                    <div>{slot.label}</div>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-200 text-slate-600 uppercase font-sans font-bold">
+                      {slot.period}
+                    </span>
+                  </td>
+
+                  {/* 7 Days Cells */}
+                  {DAYS_OF_WEEK.map((d, dIdx) => {
+                    const block = scheduleBlocks.find(
+                      (b) => b.day === d.day && b.timeSlot === slot.id
+                    );
+
+                    return (
+                      <td
+                        key={dIdx}
+                        onClick={() => !block && handleOpenAddSchedule(d.day, slot.id)}
+                        className={`p-2 border-r border-slate-100 last:border-r-0 align-top h-20 transition ${
+                          !block
+                            ? "cursor-pointer hover:bg-red-50/30 group"
+                            : ""
+                        }`}
+                      >
+                        {block ? (
+                          <div
+                            className={`p-2.5 rounded-xl border relative group shadow-2xs text-left ${
+                              block.type === "CLASS"
+                                ? "bg-red-50/80 border-red-200 text-slate-900"
+                                : block.type === "SELF_STUDY"
+                                ? "bg-amber-50/80 border-amber-200 text-slate-900"
+                                : "bg-emerald-50/80 border-emerald-200 text-slate-900"
+                            }`}
+                          >
+                            <button
+                              onClick={(e) => handleDeleteSchedule(block.id, e)}
+                              className="absolute right-1.5 top-1.5 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-0.5 rounded transition cursor-pointer"
+                              title="Xóa lịch này"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            <div className="font-bold text-[11px] leading-tight line-clamp-2 pr-3">
+                              {block.title}
+                            </div>
+                            <div className="text-[10px] text-slate-500 mt-1 truncate">
+                              {block.subtitle}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center opacity-0 group-hover:opacity-100 text-slate-300 group-hover:text-ptit-red transition text-[11px] font-semibold">
+                            + Thêm
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Study Tasks Management Section */}
+      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 font-display">
+              Nhiệm vụ học tập cá nhân ({tasks.filter((t) => t.completed).length}/{tasks.length})
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Tích chọn hoàn thành để theo dõi tiến độ hoàn thành các đầu việc ôn thi
+            </p>
+          </div>
+        </div>
+
+        {/* Inline Add Task Form */}
+        <form onSubmit={handleAddTask} className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="text"
+            value={newTaskTitle}
+            onChange={(e) => setNewTaskTitle(e.target.value)}
+            placeholder="Nhập tên nhiệm vụ học tập mới..."
+            className="flex-1 px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 bg-white"
+          />
+          <select
+            value={newTaskCourse}
+            onChange={(e) => setNewTaskCourse(e.target.value)}
+            className="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:outline-none"
+          >
+            <option value="AI-02">Trí tuệ nhân tạo (AI-02)</option>
+            <option value="DBI-01">Cơ sở dữ liệu (DBI-01)</option>
+            <option value="Tự học">Tự học cá nhân</option>
+          </select>
+          <button
+            type="submit"
+            disabled={!newTaskTitle.trim()}
+            className="px-4 py-2 bg-ptit-red hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Thêm task ôn tập
+          </button>
+        </form>
+
+        {/* Tasks List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+          {tasks.map((task) => (
+            <div
+              key={task.id}
+              className={`p-3.5 rounded-2xl border transition flex items-start gap-3 ${
+                task.completed
+                  ? "bg-slate-50 border-slate-200 opacity-60"
+                  : "bg-white border-slate-200 hover:border-red-200 shadow-2xs"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={task.completed}
+                onChange={() => handleToggleTask(task.id)}
+                className="mt-0.5 w-4 h-4 rounded text-ptit-red focus:ring-red-500 cursor-pointer"
+              />
+
+              <div className="flex-1 min-w-0">
+                <div
+                  className={`text-xs font-semibold ${
+                    task.completed
+                      ? "line-through text-slate-400"
+                      : "text-slate-800"
+                  }`}
+                >
+                  {task.title}
+                </div>
+                <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-1 font-mono">
+                  <span className="font-bold text-ptit-red bg-red-50 px-1.5 py-0.5 rounded">
+                    {task.courseCode}
+                  </span>
+                  <span>Hạn: {task.dueDate}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleDeleteTask(task.id)}
+                className="text-slate-300 hover:text-red-600 transition p-1 cursor-pointer"
+                title="Xóa nhiệm vụ"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ADD SCHEDULE MODAL */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-red-50 text-ptit-red">
+                  <CalendarIcon className="w-4 h-4" />
+                </span>
+                <h3 className="font-bold text-slate-900 text-base font-display">
+                  Thêm lịch học vào tuần
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSchedule} className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Ngày trong tuần:
+                  </label>
+                  <select
+                    value={modalDay}
+                    onChange={(e) => setModalDay(e.target.value)}
+                    className="w-full p-2 border border-slate-300 rounded-xl bg-white"
+                  >
+                    {DAYS_OF_WEEK.map((d) => (
+                      <option key={d.day} value={d.day}>
+                        {d.day} ({d.date})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Khung giờ:
+                  </label>
+                  <select
+                    value={modalTime}
+                    onChange={(e) => setModalTime(e.target.value)}
+                    className="w-full p-2 border border-slate-300 rounded-xl bg-white"
+                  >
+                    {TIME_SLOTS.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Loại hoạt động:
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { id: "CLASS", label: "Bài giảng lớp" },
+                    { id: "SELF_STUDY", label: "Tự học PDF" },
+                    { id: "QUIZ", label: "Luyện Quiz" },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setModalType(t.id as any)}
+                      className={`p-2 rounded-xl text-center font-bold text-[11px] border transition cursor-pointer ${
+                        modalType === t.id
+                          ? "bg-red-50 text-ptit-red border-red-300 shadow-2xs"
+                          : "bg-slate-50 text-slate-600 border-slate-200"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Nội dung buổi học:
+                </label>
+                <input
+                  type="text"
+                  value={modalTitle}
+                  onChange={(e) => setModalTitle(e.target.value)}
+                  placeholder="Ví dụ: Ôn tập Slide Mô hình PEAS..."
+                  className="w-full p-2.5 border border-slate-300 rounded-xl"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Ghi chú phụ (Thời gian cụ thể / Môn):
+                </label>
+                <input
+                  type="text"
+                  value={modalSubtitle}
+                  onChange={(e) => setModalSubtitle(e.target.value)}
+                  placeholder="Ví dụ: 09:30–10:30 · AI-02"
+                  className="w-full p-2.5 border border-slate-300 rounded-xl"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-ptit-red hover:bg-red-700 text-white rounded-xl font-bold shadow-sm transition cursor-pointer"
+                >
+                  Lưu vào lịch
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

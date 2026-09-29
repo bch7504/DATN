@@ -91,7 +91,7 @@ export default function LoginPage() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center">
-          <div className="w-16 h-16 rounded-full border-2 border-[#d71920] bg-white flex items-center justify-center shadow-lg mb-4 hover:scale-105 transition-transform">
+          <div className="w-16 h-16 rounded-full border-2 border-[#d71920] bg-white flex items-center justify-center shadow-lg mb-4  transition-transform">
             <PtitLogo size={36} />
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172033] tracking-tight">
@@ -168,7 +168,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-[#d71920] hover:bg-[#b9151b] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-60 transition"
+              className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-[#d71920]  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-60 transition"
             >
               {submitting ? (
                 <LoadingSpinner size="sm" text="Đang xác thực..." />
@@ -194,9 +194,9 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => handleQuickDemo("STUDENT")}
                   disabled={submitting}
-                  className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-red-200 bg-red-50/60 hover:bg-red-100/70 text-red-900 transition text-center group"
+                  className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-red-200 bg-red-50/60  text-red-900 transition text-center group"
                 >
-                  <GraduationCap className="w-4 h-4 text-red-600 mb-1 group-hover:scale-110 transition-transform" />
+                  <GraduationCap className="w-4 h-4 text-red-600 mb-1  transition-transform" />
                   <span className="text-xs font-bold">Sinh viên</span>
                   <span className="text-[10px] text-slate-500 truncate w-full">student@ptit</span>
                 </button>
@@ -205,9 +205,9 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => handleQuickDemo("TEACHER")}
                   disabled={submitting}
-                  className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100/70 text-amber-900 transition text-center group"
+                  className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-amber-200 bg-amber-50/60  text-amber-900 transition text-center group"
                 >
-                  <BookOpen className="w-4 h-4 text-amber-600 mb-1 group-hover:scale-110 transition-transform" />
+                  <BookOpen className="w-4 h-4 text-amber-600 mb-1  transition-transform" />
                   <span className="text-xs font-bold">Giảng viên</span>
                   <span className="text-[10px] text-slate-500 truncate w-full">teacher@ptit</span>
                 </button>
@@ -216,9 +216,9 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => handleQuickDemo("ADMIN")}
                   disabled={submitting}
-                  className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-purple-200 bg-purple-50/60 hover:bg-purple-100/70 text-purple-900 transition text-center group"
+                  className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-purple-200 bg-purple-50/60  text-purple-900 transition text-center group"
                 >
-                  <ShieldCheck className="w-4 h-4 text-purple-600 mb-1 group-hover:scale-110 transition-transform" />
+                  <ShieldCheck className="w-4 h-4 text-purple-600 mb-1  transition-transform" />
                   <span className="text-xs font-bold">Quản trị</span>
                   <span className="text-[10px] text-slate-500 truncate w-full">admin@ptit</span>
                 </button>
@@ -231,7 +231,7 @@ export default function LoginPage() {
               Sinh viên mới chưa có tài khoản?{" "}
               <Link
                 href="/register"
-                className="font-semibold text-red-600 hover:text-red-700 underline"
+                className="font-semibold text-red-600  underline"
               >
                 Đăng ký tài khoản
               </Link>
