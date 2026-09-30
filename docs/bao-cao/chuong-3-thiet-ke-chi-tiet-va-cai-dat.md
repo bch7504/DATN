@@ -1,380 +1,950 @@
-# CHƯƠNG 3. THIẾT KẾ CHI TIẾT VÀ CÀI ĐẶT CÁC CHỨC NĂNG TRỌNG TÂM
-
-Chương này trình bày thiết kế chi tiết cho ba chức năng có hàm lượng kỹ thuật cao của StudyFlow: hỏi đáp tài liệu cá nhân bằng RAG, Slide AI Tutor và tạo Quiz AI kết hợp ôn tập. Tại thời điểm biên soạn, các service mới ở giai đoạn cấu trúc và kế hoạch; vì vậy nội dung về module, thuật toán và dữ liệu dưới đây là thiết kế triển khai đã chốt, còn kết quả chạy, ảnh giao diện và số liệu đo thực tế chỉ được bổ sung sau khi có minh chứng từ hệ thống.
-
-## 3.1. Môi trường và công nghệ cài đặt
-
-### 3.1.1. Môi trường phát triển
-
-| Thành phần | Công nghệ mục tiêu | Vai trò |
-|---|---|---|
-| Frontend | Next.js, TypeScript, Tailwind CSS | Giao diện Student, Teacher và Admin |
-| Backend | Java Spring Boot | Xác thực, phân quyền và nghiệp vụ |
-| AI Service | Python FastAPI | Xử lý tài liệu, retrieval, RAG, Tutor và sinh Quiz |
-| Database | PostgreSQL | Dữ liệu nghiệp vụ trong schema `app` |
-| Vector Search | PostgreSQL + pgvector | Chỉ mục và vector trong schema `ai` |
-| Object Storage | S3-compatible storage | PDF, PPTX và artifact slide |
-| LLM | Provider tương thích OpenAI API | Sinh câu trả lời và Quiz có cấu trúc |
-| Embedding | `text-embedding-3-large`, 1024 chiều theo kế hoạch | Biểu diễn truy vấn và chunk |
-
-Phiên bản runtime, thư viện parser, model/provider và thông số retrieval phải được lấy từ bản build thực tế trước khi xuất báo cáo cuối. Không đưa API key, service credential hoặc dữ liệu người dùng vào báo cáo.
-
-### 3.1.2. Cấu trúc triển khai
-
-```text
-Student / Teacher / Admin
-           │ HTTPS
-           ▼
-       Next.js Web
-           │ /api/v1
-           ▼
-    Spring Boot Backend ─────► PostgreSQL schema app
-           │                 └► Object Storage
-           │ /internal/v1
-           ▼
-     FastAPI AI Service ─────► PostgreSQL schema ai + pgvector
-           └─────────────────► LLM / Embedding Provider
-```
-
-*Hình 3.1. Kiến trúc triển khai dự kiến của StudyFlow.*
-
-Frontend chỉ gọi Java Backend. Java là system of record và chịu trách nhiệm xác thực, phân quyền, vòng đời Quiz, chấm điểm và tiến độ. Python chỉ nhận authorized scope do Java cấp để xử lý tài liệu, retrieval, generation và citation. Hai service dùng chung PostgreSQL cluster nhưng tách schema và database role.
-
-## 3.2. Hỏi đáp tài liệu cá nhân bằng RAG
-
-### 3.2.1. Mục tiêu
-
-Student tải PDF cá nhân có lớp văn bản, chờ trạng thái `READY`, chọn từ một đến mười tài liệu rồi tạo cuộc hội thoại. Câu trả lời chỉ được dựa trên phiên bản tài liệu đã chọn và phải có citation theo trang. Khi bằng chứng không đủ, hệ thống trả `NO_EVIDENCE` thay vì dùng kiến thức ngoài nguồn.
-
-### 3.2.2. Xử lý và lập chỉ mục PDF
-
-Java kiểm tra quyền sở hữu, MIME, kích thước và trạng thái tệp, lưu file vào Object Storage rồi gọi `POST /internal/v1/documents/index` với request ID, schema version, service credential và idempotency key. Python tiếp nhận job bất đồng bộ, tải file qua URL có thời hạn, kiểm tra PDF mã hóa hoặc không có text, trích xuất theo trang, chia chunk, tạo embedding và ghi chỉ mục. Java thăm dò `GET /internal/v1/jobs/{jobId}` để cập nhật `READY` hoặc `FAILED` bằng mã lỗi an toàn như `PDF_ENCRYPTED` và `PDF_TEXT_REQUIRED`.
-
-![Hình 3.2 — Luồng upload và lập chỉ mục Personal PDF](../diagrams/chuong-3/01-personal-pdf-index.svg)
-
-*Hình 3.2. Luồng upload và lập chỉ mục Personal PDF.*
-
-Mỗi chunk giữ tối thiểu `documentId`, `documentVersion`, `ownerId`, `pageNumber`, `chunkIndex`, nội dung và embedding. Chunking không được nối nội dung qua ranh giới trang nếu điều đó làm mất khả năng truy ngược citation. Kích thước chunk, overlap và Top-K là tham số cần benchmark, không cố định trong báo cáo trước khi đo.
-
-### 3.2.3. Thiết kế dữ liệu
-
-```text
-app.documents (document_version, owner_id, status)
-       │ document_id + document_version
-       ▼
-ai.document_indexes (model, dimensions, index_version, status)
-       │ index_id
-       ▼
-ai.document_chunks (page_number, chunk_index, content, embedding)
-
-app.chat_conversations ──< app.conversation_documents
-       └─────────────────< app.chat_messages
-```
-
-StudyFlow không tạo bảng `document_versions` riêng trong MVP. `documents.document_version` xác định phiên bản nghiệp vụ; index và chunk luôn mang cùng document/version để tránh truy xuất nhầm dữ liệu cũ. Schema `app` do Java sở hữu, schema `ai` do Python sở hữu. Conversation lưu snapshot phạm vi tài liệu; message request không cho client tự chèn thêm document ID.
-
-### 3.2.4. Thuật toán retrieval
-
-```text
-Input: question, conversationId, authorizedDocuments[]
-
-1. validateScope(authorizedDocuments)
-2. normalizedQuery = normalize(question, allowedConversationHistory)
-3. queryVector = embed(normalizedQuery)
-4. chunks = vectorSearch(
-       vector=queryVector,
-       filters=documentId + version + owner + sourceType,
-       topK=K,
-       distance=COSINE
-   )
-5. chunks = postFilterAndDeduplicate(chunks, authorizedDocuments)
-6. evidenceSnapshot = freeze(chunks)
-7. if evidenceGate(evidenceSnapshot) == FAIL:
-       return NO_EVIDENCE
-8. context = buildUntrustedContext(evidenceSnapshot)
-9. draft = generate(question, context)
-10. result = validateClaimsAndCitations(draft, evidenceSnapshot)
-11. if result không đạt: rewrite tối đa một lần
-12. return ANSWERED + citations hoặc NO_EVIDENCE
-```
-
-Filter được đẩy xuống truy vấn vector và kiểm tra lại sau retrieval để phòng thủ nhiều lớp. Nội dung chunk được xem là dữ liệu không tin cậy, không phải instruction. Evidence snapshot dùng cho generation cũng chính là snapshot dùng để đánh giá grounding; hệ thống không retrieval lần hai khi chấm để tránh thay đổi bằng chứng.
-
-### 3.2.5. Sinh câu trả lời và citation
-
-Prompt gồm system rules, câu hỏi và evidence snapshot đã đánh dấu ranh giới. Kết quả nội bộ ánh xạ claim về `chunkId`; citation hiển thị được dựng bằng code từ chunk đã truy xuất, gồm `documentId`, tên tài liệu, `pageNumber` và excerpt. Python kiểm tra citation thuộc snapshot; Java kiểm tra lại owner, document/version và vị trí trước khi lưu message.
-
-Citation hợp lệ không chỉ là ID tồn tại. Đoạn nguồn phải thực sự hỗ trợ claim gắn với nó. Claim quan trọng được phân loại `SUPPORTED`, `PARTIALLY_SUPPORTED`, `UNSUPPORTED` hoặc `CONTRADICTED`; claim thiếu căn cứ phải bị loại bỏ, sửa tối đa một lần hoặc làm response chuyển thành `NO_EVIDENCE`.
-
-### 3.2.6. Xử lý `NO_EVIDENCE`
-
-Evidence gate chạy trước LLM. Nếu không có chunk phù hợp hoặc bằng chứng không đạt ngưỡng, hệ thống không gọi model để đoán. Sau generation, grounding check có thể tiếp tục hạ kết quả thành `NO_EVIDENCE` nếu câu trả lời không được snapshot hỗ trợ.
-
-![Hình 3.3 — Luồng hỏi đáp Personal RAG](../diagrams/chuong-3/02-personal-rag.svg)
-
-*Hình 3.3. Luồng Personal RAG có kiểm tra phạm vi, bằng chứng và citation.*
-
-### 3.2.7. Cấu trúc cài đặt dự kiến
-
-```text
-Spring Boot
-├── document/api/PersonalDocumentController
-├── document/application/PersonalDocumentService
-├── conversation/api/PersonalRagController
-├── conversation/application/PersonalRagService
-└── integration/ai/AiServiceClient
-                         │ internal HTTP
-FastAPI                  ▼
-├── api/routes/documents.py
-├── api/routes/personal_rag.py
-├── services/indexing.py
-├── services/embedding.py
-├── services/retrieval.py
-├── services/rag.py
-├── repositories/vector.py
-└── workers/index_worker.py
-```
-
-Tên lớp/module trên là cấu trúc mục tiêu, chưa phải khẳng định source đã tồn tại. Controller chỉ xử lý contract HTTP; application service xác minh quyền và điều phối; AI client cô lập contract nội bộ. Phía Python, route validate schema, worker thực hiện index, repository áp dụng scope filter, còn RAG service quản lý evidence gate, generation và citation.
-
-### 3.2.8. Kết quả và giao diện thực tế
-
-Khi triển khai xong, phần kết quả phải nêu rõ commit/build, endpoint đã chạy, trạng thái index, retrieval và response contract. Phần giao diện phải có ảnh liên tiếp: Upload → `PROCESSING` → `READY` → chọn tài liệu → hỏi → Answer + Citation, đồng thời có một trường hợp `NO_EVIDENCE`.
-
-Hiện chưa có code chạy và ảnh chụp runtime đã kiểm chứng, nên báo cáo chưa tuyên bố chức năng hoàn thành. Nội dung này sẽ được thay bằng minh chứng thực tế, không dùng mock hoặc sơ đồ thiết kế làm kết quả cài đặt.
-
-## 3.3. Slide AI Tutor
-
-### 3.3.1. Mục tiêu
-
-Slide AI Tutor cho phép Student có enrollment `APPROVED` hỏi trong lúc xem PPTX được Teacher public. Hệ thống ưu tiên slide hiện tại, chỉ truy xuất trong document/version và các slide được cấp quyền, rồi trả citation theo slide. PDF của Teacher chỉ tải xuống và không tham gia Tutor.
-
-### 3.3.2. Xử lý PPTX
-
-Teacher upload PPTX vào thư viện của mình. Java kiểm tra ownership và trạng thái Course Offering; Python parse nội dung, render artifact từng slide, chia chunk theo slide, tạo embedding và trả metadata job. Java chỉ cho public khi tài liệu `READY`; Student xem artifact qua endpoint có kiểm quyền chứ không nhận storage key trực tiếp.
-
-![Hình 3.4 — Luồng PPTX từ thư viện Teacher đến Student](../diagrams/chuong-3/03-pptx-publication.svg)
-
-*Hình 3.4. Luồng xử lý và public PPTX từ thư viện Teacher đến Student.*
-
-### 3.3.3. Thiết kế dữ liệu
-
-```text
-app.documents (type=PPTX, teacher_owner_id, document_version)
-       ├──< app.slides (slide_number, artifact metadata)
-       └──< app.document_publications >── app.course_offerings
-
-ai.document_indexes
-       └──< ai.document_chunks (source_type=TEACHER_SLIDE, slide_number)
-
-app.slide_notes (student_id, document_id, slide_number)
-```
-
-Publication quyết định PPTX xuất hiện ở Course Offering nào. Enrollment và publication nằm trong Java; Python không đọc trực tiếp bảng user hoặc enrollment. Chunk slide giữ document/version, `slideNumber` và source type để tạo citation chính xác.
-
-### 3.3.4. Xác định ngữ cảnh slide
-
-Browser chỉ gửi câu hỏi tại route của slide. Java suy ra `courseOfferingId`, `documentId`, version, slide hiện tại và allowed slide scope sau khi kiểm tra enrollment `APPROVED`, publication còn hiệu lực và trạng thái document. Client không được tự khai báo owner hoặc mở rộng phạm vi.
-
-### 3.3.5. Authorized Scope và retrieval
-
-Retrieval dùng cùng nguyên tắc với Personal RAG nhưng filter theo `TEACHER_SLIDE`, document/version và allowed slides. Current slide được ưu tiên trong ranking; slide lân cận hoặc liên quan chỉ được dùng nếu còn trong authorized scope. Nếu publication bị revoke, enrollment không hợp lệ hoặc evidence thiếu, hệ thống từ chối hoặc trả `NO_EVIDENCE` trước generation.
-
-### 3.3.6. Sinh câu trả lời và citation
-
-Output có `status`, `answer`, `citations[]` và `traceId`. Mỗi citation chứa `documentId`, `slideNumber` và excerpt được dựng từ retrieved chunk. Java revalidate mọi citation trước khi trả browser. Nội dung slide không được phép thay đổi system rule hoặc yêu cầu truy cập nguồn khác.
-
-![Hình 3.5 — Luồng Slide Viewer, Note và AI Tutor](../diagrams/chuong-3/04-slide-tutor.svg)
-
-*Hình 3.5. Luồng hỏi đáp Slide AI Tutor trong phạm vi được cấp quyền.*
-
-### 3.3.7. Cấu trúc cài đặt dự kiến
-
-```text
-Spring Boot
-├── document/application/TeacherDocumentService
-├── slide/api/StudentSlideController
-├── slide/application/SlideAccessService
-├── note/application/SlideNoteService
-└── integration/ai/AiServiceClient
-                         │
-FastAPI                  ▼
-├── api/routes/slides.py
-├── pipelines/pptx_parser.py
-├── services/slide_indexing.py
-├── services/retrieval.py
-├── services/slide_tutor.py
-└── workers/index_worker.py
-```
-
-Java sở hữu access check và artifact delivery; Python sở hữu parse, index và generation. Tên module là thiết kế mục tiêu và sẽ được hiệu chỉnh theo source thực tế mà không thay đổi boundary.
-
-### 3.3.8. Kết quả và giao diện thực tế
-
-Minh chứng cần có hai nhóm: (1) trạng thái xử lý/public PPTX và contract Tutor; (2) ảnh Slide Viewer với slide hiện tại, Note, câu hỏi, câu trả lời, citation và trường hợp bị từ chối hoặc `NO_EVIDENCE`. Hiện chưa có runtime evidence nên chưa điền kết quả đạt/không đạt.
-
-## 3.4. AI Quiz và hỗ trợ ôn tập
-
-### 3.4.1. Tiếp nhận yêu cầu
-
-Student chọn từ một đến mười Personal Document `READY` và nhập prompt tự do, ví dụ yêu cầu số lượng, chủ đề hoặc độ khó. Java tải lại ownership, status và version; Quiz được tạo ở trạng thái `GENERATING`. Prompt là dữ liệu không tin cậy, không thể thay system rule, `MCQ_SINGLE`, authorized scope, citation hoặc output schema.
-
-### 3.4.2. Retrieval
-
-Python nhúng prompt hoặc truy vấn đã chuẩn hóa, tìm evidence trong đúng document/version được cấp, lọc trùng và lưu source metadata. Quiz không phụ thuộc conversation/chat context. Nếu không có bằng chứng phù hợp, generation thất bại an toàn thay vì tạo câu hỏi từ kiến thức nền của model.
-
-### 3.4.3. Prompt
-
-System instruction bắt buộc mỗi câu là `MCQ_SINGLE`, có đúng bốn phương án, đúng một `correctOptionIndex`, explanation và nguồn. Retrieved context được delimit như dữ liệu. User prompt chỉ điều khiển nội dung hợp lệ như số câu, trọng tâm và độ khó trong giới hạn hệ thống.
-
-### 3.4.4. Structured Output
-
-```json
-{
-  "questions": [
-    {
-      "question": "Nội dung câu hỏi",
-      "options": ["A", "B", "C", "D"],
-      "correctOptionIndex": 1,
-      "explanation": "Giải thích đáp án",
-      "sources": [
-        {"documentId": "doc_...", "pageNumber": 25, "chunkId": "chunk_..."}
-      ]
+# CHƯƠNG 3. PHA THIẾT KẾ HỆ THỐNG
+
+Tiếp nối kết quả phân tích yêu cầu và ca sử dụng ở Chương 2, chương này trình bày chi tiết toàn bộ nội dung của **Pha thiết kế hệ thống (System Design Phase)** theo đúng quy trình chuẩn của kỹ thuật phần mềm:
+1. **Thiết kế kiến trúc chung cho toàn hệ thống theo dạng sơ đồ khối**
+2. **Thiết kế lớp thực thể chung cho toàn hệ thống (Domain/Entity Class Diagram)**
+3. **Thiết kế cơ sở dữ liệu chung cho toàn hệ thống (Database Design & ERD)**
+4. **Thiết kế biểu đồ lớp chi tiết cho các chức năng đã chọn (Detailed Class Diagram)**
+5. **Thiết kế biểu đồ hoạt động và biểu đồ tuần tự cho các chức năng (Dynamic Modeling: Activity & Sequence Diagrams)**
+
+---
+
+## 3.1. Thiết kế kiến trúc chung cho cả hệ thống theo dạng sơ đồ khối
+
+### 3.1.1. Sơ đồ khối kiến trúc tổng thể toàn hệ thống
+
+Hệ thống StudyFlow được thiết kế theo mô hình kiến trúc phân tán hiện đại, tách biệt rõ ràng giữa tầng giao diện người dùng (Frontend), tầng xử lý nghiệp vụ ứng dụng (Business Backend), tầng dịch vụ Trí tuệ Nhân tạo chuyên biệt (AI Microservice) và tầng lưu trữ phân vùng. 
+
+Hình 3.1 biểu diễn sơ đồ khối kiến trúc tổng thể và các ranh giới giao tiếp dữ liệu của hệ thống.
+
+![Hình 3.1 — Kiến trúc hệ thống StudyFlow](../diagrams/chuong-2/02-kien-truc-he-thong.svg)
+
+*Hình 3.1. Sơ đồ khối kiến trúc logic và ranh giới dữ liệu của StudyFlow.*
+
+**Thuyết minh sơ đồ khối kiến trúc Hình 3.1:**
+1. **Tầng ứng dụng web (Next.js Web Frontend):** Cung cấp giao diện trực quan cho cả ba đối tượng người dùng: Sinh viên (Student UI), Giảng viên (Teacher UI) và Quản trị viên (Admin UI). Frontend giao tiếp duy nhất với Java Backend thông qua giao thức an toàn HTTPS và RESTful API chuẩn hóa tại tiền tố `/api/v1`. Frontend tuyệt đối không gọi trực tiếp sang Python AI Service, không truy cập trực tiếp cơ sở dữ liệu và không nắm giữ API key của các nhà cung cấp LLM.
+2. **Tầng nghiệp vụ trung tâm (Java Spring Boot Backend):** Đóng vai trò là hệ thống cốt lõi (System of Record) và nắm giữ toàn bộ luật nghiệp vụ của hệ thống:
+   - Quản trị xác thực và phân quyền truy cập (Authentication, Authorization RBAC).
+   - Quản trị danh mục môn học, học kỳ, lớp học phần và xét duyệt sinh viên.
+   - Quản trị kho tài liệu, quyền công bố học liệu và cấp phát Signed URL truy cập Object Storage.
+   - Sở hữu độc quyền vòng đời Quiz (Lifecycle: `GENERATING` → `REVIEW_REQUIRED` → `READY`), thuật toán chấm điểm tự động và tính toán chuỗi ngày học (Study Streak), mục tiêu ngày (Daily Goal).
+   - Quản trị và sở hữu cơ sở dữ liệu quan hệ trong `schema app` của PostgreSQL.
+3. **Tầng dịch vụ Trí tuệ Nhân tạo (Python FastAPI AI Service):** Đóng vai trò là công cụ tính toán và xử lý tài liệu thông minh (Intelligent Processing Engine):
+   - Xử lý bất đồng bộ các tệp tài liệu: bóc tách văn bản, trích xuất hình ảnh slide, chia phân đoạn (chunking) theo trang/slide.
+   - Tính toán vector nhúng (Embedding) và quản lý lưu trữ vector trong `schema ai` tích hợp tiện ích mở rộng pgvector.
+   - Thực thi pipeline RAG: tìm kiếm ngữ nghĩa (Cosine Similarity), áp dụng bộ lọc căn cứ (Evidence Gate), xây dựng prompt an toàn và trích xuất dẫn chứng (Grounded Citations).
+   - Sinh câu hỏi trắc nghiệm `MCQ_SINGLE` theo định dạng JSON có cấu trúc nghiêm ngặt.
+   - Dịch vụ AI chỉ giao tiếp nội bộ với Java Backend thông qua mạng riêng (Internal Network) tại tiền tố `/internal/v1`, không công khai ra Internet.
+4. **Tầng lưu trữ dữ liệu (Data Storage Layer):**
+   - **PostgreSQL Database Cluster:** Sử dụng chung một cụm máy chủ cơ sở dữ liệu nhưng phân tách nghiêm ngặt thành hai schema độc lập: `schema app` (do Java sở hữu toàn quyền quản lý bảng nghiệp vụ) và `schema ai` (do Python sở hữu, lưu trữ vector và các job xử lý tài liệu). Java không đọc/ghi trực tiếp vào bảng vector, Python không truy cập trực tiếp vào bảng người dùng hay lớp học phần.
+   - **Object Storage (S3-Compatible):** Lưu trữ an toàn các tệp tin nhị phân gốc (.pdf, .pptx) và các hình ảnh slide kết xuất. Truy cập tệp được bảo vệ qua cơ chế URL ký trước (Signed URL) có thời hạn ngắn do Java Backend kiểm duyệt và cấp phát.
+5. **Tầng dịch vụ mô hình AI ngoài (LLM & Embedding Provider):** Cung cấp năng lực tính toán ngôn ngữ lớn thông qua API chuẩn hóa, được bao bọc bởi adapter nội bộ trong Python AI Service.
+
+---
+
+### 3.1.2. Phân chia trách nhiệm các khối và nguyên tắc ranh giới dữ liệu
+
+Để bảo đảm tính an toàn, bảo mật và khả năng mở rộng, hệ thống thiết lập các nguyên tắc ranh giới nghiêm ngặt giữa các khối kiến trúc:
+- **Nguyên tắc "System of Record":** Java Backend là nguồn dữ liệu chân lý duy nhất. Toàn bộ thông tin định danh người dùng, trạng thái đăng ký lớp học phần (`APPROVED`), trạng thái công bố bài giảng (`PUBLISHED`), kết quả chấm điểm và tiến độ học tập đều do Java Backend quản lý. AI Service không có quyền tự quyết định trạng thái nghiệp vụ.
+- **Nguyên tắc "Authorized Scope":** Mọi yêu cầu gọi từ Java sang Python AI Service bắt buộc phải gửi kèm phạm vi cấp quyền tối thiểu (Authorized Scope), bao gồm: `userId`, `documentId`, `documentVersion`, `allowedSlideNumbers`. Python AI Service chỉ được phép truy vấn và tìm kiếm vector trong đúng phạm vi được Java cấp phép.
+- **Xác thực giữa các dịch vụ (Service-to-Service Security):** Giao tiếp giữa Java Backend và Python AI Service sử dụng Service Credential nội bộ được truyền trong HTTP Header `X-Service-Token`, kết hợp mã định danh truy vết `X-Request-Id` và phiên bản hợp đồng `X-Schema-Version: 3`.
+- **Nguyên tắc kiểm duyệt đa tầng (Defense in Depth):** Mọi kết quả do AI sinh ra (câu trả lời RAG, trích dẫn citation, câu hỏi trắc nghiệm) đều được xem là dữ liệu chưa tin cậy (untrusted data). Python AI Service thực hiện kiểm duyệt vòng 1 (Schema Validation, Evidence Gate), sau đó Java Backend thực hiện kiểm duyệt vòng 2 trước khi lưu vào cơ sở dữ liệu nghiệp vụ.
+
+---
+
+### 3.1.3. Mô hình phân tầng và tổ chức dịch vụ
+
+- **Tổ chức nội bộ Java Backend:** Được xây dựng theo mô hình phân tầng chuẩn mực (Layered Architecture): Tầng Controller tiếp nhận HTTP requests và xác thực DTO; Tầng Application/Domain Service nắm giữ toàn bộ luật nghiệp vụ và kiểm tra quyền hạn; Tầng Persistence/Repository thao tác với `schema app` qua Spring Data JPA; Tầng Integration Adapters bao bọc các lời gọi sang AI Service và Object Storage.
+- **Tổ chức nội bộ Python AI Service:** Kết hợp xử lý đồng bộ (Synchronous Routes) cho các yêu cầu truy vấn hỏi đáp tức thì (`/personal-rag/ask`, `/slides/ask`) và xử lý bất đồng bộ (Asynchronous Background Workers) cho quy trình tiếp nhận, bóc tách tệp và tạo chỉ mục vector (`/documents/index`) thông qua hàng đợi công việc `ai.index_jobs`.
+
+---
+
+## 3.2. Thiết kế lớp thực thể chung cho toàn hệ thống (Entity Class Diagram)
+
+### 3.2.1. Biểu đồ lớp thực thể mức miền nghiệp vụ (Domain Entity Class Diagram)
+
+Biểu đồ lớp thực thể định nghĩa cấu trúc dữ liệu cốt lõi, các thuộc tính nghiệp vụ và mối quan hệ giữa các thực thể đại diện cho toàn bộ hệ thống StudyFlow.
+
+```mermaid
+classDiagram
+    %% Tác nhân và Tài khoản
+    class User {
+        +UUID id
+        +String email
+        +String passwordHash
+        +String fullName
+        +Role role
+        +UserStatus status
+        +Instant createdAt
+        +Instant updatedAt
+        +isTeacher() bool
+        +isStudent() bool
+        +isActive() bool
     }
-  ]
-}
+
+    class RefreshToken {
+        +UUID id
+        +UUID userId
+        +String tokenHash
+        +Instant expiresAt
+        +UUID replacedById
+        +bool isRevoked
+        +isValid() bool
+    }
+
+    %% Đào tạo và Lớp học phần
+    class Subject {
+        +UUID id
+        +String code
+        +String name
+        +int credits
+        +bool isActive
+    }
+
+    class Semester {
+        +UUID id
+        +String code
+        +String name
+        +LocalDate startDate
+        +LocalDate endDate
+        +bool isRegistrationOpen
+    }
+
+    class CourseOffering {
+        +UUID id
+        +UUID subjectId
+        +UUID semesterId
+        +UUID teacherId
+        +String code
+        +String name
+        +String joinCode
+        +bool isJoinCodeActive
+        +CourseStatus status
+        +generateNewJoinCode() String
+        +archive() void
+    }
+
+    class CourseEnrollment {
+        +UUID id
+        +UUID courseOfferingId
+        +UUID studentId
+        +EnrollmentStatus status
+        +UUID decidedBy
+        +Instant decidedAt
+        +approve(UUID teacherId) void
+        +reject(UUID teacherId) void
+    }
+
+    %% Tài liệu và Học liệu
+    class Document {
+        +UUID id
+        +UUID ownerId
+        +String title
+        +DocumentType type
+        +String fileStorageKey
+        +long fileSize
+        +int documentVersion
+        +DocumentStatus status
+        +bool isPersonal() bool
+    }
+
+    class DocumentPublication {
+        +UUID id
+        +UUID documentId
+        +UUID courseOfferingId
+        +UUID publishedBy
+        +Instant publishedAt
+        +bool isRevoked
+    }
+
+    class Slide {
+        +UUID id
+        +UUID documentId
+        +int slideNumber
+        +String imageStorageKey
+        +String extractedText
+    }
+
+    class SlideNote {
+        +UUID id
+        +UUID studentId
+        +UUID documentId
+        +int slideNumber
+        +String content
+        +Instant updatedAt
+    }
+
+    %% Hội thoại và Hỏi đáp RAG
+    class ChatConversation {
+        +UUID id
+        +UUID studentId
+        +String title
+        +Instant createdAt
+        +Instant lastMessageAt
+    }
+
+    class ConversationDocument {
+        +UUID conversationId
+        +UUID documentId
+    }
+
+    class ChatMessage {
+        +UUID id
+        +UUID conversationId
+        +MessageSender sender
+        +String content
+        +List~Citation~ citations
+        +Instant createdAt
+    }
+
+    %% Quiz và Ôn tập
+    class Quiz {
+        +UUID id
+        +UUID studentId
+        +UUID courseOfferingId
+        +String title
+        +String userPrompt
+        +QuizStatus status
+        +UUID regeneratedFromQuizId
+        +Instant createdAt
+        +accept(UUID destinationOfferingId) void
+        +reject() void
+    }
+
+    class QuizSource {
+        +UUID quizId
+        +UUID documentId
+    }
+
+    class QuizQuestion {
+        +UUID id
+        +UUID quizId
+        +String questionText
+        +List~String~ options
+        +int correctOptionIndex
+        +String explanation
+    }
+
+    class QuizQuestionSource {
+        +UUID questionId
+        +UUID documentId
+        +int pageNumber
+        +String excerpt
+    }
+
+    class QuizAttempt {
+        +UUID id
+        +UUID quizId
+        +UUID studentId
+        +int totalQuestions
+        +int correctAnswers
+        +double score
+        +Instant startedAt
+        +Instant completedAt
+        +calculateScore() void
+    }
+
+    class QuizAnswer {
+        +UUID id
+        +UUID attemptId
+        +UUID questionId
+        +int selectedOptionIndex
+        +bool isCorrect
+    }
+
+    %% Tiến độ học tập và Kế hoạch
+    class LearningEvent {
+        +UUID id
+        +UUID studentId
+        +EventType eventType
+        +UUID targetId
+        +LocalDate activityDate
+        +String idempotencyKey
+        +Instant createdAt
+    }
+
+    class DailyGoal {
+        +UUID studentId
+        +int slideTarget
+        +int quizQuestionTarget
+        +int taskTarget
+        +Instant updatedAt
+        +isConfigured() bool
+    }
+
+    class StudyPlan {
+        +UUID id
+        +UUID studentId
+        +String title
+        +LocalDate weekStartDate
+    }
+
+    class StudyPlanItem {
+        +UUID id
+        +UUID planId
+        +UUID courseOfferingId
+        +String title
+        +LocalDate scheduledDate
+        +LocalTime scheduledTime
+        +Priority priority
+        +TaskStatus status
+        +complete() void
+    }
+
+    %% Quan hệ giữa các lớp
+    User "1" --> "*" RefreshToken : has
+    User "1" --> "*" CourseOffering : teaches
+    User "1" --> "*" CourseEnrollment : attends
+    User "1" --> "*" Document : owns
+    User "1" --> "*" ChatConversation : creates
+    User "1" --> "*" Quiz : creates
+    User "1" --> "*" QuizAttempt : takes
+    User "1" --> "1" DailyGoal : configures
+    User "1" --> "*" StudyPlan : plans
+
+    Subject "1" --> "*" CourseOffering : categorized by
+    Semester "1" --> "*" CourseOffering : conducted in
+
+    CourseOffering "1" --> "*" CourseEnrollment : includes
+    CourseOffering "1" --> "*" DocumentPublication : publishes
+    CourseOffering "1" --> "*" Quiz : assigned to
+
+    Document "1" --> "*" DocumentPublication : published through
+    Document "1" --> "*" Slide : broken into
+    Document "1" --> "*" SlideNote : commented on
+    Document "1" --> "*" ConversationDocument : included in
+    Document "1" --> "*" QuizSource : sourced by
+    Document "1" --> "*" QuizQuestionSource : cited by
+
+    ChatConversation "1" --> "*" ConversationDocument : references
+    ChatConversation "1" --> "*" ChatMessage : contains
+
+    Quiz "1" --> "*" QuizSource : sources
+    Quiz "1" --> "*" QuizQuestion : consists of
+    Quiz "1" --> "*" QuizAttempt : evaluated through
+
+    QuizQuestion "1" --> "*" QuizQuestionSource : backed by
+    QuizQuestion "1" --> "*" QuizAnswer : answered in
+
+    QuizAttempt "1" --> "*" QuizAnswer : records
+
+    StudyPlan "1" --> "*" StudyPlanItem : contains
 ```
 
-Python trả structured draft; Java không tin cậy output này mà validate lại trước khi lưu `quiz_questions` và `quiz_question_sources`.
+---
 
-### 3.4.5. Validation, retry và xử lý lỗi
+### 3.2.2. Chi tiết thuộc tính và quan hệ giữa các thực thể
 
-```text
-LLM output → Parse JSON → Validate schema
-                            ├─ hợp lệ → Validate từng câu và source
-                            │             ├─ đạt → REVIEW_REQUIRED
-                            │             └─ lỗi sửa được → repair tối đa 1 lần
-                            └─ không hợp lệ → repair tối đa 1 lần
-                                                   ├─ đạt → REVIEW_REQUIRED
-                                                   └─ không đạt → GENERATION_FAILED
+1. **Nhóm Xác thực & Người dùng:**
+   - `User`: Lưu thông tin định danh duy nhất của người dùng. Có quan hệ 1-N với `RefreshToken`. Phân quyền được thể hiện qua trường `Role` (`STUDENT`, `TEACHER`, `ADMIN`).
+   - `RefreshToken`: Quản lý phiên đăng nhập với cơ chế xoay vòng. Khi một token được làm mới, trường `replacedById` sẽ liên kết tới token mới, ngăn chặn việc sử dụng lại token cũ bị đánh cắp.
+2. **Nhóm Đào tạo & Lớp học phần:**
+   - `Subject` và `Semester`: Đại diện cho danh mục môn học và kỳ học. Một môn học và một học kỳ có thể mở nhiều lớp học phần (`CourseOffering`).
+   - `CourseOffering`: Lớp học phần do một Giảng viên phụ trách (`teacherId`). Có quan hệ 1-N với `CourseEnrollment` (danh sách sinh viên xin vào lớp) và `DocumentPublication` (học liệu bài giảng được công bố cho lớp).
+   - `CourseEnrollment`: Bảng liên kết thể hiện mối quan hệ nhiều-nhiều giữa `User` (Student) và `CourseOffering`. Trạng thái tham gia được xác định bởi `status` (`PENDING`, `APPROVED`, `REJECTED`).
+3. **Nhóm Học liệu & Slide:**
+   - `Document`: Thực thể tài liệu thống nhất cho cả tài liệu cá nhân của sinh viên và học liệu của giảng viên. Được phân biệt qua trường `type` (`PERSONAL_PDF`, `TEACHER_PPTX`, `TEACHER_PDF`) và `ownerId`.
+   - `Slide`: Thực thể thành phần của tài liệu PPTX (`document_id + slide_number`), lưu trữ đường dẫn ảnh kết xuất và nội dung văn bản bóc tách từ từng slide.
+   - `SlideNote`: Ghi chú riêng tư của sinh viên gắn với từng slide cụ thể (`student_id + document_id + slide_number`).
+4. **Nhóm Hội thoại & RAG:**
+   - `ChatConversation`: Phiên hội thoại hỏi đáp của sinh viên. Liên kết nhiều-nhiều với `Document` thông qua `ConversationDocument` (danh sách từ 1 đến 10 tài liệu làm việc).
+   - `ChatMessage`: Từng tin nhắn trong cuộc hội thoại. Khi tin nhắn là câu trả lời của AI, thuộc tính `citations` sẽ lưu trữ mảng trích dẫn gồm: `documentId`, `pageNumber`, `excerpt`.
+5. **Nhóm Quiz & Đánh giá:**
+   - `Quiz`: Bộ câu hỏi ôn tập. Có thể là Quiz cá nhân hoặc được gắn vào một lớp học phần cụ thể sau khi sinh viên duyệt. Trạng thái vòng đời được quản lý chặt chẽ: `GENERATING` → `REVIEW_REQUIRED` → `READY` hoặc `REJECTED`/`GENERATION_FAILED`.
+   - `QuizQuestion`: Câu hỏi trắc nghiệm một đáp án đúng (`MCQ_SINGLE`). Thuộc tính `options` lưu 4 phương án, `correctOptionIndex` lưu chỉ số phương án đúng (0 đến 3).
+   - `QuizQuestionSource`: Bảng liên kết xác thực căn cứ của câu hỏi, lưu chính xác `documentId`, `pageNumber` và đoạn trích dẫn nguồn `excerpt`.
+   - `QuizAttempt` & `QuizAnswer`: Lưu trữ chi tiết từng lượt làm bài của sinh viên, phương án sinh viên chọn, kết quả đúng/sai và điểm số tự động do Java tính toán.
+6. **Nhóm Tiến độ & Kế hoạch:**
+   - `LearningEvent`: Lưu vết các hành vi học tập hợp lệ (`VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`) với cơ chế chống trùng lặp `idempotencyKey` để phục vụ tính toán chuỗi ngày học Streak.
+   - `DailyGoal`: Cấu hình mục tiêu học tập hàng ngày do sinh viên thiết lập.
+   - `StudyPlan` & `StudyPlanItem`: Kế hoạch và danh sách công việc học tập theo tuần.
+
+---
+
+## 3.3. Thiết kế cơ sở dữ liệu chung cho toàn hệ thống (Database Design)
+
+### 3.3.1. Mô hình quan hệ thực thể tổng quan (ERD)
+
+Cơ sở dữ liệu của StudyFlow bao gồm 30 bảng, được thiết kế chuẩn hóa mức 3 (3NF) nhằm đảm bảo toàn vẹn dữ liệu, loại bỏ dư thừa và tối ưu hóa hiệu năng truy vấn. 
+
+Hình 3.2 mô tả sơ đồ quan hệ thực thể (ERD) tổng quan của hệ thống.
+
+![Hình 3.2 — Sơ đồ ERD tổng quan StudyFlow](../diagrams/erd/studyflow-overview.svg)
+
+*Hình 3.2. Mô hình quan hệ thực thể (ERD) tổng quan của hệ thống StudyFlow.*
+
+---
+
+### 3.3.2. Phân vùng schema cơ sở dữ liệu
+
+Hệ thống triển khai cơ chế phân vùng hai schema độc lập trên cùng một cụm PostgreSQL:
+- **Schema `app` (Ứng dụng nghiệp vụ):** Do người dùng database của Java Backend sở hữu độc quyền. Chứa 27 bảng dữ liệu nghiệp vụ: người dùng, xác thực, danh mục, lớp học, học liệu, ghi chú, hội thoại chat, câu hỏi Quiz, lượt làm bài, sự kiện học tập và kế hoạch học tập.
+- **Schema `ai` (Dịch vụ Trí tuệ Nhân tạo):** Do người dùng database của Python AI Service sở hữu độc quyền. Kích hoạt extension `vector` của pgvector. Chứa 3 bảng chuyên biệt cho việc lập chỉ mục và tìm kiếm ngữ nghĩa:
+  + `ai.index_jobs`: Quản lý tiến trình xử lý tài liệu bất đồng bộ.
+  + `ai.document_indexes`: Quản lý phiên bản chỉ mục vector của từng tài liệu.
+  + `ai.document_chunks`: Lưu trữ các đoạn văn bản bóc tách kèm vector nhúng 1024 chiều và chỉ mục tìm kiếm HNSW.
+- **Nguyên tắc cô lập:** Không tạo khóa ngoại (Foreign Key) vật lý xuyên suốt giữa `schema ai` và `schema app`. Mọi liên kết giữa hai schema được ánh xạ thông qua các trường định danh logic `document_id` và `document_version`.
+
+---
+
+### 3.3.3. Từ điển dữ liệu chi tiết các bảng trong hệ thống (Data Dictionary)
+
+#### 1. Nhóm bảng Xác thực và Quản trị người dùng
+
+##### Bảng `app.users`
+Lưu trữ thông tin tài khoản người dùng của toàn hệ thống.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Khóa chính định danh người dùng |
+| `email` | VARCHAR(255) | NOT NULL, UNIQUE | Địa chỉ email đăng nhập duy nhất |
+| `password_hash` | VARCHAR(255) | NOT NULL | Mật khẩu băm bằng thuật toán BCrypt |
+| `full_name` | VARCHAR(100) | NOT NULL | Họ và tên đầy đủ |
+| `role` | VARCHAR(20) | NOT NULL | Vai trò: `STUDENT`, `TEACHER`, `ADMIN` |
+| `status` | VARCHAR(20) | NOT NULL, DEFAULT 'ACTIVE' | Trạng thái: `ACTIVE`, `LOCKED`, `SUSPENDED` |
+| `avatar_url` | VARCHAR(500) | NULL | Đường dẫn ảnh đại diện |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Thời điểm tạo tài khoản |
+| `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Thời điểm cập nhật thông tin |
+
+##### Bảng `app.refresh_tokens`
+Quản lý các mã làm mới phiên đăng nhập hỗ trợ cơ chế Token Rotation.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh bản ghi token |
+| `user_id` | UUID | NOT NULL, FK -> users(id) | Tham chiếu đến tài khoản người dùng |
+| `token_hash` | VARCHAR(255) | NOT NULL, UNIQUE | Chuỗi băm SHA-256 của Refresh Token |
+| `expires_at` | TIMESTAMPTZ | NOT NULL | Thời điểm token hết hạn |
+| `replaced_by_id` | UUID | NULL, FK -> refresh_tokens(id) | Token mới thay thế khi xoay vòng |
+| `is_revoked` | BOOLEAN | NOT NULL, DEFAULT FALSE | Đánh dấu token đã bị thu hồi/vô hiệu |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Thời điểm cấp token |
+
+---
+
+#### 2. Nhóm bảng Danh mục và Lớp học phần
+
+##### Bảng `app.subjects`
+Danh mục môn học trong chương trình đào tạo.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh môn học |
+| `code` | VARCHAR(50) | NOT NULL, UNIQUE | Mã môn học (ví dụ: `INT1408`) |
+| `name` | VARCHAR(255) | NOT NULL | Tên môn học |
+| `credits` | INTEGER | NOT NULL, CHECK (credits > 0) | Số tín chỉ môn học |
+| `is_active` | BOOLEAN | NOT NULL, DEFAULT TRUE | Trạng thái hoạt động của môn học |
+
+##### Bảng `app.semesters`
+Danh mục các học kỳ trong năm học.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh học kỳ |
+| `code` | VARCHAR(50) | NOT NULL, UNIQUE | Mã học kỳ (ví dụ: `2025_1`) |
+| `name` | VARCHAR(100) | NOT NULL | Tên học kỳ (ví dụ: Học kỳ 1 Năm 2025-2026) |
+| `start_date` | DATE | NOT NULL | Ngày bắt đầu học kỳ |
+| `end_date` | DATE | NOT NULL | Ngày kết thúc học kỳ |
+| `is_registration_open` | BOOLEAN | NOT NULL, DEFAULT TRUE | Cho phép mở tạo lớp học phần mới |
+
+##### Bảng `app.course_offerings`
+Thông tin các lớp học phần do Giảng viên trực tiếp tạo và phụ trách.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh lớp học phần |
+| `subject_id` | UUID | NOT NULL, FK -> subjects(id) | Tham chiếu môn học |
+| `semester_id` | UUID | NOT NULL, FK -> semesters(id) | Tham chiếu học kỳ |
+| `teacher_id` | UUID | NOT NULL, FK -> users(id) | Giảng viên phụ trách lớp |
+| `code` | VARCHAR(50) | NOT NULL | Mã lớp (Duy nhất trong một học kỳ) |
+| `name` | VARCHAR(255) | NOT NULL | Tên lớp học phần |
+| `join_code` | VARCHAR(20) | NOT NULL | Mã mời tham gia lớp học phần |
+| `is_join_code_active` | BOOLEAN | NOT NULL, DEFAULT TRUE | Trạng thái bật/tắt mã mời |
+| `status` | VARCHAR(20) | NOT NULL, DEFAULT 'ACTIVE' | Trạng thái lớp: `ACTIVE`, `ARCHIVED` |
+
+##### Bảng `app.course_enrollments`
+Quản lý yêu cầu tham gia lớp và trạng thái thành viên của sinh viên.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh bản ghi đăng ký |
+| `course_offering_id` | UUID | NOT NULL, FK -> course_offerings(id) | Tham chiếu lớp học phần |
+| `student_id` | UUID | NOT NULL, FK -> users(id) | Sinh viên đăng ký |
+| `status` | VARCHAR(20) | NOT NULL, DEFAULT 'PENDING' | Trạng thái: `PENDING`, `APPROVED`, `REJECTED` |
+| `decided_by` | UUID | NULL, FK -> users(id) | Giảng viên thực hiện duyệt |
+| `decided_at` | TIMESTAMPTZ | NULL | Thời điểm xét duyệt |
+
+---
+
+#### 3. Nhóm bảng Học liệu và Bài giảng
+
+##### Bảng `app.documents`
+Quản lý toàn bộ tài liệu trong hệ thống (cả bài giảng và tài liệu cá nhân).
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh tài liệu |
+| `owner_id` | UUID | NOT NULL, FK -> users(id) | Người sở hữu (Student hoặc Teacher) |
+| `title` | VARCHAR(255) | NOT NULL | Tiêu đề hiển thị của tài liệu |
+| `type` | VARCHAR(30) | NOT NULL | Phân loại: `PERSONAL_PDF`, `TEACHER_PPTX`, `TEACHER_PDF` |
+| `file_storage_key` | VARCHAR(500) | NOT NULL | Khóa định danh tệp tin trong Object Storage |
+| `file_size` | BIGINT | NOT NULL | Dung lượng tệp tính theo Byte |
+| `document_version` | INTEGER | NOT NULL, DEFAULT 1 | Phiên bản tài liệu |
+| `status` | VARCHAR(20) | NOT NULL, DEFAULT 'PROCESSING' | Trạng thái: `PROCESSING`, `READY`, `FAILED`, `DELETED` |
+
+##### Bảng `app.document_publications`
+Liên kết công bố bài giảng vào các lớp học phần cụ thể.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính bản ghi công bố |
+| `document_id` | UUID | NOT NULL, FK -> documents(id) | Bài giảng được công bố |
+| `course_offering_id` | UUID | NOT NULL, FK -> course_offerings(id) | Lớp học phần nhận bài giảng |
+| `published_by` | UUID | NOT NULL, FK -> users(id) | Giảng viên thực hiện công bố |
+| `published_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Thời điểm công bố |
+| `is_revoked` | BOOLEAN | NOT NULL, DEFAULT FALSE | Trạng thái thu hồi quyền truy cập |
+
+##### Bảng `app.slides`
+Lưu trữ thông tin chi tiết từng slide bài giảng PPTX.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh slide |
+| `document_id` | UUID | NOT NULL, FK -> documents(id) | Bài giảng chứa slide |
+| `slide_number` | INTEGER | NOT NULL | Số thứ tự slide trong bài giảng (từ 1..N) |
+| `image_storage_key`| VARCHAR(500) | NOT NULL | Khóa ảnh slide kết xuất trên Object Storage |
+| `extracted_text` | TEXT | NULL | Văn bản bóc tách phục vụ tìm kiếm nhanh |
+
+##### Bảng `app.slide_notes`
+Ghi chú cá nhân của sinh viên trên từng slide bài giảng.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính bản ghi ghi chú |
+| `student_id` | UUID | NOT NULL, FK -> users(id) | Sinh viên tạo ghi chú |
+| `document_id` | UUID | NOT NULL, FK -> documents(id) | Bài giảng |
+| `slide_number` | INTEGER | NOT NULL | Số thứ tự slide được ghi chú |
+| `content` | TEXT | NOT NULL | Nội dung ghi chú của sinh viên |
+| `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Thời điểm cập nhật gần nhất |
+
+---
+
+#### 4. Nhóm bảng Dịch vụ Trí tuệ Nhân tạo (`schema ai`)
+
+##### Bảng `ai.index_jobs`
+Theo dõi các công việc lập chỉ mục tài liệu xử lý bất đồng bộ.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `job_id` | UUID | PK | Khóa chính định danh công việc |
+| `document_id` | UUID | NOT NULL | Định danh logic của tài liệu |
+| `document_version`| INTEGER | NOT NULL | Phiên bản xử lý của tài liệu |
+| `status` | VARCHAR(20) | NOT NULL | Trạng thái: `QUEUED`, `PROCESSING`, `COMPLETED`, `FAILED` |
+| `error_code` | VARCHAR(50) | NULL | Mã lỗi chi tiết nếu xử lý thất bại |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Thời điểm tạo job |
+| `completed_at` | TIMESTAMPTZ | NULL | Thời điểm hoàn tất job |
+
+##### Bảng `ai.document_chunks`
+Lưu trữ các đoạn văn bản bóc tách và vector nhúng phục vụ tìm kiếm ngữ nghĩa.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh đoạn văn bản (chunk) |
+| `document_id` | UUID | NOT NULL | Định danh logic của tài liệu |
+| `document_version`| INTEGER | NOT NULL | Phiên bản của tài liệu |
+| `source_type` | VARCHAR(30) | NOT NULL | Loại nguồn: `PERSONAL_PDF_PAGE`, `TEACHER_SLIDE` |
+| `page_number` | INTEGER | NULL | Số trang (đối với tệp PDF) |
+| `slide_number` | INTEGER | NULL | Số slide (đối với bài giảng PPTX) |
+| `chunk_index` | INTEGER | NOT NULL | Thứ tự của chunk trong trang/slide |
+| `content` | TEXT | NOT NULL | Nội dung văn bản của đoạn trích |
+| `embedding` | VECTOR(1024) | NOT NULL | Vector nhúng ngữ nghĩa chiều dài 1024 |
+
+---
+
+#### 5. Nhóm bảng Quiz, Lượt làm bài và Đánh giá
+
+##### Bảng `app.quizzes`
+Quản lý bộ câu hỏi ôn tập và vòng đời Quiz.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh bộ Quiz |
+| `student_id` | UUID | NOT NULL, FK -> users(id) | Sinh viên tạo Quiz |
+| `course_offering_id`| UUID | NULL, FK -> course_offerings(id) | Lớp học phần được gắn vào sau khi Accept |
+| `title` | VARCHAR(255) | NOT NULL | Tiêu đề bộ câu hỏi |
+| `user_prompt` | TEXT | NOT NULL | Prompt hướng dẫn sinh câu hỏi do sinh viên nhập |
+| `status` | VARCHAR(30) | NOT NULL | Vòng đời: `GENERATING`, `REVIEW_REQUIRED`, `READY`, `REJECTED`, `GENERATION_FAILED` |
+| `regenerated_from_quiz_id`| UUID | NULL, FK -> quizzes(id) | Tham chiếu bộ Quiz cũ nếu tạo lại |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Thời điểm khởi tạo |
+
+##### Bảng `app.quiz_questions`
+Danh sách câu hỏi trắc nghiệm một đáp án đúng (`MCQ_SINGLE`).
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh câu hỏi |
+| `quiz_id` | UUID | NOT NULL, FK -> quizzes(id) | Thuộc bộ Quiz nào |
+| `question_text` | TEXT | NOT NULL | Nội dung câu hỏi |
+| `options` | JSONB | NOT NULL | Mảng JSON chứa đúng 4 chuỗi phương án [A, B, C, D] |
+| `correct_option_index`| INTEGER | NOT NULL, CHECK (0..3) | Chỉ số của đáp án chính xác |
+| `explanation` | TEXT | NOT NULL | Lời giải thích căn cứ đáp án |
+
+##### Bảng `app.quiz_question_sources`
+Liên kết trích dẫn căn cứ tài liệu nguồn cho từng câu hỏi Quiz.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `question_id` | UUID | NOT NULL, FK -> quiz_questions(id) | Câu hỏi được chứng minh |
+| `document_id` | UUID | NOT NULL, FK -> documents(id) | Tài liệu nguồn chứa kiến thức |
+| `page_number` | INTEGER | NOT NULL | Số trang tài liệu nguồn chứa đoạn trích |
+| `excerpt` | TEXT | NOT NULL | Đoạn văn bản bằng chứng làm căn cứ |
+
+##### Bảng `app.quiz_attempts`
+Lưu trữ thông tin chi tiết từng lượt làm bài của sinh viên.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh lượt làm bài |
+| `quiz_id` | UUID | NOT NULL, FK -> quizzes(id) | Làm bộ Quiz nào |
+| `student_id` | UUID | NOT NULL, FK -> users(id) | Sinh viên thực hiện làm bài |
+| `total_questions` | INTEGER | NOT NULL | Tổng số câu hỏi trong bài |
+| `correct_answers` | INTEGER | NOT NULL, DEFAULT 0 | Số lượng câu trả lời đúng |
+| `score` | NUMERIC(5,2) | NOT NULL, DEFAULT 0.00 | Điểm số tính theo thang điểm 10 hoặc 100 |
+| `started_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Thời điểm bắt đầu làm bài |
+| `completed_at` | TIMESTAMPTZ | NULL | Thời điểm nộp bài |
+
+##### Bảng `app.quiz_answers`
+Chi tiết câu trả lời của sinh viên cho từng câu hỏi trong lượt làm bài.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính bản ghi câu trả lời |
+| `attempt_id` | UUID | NOT NULL, FK -> quiz_attempts(id) | Thuộc lượt làm bài nào |
+| `question_id` | UUID | NOT NULL, FK -> quiz_questions(id) | Câu hỏi được trả lời |
+| `selected_option_index`| INTEGER | NOT NULL | Phương án sinh viên đã chọn (0..3) |
+| `is_correct` | BOOLEAN | NOT NULL | Kết quả đánh giá đúng/sai do Java chấm |
+
+---
+
+#### 6. Nhóm bảng Tiến độ học tập và Kế hoạch
+
+##### Bảng `app.learning_events`
+Ghi nhận các sự kiện học tập thực tế làm cơ sở tính toán Streak và Daily Goal.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính định danh sự kiện |
+| `student_id` | UUID | NOT NULL, FK -> users(id) | Sinh viên thực hiện hành vi |
+| `event_type` | VARCHAR(30) | NOT NULL | Loại: `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` |
+| `target_id` | UUID | NOT NULL | Định danh đối tượng tương tác (slide_id, task_id, quiz_id) |
+| `activity_date` | DATE | NOT NULL | Ngày phát sinh sự kiện theo múi giờ sinh viên |
+| `idempotency_key`| VARCHAR(100) | NOT NULL, UNIQUE | Khóa chặn trùng lặp sự kiện |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Thời điểm ghi nhận sự kiện |
+
+##### Bảng `app.daily_goals`
+Cấu hình chỉ tiêu phấn đấu học tập hàng ngày của sinh viên.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả ý nghĩa nghiệp vụ |
+|---|---|---|---|
+| `student_id` | UUID | PK, FK -> users(id) | Khóa chính tham chiếu sinh viên (Quan hệ 1-1) |
+| `slide_target` | INTEGER | NOT NULL, DEFAULT 0 | Chỉ tiêu số slide cần đọc mỗi ngày |
+| `quiz_question_target`| INTEGER | NOT NULL, DEFAULT 0 | Chỉ tiêu số câu trắc nghiệm cần làm |
+| `task_target` | INTEGER | NOT NULL, DEFAULT 0 | Chỉ tiêu số công việc cần hoàn thành |
+| `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Thời điểm cấu hình gần nhất |
+
+---
+
+## 3.4. Thiết kế biểu đồ lớp chi tiết cho các chức năng đã chọn (Detailed Class Diagram)
+
+Nhằm thể hiện chi tiết kiến trúc hướng đối tượng của phần mềm, phần này xây dựng biểu đồ lớp chi tiết mức thiết kế (Detailed Class Diagram) bao gồm đầy đủ thuộc tính, phương thức, các tầng Controller, Service, Repository, DTO và Adapter cho các chức năng đã chốt của hệ thống.
+
+> **Lưu ý về phạm vi thiết kế lớp chi tiết:**
+> Hiện tại, nhóm đồ án **đã chốt chính thức 3 chức năng trọng tâm của Thành viên 1 (Phụ trách AI)**. Danh mục chức năng của **Thành viên 2** và **Thành viên 3** đang trong quá trình thảo luận và chưa chốt chính thức. Do đó, phần thiết kế biểu đồ lớp chi tiết dưới đây tập trung hiện thực hóa kiến trúc phần mềm cho 3 chức năng AI đã chọn (`AI-F01`, `AI-F02`, `AI-F03`) cùng các service liên quan mật thiết. Biểu đồ lớp chi tiết cho các chức năng của hai thành viên còn lại sẽ được bổ sung đồng bộ ngay sau khi hai thành viên chốt danh mục chức năng.
+
+### 3.4.1. Biểu đồ lớp chi tiết Chức năng Hỏi đáp tài liệu cá nhân bằng RAG (AI-F01)
+
+Chức năng AI-F01 đòi hỏi sự phối hợp chặt chẽ giữa các lớp tiếp nhận API tại Java Backend, kiểm tra quyền sở hữu tài liệu, và các dịch vụ truy xuất vector ngữ nghĩa tại Python AI Service.
+
+```mermaid
+classDiagram
+    %% Các lớp phía Java Spring Boot
+    class PersonalRagController {
+        -PersonalRagService ragService
+        +createConversation(CreateConversationRequest request) ResponseEntity~ConversationResponse~
+        +askQuestion(UUID conversationId, AskQuestionRequest request) ResponseEntity~RagAnswerResponse~
+        +getConversationHistory(UUID conversationId) ResponseEntity~List~MessageResponse~~
+    }
+
+    class PersonalRagService {
+        -ChatConversationRepository conversationRepo
+        -ChatMessageRepository messageRepo
+        -DocumentRepository documentRepo
+        -AiServiceClient aiClient
+        +startConversation(UUID studentId, List~UUID~ documentIds) ChatConversation
+        +processQuery(UUID studentId, UUID conversationId, String query) RagAnswerDTO
+        -validateDocumentOwnership(UUID studentId, List~UUID~ documentIds) void
+    }
+
+    class AiServiceClient {
+        -RestTemplate restTemplate
+        -String aiServiceBaseUrl
+        -String serviceToken
+        +askPersonalRag(InternalRagRequest request) InternalRagResponse
+        +checkHealth() bool
+    }
+
+    class ChatConversationRepository {
+        <<interface>>
+        +findByIdAndStudentId(UUID id, UUID studentId) Optional~ChatConversation~
+        +save(ChatConversation conv) ChatConversation
+    }
+
+    %% Các DTO trao đổi
+    class AskQuestionRequest {
+        +String question
+        +int maxTokens
+    }
+
+    class RagAnswerResponse {
+        +String status
+        +String answer
+        +List~CitationDTO~ citations
+        +String traceId
+    }
+
+    class CitationDTO {
+        +UUID documentId
+        +String documentTitle
+        +int pageNumber
+        +String excerpt
+    }
+
+    %% Các module phía Python FastAPI
+    class RagRouter {
+        +ask_personal_rag(RagQuerySchema request) RagResultSchema
+    }
+
+    class RagService {
+        -VectorRepository vectorRepo
+        -EmbeddingService embeddingService
+        -LlmProviderAdapter llmAdapter
+        -GroundingValidator validator
+        +answer_question(RagQuerySchema query) RagResultSchema
+        -apply_evidence_gate(List~Chunk~ chunks) bool
+    }
+
+    class VectorRepository {
+        -Session dbSession
+        +search_chunks(List~float~ vector, List~UUID~ docIds, int topK) List~Chunk~
+    }
+
+    class GroundingValidator {
+        +verify_citations(String answer, List~Chunk~ evidence) List~Citation~
+    }
+
+    %% Quan hệ giữa các lớp
+    PersonalRagController --> PersonalRagService : calls
+    PersonalRagService --> ChatConversationRepository : uses
+    PersonalRagService --> AiServiceClient : calls HTTP
+    PersonalRagController ..> AskQuestionRequest : receives
+    PersonalRagController ..> RagAnswerResponse : returns
+    RagAnswerResponse *-- CitationDTO : contains
+
+    AiServiceClient ..> RagRouter : HTTP /internal/v1/personal-rag/ask
+    RagRouter --> RagService : calls
+    RagService --> VectorRepository : queries
+    RagService --> GroundingValidator : validates
 ```
 
-Validation kiểm tra số lượng, đúng bốn option không rỗng/không trùng, chỉ số đáp án trong khoảng `0..3`, explanation có nội dung và mọi citation thuộc authorized evidence snapshot. Retry phải có giới hạn và cùng request/run identity để không tạo Quiz trùng. Timeout không được retry mù. Lỗi trả mã an toàn và trace ID, không trả prompt nội bộ hay provider payload.
+---
 
-### 3.4.6. Review Quiz
+### 3.4.2. Biểu đồ lớp chi tiết Chức năng Hỏi đáp bài giảng với Slide AI Tutor (AI-F02)
 
-Quiz hợp lệ chuyển `REVIEW_REQUIRED`; Student xem câu hỏi, đáp án, explanation và nguồn rồi Accept, Reject hoặc Regenerate. Accept đưa Quiz sang `READY` và gắn vào Course Offering có enrollment `APPROVED` hoặc giữ là Quiz cá nhân. Nguồn sinh Quiz và nơi ôn tập là hai khái niệm độc lập.
+Chức năng AI-F02 yêu cầu xác thực nghiêm ngặt tư cách thành viên lớp học phần trước khi cấp quyền truy xuất nội dung slide cho mô hình ngôn ngữ.
 
-![Hình 3.6 — Luồng sinh, review và chấp nhận Quiz](../diagrams/chuong-3/05-quiz-generation.svg)
+```mermaid
+classDiagram
+    %% Tầng Java Spring Boot
+    class StudentSlideController {
+        -SlideAccessService slideAccessService
+        -SlideAiTutorService tutorService
+        +getSlideDetails(UUID documentId, int slideNumber) ResponseEntity~SlideViewResponse~
+        +askSlideTutor(UUID documentId, int slideNumber, SlideQueryRequest request) ResponseEntity~TutorAnswerResponse~
+    }
 
-*Hình 3.6. Luồng sinh, kiểm tra, review và chấp nhận Quiz AI.*
+    class SlideAccessService {
+        -CourseEnrollmentRepository enrollmentRepo
+        -DocumentPublicationRepository publicationRepo
+        -SlideRepository slideRepo
+        +verifyStudentAccess(UUID studentId, UUID documentId) CourseOffering
+        +getSlideMetadata(UUID documentId, int slideNumber) Slide
+    }
 
-### 3.4.7. Làm bài và chấm điểm
+    class SlideAiTutorService {
+        -SlideAccessService accessService
+        -AiServiceClient aiClient
+        -LearningEventService eventService
+        +querySlideTutor(UUID studentId, UUID documentId, int slideNumber, String question) TutorAnswerDTO
+    }
 
-Mỗi lần bắt đầu tạo một `quiz_attempt` mới. Khi submit, Java so sánh lựa chọn với `correctOptionIndex`, lưu từng `quiz_answer`, tính điểm theo quy tắc kiểm thử được và phát `QUIZ_COMPLETED` idempotent. LLM không tham gia chấm điểm và attempt đã hoàn thành không bị ghi đè.
+    %% Tầng Python FastAPI
+    class SlideTutorRouter {
+        +ask_slide_tutor(SlideTutorQuerySchema request) SlideTutorResponseSchema
+    }
 
-### 3.4.8. Xác định nội dung cần ôn
+    class SlideTutorService {
+        -VectorRepository vectorRepo
+        -LlmProviderAdapter llmAdapter
+        +generate_slide_explanation(SlideScope scope, String question) SlideTutorResult
+        -build_slide_context(UUID docId, int currentSlide, List~int~ allowedSlides) String
+    }
 
-```text
-quiz_answers sai
-   → quiz_questions
-   → quiz_question_sources
-   → document + pageNumber
-   → nội dung cần ôn lại
-   → mở nguồn và làm attempt mới
+    %% Quan hệ
+    StudentSlideController --> SlideAccessService : checks permission
+    StudentSlideController --> SlideAiTutorService : executes
+    SlideAiTutorService --> SlideAccessService : uses
+    SlideAiTutorService ..> SlideTutorRouter : HTTP /internal/v1/slides/ask
+    SlideTutorRouter --> SlideTutorService : invokes
 ```
 
-Review item được tổng hợp bằng truy vấn xác định từ câu trả lời sai và nguồn câu hỏi. Hệ thống không dùng AI suy luận Student yếu/mạnh và không triển khai Topic Mastery trong MVP.
+---
 
-![Hình 3.7 — Luồng làm Quiz, ôn lại và cập nhật Dashboard](../diagrams/chuong-3/06-quiz-review-progress.svg)
+### 3.4.3. Biểu đồ lớp chi tiết Chức năng Sinh Quiz AI và Chấm điểm tự động (AI-F03 & BE2-F02)
 
-*Hình 3.7. Luồng làm Quiz, xác định nội dung cần ôn lại và cập nhật dữ liệu Dashboard.*
+Chức năng kết hợp giữa thuật toán sinh cấu trúc của Python AI Service và logic quản lý vòng đời, lưu trữ, chấm điểm bài thi của Java Backend.
 
-### 3.4.9. Cấu trúc cài đặt dự kiến
+```mermaid
+classDiagram
+    %% Java Backend: Quản lý Vòng đời & Chấm điểm
+    class QuizController {
+        -QuizGenerationService genService
+        -QuizReviewService reviewService
+        -QuizAttemptService attemptService
+        +generateQuiz(CreateQuizRequest request) ResponseEntity~QuizIdResponse~
+        +reviewQuiz(UUID quizId) ResponseEntity~QuizDraftResponse~
+        +acceptQuiz(UUID quizId, AcceptQuizRequest request) ResponseEntity~Void~
+        +startAttempt(UUID quizId) ResponseEntity~AttemptStartResponse~
+        +submitAttempt(UUID attemptId, SubmitQuizRequest request) ResponseEntity~AttemptResultResponse~
+    }
 
-```text
-Spring Boot
-├── quiz/api/QuizController
-├── quiz/application/QuizGenerationService
-├── quiz/application/QuizReviewService
-├── quiz/application/QuizAttemptService
-├── review/application/WrongAnswerReviewService
-└── integration/ai/AiQuizClient
-                         │
-FastAPI                  ▼
-├── api/routes/quizzes.py
-├── schemas/quiz.py
-├── services/retrieval.py
-├── services/quiz_generation.py
-└── services/output_validation.py
+    class QuizGenerationService {
+        -QuizRepository quizRepo
+        -DocumentRepository documentRepo
+        -AiServiceClient aiClient
+        +initiateGeneration(UUID studentId, CreateQuizRequest request) UUID
+        +handleAsyncResult(UUID quizId, InternalQuizDraft draft) void
+    }
+
+    class QuizAttemptService {
+        -QuizAttemptRepository attemptRepo
+        -QuizAnswerRepository answerRepo
+        -QuizQuestionRepository questionRepo
+        -LearningEventService eventService
+        +startAttempt(UUID studentId, UUID quizId) QuizAttempt
+        +gradeAttempt(UUID attemptId, Map~UUID, Integer~ answers) AttemptResultDTO
+        +extractReviewSources(UUID attemptId) List~ReviewSourceDTO~
+    }
+
+    %% Python FastAPI: Sinh câu hỏi có cấu trúc
+    class QuizGenerationRouter {
+        +generate_quiz(QuizGenRequestSchema request) QuizDraftSchema
+    }
+
+    class QuizGenerationEngine {
+        -VectorRepository vectorRepo
+        -LlmProviderAdapter llmAdapter
+        -SchemaRepairService repairService
+        +create_mcq_quiz(QuizGenScope scope, String prompt) QuizDraft
+        -validate_single_correct_option(QuizDraft draft) bool
+    }
+
+    %% Quan hệ
+    QuizController --> QuizGenerationService : calls
+    QuizController --> QuizAttemptService : calls
+    QuizGenerationService ..> QuizGenerationRouter : HTTP /internal/v1/quizzes/generate
+    QuizGenerationRouter --> QuizGenerationEngine : invokes
 ```
 
-Quiz lifecycle, persistence và scoring ở Java; Python chỉ tạo draft có nguồn. Đây là cấu trúc mục tiêu, không phải danh sách class đã hoàn thành.
+---
 
-### 3.4.10. Kết quả và giao diện thực tế
+### 3.4.4. Khung thiết kế lớp cho các chức năng của Thành viên 2 và Thành viên 3
 
-Kết quả backend cần chứng minh các chuyển trạng thái `GENERATING → REVIEW_REQUIRED → READY` và nhánh `GENERATION_FAILED`, validation bốn phương án, scoring và attempt history. Ảnh giao diện cần thể hiện chọn tài liệu, nhập prompt, Review, Accept, làm bài, kết quả, câu sai và mở nguồn. Hiện các bằng chứng này chưa tồn tại trong repository nên chưa được ghi là đã hoàn thành.
+*(Các biểu đồ lớp chi tiết cho 6 chức năng thuộc phân hệ của Thành viên 2 và Thành viên 3 đang được để khung chờ cập nhật và sẽ được bổ sung đồng bộ ngay sau khi hai thành viên chốt danh mục chức năng chi tiết).*
 
-## 3.5. Kiểm thử và đánh giá
+---
 
-### 3.5.1. Phương pháp
+## 3.5. Thiết kế biểu đồ hoạt động cho các chức năng đã chọn (Activity Diagrams)
 
-Kiểm thử được chia thành unit, integration, contract, end-to-end và AI evaluation. Unit test dùng parser input tổng hợp và fake provider; không gọi model thật. Contract test bắt buộc có input hợp lệ, input sai và kiểm tra output schema. Evaluation gọi đúng entry point của pipeline mục tiêu và dùng evidence snapshot đã thực sự truyền vào generation.
+Theo quy định của pha thiết kế, mô hình hóa động tập trung xây dựng Biểu đồ hoạt động (Activity Diagram) để làm rõ quy trình xử lý công việc và ranh giới kiểm soát logic cho **3 chức năng trọng tâm của Thành viên 1 (Phụ trách AI)** đã được chốt chính thức. *(Biểu đồ hoạt động cho các chức năng của Thành viên 2 và Thành viên 3 sẽ được bổ sung sau khi hai thành viên chốt danh mục chức năng chi tiết)*.
 
-### 3.5.2. Personal RAG
+### 3.5.1. Biểu đồ hoạt động Chức năng Hỏi đáp tài liệu cá nhân bằng RAG (AI-F01)
 
-| Mã | Trường hợp | Kết quả mong đợi |
-|---|---|---|
-| RAG-01 | Câu hỏi có bằng chứng | `ANSWERED`, citation đúng trang |
-| RAG-02 | Không đủ bằng chứng | `NO_EVIDENCE`, không đoán |
-| RAG-03 | Document không thuộc owner | Từ chối trước retrieval |
-| RAG-04 | Document chưa `READY` | Không cho tạo scope |
-| RAG-05 | Chọn nhiều PDF | Chỉ truy xuất trong snapshot đã chọn |
-| RAG-06 | Prompt injection trong PDF | Không đổi instruction hoặc scope |
+Quy trình tiếp nhận câu hỏi, tìm kiếm ngữ nghĩa và kiểm soát căn cứ trích dẫn nguồn được thể hiện tại Hình 3.3.
 
-### 3.5.3. Slide AI Tutor
+![Hình 3.3 — Biểu đồ hoạt động Personal RAG](../diagrams/chuong-3/02-personal-rag.svg)
 
-| Mã | Trường hợp | Kết quả mong đợi |
-|---|---|---|
-| TUTOR-01 | Hỏi nội dung slide hiện tại | Answer và citation đúng slide |
-| TUTOR-02 | Không đủ evidence | `NO_EVIDENCE` |
-| TUTOR-03 | Enrollment chưa `APPROVED` | Từ chối |
-| TUTOR-04 | Publication đã revoke | Không truy cập artifact/Tutor |
-| TUTOR-05 | Citation ngoài allowed slides | Output bị từ chối |
+*Hình 3.3. Biểu đồ hoạt động quy trình hỏi đáp Personal RAG và kiểm duyệt Evidence Gate.*
 
-### 3.5.4. AI Quiz
+**Thuyết minh Hình 3.3:**
+- **Kiểm soát ranh giới dữ liệu:** Java Backend xác thực quyền sở hữu tài liệu (`owner_id`) và chỉ cấp phép truy vấn trên tập tài liệu đã chọn đang ở trạng thái `READY`.
+- **Cơ chế Evidence Gate cốt lõi:** Sau khi tìm kiếm vector tương đồng trên `ai.document_chunks`, nếu độ tương đồng của các đoạn trích không vượt qua ngưỡng tin cậy hoặc tài liệu không chứa thông tin, hệ thống rẽ nhánh kết thúc và trả về trực tiếp trạng thái `NO_EVIDENCE`. Hệ thống tuyệt đối không gửi prompt tới LLM nhằm loại bỏ triệt để nguy cơ câu trả lời suy diễn sai lệch (hallucination).
+- **Trích dẫn có căn cứ:** Khi đủ bằng chứng, LLM sinh câu trả lời kèm trích dẫn số trang chính xác (`documentId + pageNumber + excerpt`) để sinh viên đối chiếu trực tiếp trên văn bản gốc.
 
-| Mã | Trường hợp | Kết quả mong đợi |
-|---|---|---|
-| QUIZ-01 | Prompt hợp lệ | Draft chuyển `REVIEW_REQUIRED` |
-| QUIZ-02 | Model trả JSON sai | Repair tối đa một lần hoặc `GENERATION_FAILED` |
-| QUIZ-03 | Option thiếu/trùng | Không lưu draft cho Student dùng |
-| QUIZ-04 | Citation ngoài scope | Java từ chối output |
-| QUIZ-05 | Accept Quiz | `READY`, destination hợp lệ |
-| QUIZ-06 | Submit attempt | Java chấm đúng và không ghi đè history |
-| QUIZ-07 | Câu trả lời sai | Review item trỏ về đúng nguồn |
+---
 
-### 3.5.5. Đánh giá chất lượng AI
+### 3.5.2. Biểu đồ hoạt động Chức năng Hỏi đáp bài giảng với Slide AI Tutor (AI-F02)
 
-Personal RAG và Slide Tutor phải được báo cáo riêng. Dataset pilot dự kiến 50–100 case do người duyệt; khi mở rộng dùng 150–300 case, tách `development set`, `locked test set` và regression set. Case gồm câu trực tiếp, tổng hợp nhiều chunk/slide, nhiều PDF, câu nối tiếp, thiếu bằng chứng, ngoài phạm vi, tiếng Việt và prompt injection.
+Quy trình hỗ trợ sinh viên đặt câu hỏi giải thích kiến thức ngay tại slide bài giảng đang xem được mô tả tại Hình 3.4.
 
-| Nhóm chỉ số | Ý nghĩa |
-|---|---|
-| Context precision/recall@K | Retrieval lấy đúng và đủ evidence |
-| Factual correctness F1 | Độ chính xác claim so với đáp án tham chiếu |
-| Faithfulness | Claim có được evidence hỗ trợ hay không |
-| Answer relevancy | Câu trả lời có đúng trọng tâm câu hỏi |
-| Citation validity/entailment | Citation hợp lệ và thực sự chứng minh claim |
-| Refusal accuracy/false refusal | `NO_EVIDENCE` đúng và không từ chối nhầm |
-| Scope violation rate | Có dùng dữ liệu ngoài authorized scope hay không |
-| Quiz validity | Đúng schema, bốn option, một đáp án và nguồn hợp lệ |
+![Hình 3.4 — Biểu đồ hoạt động Slide AI Tutor](../diagrams/chuong-3/04-slide-tutor.svg)
 
-Ngưỡng pilot theo kế hoạch gồm faithfulness ≥ 0,90, answer relevancy ≥ 0,85, factual correctness F1 ≥ 0,70, context precision ≥ 0,70, citation validity ≥ 98%, từ chối đúng câu ngoài phạm vi ≥ 90% và scope violation bằng 0. Đây là tiêu chí nghiệm thu dự kiến, không phải kết quả đã đo. Mỗi benchmark chạy ba lần trên cùng dataset snapshot và ghi model, prompt/retrieval version, Top-K, latency và độ dao động. LLM-as-judge chỉ là một tín hiệu; case lỗi và hallucination nghiêm trọng phải được con người xem lại.
+*Hình 3.4. Biểu đồ hoạt động quy trình hỏi đáp Slide AI Tutor theo ngữ cảnh bài giảng.*
 
-### 3.5.6. Nhận xét
+**Thuyết minh Hình 3.4:**
+- **Phân quyền học phần:** Java Backend kiểm tra điều kiện sinh viên có trạng thái tham gia lớp học phần là `APPROVED` và bài giảng PPTX đã được Giảng viên công bố (`PUBLISHED`).
+- **Ưu tiên ngữ cảnh slide hiện tại:** Python AI Service xây dựng ngữ cảnh truy vấn tập trung vào nội dung của slide hiện tại (`currentSlide`) kết hợp các slide lân cận trong cùng bài giảng, bảo đảm câu trả lời bám sát đúng nội dung giảng dạy của Giảng viên và trích dẫn rõ số slide bài giảng.
+- **Xử lý ngoài phạm vi:** Nếu câu hỏi không nằm trong nội dung bài giảng, hệ thống từ chối trả lời và phản hồi trạng thái `NO_EVIDENCE`.
 
-Thiết kế kiểm thử bao phủ đúng bốn lớp: chức năng, phân quyền/scope, grounding/citation và chất lượng AI. Báo cáo cuối chỉ điền cột kết quả sau khi có test log hoặc báo cáo evaluation tái lập được; không suy diễn từ giao diện mock. Rủi ro lớn nhất cần kiểm chứng là chất lượng parser, lựa chọn chunk/Top-K, citation entailment, output không ổn định của LLM và latency của pipeline có reviewer.
+---
 
-## 3.6. Tổng kết chương
+### 3.5.3. Biểu đồ hoạt động Chức năng Sinh bộ câu hỏi ôn tập AI (AI-F03)
 
-Chương 3 đã xác định chi tiết data flow, thuật toán, module boundary, xử lý lỗi và phương pháp đánh giá cho Personal RAG, Slide AI Tutor và AI Quiz. Thiết kế giữ nguyên nguyên tắc Java sở hữu nghiệp vụ, Python xử lý AI, retrieval luôn nằm trong authorized scope và mọi output hướng người dùng đều có kiểm chứng bằng code. Phần còn lại để hoàn thiện báo cáo là triển khai source, chạy test/evaluation và thay các mục trạng thái bằng số liệu cùng ảnh chụp thực tế.
+Quy trình tự động sinh câu hỏi trắc nghiệm một đáp án đúng (`MCQ_SINGLE`), kiểm tra tính toàn vẹn cấu trúc và bước sinh viên chủ động duyệt bản nháp được mô tả tại Hình 3.5.
+
+![Hình 3.5 — Biểu đồ hoạt động sinh Quiz AI](../diagrams/chuong-3/05-quiz-generation.svg)
+
+*Hình 3.5. Biểu đồ hoạt động quy trình sinh nháp, kiểm tra cấu trúc và duyệt Quiz AI.*
+
+**Thuyết minh Hình 3.5:**
+- **Sinh cấu trúc nghiêm ngặt:** Python AI Service trích xuất kiến thức từ tài liệu cá nhân đã chọn, yêu cầu LLM sinh câu hỏi tuân thủ chặt chẽ định dạng `MCQ_SINGLE`: mỗi câu có đúng 4 phương án, đúng 1 đáp án chính xác, có giải thích và trích dẫn số trang nguồn.
+- **Cơ chế tự sửa lỗi (Self-Repair):** Dữ liệu JSON sinh ra được kiểm duyệt qua Schema Validator; nếu có sai sót nhỏ về định dạng, hệ thống tự động sửa chữa tối đa 1 lần trước khi trả về.
+- **Tính tự chủ của người học:** Bản nháp Quiz được lưu ở trạng thái `REVIEW_REQUIRED`. Sinh viên phải trực tiếp xem xét, duyệt (Accept) thì Quiz mới chuyển sang trạng thái `READY` để làm bài, hoặc chọn tạo lại (Regenerate) nếu chưa hài lòng.
+
+---
+
+## 3.6. Thiết kế kiến trúc bảo mật và kiểm soát truy cập tài nguyên
+
+### 3.6.1. Kiến trúc phân quyền và kiểm soát phiên làm việc
+
+- **Mô hình Token không lưu trạng thái (Stateless JWT Authentication):**
+  + **Access Token:** Ký bằng thuật toán HMAC-SHA256, có thời hạn sống ngắn (15 phút), chứa thông tin người dùng (`userId`, `role`, `email`). Truyền qua HTTP Authorization Header theo chuẩn `Bearer <token>`.
+  + **Refresh Token:** Lưu dưới dạng chuỗi băm ngẫu nhiên trong cơ sở dữ liệu và truyền về Client thông qua Cookie bảo mật cao: cờ `HttpOnly` (chống tấn công XSS đánh cắp mã), cờ `Secure` (chỉ truyền qua HTTPS) và cấu hình `SameSite=Strict` (chống tấn công CSRF).
+- **Phân quyền truy cập tài nguyên (Resource-Based Authorization):**
+  + Áp dụng nguyên tắc đặc quyền tối thiểu (Least Privilege).
+  + Toàn bộ các thao tác trên tài liệu cá nhân bắt buộc phải kiểm tra điều kiện `document.owner_id == authenticated_user_id`.
+  + Toàn bộ các thao tác trên lớp học phần và học liệu bài giảng bắt buộc phải kiểm tra sự tồn tại của bản ghi `course_enrollments` ở trạng thái `APPROVED`.
+
+### 3.6.2. Kiểm soát truy cập tài nguyên lưu trữ (Object Storage Security)
+
+Hệ thống tuyệt đối không công khai địa chỉ lưu trữ tệp tin (Bucket Storage URL) ra ngoài Internet. Toàn bộ hoạt động đọc và ghi tệp tin nhị phân đều phải thông qua cơ chế kiểm duyệt quyền của Java Backend để cấp phát đường dẫn ký trước (Signed URL) có thời hạn sống rất ngắn (ví dụ: 60 giây). Khi hết hạn, Signed URL tự động vô hiệu hóa, ngăn chặn việc chia sẻ liên kết trái phép ra bên ngoài.
+
+---
+
+## 3.7. Tổng kết chương
+
+Chương 3 đã hoàn thiện đầy đủ toàn bộ nội dung của **Pha thiết kế hệ thống (System Design Phase)** theo đúng 5 bước kỹ thuật chuẩn mực được Giảng viên hướng dẫn:
+1. **Thiết kế kiến trúc sơ đồ khối:** Xác lập rõ ranh giới phân tầng giữa Next.js Web Frontend, Java Spring Boot Backend, Python FastAPI AI Service, cơ sở dữ liệu PostgreSQL phân vùng hai schema độc lập (`app` và `ai`), Object Storage và LLM Provider ngoài (Hình 3.1).
+2. **Thiết kế lớp thực thể chung:** Xây dựng biểu đồ lớp thực thể toàn diện cho toàn bộ miền nghiệp vụ của hệ thống (User, Course, Document, Chat, Quiz, Learning Event, Study Plan).
+3. **Thiết kế cơ sở dữ liệu chung:** Hoàn thiện mô hình quan hệ thực thể ERD tổng quan 30 bảng (Hình 3.2), chuẩn hóa từ điển dữ liệu chi tiết cho từng bảng và phân vùng schema nghiêm ngặt.
+4. **Thiết kế biểu đồ lớp chi tiết:** Xây dựng biểu đồ lớp chi tiết mức thiết kế phần mềm cho 3 chức năng AI đã chốt của Thành viên 1 (`AI-F01`, `AI-F02`, `AI-F03`) cùng các service liên quan, đồng thời chuẩn bị khung mở rộng cho hai thành viên còn lại.
+5. **Thiết kế biểu đồ hoạt động:** Xây dựng hệ thống Biểu đồ hoạt động (Activity Diagrams) chuẩn xác cho 3 chức năng AI đã chốt (Hình 3.3, 3.4, 3.5), làm rõ quy trình xử lý, điều kiện rẽ nhánh và cơ chế kiểm soát chất lượng dữ liệu AI.
+6. **Thiết kế an toàn thông tin:** Định nghĩa rõ kiến trúc xác thực Stateless JWT với Refresh Token Rotation và cơ chế kiểm soát truy cập tài nguyên tệp tin thông qua Signed URL có thời hạn.

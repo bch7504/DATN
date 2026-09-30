@@ -1,8 +1,24 @@
 flowchart LR
-  S[Student] --> A[Tham gia lớp]
-  S --> B[Học liệu / RAG / Tutor]
-  S --> C[Quiz / Dashboard / Plan]
-  T[Teacher] --> D[Tạo lớp và duyệt enrollment]
-  T --> E[Upload / Public tài liệu]
-  M[Admin] --> F[User / Subject / Semester]
-  M --> G[Giám sát / Audit / Settings]
+  S["«actor» Student"]
+  T["«actor» Teacher"]
+  A["«actor» Admin"]
+  subgraph SYS["StudyFlow — phạm vi hệ thống"]
+    AUTH(["Xác thực và hồ sơ"])
+    LEARN(["Tham gia lớp; học liệu và ghi chú"])
+    RAG(["AI-F01: Hỏi đáp Personal PDF"])
+    TUTOR(["AI-F02: Hỏi đáp slide"])
+    QUIZ(["AI-F03: Sinh Quiz từ tài liệu + prompt"])
+    REVIEW(["Duyệt Quiz; làm bài; ôn câu sai"])
+    PLAN(["Dashboard; Daily Goal; Kế hoạch & Lịch"])
+    CLASS(["Tạo lớp; join code; duyệt enrollment"])
+    DOC(["Thư viện; xử lý; public/revoke PDF/PPTX"])
+    CAT(["User/role; Subject; Semester"])
+    OPS(["Giám sát lớp; feedback; audit; settings"])
+  end
+  S --- AUTH & LEARN & RAG & TUTOR & QUIZ & REVIEW & PLAN
+  T --- AUTH & CLASS & DOC
+  A --- AUTH & CAT & OPS
+  AUTH ~~~ RAG ~~~ QUIZ
+  LEARN ~~~ TUTOR ~~~ REVIEW
+  CLASS ~~~ DOC
+  CAT ~~~ OPS

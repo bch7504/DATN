@@ -1,0 +1,17 @@
+flowchart LR
+  A["«actor» Admin"]
+  subgraph SYS["StudyFlow — Admin"]
+    U(["Đăng nhập / hồ sơ"])
+    DASH(["Xem Dashboard vận hành"])
+    R(["Quản lý user / role / trạng thái"])
+    C(["Quản lý Subject / Semester"])
+    O(["Cấu hình cho phép tạo Course Offering"])
+    M(["Giám sát / lock / archive lớp"])
+    F(["Xử lý feedback"])
+    L(["Xem audit log"])
+    S(["Quản lý system settings"])
+  end
+  A --- U & DASH & R & C & O & M & F & L & S
+  U ~~~ C ~~~ F
+  DASH ~~~ O ~~~ L
+  R ~~~ M ~~~ S

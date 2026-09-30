@@ -1,27 +1,35 @@
-flowchart TD
-    N0["Student / Web<br/>Chọn Personal PDF và tự nhập prompt<br/>POST /api/v1/quizzes {selectedDocumentIds, prompt}"]
-    N1["Java<br/>Kiểm tra owner / READY / version<br/>Không lấy chat context làm điều kiện sinh Quiz"]
-    N0 --> N1
-    N1 -.-> S1["Sai scope / chưa READY<br/>Từ chối request; không sinh Quiz."]
-    N2["Java / app → Web<br/>Lưu GENERATING, trả 202 + quizId<br/>Java xử lý generation nền; Web đọc trạng thái qua Java"]
-    N1 --> N2
-    N3["Java → Python<br/>Gọi /internal/v1/quizzes/generate<br/>authorized document/version scope + userPrompt + idempotency key"]
-    N2 --> N3
-    N4["Python / pgvector<br/>Retrieval phục vụ prompt<br/>Chỉ Personal PDF đã chọn"]
-    N3 --> N4
-    N4 -.-> S4["Nguồn không đủ<br/>Generation thất bại an toàn; không bịa câu hỏi/nguồn."]
-    N5["Python / LLM<br/>Sinh structured Quiz draft<br/>MCQ_SINGLE · 4 options · 1 đáp án · explanation · sources"]
-    N4 --> N5
-    N6["Java<br/>Validate toàn bộ batch<br/>Schema, options, answer index và citation đúng scope"]
-    N5 --> N6
-    N6 -.-> S6["Draft không hợp lệ<br/>GENERATING → GENERATION_FAILED; safe error code."]
-    N7["Java / app → Student<br/>Lưu REVIEW_REQUIRED<br/>Student xem lại bộ câu hỏi"]
-    N6 --> N7
-    N7 -.-> S7["Không accept<br/>Reject → REJECTED; regenerate → Quiz mới GENERATING, giữ lịch sử."]
-    N8["Student / Web → Java<br/>Accept và chọn nơi ôn tập<br/>COURSE_OFFERING hoặc PERSONAL"]
-    N7 --> N8
-    N9["Java<br/>Kiểm tra destination<br/>Lớp cần enrollment APPROVED; PERSONAL có courseOfferingId=null"]
-    N8 --> N9
-    N9 -.-> S9["Destination không hợp lệ<br/>Không chuyển READY; Student chọn lại nơi ôn tập."]
-    N10["Java / app<br/>Chuyển READY<br/>Nguồn tạo Quiz độc lập nơi ôn tập; Quiz sẵn sàng làm bài"]
-    N9 --> N10
+flowchart LR
+  subgraph REQ["1. Yêu cầu — Student / Java"]
+    direction TB
+    A["Chọn 1–10 Personal PDF<br/>+ prompt riêng, độc lập chat"] --> B{"Owner, READY,<br/>version, prompt hợp lệ?"}
+    B -->|Không| X(["Từ chối"])
+    B -->|Có| C["quizId mới GENERATING<br/>trả 202; Web poll Java"]
+  end
+  subgraph GEN["2. Sinh draft — Python"]
+    direction TB
+    D["Internal generate idempotent<br/>retrieval theo scope"] --> E{"Đủ evidence?"}
+    E -->|Không| FAIL["Lỗi generation an toàn"]
+    E -->|Có| F["MCQ_SINGLE: đúng 4 options<br/>1 đáp án / explanation / sources"]
+    F --> G{"Schema / grounding đạt?"}
+    G -->|Không| H["Repair duy nhất 1 lần<br/>giữ snapshot; kiểm tra lại"]
+    H --> I{"Sau repair đạt?"}
+    I -->|Không| FAIL
+    I -->|Có| OK["Trả structured draft"]
+    G -->|Có| OK
+  end
+  subgraph VAL["3. Lưu draft — Java"]
+    direction TB
+    J{"Draft và source<br/>hợp lệ toàn bộ?"} -->|Không hoặc AI lỗi| GF(["GENERATION_FAILED"])
+    J -->|Có| K["Lưu REVIEW_REQUIRED<br/>Student xem câu / đáp án / nguồn"]
+  end
+  subgraph REV["4. Quyết định — Student / Java"]
+    direction TB
+    L{"Review?"} -->|Reject| RJ(["REJECTED"])
+    L -->|Regenerate| NEW(["quizId mới GENERATING<br/>giữ draft / attempt cũ"])
+    L -->|Accept| M{"PERSONAL hoặc<br/>lớp APPROVED?"}
+    M -->|Không| KEEP(["Từ chối Accept<br/>giữ REVIEW_REQUIRED"])
+    M -->|Có| READY(["Lưu destination; READY"])
+  end
+  REQ -->|Xử lý nền với scope hợp lệ| GEN
+  GEN -->|Draft hoặc safe error| VAL
+  VAL -->|Chỉ REVIEW_REQUIRED| REV

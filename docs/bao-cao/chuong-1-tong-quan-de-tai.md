@@ -19,9 +19,7 @@ Tài liệu → Xem/Ghi chú/Phiên học → AI Tutor/Quiz → Đánh giá
 
 StudyFlow tổ chức môn học theo `Semester → Course Offering → Documents`. Teacher tự tạo Course Offering từ danh mục Subject và Semester, quản lý join code, duyệt Student và public học liệu. Student sử dụng PPTX của lớp, PDF tải xuống và Personal PDF cho chatbot hoặc Quiz. Admin quản lý danh mục, tài khoản và giám sát hệ thống.
 
-![Hình 1.1 — Phạm vi tổng quát của StudyFlow](../diagrams/chuong-1/01-pham-vi-studyflow.svg)
-
-*Hình 1.1. Phạm vi và vòng lặp học tập tổng quát của StudyFlow.*
+Quy trình học tập và ôn luyện phân định rõ hai nhánh độc lập: học liệu chính thức do Giảng viên công bố cho lớp học phần và tài liệu cá nhân PDF do Sinh viên tự tải lên. Phân hệ hỏi đáp RAG cá nhân và phân hệ sinh Quiz AI cùng khai thác tài liệu cá nhân nhưng hoạt động độc lập, không bắt buộc sinh viên phải trò chuyện trước khi tạo câu hỏi ôn tập. Backend đóng vai trò kiểm soát quyền truy cập, chấm điểm tự động và ghi nhận các sự kiện học tập thực tế, giúp sinh viên chủ động lập kế hoạch và ôn luyện các phần kiến thức còn hổng.
 
 ## 1.3. Mục tiêu đề tài
 
@@ -77,9 +75,9 @@ Về thực tiễn, hệ thống giảm việc chuyển đổi giữa nhiều c�
 ## 1.8. Bố cục báo cáo
 
 - Chương 1 trình bày bài toán, mục tiêu, phạm vi và phương pháp thực hiện.
-- Chương 2 phân tích yêu cầu, use case, luồng nghiệp vụ và thiết kế hệ thống.
-- Chương 3 trình bày thiết kế chi tiết ba chức năng trọng tâm, cấu trúc triển khai và phương pháp kiểm thử/đánh giá.
-- Các chương tiếp theo, khi được xây dựng, trình bày kết quả thực nghiệm, triển khai, kết luận và hướng phát triển.
+- Chương 2 trình bày pha phân tích hệ thống: phân tích yêu cầu, form 9 chức năng của 3 thành viên, hệ thống biểu đồ Use Case và kịch bản Use Case chi tiết.
+- Chương 3 trình bày pha thiết kế hệ thống: kiến trúc sơ đồ khối tổng thể, lớp thực thể chung, thiết kế CSDL ERD, biểu đồ lớp chi tiết và biểu đồ hoạt động/tuần tự cho các chức năng đã chọn.
+- Các chương tiếp theo trình bày kết quả cài đặt thực nghiệm, kiểm thử đánh giá, kết luận và hướng phát triển.
 
 ## 1.9. Tổng kết chương
 

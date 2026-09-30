@@ -1,7 +1,13 @@
 flowchart LR
-  U[Web Next.js] -->|/api/v1| J[Java Spring Boot]
-  J --> A[(PostgreSQL schema app)]
-  J --> O[(Object Storage)]
-  J -->|/internal/v1| P[Python FastAPI]
-  P --> V[(PostgreSQL schema ai + pgvector)]
-  P --> L[LLM / Embedding Provider]
+  U["Student / Teacher / Admin"] --> W["Next.js Web"]
+  W -->|Public API /api/v1| J["Java Spring Boot<br/>Auth / nghiệp vụ / lifecycle / scoring"]
+  J -->|Authorized scope + service auth| P["Python FastAPI<br/>Parsing / retrieval / generation / citation"]
+  subgraph PG["Một PostgreSQL cluster — tách schema và database role"]
+    APP[("app: dữ liệu nghiệp vụ")]
+    AI[("ai + pgvector: jobs / indexes / chunks")]
+  end
+  J --> APP
+  P --> AI
+  J --> O[("Object Storage: raw file và artifact")]
+  P -->|Đọc file / ghi artifact theo scope| O
+  P --> L["LLM / Embedding Provider"]

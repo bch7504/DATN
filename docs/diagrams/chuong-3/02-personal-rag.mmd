@@ -1,24 +1,33 @@
-flowchart TD
-    N0["Student / Web<br/>Chọn 1–10 PDF READY<br/>POST /personal-rag/conversations {selectedDocumentIds}"]
-    N1["Java / app<br/>Kiểm tra owner, version, READY<br/>Lưu conversation và snapshot nguồn được phép"]
-    N0 --> N1
-    N1 -.-> S1["Scope không hợp lệ<br/>Từ chối toàn bộ request; không gửi ID trái phép sang AI."]
-    N2["Student / Web → Java<br/>Gửi câu hỏi trong conversation<br/>POST /personal-rag/conversations/{id}/messages {message}"]
-    N1 --> N2
-    N3["Java<br/>Đọc lại quyền và snapshot scope<br/>Không tin scope tự khai của client; kiểm tra trước mỗi message"]
-    N2 --> N3
-    N4["Python / pgvector<br/>Embed query và retrieval có filter<br/>owner + document/version/source; giữ một evidence snapshot"]
-    N3 --> N4
-    N5["Python<br/>Evidence đủ để trả lời?<br/>Có → sinh câu trả lời; không → dừng"]
-    N4 --> N5
-    N5 -.-> S5["Không đủ evidence<br/>Trả NO_EVIDENCE trước khi gọi LLM để generation."]
-    N6["Python / LLM<br/>Sinh draft từ evidence<br/>Lịch sử có giới hạn; tài liệu/prompt là dữ liệu không tin cậy"]
-    N5 --> N6
-    N7["Python<br/>Grounding và citation theo claim<br/>Cùng evidence snapshot; rewrite tối đa một lần"]
-    N6 --> N7
-    N7 -.-> S7["Grounding vẫn không đạt<br/>Loại claim không có căn cứ; không còn câu trả lời hợp lệ → NO_EVIDENCE."]
-    N8["Java / app<br/>Validate schema và citation<br/>Kiểm tra scope; lưu message và citation hợp lệ"]
-    N7 --> N8
-    N8 -.-> S8["Output sai hoặc AI lỗi<br/>Trả lỗi an toàn; không coi lỗi hạ tầng là NO_EVIDENCE."]
-    N9["Web / Student<br/>Hiển thị ANSWERED hoặc NO_EVIDENCE<br/>Citation: documentId + pageNumber + excerpt + traceId"]
-    N8 --> N9
+flowchart LR
+  subgraph AUTH["1. Tiếp nhận — Java"]
+    direction TB
+    A["Chọn 1–10 PDF READY<br/>tạo conversation; gửi câu hỏi"] --> B{"Owner / snapshot<br/>READY / version hợp lệ?"}
+    B -->|Không| X(["Từ chối; không gọi AI"])
+    B -->|Có| S["Cấp authorized scope"]
+  end
+  subgraph RET["2. Retrieval — Python"]
+    direction TB
+    C["Embed query cùng index version<br/>filter scope trước vector search"] --> D["Post-filter<br/>đóng băng evidence snapshot"]
+    D --> E{"Đủ bằng chứng?"}
+    E -->|Không| N(["NO_EVIDENCE<br/>không gọi LLM"])
+    E -->|Có| CTX["Chuẩn bị context không tin cậy"]
+  end
+  subgraph GEN["3. Generation — Python"]
+    direction TB
+    F["LLM sinh draft từ snapshot"] --> G{"Grounding / citation đạt?"}
+    G -->|Có| OK["ANSWERED + page citations"]
+    G -->|Không| H["Rewrite tối đa 1 lần<br/>giữ nguyên snapshot"]
+    H --> I{"Kiểm lại đạt?"}
+    I -->|Có| OK
+    I -->|Không| NN["NO_EVIDENCE"]
+  end
+  subgraph RESP["4. Trả kết quả — Java"]
+    direction TB
+    J{"Revalidate quyền,<br/>version và output?"} -->|Hợp lệ| R["Lưu message; trả kết quả<br/>citation documentId + pageNumber"]
+    J -->|Không| XX(["Từ chối; không lộ nguồn"])
+    ERR["Lỗi hạ tầng trả safe code + trace ID<br/>không chuyển thành NO_EVIDENCE"]
+  end
+  AUTH -->|Scope hợp lệ| RET
+  RET -->|Đủ evidence| GEN
+  RET -->|NO_EVIDENCE| RESP
+  GEN -->|Structured result| RESP
