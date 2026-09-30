@@ -10,7 +10,6 @@ DATN/
 ├── PROJECT_STRUCTURE.md
 ├── apps/
 │   └── web/
-│       ├── mvp.html
 │       ├── README.md
 │       ├── public/
 │       ├── src/
@@ -85,7 +84,6 @@ DATN/
 │   ├── backend-implementation-plan.md
 │   ├── database-plan.md
 │   ├── api-plan.md
-│   ├── frontend-functional-baseline.md
 │   ├── tech-stack.md
 │   └── demo-flow.md
 ├── infrastructure/

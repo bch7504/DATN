@@ -1,8 +1,6 @@
 # StudyFlow Web
 
-Frontend đã có scaffold Next.js và các màn hình demo cho ba vai trò. [`mvp.html`](mvp.html) tiếp tục là tài liệu tham chiếu luồng/giao diện; fixture chỉ hoạt động khi demo mode được bật.
-
-Baseline đối chiếu bắt buộc giữa mock và FE thật nằm tại [`../../docs/frontend-functional-baseline.md`](../../docs/frontend-functional-baseline.md).
+Frontend Next.js hiện là baseline giao diện đã chốt cho ba vai trò. Fixture chỉ hoạt động khi demo mode được bật; route/chức năng được mô tả tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md).
 
 ## Cấu trúc mục tiêu
 
@@ -15,10 +13,9 @@ apps/web/
 │   ├── lib/                    # Java API client, session và helper
 │   └── types/                  # public Java DTO và UI types
 ├── tests/                      # test FE bằng fixture tổng hợp
-└── mvp.html                    # prototype tham chiếu, không phải production FE
 ```
 
-## Quy ước giao diện tham chiếu từ `mvp.html`
+## Quy ước giao diện
 
 - **Hệ nhận diện PTIT:**
   - Typography: `Be Vietnam Pro` cho nội dung thường (body), `Manrope` cho tiêu đề và số liệu (display/heading).
@@ -42,6 +39,6 @@ apps/web/
 - Không tính score, progress, Streak hoặc Daily Goal actual ở client.
 - Dashboard hiển thị aggregate và tiến độ từng Course Offering; không có màn Progress riêng.
 - Chatbot và Tạo Quiz là hai luồng riêng. Tạo Quiz cho phép Student chọn Personal Documents và tự nhập prompt.
-- `mvp.html` chỉ dùng dữ liệu demo, không được xem là implementation production.
+- Fixture demo không được xem là implementation production hoặc dữ liệu thật.
 
 Kế hoạch triển khai nằm tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md).

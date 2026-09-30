@@ -7,16 +7,38 @@
 ## 1. Nguyên tắc
 
 - Next.js chỉ gọi Java `/api/v1`; không gọi Python, database, Object Storage hoặc OpenRouter.
-- UI bám sát `apps/web/mvp.html`, sử dụng hệ nhận diện PTIT:
+- FE thật trong `apps/web/src/**` là baseline giao diện đã chốt, sử dụng hệ nhận diện PTIT:
   - Typography: `Be Vietnam Pro` (body text) và `Manrope` (display/heading).
   - Bảng màu: Đỏ thắm PTIT (`#d71920`, `#a80f18`, nền `#fff1f2`), Vàng PTIT (`#f4c300`, `#b89c0e`), Neutral slate (`#0f172a`, `#475569`, `#f8fafc`).
   - Biểu trưng PTIT (huy hiệu chính quy với bông lúa, bánh răng, ngọn đuốc, sách mở, cờ đỏ sao vàng) chuẩn tỷ lệ 1:1.
 - Production không tự tính điểm/progress/quyền; mọi dữ liệu nghiệp vụ nhận từ Java.
 - Demo fixtures chỉ hoạt động khi `NEXT_PUBLIC_DEMO_MODE=true` và luôn hiện “Dữ liệu demo”.
 - Responsive từ 360px, keyboard/focus visible, WCAG AA; mọi route có loading/empty/error/forbidden/processing.
-- Danh sách màn hình, tên điều hướng và hành vi đã chốt tại `docs/frontend-functional-baseline.md`. FE thật phải đối chiếu file này khi chuyển prototype sang Next.js.
+- `docs/specification.md`, `docs/api-plan.md` và `AGENTS.md` quyết định nghiệp vụ, dữ liệu, phân quyền và service boundary. UI không được tạo hành vi giả production khi API chưa có.
 
 ## 2. Route và màn hình
+
+### Ma trận điều hướng đã chốt
+
+| Vai trò | Điều hướng | Route | Chức năng chính |
+|---|---|---|---|
+| Student | Tổng quan | `/dashboard` | Progress từng Course Offering, Study Streak, Daily Goal, Quiz và công việc gần nhất |
+| Student | Lớp học phần | `/course-offerings` | Join code, trạng thái enrollment và mở học liệu khi `APPROVED` |
+| Student | Tài liệu cá nhân | `/personal-documents` | Upload/quản lý Personal PDF và mở Hỏi đáp AI tại `/chat` |
+| Student | Kế hoạch & Lịch | `/plan` | Lịch tuần, khung giờ, thêm lịch, thêm task và cập nhật trạng thái task |
+| Student | Ôn tập | `/review` | Quiz theo Course Offering/cá nhân, attempt, câu sai và nguồn |
+| Teacher | Tổng quan | `/teacher/dashboard` | Lớp active, yêu cầu tham gia và trạng thái tài liệu |
+| Teacher | Lớp học phần của tôi | `/teacher/course-offerings` | Tạo lớp, join code, khóa/mở và archive |
+| Teacher | Yêu cầu tham gia | `/teacher/enrollments` | Approve/reject enrollment và xem danh sách approved |
+| Teacher | Kho tài liệu & Public | `/teacher/documents` | Upload PDF/PPTX, processing, public/revoke |
+| Admin | Tổng quan hệ thống | `/admin/dashboard` | Chỉ số vận hành và giám sát Course Offering |
+| Admin | Người dùng & Vai trò | `/admin/users` | Trạng thái tài khoản và role |
+| Admin | Môn học & Học kỳ | `/admin/catalog` | Subject/Semester chuẩn |
+| Admin | Feedback & Reports | `/admin/feedback` | Phản hồi và báo cáo |
+| Admin | Logs & Audit | `/admin/audit` | Audit metadata, không hiển thị nội dung riêng tư |
+| Admin | Cấu hình | `/admin/settings` | Cấu hình vận hành, không chứa secret phía browser |
+
+Các route `/materials`, `/materials/{documentId}/viewer`, `/chat`, `/quiz/create`, `/review/{courseId}` và `/admin/course-offerings` là màn phụ được mở từ workspace chính, không bắt buộc xuất hiện thành mục sidebar riêng. Kho tài liệu và Publication của Teacher được gộp trong một workspace để tránh lặp dữ liệu.
 
 ### Student
 
@@ -54,7 +76,7 @@
 
 ## 3. Chatbot UX tham khảo
 
-Áp dụng các pattern từ workspace hỏi đáp tài liệu tham khảo và tối ưu theo `apps/web/mvp.html`:
+Áp dụng các pattern đã chốt trong FE thật:
 
 - Bố cục 2 cột: Khung Chatbot chiếm phần lớn diện tích bên trái; Cột chọn tài liệu nguồn PDF thu gọn bên phải (~280px).
 - Quản lý phiên hội thoại ngay đầu khung chat: Tabs chuyển đổi nhanh giữa các phiên thảo luận và nút tạo phiên mới đặt ở header của chatbot.

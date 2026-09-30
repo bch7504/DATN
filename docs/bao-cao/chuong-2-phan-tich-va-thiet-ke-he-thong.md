@@ -179,7 +179,7 @@ Request có service credential, `X-Request-Id`, `X-Schema-Version: 3`, timeout v
 
 ### 2.8.1. Student
 
-App shell đỏ–trắng PTIT gồm sidebar/drawer có thể thu gọn, topbar, breadcrumb và profile. Các màn hình bám `mvp.html`: Dashboard, lớp, học liệu, Slide Viewer + Note + Tutor, Personal Documents, chatbot riêng, Quiz review/attempt/result và Kế hoạch & Lịch tuần. Không có menu Progress độc lập; Dashboard hiển thị toàn bộ tiến độ, Streak và Daily Goal.
+App shell đỏ–trắng PTIT gồm sidebar/drawer có thể thu gọn, topbar, breadcrumb và profile. Các màn hình gồm Dashboard, lớp, học liệu, Slide Viewer + Note + Tutor, Personal Documents, chatbot riêng, Quiz review/attempt/result và Kế hoạch & Lịch tuần. Không có menu Progress độc lập; Dashboard hiển thị toàn bộ tiến độ, Streak và Daily Goal.
 
 ### 2.8.2. Teacher
 

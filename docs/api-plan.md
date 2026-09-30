@@ -242,7 +242,7 @@ Không có API/menu/màn Progress độc lập. Dashboard là endpoint duy nhấ
 
 ### 4.7 Study Plan, Calendar và Quiz
 
-Frontend thể hiện nhóm này dưới tên **Kế hoạch & Lịch** theo `frontend-functional-baseline.md`: lịch tuần Thứ 2–Chủ nhật, task, deadline và các khung giờ. Daily Goal/Streak/progress không thuộc response của màn lịch và chỉ hiển thị trên Dashboard.
+Frontend thể hiện nhóm này dưới tên **Kế hoạch & Lịch** theo `frontend-implementation-plan.md`: lịch tuần Thứ 2–Chủ nhật, task, deadline và các khung giờ. Daily Goal/Streak/progress không thuộc response của màn lịch và chỉ hiển thị trên Dashboard.
 
 - CRUD `/api/v1/study-plans` và `/api/v1/study-plans/{planId}/items`.
 - `GET /api/v1/calendar?from=&to=`.

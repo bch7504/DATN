@@ -127,7 +127,7 @@ Các lệnh tương ứng kiểm tra ESLint, test contract/UI bằng Node test r
 Có thể mở trực tiếp hai file sau bằng trình duyệt:
 
 - [`index.html`](index.html): tổng quan kiến trúc, quy tắc và demo flow.
-- [`apps/web/mvp.html`](apps/web/mvp.html): mock giao diện ba vai trò.
+- [`docs/frontend-implementation-plan.md`](docs/frontend-implementation-plan.md): route, chức năng và kế hoạch triển khai Frontend.
 
 Hai trang HTML sử dụng fixture tổng hợp, không gọi Backend hoặc model thật.
 
@@ -188,4 +188,4 @@ Chi tiết xem tại [demo flow](docs/demo-flow.md).
 
 ## Quy tắc dành cho AI coding agents
 
-Mọi agent phải đọc [`AGENTS.md`](AGENTS.md) trước khi làm việc, chọn đúng vai trò và chỉ đọc/sửa phạm vi được phép. File [bàn giao Claude](ban-giao-du-an-claude.md) mô tả trạng thái hiện tại và backlog tích hợp.
+Mọi AI coding agent phải đọc [`AGENTS.md`](AGENTS.md) trước khi làm việc, chọn đúng vai trò và chỉ đọc/sửa phạm vi được phép. Trạng thái và kế hoạch triển khai được duy trì trực tiếp trong `docs/**`.
