@@ -1,0 +1,52 @@
+@startuml
+' Palette: activity; based on the Visual Paradigm swimlane sample supplied by the project owner.
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActivityBackgroundColor #7ACFF5
+skinparam ActivityBorderColor #222222
+skinparam ActivityDiamondBackgroundColor #7ACFF5
+skinparam ActivityDiamondBorderColor #222222
+skinparam ActivityStartColor #111111
+skinparam ActivityEndColor #111111
+skinparam PartitionBackgroundColor white
+skinparam PartitionBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam roundcorner 16
+|Student|
+start
+:Nhập join code;
+|Java Backend|
+:Kiểm code, trạng thái lớp và yêu cầu trùng;
+if (Hợp lệ?) then (Có)
+  :Lưu enrollment PENDING;
+  |Teacher|
+  :Xem yêu cầu của lớp mình sở hữu;
+  note right
+  Admin không phải bước duyệt lớp trong MVP.
+  Mỗi lần truy cập vẫn kiểm publication/policy.
+  end note
+  if (Chấp nhận?) then (Có)
+    |Java Backend|
+    :Lưu APPROVED và audit an toàn;
+    |Student|
+    :Truy cập học liệu đã public;
+    stop
+  else (Không)
+    |Java Backend|
+    :Lưu REJECTED;
+    |Student|
+    :Chưa có quyền học;
+    stop
+  endif
+else (Không)
+  |Student|
+  :Nhận lỗi code / lớp khóa;
+  stop
+endif
+@enduml

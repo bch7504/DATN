@@ -1,0 +1,47 @@
+@startuml
+' Palette: activity; based on the Visual Paradigm swimlane sample supplied by the project owner.
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActivityBackgroundColor #7ACFF5
+skinparam ActivityBorderColor #222222
+skinparam ActivityDiamondBackgroundColor #7ACFF5
+skinparam ActivityDiamondBorderColor #222222
+skinparam ActivityStartColor #111111
+skinparam ActivityEndColor #111111
+skinparam PartitionBackgroundColor white
+skinparam PartitionBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam roundcorner 16
+|Java Backend|
+start
+:Tiếp nhận / phát sinh hoạt động;
+:Kiểm quyền, target và idempotency;
+if (Event tính hoạt động?) then (Có)
+  :Chốt activity_date theo timezone;
+  :Lưu VIEW_SLIDE / STUDY_TASK_COMPLETED
+hoặc QUIZ_COMPLETED;
+  :Tổng hợp Streak và Daily Goal;
+  if (VIEW_SLIDE?) then (Có)
+    :Cập nhật viewing progress;
+  else (Không)
+  endif
+else (Không)
+  :Không cộng login, Note hoặc ASK_AI;
+endif
+|Frontend|
+:Hiển thị Dashboard tổng quan và từng lớp;
+:Cho mở / thu các khối;
+|Student|
+:Xem tiến độ, Streak và Daily Goal;
+stop
+note right
+Không cần Daily Goal 100% để duy trì Streak.
+Không suy luận Topic Mastery.
+end note
+@enduml

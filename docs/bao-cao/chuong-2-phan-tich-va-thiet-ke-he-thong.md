@@ -32,10 +32,11 @@ Hệ thống StudyFlow hướng tới các mục tiêu cụ thể:
 | **Student** (Sinh viên) | Tác nhân con người (Primary User) | Tham gia lớp học phần bằng mã mời; xem bài giảng PPTX trực tuyến, ghi chú slide; tải tài liệu PDF của giảng viên; tải lên và quản lý tài liệu cá nhân; hỏi đáp với Trợ lý AI (Personal RAG và Slide Tutor); tạo, duyệt và làm bài Quiz; xem thống kê Dashboard, quản lý kế hoạch và lịch học cá nhân. |
 | **Teacher** (Giảng viên) | Tác nhân con người (Primary User) | Khởi tạo và quản lý lớp học phần (Course Offering) theo học kỳ và môn học; cấu hình mã mời (join code); xét duyệt hoặc từ chối sinh viên tham gia lớp; tải lên và công bố tài liệu bài giảng (PPTX, PDF) cho sinh viên trong lớp; quản lý lưu trữ tài liệu môn học. |
 | **Admin** (Quản trị viên) | Tác nhân con người (System Administrator) | Quản lý danh mục đào tạo (Môn học - Subject, Học kỳ - Semester); quản trị tài khoản người dùng và phân quyền; giám sát hoạt động của các lớp học phần; xem nhật ký hệ thống (Audit Log), phản hồi người dùng và cấu hình thông số hệ thống. |
-| **AI Service** | Tác nhân hệ thống (Internal Subsystem) | Dịch vụ AI nội bộ (Python FastAPI) chịu trách nhiệm trích xuất văn bản tài liệu, phân đoạn (chunking), tạo vector nhúng (embedding), lập chỉ mục (indexing), tìm kiếm tương đồng vector (retrieval), tạo prompt và phối hợp với LLM để sinh câu trả lời RAG, Slide Tutor và câu hỏi trắc nghiệm kèm trích dẫn nguồn. |
 | **LLM & Embedding Provider** | Tác nhân bên ngoài (External Service) | Nhà cung cấp dịch vụ mô hình ngôn ngữ lớn và mô hình nhúng (thông qua API tương thích OpenAI) phục vụ việc tính toán vector và sinh văn bản theo cấu trúc. |
 
 ---
+
+Python AI Service, Java Backend và Next.js là các thành phần nội bộ, không phải tác nhân bên ngoài khi ranh giới Use Case là toàn bộ StudyFlow. Nhà cung cấp mô hình là tác nhân hỗ trợ; tương tác kỹ thuật với dịch vụ này được trình bày ở biểu đồ kiến trúc và tuần tự Chương 3.
 
 ## 2.2. Phân tích yêu cầu hệ thống
 
@@ -106,9 +107,9 @@ Theo quy định phân công đồ án tốt nghiệp trong nhóm 3 thành viên
 | **Mã và tên chức năng** | **AI-F01: Hỏi đáp tài liệu cá nhân bằng RAG (Personal RAG)** |
 | **Thành viên/phạm vi phụ trách** | Thành viên 1 - AI Python; Python AI Service, xử lý văn bản, vector embedding, retrieval, LLM prompt generation và trích dẫn nguồn |
 | **Mục tiêu** | Cho phép Student đặt câu hỏi trên một hoặc nhiều tài liệu PDF cá nhân đã chọn và nhận câu trả lời bám sát bằng chứng thực tế kèm số trang trích dẫn |
-| **Tác nhân** | Student, Next.js Web, Java Backend, Python AI Service, Embedding/LLM Provider |
+| **Tác nhân** | Student (chính), nhà cung cấp mô hình (hỗ trợ); các service là thành phần thực thi |
 | **Tiền điều kiện** | Student đã đăng nhập; là owner của tài liệu; tài liệu PDF có lớp văn bản; tài liệu và chỉ mục đang ở trạng thái `READY` |
-| **Đầu vào** | Câu hỏi truy vấn của Student, mã cuộc hội thoại `conversationId` và danh sách từ 1 đến 10 `documentId` được Java xác thực quyền sở hữu |
+| **Đầu vào** | Khi tạo hội thoại: 1–10 `selectedDocumentIds` duy nhất. Khi gửi tin: `conversationId` trên URL và body `{message}` dài 1–2.000 ký tự; Java lấy danh sách tài liệu/phiên bản từ snapshot đã xác thực, client không truyền lại scope |
 | **Luồng xử lý chính** | 1. Java kiểm tra quyền owner và trạng thái tài liệu → gọi nội bộ sang Python AI Service.<br>2. Python embed câu hỏi bằng đúng phiên bản mô hình nhúng.<br>3. Lọc phạm vi theo `ownerId`, `documentId`, `version` và tìm kiếm Cosine trên pgvector.<br>4. Đưa các đoạn trích qua bộ lọc kiểm tra căn cứ (Evidence Gate).<br>5. Đóng gói context và gửi prompt tới LLM sinh câu trả lời kèm citation.<br>6. Kiểm tra tính hợp lệ của trích dẫn (Grounding Validator) và trả về JSON có cấu trúc cho Java. |
 | **Đầu ra** | Trạng thái `ANSWERED` cùng nội dung câu trả lời và mảng citation (`documentId + pageNumber + excerpt`), hoặc trạng thái `NO_EVIDENCE` |
 | **Ngoại lệ và quy tắc** | Tuyệt đối không dùng chunk ngoài scope; prompt injection trong tài liệu không được thay đổi system rule; thiếu bằng chứng bắt buộc trả `NO_EVIDENCE`; không ghi log nội dung tài liệu hoặc prompt nhạy cảm |
@@ -121,10 +122,10 @@ Theo quy định phân công đồ án tốt nghiệp trong nhóm 3 thành viên
 | **Mã và tên chức năng** | **AI-F02: Hỏi đáp nội dung bài giảng với Slide AI Tutor** |
 | **Thành viên/phạm vi phụ trách** | Thành viên 1 - AI Python; bóc tách cấu trúc PPTX, trích xuất văn bản theo từng slide, retrieval theo lớp học phần và điều phối Slide AI Tutor |
 | **Mục tiêu** | Giải thích nội dung kiến thức bài giảng theo đúng slide mà Student đang xem trên web hoặc phạm vi bài giảng được phép, có trích dẫn đúng số slide bài giảng |
-| **Tác nhân** | Student, Java Backend, Python AI Service, Object Storage, Embedding/LLM Provider |
+| **Tác nhân** | Student (chính), nhà cung cấp mô hình (hỗ trợ) |
 | **Tiền điều kiện** | Student có enrollment `APPROVED`; bài giảng PPTX đã được Giảng viên công bố và trạng thái chỉ mục là `READY`; lớp và tài liệu chưa bị khóa/thu hồi |
 | **Đầu vào** | Câu hỏi của Student, `documentId`, `documentVersion`, `courseOfferingId`, `slideNumber` hiện tại và phạm vi slide được Java cấp quyền |
-| **Luồng xử lý chính** | 1. Java kiểm tra quyền enrollment và publication → cấp authorized scope cho Python.<br>2. Python lọc đúng bài giảng/phiên bản/lớp học phần.<br>3. Ưu tiên ngữ cảnh slide hiện tại kết hợp truy xuất các slide liên quan gần kề.<br>4. LLM sinh lời giải thích bám sát bài giảng.<br>5. Validator kiểm tra citation theo slide và trả kết quả cấu trúc về Java. |
+| **Luồng xử lý chính** | 1. Java kiểm tra quyền enrollment và publication → cấp authorized scope cho Python.<br>2. Python lọc đúng bài giảng/phiên bản/lớp học phần.<br>3. Ưu tiên slide hiện tại, chỉ lấy slide liên quan nằm trong allowed scope.<br>4. Kiểm tra đủ bằng chứng trước khi gọi LLM; nếu thiếu trả `NO_EVIDENCE`.<br>5. Validator kiểm tra citation theo slide và trả kết quả cấu trúc về Java. |
 | **Đầu ra** | Trạng thái `ANSWERED` cùng citation (`documentId + slideNumber + excerpt`), hoặc trạng thái `NO_EVIDENCE` |
 | **Ngoại lệ và quy tắc** | Tài liệu PDF của Giảng viên chỉ cho tải về, không áp dụng Slide Tutor; Student không được tải tệp PPTX gốc; publication bị thu hồi phải chặn truy vấn ngay lập tức; không suy diễn ngoài nội dung có bằng chứng trong slide |
 | **Tiêu chí nghiệm thu** | Tuyệt đối không truy xuất ngoài lớp học phần được phép; citation trỏ đúng số slide bài giảng; câu hỏi ngoài nội dung bài giảng trả `NO_EVIDENCE`; prompt injection không thay đổi được phạm vi bài giảng |
@@ -136,9 +137,9 @@ Theo quy định phân công đồ án tốt nghiệp trong nhóm 3 thành viên
 | **Mã và tên chức năng** | **AI-F03: Sinh bộ câu hỏi ôn tập AI (AI Quiz Generator)** |
 | **Thành viên/phạm vi phụ trách** | Thành viên 1 - AI Python; retrieval có grounding và structured Quiz generation tuân thủ schema nghiêm ngặt trong Python AI Service |
 | **Mục tiêu** | Tự động sinh bộ câu hỏi trắc nghiệm một đáp án đúng (`MCQ_SINGLE`) từ các tài liệu cá nhân do Student chủ động lựa chọn kết hợp prompt yêu cầu tự do |
-| **Tác nhân** | Student, Java Backend, Python AI Service, Embedding/LLM Provider |
+| **Tác nhân** | Student (chính), nhà cung cấp mô hình (hỗ trợ) |
 | **Tiền điều kiện** | Student là owner của các tài liệu; các tài liệu PDF cá nhân đang ở trạng thái `READY`; Java đã khởi tạo Quiz ở trạng thái `GENERATING` |
-| **Đầu vào** | Danh sách `selectedDocumentIds`, phiên bản tài liệu và prompt tự do mô tả số lượng câu, độ khó, chủ đề cần tập trung; không phụ thuộc vào ngữ cảnh chat trước |
+| **Đầu vào** | Danh sách 1–10 `selectedDocumentIds` duy nhất; Java xác định phiên bản tài liệu; prompt dài 1–2.000 ký tự mô tả số lượng câu, độ khó, chủ đề cần tập trung; không phụ thuộc vào ngữ cảnh chat trước |
 | **Luồng xử lý chính** | 1. Java xác thực nguồn tài liệu và tạo scope.<br>2. Python truy xuất các đoạn kiến thức trọng tâm từ tài liệu.<br>3. LLM sinh JSON theo định dạng chuẩn `MCQ_SINGLE`.<br>4. Kiểm tra mỗi câu có đúng 4 phương án, đúng 1 đáp án chính xác, có giải thích và trích dẫn số trang.<br>5. Sửa lỗi cấu trúc tự động (repair) tối đa 1 lần nếu cần.<br>6. Trả bản nháp Quiz có cấu trúc cho Java lưu trữ. |
 | **Đầu ra** | Bản nháp Quiz chứa danh sách câu hỏi, các phương án lựa chọn, chỉ số `correctOptionIndex`, lời giải thích và sources; Java chuyển sang `REVIEW_REQUIRED` hoặc `GENERATION_FAILED` |
 | **Ngoại lệ và quy tắc** | Prompt tự do của Student không được phép phá vỡ schema hoặc mở rộng scope; Python không tự ý chấp nhận (Accept), chấm điểm hay cập nhật tiến độ; output không hợp lệ sau khi repair sẽ trả lỗi có cấu trúc |
@@ -250,18 +251,23 @@ Theo quy định phân công đồ án tốt nghiệp trong nhóm 3 thành viên
 
 ## 2.4. Biểu đồ Use Case hệ thống
 
+Biểu đồ dùng ký pháp UML tham khảo Visual Paradigm: actor ngoài ranh giới hệ thống, Use Case hình elip và association đường liền. Quan hệ `extend` đi từ hành vi tùy chọn tới Use Case gốc; không dùng `include`/`extend` để diễn tả thao tác xảy ra trước/sau. Chi tiết quy ước và nguồn tham khảo tại [hướng dẫn biểu đồ](../diagrams/README.md).
+
+Danh sách Use Case bao quát chức năng toàn hệ thống; không đồng nhất với chín chức năng nhóm chọn để báo cáo chuyên sâu. Đăng nhập là tiền điều kiện dùng chung của các Use Case cần bảo vệ; không vẽ lại đường include tới đăng nhập ở mọi chức năng.
+
 ### 2.4.1. Biểu đồ Use Case tổng quát
 
 Biểu đồ Use Case tổng quát thể hiện bức tranh toàn cảnh về ranh giới tương tác của ba nhóm tác nhân chính: Sinh viên (Student), Giảng viên (Teacher), và Quản trị viên (Admin) đối với các phân hệ chức năng của nền tảng StudyFlow.
 
-![Hình 2.1 — Use Case tổng quát StudyFlow](../diagrams/chuong-2/01-use-case-tong-quat.svg)
+![Hình 2.1 — Use Case tổng quát StudyFlow](../diagrams/chuong-2/use-case-01-tong-quat.svg)
 
 *Hình 2.1. Biểu đồ Use Case tổng quát toàn hệ thống StudyFlow.*
 
 **Thuyết minh biểu đồ Hình 2.1:**
-- Tác nhân **Student** tương tác với các nhóm ca sử dụng hướng tới hoạt động học tập và ôn tập: tham gia lớp học phần, đọc bài giảng PPTX và tài liệu PDF, tương tác với Trợ lý Slide AI Tutor, quản lý tài liệu cá nhân, thực hiện hỏi đáp Personal RAG, khởi tạo và làm bài Quiz AI, quản lý kế hoạch học tập cá nhân và theo dõi Dashboard.
-- Tác nhân **Teacher** tương tác với nhóm ca sử dụng quản lý đào tạo và học liệu: khởi tạo lớp học phần, xét duyệt danh sách sinh viên tham gia lớp, tải lên và quản lý thư viện tài liệu, công bố bài giảng cho lớp học.
-- Tác nhân **Admin** quản trị toàn diện hệ thống ở mức danh mục và vận hành: quản lý người dùng, quản lý môn học và học kỳ, giám sát lớp học phần, theo dõi nhật ký hệ thống.
+- Tác nhân **Student** tương tác với bảy nhóm chức năng chính: tham gia Course Offering, học bằng slide và ghi chú, Personal RAG, Slide Tutor, Quiz AI, Dashboard và Kế hoạch & Lịch ôn tập.
+- Tác nhân **Teacher** tạo và quản lý Course Offering, quản lý join code/enrollment, upload PDF/PPTX, theo dõi xử lý và chủ động công bố hoặc thu hồi học liệu.
+- Tác nhân **Admin** quản lý người dùng, vai trò, Subject, Semester, giám sát Course Offering, feedback, audit và cấu hình hệ thống; Admin không mặc định được đọc dữ liệu học tập cá nhân của Student.
+- Ba khung chức năng nằm trong một System Boundary duy nhất của StudyFlow. Hình 2.2–2.4 tiếp tục phân rã nghiệp vụ theo từng vai trò để tránh đưa chi tiết luồng xử lý vào biểu đồ tổng quát.
 - Biểu đồ phân định ranh giới nghiệp vụ rõ ràng: Giảng viên và Quản trị viên không can thiệp vào kho tài liệu cá nhân, nội dung hỏi đáp riêng tư, kết quả làm Quiz và lịch học của từng sinh viên.
 
 ---
@@ -270,13 +276,14 @@ Biểu đồ Use Case tổng quát thể hiện bức tranh toàn cảnh về ra
 
 Biểu đồ phân rã chi tiết các ca sử dụng dành riêng cho tác nhân Sinh viên trong quá trình học tập và ôn luyện trên hệ thống.
 
-![Hình 2.2 — Use Case phân hệ Student](../diagrams/chuong-2/04-use-case-student.svg)
+![Hình 2.2 — Use Case phân hệ Student](../diagrams/chuong-2/use-case-02-student.svg)
 
 *Hình 2.2. Biểu đồ Use Case chi tiết phân hệ Sinh viên (Student).*
 
 **Thuyết minh biểu đồ Hình 2.2:**
+- Ký hiệu Student được lặp ở hai phía nhưng cùng biểu diễn một tác nhân; cách trình bày này rút ngắn association, giữ đường nối thẳng và không tạo thêm vai trò nghiệp vụ.
 - Nhóm ca sử dụng lớp học phần: Sinh viên nhập mã mời (Join Class), khi được duyệt sẽ có quyền xem slide bài giảng trực tuyến, ghi chú slide (`slide_notes`), và đặt câu hỏi cho Slide AI Tutor (`<<extend>>` từ việc xem slide).
-- Nhóm ca sử dụng tài liệu cá nhân và RAG: Sinh viên tải lên tài liệu PDF cá nhân; chọn tài liệu để tạo phiên hội thoại hỏi đáp RAG. Ca sử dụng "Hỏi đáp tài liệu cá nhân" yêu cầu (`<<include>>`) kiểm tra căn cứ nguồn và trích dẫn số trang.
+- Nhóm ca sử dụng tài liệu cá nhân và RAG: Sinh viên tải lên tài liệu PDF cá nhân; chọn tài liệu để tạo phiên hội thoại hỏi đáp RAG. Hỏi đáp bắt buộc kiểm tra căn cứ và trích dẫn số trang; đây là quy tắc nội bộ, không tách mỗi bước xử lý thành một Use Case.
 - Nhóm ca sử dụng Quiz AI: Sinh viên chọn tài liệu và nhập prompt để hệ thống sinh bản nháp Quiz; sinh viên duyệt bản nháp (Accept/Reject/Regenerate) trước khi tiến hành làm bài; hệ thống tự động chấm điểm và trích xuất danh sách câu sai liên kết về nguồn học liệu.
 - Nhóm ca sử dụng tiến độ và kế hoạch: Sinh viên thiết lập Daily Goal, quản lý các đầu việc Task trên giao diện lịch tuần và theo dõi thống kê chuỗi ngày học Streak trên Dashboard.
 
@@ -286,7 +293,7 @@ Biểu đồ phân rã chi tiết các ca sử dụng dành riêng cho tác nhâ
 
 Biểu đồ mô tả chi tiết các quyền hạn và chức năng nghiệp vụ thuộc phạm vi phụ trách của tác nhân Giảng viên.
 
-![Hình 2.3 — Use Case phân hệ Teacher](../diagrams/chuong-2/05-use-case-teacher.svg)
+![Hình 2.3 — Use Case phân hệ Teacher](../diagrams/chuong-2/use-case-03-teacher.svg)
 
 *Hình 2.3. Biểu đồ Use Case chi tiết phân hệ Giảng viên (Teacher).*
 
@@ -301,7 +308,7 @@ Biểu đồ mô tả chi tiết các quyền hạn và chức năng nghiệp v�
 
 Biểu đồ xác định phạm vi quản trị danh mục, giám sát hệ thống và phân quyền của tác nhân Quản trị viên.
 
-![Hình 2.4 — Use Case phân hệ Admin](../diagrams/chuong-2/06-use-case-admin.svg)
+![Hình 2.4 — Use Case phân hệ Admin](../diagrams/chuong-2/use-case-04-admin.svg)
 
 *Hình 2.4. Biểu đồ Use Case chi tiết phân hệ Quản trị viên (Admin).*
 
@@ -312,100 +319,101 @@ Biểu đồ xác định phạm vi quản trị danh mục, giám sát hệ th�
 
 ---
 
-## 2.5. Kịch bản Use Case chi tiết (Use Case Scenarios)
+## 2.5. Kịch bản Use Case chi tiết
 
-Nhằm đảm bảo tính chính xác và đầy đủ của pha phân tích, phần này xây dựng kịch bản đặc tả chi tiết (Use Case Specifications) cho các ca sử dụng thuộc phạm vi **3 chức năng trọng tâm của AI đã chốt** và các ca sử dụng liên quan trực tiếp đến luồng dữ liệu học tập theo mẫu chuẩn kỹ thuật phần mềm. *(Các kịch bản ca sử dụng thuộc phạm vi của Thành viên 2 và Thành viên 3 sẽ được bổ sung sau khi hai thành viên chốt danh mục chức năng)*.
+Mỗi đặc tả dùng cùng một form: mã/tên, mục tiêu, tác nhân, kích hoạt, tiền điều kiện, luồng chính, luồng thay thế, ngoại lệ và hậu điều kiện. Phân tích mô tả hành vi quan sát được; các lớp thực thi, API và tương tác giữa service được cụ thể hóa ở Chương 3. Các Use Case chung dưới đây không tự động được phân công làm chức năng báo cáo riêng của thành viên nào.
 
-### 2.5.1. UC-RAG-01: Hỏi đáp tài liệu cá nhân bằng RAG (Chi tiết cho AI-F01)
+### 2.5.1. UC-RAG-01 — Hỏi đáp tài liệu cá nhân (AI-F01)
 
-| Thuộc tính | Nội dung mô tả |
+| Thuộc tính | Nội dung |
 |---|---|
-| **Mã Use Case** | **UC-RAG-01** |
-| **Tên Use Case** | **Hỏi đáp tài liệu cá nhân bằng RAG (Personal RAG Query with Grounded Citations)** |
-| **Tác nhân** | Student, AI Service, LLM Provider |
-| **Mục tiêu** | Cung cấp câu trả lời chính xác, bám sát nội dung cho câu hỏi của sinh viên dựa trên tập tài liệu PDF cá nhân đã chọn, kèm trích dẫn số trang cụ thể. |
-| **Tiền điều kiện** | Sinh viên đã đăng nhập; đã chọn từ 1 đến 10 tài liệu cá nhân đang ở trạng thái `READY`. |
-| **Hậu điều kiện** | Câu hỏi và câu trả lời kèm danh sách trích dẫn nguồn (hoặc thông báo `NO_EVIDENCE`) được lưu vào lịch sử hội thoại. |
-| **Luồng sự kiện chính (Main Flow)** | 1. Sinh viên tích chọn từ 1 đến 10 tài liệu PDF từ danh sách tài liệu cá nhân và nhấn "Bắt đầu hỏi đáp".<br>2. Hệ thống khởi tạo một phiên hội thoại mới trong bảng `chat_conversations` và lưu danh sách tài liệu làm việc vào `conversation_documents`.<br>3. Sinh viên nhập câu hỏi vào ô chat và nhấn "Gửi".<br>4. Java Backend tiếp nhận yêu cầu, kiểm tra quyền sở hữu đối với các tài liệu trong phiên hội thoại, chuẩn bị ngữ cảnh và gửi yêu cầu nội bộ sang Python AI Service qua `POST /internal/v1/personal-rag/ask`.<br>5. Python AI Service nhúng câu hỏi thành vector bằng mô hình embedding.<br>6. Python AI Service thực hiện tìm kiếm tương đồng Cosine trên bảng `ai.document_chunks` với bộ lọc nghiêm ngặt theo `document_id`, `version` và `owner_id`.<br>7. Hệ thống thu thập Top-K đoạn văn bản phù hợp nhất và đưa qua bộ lọc kiểm tra căn cứ (Evidence Gate).<br>8. Nếu đủ căn cứ, hệ thống đóng gói context và gửi prompt tới LLM yêu cầu trả lời kèm trích dẫn đoạn nguồn theo schema quy định.<br>9. Python AI Service kiểm tra tính hợp lệ của trích dẫn (Grounding Validator) đối chiếu với các đoạn trích dẫn thực tế; đóng gói kết quả có cấu trúc gửi về Java Backend.<br>10. Java Backend lưu trữ tin nhắn vào bảng `chat_messages` và trả về kết quả hiển thị cho giao diện sinh viên gồm nội dung trả lời và các badge trích dẫn (Tên tài liệu, Trang số, Đoạn trích). |
-| **Luồng rẽ nhánh (Alternative Flows)** | - **A1: Tài liệu không chứa đủ bằng chứng trả lời (No Evidence Flow):** Tại bước 7 hoặc bước 9, nếu mức độ tương đồng dưới ngưỡng quy định hoặc LLM không tìm thấy thông tin hỗ trợ trong context, hệ thống dừng lại và trả về trạng thái `NO_EVIDENCE` kèm thông báo: "Tài liệu được chọn không chứa thông tin để trả lời câu hỏi này", tuyệt đối không dùng kiến thức ngoài để suy diễn. |
-| **Luồng ngoại lệ (Exception Flows)** | - **E1: Sinh viên cố tình truy vấn tài liệu không thuộc quyền sở hữu:** Tại bước 4, Java Backend phát hiện `owner_id` không khớp, lập tức từ chối và trả về mã lỗi 403 Forbidden.<br>- **E2: Dịch vụ LLM gặp sự cố hoặc quá tải (Timeout):** Hệ thống trả về mã lỗi 504 Gateway Timeout với thông báo lịch sự, không làm treo ứng dụng và cho phép người dùng thử lại. |
-| **Quy tắc nghiệp vụ** | - Nguyên tắc "Zero Hallucination Tolerance": Không có căn cứ bắt buộc trả lời `NO_EVIDENCE`.<br>- Toàn bộ trích dẫn phải chỉ rõ số trang (`pageNumber`) để sinh viên có thể nhấp vào và đối chiếu trực tiếp trên tệp PDF. |
+| Mục tiêu / tác nhân | Student nhận câu trả lời dựa trên Personal PDF của mình; nhà cung cấp mô hình hỗ trợ xử lý |
+| Kích hoạt | Student gửi câu hỏi trong hội thoại đã chọn nguồn |
+| Tiền điều kiện | Đăng nhập; hội thoại thuộc Student; 1–10 Personal PDF thuộc owner, READY, có snapshot phiên bản hợp lệ |
+| Luồng chính | 1. Chọn nguồn và tạo hội thoại.<br>2. Nhập câu hỏi dài 1–2.000 ký tự.<br>3. Hệ thống kiểm tra lại quyền và trạng thái nguồn trong snapshot.<br>4. Truy xuất các đoạn có liên quan trong đúng phạm vi được cấp quyền.<br>5. Kiểm tra bằng chứng trước khi sinh câu trả lời.<br>6. Sinh và kiểm tra grounding/citation; cho phép rewrite tối đa một lần trên cùng evidence snapshot.<br>7. Kiểm tra lại quyền truy cập trước khi trả nội dung; lưu tin nhắn và hiển thị citation theo trang. |
+| Thay thế | Không đủ bằng chứng hoặc câu trả lời vẫn không đạt grounding sau lần rewrite cho phép: trả `NO_EVIDENCE`, không bổ sung kiến thức ngoài nguồn |
+| Ngoại lệ | Nguồn đã xóa/đổi phiên bản/không còn được phép: dừng và yêu cầu cập nhật nguồn. Lỗi provider, timeout hoặc lỗi index được trả bằng error code riêng; không giả thành `NO_EVIDENCE`. HTTP status theo API contract, không tiết lộ sự tồn tại của tài liệu người khác |
+| Hậu điều kiện | Có câu trả lời được kiểm tra kèm `documentId + pageNumber + excerpt`, hoặc thông báo thiếu căn cứ; không làm thay đổi điểm Quiz, viewing progress hay Streak |
 
----
+`NO_EVIDENCE` là cơ chế từ chối có kiểm soát, không phải cam kết mô hình không bao giờ sai. Chất lượng cần được kiểm chứng bằng tập đánh giá có bằng chứng tham chiếu; số liệu nghiệm thu chỉ được công bố sau khi chạy đánh giá.
 
-### 2.5.2. UC-TUTOR-01: Hỏi đáp nội dung bài giảng với Slide AI Tutor (Chi tiết cho AI-F02)
+### 2.5.2. UC-TUTOR-01 — Hỏi đáp slide (AI-F02)
 
-| Thuộc tính | Nội dung mô tả |
+| Thuộc tính | Nội dung |
 |---|---|
-| **Mã Use Case** | **UC-TUTOR-01** |
-| **Tên Use Case** | **Hỏi đáp nội dung bài giảng với Slide AI Tutor (Slide-Contextual AI Tutor)** |
-| **Tác nhân** | Student, AI Service, LLM Provider |
-| **Mục tiêu** | Giải đáp thắc mắc của sinh viên về nội dung kiến thức của slide bài giảng đang học, có trích dẫn đúng số slide trong bài giảng. |
-| **Tiền điều kiện** | Sinh viên có trạng thái tham gia lớp học phần là `APPROVED`; tài liệu bài giảng PPTX đã được công bố (`PUBLISHED`) và ở trạng thái `READY`. |
-| **Hậu điều kiện** | Sinh viên nhận được lời giải thích cặn kẽ bám sát slide bài giảng kèm số slide dẫn chứng. |
-| **Luồng sự kiện chính (Main Flow)** | 1. Sinh viên mở một bài giảng PPTX trong lớp học phần trên giao diện Slide Viewer.<br>2. Sinh viên di chuyển đến slide cụ thể (ví dụ: Slide số 15) và mở khung Trợ lý "Slide AI Tutor".<br>3. Sinh viên nhập câu hỏi thắc mắc liên quan đến nội dung slide này.<br>4. Java Backend kiểm tra quyền tham gia lớp học phần của sinh viên và trạng thái công bố của bài giảng.<br>5. Java Backend xác định phạm vi truy vấn (Authorized Scope gồm: `course_offering_id`, `document_id`, `slide_number_hien_tai`) và gọi API nội bộ `POST /internal/v1/slides/ask` sang Python AI Service.<br>6. Python AI Service ưu tiên lấy toàn bộ nội dung văn bản của slide hiện tại kết hợp truy xuất các slide lân cận có liên quan trong cùng bài giảng.<br>7. Hệ thống xây dựng ngữ cảnh và yêu cầu LLM giải thích trọng tâm vấn đề của slide.<br>8. Python AI Service kiểm tra kết quả và gắn nhãn trích dẫn theo định dạng `documentId + slideNumber`.<br>9. Java Backend nhận phản hồi, kiểm tra lại tính hợp lệ của citation và trả về giao diện hiển thị cho sinh viên. |
-| **Luồng rẽ nhánh (Alternative Flows)** | - **A1: Câu hỏi không nằm trong nội dung bài giảng:** Hệ thống phản hồi trạng thái `NO_EVIDENCE` và thông báo nội dung câu hỏi không được đề cập trong bài giảng này. |
-| **Luồng ngoại lệ (Exception Flows)** | - **E1: Sinh viên chưa được duyệt vào lớp hoặc bài giảng bị thu hồi:** Java Backend chặn ngay tại bước 4 và trả về lỗi 403 Forbidden: "Bạn không có quyền truy cập bài giảng này".<br>- **E2: Truy vấn slide ngoài phạm vi bài giảng:** Nếu yêu cầu gửi kèm số slide không tồn tại trong bài giảng, hệ thống báo lỗi 400 Bad Request. |
-| **Quy tắc nghiệp vụ** | - Slide AI Tutor chỉ giải thích kiến thức trong phạm vi bài giảng của giảng viên, không thay thế giảng viên đưa ra các nhận định ngoài chương trình học.<br>- Hoạt động hỏi đáp với AI Tutor (`ASK_AI`) không được tính vào điều kiện duy trì chuỗi học tập (Study Streak). |
+| Mục tiêu / tác nhân | Student hiểu nội dung slide đang học; nhà cung cấp mô hình hỗ trợ |
+| Kích hoạt | Student nhập câu hỏi trong khung Tutor cạnh Slide Viewer |
+| Tiền điều kiện | Enrollment APPROVED; PPTX đã công bố, READY; tài liệu/slide tồn tại và được phép truy cập theo chính sách lớp hiện tại |
+| Luồng chính | 1. Mở slide và nhập câu hỏi.<br>2. Java kiểm tra enrollment, publication, trạng thái và phiên bản tài liệu.<br>3. Dựng scope gồm slide hiện tại và các slide được phép.<br>4. Python truy xuất trong scope, ưu tiên slide hiện tại, kiểm tra đủ bằng chứng.<br>5. Sinh giải thích, kiểm tra citation; rewrite tối đa một lần nếu cần.<br>6. Java kiểm tra lại quyền và kết quả trước khi trả về Viewer. |
+| Thay thế | Thiếu căn cứ: `NO_EVIDENCE`; Student có thể điều chỉnh câu hỏi |
+| Ngoại lệ | Chưa được duyệt, bị remove, tài liệu bị revoke/khóa hoặc slide không tồn tại: từ chối theo contract; lỗi hạ tầng có error code riêng |
+| Hậu điều kiện | Trả citation `documentId + slideNumber + excerpt`; không dùng publicationId thay documentId |
 
----
+Không tự mở rộng sang tài liệu khác hoặc toàn bộ lớp. Teacher PDF không có Tutor. `ASK_AI` không được tính vào Streak; xem slide là hoạt động được ghi nhận riêng theo luật của Java.
 
-### 2.5.3. UC-QUIZ-01: Tạo bộ câu hỏi ôn tập bằng AI (Chi tiết cho AI-F03)
+### 2.5.3. UC-QUIZ-01 — Sinh và duyệt Quiz AI (AI-F03)
 
-| Thuộc tính | Nội dung mô tả |
+| Thuộc tính | Nội dung |
 |---|---|
-| **Mã Use Case** | **UC-QUIZ-01** |
-| **Tên Use Case** | **Tạo bộ câu hỏi ôn tập bằng AI (AI Quiz Generation and Student Review)** |
-| **Tác nhân** | Student, AI Service, LLM Provider |
-| **Mục tiêu** | Sinh bộ câu hỏi trắc nghiệm một đáp án đúng (`MCQ_SINGLE`) từ tài liệu cá nhân đã chọn dựa trên yêu cầu tự do của sinh viên; cho phép sinh viên duyệt trước khi đưa vào luyện tập. |
-| **Tiền điều kiện** | Sinh viên đã đăng nhập; các tài liệu cá nhân được chọn đang ở trạng thái `READY`. |
-| **Hậu điều kiện** | Một bộ Quiz được khởi tạo ở trạng thái `REVIEW_REQUIRED`, sau khi sinh viên Chấp nhận (Accept) sẽ chuyển sang `READY` để làm bài. |
-| **Luồng sự kiện chính (Main Flow)** | 1. Sinh viên vào mục "Quiz ôn tập", chọn "Tạo Quiz mới bằng AI".<br>2. Sinh viên lựa chọn từ 1 đến 5 tài liệu cá nhân PDF làm nguồn kiến thức.<br>3. Sinh viên nhập prompt hướng dẫn: số lượng câu hỏi (ví dụ: 10 câu), độ khó (Cơ bản/Nâng cao), chủ đề cần tập trung.<br>4. Java Backend kiểm tra tính hợp lệ của tài liệu, khởi tạo bản ghi trong bảng `quizzes` với trạng thái `GENERATING` và lưu danh sách nguồn vào `quiz_sources`.<br>5. Java Backend gọi API nội bộ `POST /internal/v1/quizzes/generate` sang Python AI Service.<br>6. Python AI Service trích xuất các đoạn văn bản trọng tâm từ tài liệu nguồn, xây dựng prompt kỹ thuật yêu cầu LLM sinh JSON đúng định dạng `MCQ_SINGLE` (mỗi câu có đúng 4 phương án, đúng 1 đáp án chính xác `correctOptionIndex`, giải thích chi tiết và căn cứ số trang).<br>7. Python AI Service thực hiện kiểm tra cấu trúc (Schema Validation). Nếu có lỗi nhỏ, hệ thống tự động sửa (repair) tối đa 1 lần.<br>8. Python AI Service trả về bản nháp Quiz có cấu trúc cho Java Backend.<br>9. Java Backend kiểm tra lại toàn bộ dữ liệu, lưu các câu hỏi vào `quiz_questions` và chuyển trạng thái Quiz sang `REVIEW_REQUIRED`.<br>10. Giao diện hiển thị màn hình Review cho sinh viên xem xét từng câu hỏi, đáp án, lời giải thích và căn cứ trích dẫn nguồn.<br>11. Sinh viên nhấn "Chấp nhận bộ Quiz" (Accept Quiz) và lựa chọn gắn vào lớp học phần liên quan hoặc lưu trữ cá nhân.<br>12. Hệ thống cập nhật trạng thái Quiz sang `READY` và sẵn sàng cho việc làm bài. |
-| **Luồng rẽ nhánh (Alternative Flows)** | - **A1: Sinh viên yêu cầu tạo lại (Regenerate Quiz):** Tại bước 10, nếu không hài lòng với bộ câu hỏi, sinh viên nhấn "Tạo lại"; hệ thống giữ nguyên cấu hình cũ và kích hoạt tạo một Quiz mới hoàn toàn.<br>- **A2: Sinh viên hủy bỏ bản nháp (Reject Quiz):** Sinh viên nhấn "Hủy bỏ"; hệ thống chuyển trạng thái Quiz sang `REJECTED`. |
-| **Luồng ngoại lệ (Exception Flows)** | - **E1: Bộ tạo không thể sinh câu hỏi đúng chuẩn schema sau khi sửa:** Tại bước 7, nếu dữ liệu trả về từ LLM không đáp ứng chuẩn 4 phương án hoặc trích dẫn sai nguồn, hệ thống chuyển trạng thái Quiz sang `GENERATION_FAILED` kèm lý do lỗi rõ ràng, không lưu dữ liệu rác. |
-| **Quy tắc nghiệp vụ** | - 100% câu hỏi Quiz phải là `MCQ_SINGLE` với đúng 4 lựa chọn không trùng lặp và duy nhất 1 đáp án đúng.<br>- Mọi câu hỏi đều phải có nguồn trích dẫn từ tài liệu đã chọn (`document_id + page_number`).<br>- Sinh viên bắt buộc phải trải qua bước Review trước khi làm bài, đảm bảo người học chủ động kiểm soát nội dung ôn tập. |
+| Mục tiêu / tác nhân | Student tạo bộ ôn tập từ tài liệu mình chọn; nhà cung cấp mô hình sinh bản nháp |
+| Kích hoạt | Chọn 1–10 Personal PDF và nhập prompt dài 1–2.000 ký tự |
+| Tiền điều kiện | Nguồn thuộc owner, READY, đúng phiên bản; không phụ thuộc vào hội thoại RAG |
+| Luồng chính | 1. Student gửi nguồn và prompt.<br>2. Java xác thực, lưu snapshot và tạo Quiz GENERATING; trả `202 + quizId`.<br>3. Tác vụ nền gọi Python để retrieval, sinh bản nháp và kiểm tra schema/grounding.<br>4. Python trả mỗi câu đúng bốn phương án, một `correctOptionIndex` trong 0..3, explanation và page citations; repair tối đa một lần.<br>5. Java kiểm tra toàn bộ bản nháp trước khi lưu REVIEW_REQUIRED; FE polling Java để nhận trạng thái.<br>6. Student review và accept vào PERSONAL hoặc Course Offering có enrollment APPROVED.<br>7. Java kiểm tra destination rồi chuyển READY. |
+| Thay thế | Reject chuyển REJECTED; regenerate tạo Quiz mới và bảo toàn bản cũ/lịch sử; destination không hợp lệ thì chưa accept |
+| Ngoại lệ | Thiếu nguồn, provider lỗi hoặc output không đạt sau repair: Java ghi GENERATION_FAILED, không lưu bộ câu hỏi không hợp lệ |
+| Hậu điều kiện | Quiz chỉ làm được sau accept; Python không tự cập nhật lifecycle hoặc chấm điểm |
 
----
+Prompt tự do được dùng để nêu chủ đề, độ khó và mong muốn của Student; không được thay thế system rule, authorized scope, schema hoặc yêu cầu citation. Nguồn sinh Quiz và nơi lưu Quiz để ôn tập là hai khái niệm độc lập.
 
-### 2.5.4. UC-DOC-01: Tải lên và quản lý tài liệu cá nhân PDF (Chuẩn bị nguồn cho AI)
+### 2.5.4. UC-DOC-01 — Chuẩn bị Personal PDF
 
-| Thuộc tính | Nội dung mô tả |
+| Thuộc tính | Nội dung |
 |---|---|
-| **Mã Use Case** | **UC-DOC-01** |
-| **Tên Use Case** | **Tải lên và quản lý tài liệu cá nhân PDF (Upload Personal PDF Documents)** |
-| **Tác nhân** | Student, AI Service |
-| **Mục tiêu** | Sinh viên tải lên các tệp tài liệu học tập cá nhân định dạng PDF để hệ thống bóc tách văn bản, tạo vector nhúng phục vụ cho Personal RAG và sinh Quiz AI. |
-| **Tiền điều kiện** | Sinh viên đã đăng nhập vào hệ thống; tệp tải lên là tệp PDF có lớp văn bản (text layer). |
-| **Hậu điều kiện** | Tài liệu được phân tích trích xuất nội dung theo trang, tạo vector nhúng và sẵn sàng ở trạng thái `READY` cho việc truy vấn AI. |
-| **Luồng sự kiện chính (Main Flow)** | 1. Sinh viên truy cập mục "Tài liệu cá nhân" và chọn "Tải lên PDF".<br>2. Sinh viên chọn tệp `.pdf` từ máy tính (dung lượng dưới 30MB).<br>3. Java Backend kiểm tra quyền sở hữu, dung lượng lưu trữ hiện tại của sinh viên và kiểm tra định dạng MIME của tệp.<br>4. Java Backend lưu tệp vào Object Storage tại vùng lưu trữ riêng của sinh viên, tạo bản ghi tài liệu trong bảng `documents` với `owner_id = current_student_id` và trạng thái `PROCESSING`.<br>5. Java Backend kích hoạt pipeline lập chỉ mục bằng cách gọi `POST /internal/v1/documents/index` sang Python AI Service.<br>6. Python AI Service bóc tách văn bản từng trang, chia nhỏ văn bản (chunking) bảo đảm không cắt rời ngữ cảnh trang, tính toán vector embedding và lưu trữ vào bảng `ai.document_chunks` cùng chỉ mục HNSW.<br>7. Khi pipeline hoàn tất thành công, trạng thái tài liệu được cập nhật thành `READY`.<br>8. Giao diện người dùng hiển thị tài liệu trong danh sách sẵn sàng với thông tin: tên tệp, số trang, dung lượng và trạng thái `READY`. |
-| **Luồng rẽ nhánh (Alternative Flows)** | - **A1: Sinh viên xóa tài liệu cá nhân:** Sinh viên chọn tài liệu và nhấn "Xóa"; hệ thống gọi API xóa dữ liệu vector trong `schema ai`, xóa tệp trên Object Storage và cập nhật trạng thái tài liệu thành `DELETED`. |
-| **Luồng ngoại lệ (Exception Flows)** | - **E1: Tệp PDF scan không có lớp văn bản:** Tại bước 6, nếu bộ bóc tách không tìm thấy ký tự văn bản, hệ thống trả về mã lỗi `PDF_TEXT_REQUIRED`, cập nhật trạng thái `FAILED` và khuyến nghị người dùng sử dụng tệp PDF chuẩn có văn bản số.<br>- **E2: Tệp PDF có mật khẩu bảo vệ:** Bộ xử lý trả về mã lỗi `PDF_ENCRYPTED`, hệ thống thông báo người dùng gỡ bỏ mật khẩu trước khi tải lên. |
-| **Quy tắc nghiệp vụ** | - Tài liệu cá nhân là tài nguyên riêng tư tuyệt đối của từng sinh viên. Giảng viên và Quản trị viên không có quyền truy cập, đọc nội dung hoặc biến tài liệu này thành học liệu chung. |
+| Mục tiêu / tác nhân | Student chuẩn bị nguồn riêng cho RAG và Quiz |
+| Kích hoạt / tiền điều kiện | Chọn upload khi đã đăng nhập; chỉ PDF tối đa 20 MB |
+| Luồng chính | 1. Java kiểm tra MIME, kích thước và quyền.<br>2. Lưu tệp riêng tư, tạo metadata PENDING_PROCESSING.<br>3. Gửi yêu cầu index và nhận `202 + jobId`.<br>4. Worker parse theo trang, chunk, embed và lưu index/version.<br>5. Java poll job với backoff, cập nhật READY/FAILED; browser chỉ poll Java. |
+| Ngoại lệ | PDF mã hóa: `PDF_ENCRYPTED`; không có text layer: `PDF_TEXT_REQUIRED`; lỗi xử lý: FAILED và safe error |
+| Thay thế | Xóa tài liệu: Java chuyển DELETING và chặn dùng ngay; deindex/xóa object theo job và chính sách lưu metadata, không tự đặt thêm trạng thái DELETED |
+| Hậu điều kiện | Chỉ nguồn READY được chọn cho AI; quyền riêng tư không thay đổi sau indexing |
 
----
+### 2.5.5. UC-QUIZ-02 — Làm bài và xem nội dung cần ôn lại
 
-### 2.5.5. UC-QUIZ-02: Luyện tập bài trắc nghiệm và điều hướng câu sai (Đánh giá Quiz AI)
-
-| Thuộc tính | Nội dung mô tả |
+| Thuộc tính | Nội dung |
 |---|---|
-| **Mã Use Case** | **UC-QUIZ-02** |
-| **Tên Use Case** | **Luyện tập bài trắc nghiệm và điều hướng câu sai (Take Quiz & Wrong Answer Review)** |
-| **Tác nhân** | Student |
-| **Mục tiêu** | Cho phép sinh viên thực hiện bài kiểm tra trắc nghiệm từ bộ câu hỏi AI đã sinh, nhận kết quả chấm điểm khách quan từ Java Backend và nhận diện các trang tài liệu cần đọc lại từ câu trả lời sai. |
-| **Tiền điều kiện** | Bộ Quiz đang ở trạng thái `READY`. |
-| **Hậu điều kiện** | Lượt làm bài (`quiz_attempts`) được lưu lại đầy đủ; điểm số được tính toán; sự kiện `QUIZ_COMPLETED` được phát sinh; danh sách kiến thức cần ôn lại được cập nhật. |
-| **Luồng sự kiện chính (Main Flow)** | 1. Sinh viên chọn một bộ Quiz `READY` và nhấn "Bắt đầu làm bài".<br>2. Java Backend tạo một bản ghi lượt làm mới trong bảng `quiz_attempts` với `started_at = NOW()`.<br>3. Giao diện hiển thị danh sách các câu hỏi trắc nghiệm kèm 4 lựa chọn (được xáo trộn ngẫu nhiên thứ tự hiển thị).<br>4. Sinh viên lần lượt chọn đáp án cho từng câu hỏi.<br>5. Sau khi hoàn thành, sinh viên nhấn "Nộp bài" (Submit Quiz).<br>6. Java Backend tiếp nhận danh sách câu trả lời của sinh viên:<br>&nbsp;&nbsp;&nbsp;&nbsp;a. Đối soát từng câu trả lời với `correct_option_index` được lưu trong cơ sở dữ liệu.<br>&nbsp;&nbsp;&nbsp;&nbsp;b. Ghi nhận chi tiết từng câu vào bảng `quiz_answers` (lựa chọn của sinh viên, đúng/sai).<br>&nbsp;&nbsp;&nbsp;&nbsp;c. Tính toán tổng điểm số và tỷ lệ phần trăm chính xác.<br>&nbsp;&nbsp;&nbsp;&nbsp;d. Cập nhật `score`, `completed_at` vào bảng `quiz_attempts`.<br>7. Java Backend phát sinh sự kiện học tập `QUIZ_COMPLETED` để cập nhật tiến độ học tập và tính toán chuỗi ngày học Streak.<br>8. Hệ thống tổng hợp các câu trả lời sai, trích xuất thông tin tài liệu và số trang từ `quiz_question_sources` để tạo danh sách "Nội dung cần ôn lại".<br>9. Giao diện hiển thị bảng điểm tổng kết, danh sách câu đúng/sai kèm lời giải thích chi tiết và liên kết dẫn thẳng đến trang tài liệu cần đọc lại. |
-| **Luồng rẽ nhánh (Alternative Flows)** | - **A1: Sinh viên làm lại bài Quiz (Retake):** Sinh viên có thể bấm "Làm lại bài"; hệ thống tạo một `quiz_attempt` hoàn toàn mới, bảo lưu toàn bộ lịch sử các lần làm trước đó để theo dõi sự tiến bộ. |
-| **Luồng ngoại lệ (Exception Flows)** | - **E1: Mất kết nối trong quá trình làm bài:** Client lưu tạm lựa chọn vào Local Storage; khi có mạng trở lại, sinh viên tiếp tục hoàn thành và nộp bài bình thường.<br>- **E2: Nộp bài trùng lặp (Double Submit):** Hệ thống sử dụng Idempotency Key trên lượt làm; nếu nhận yêu cầu nộp trùng, hệ thống trả về kết quả đã chấm trước đó mà không tạo thêm bản ghi điểm mới. |
-| **Quy tắc nghiệp vụ** | - Việc chấm điểm hoàn toàn do Java Backend thực hiện bằng thuật toán so khớp chính xác, tuyệt đối không dùng LLM để chấm điểm.<br>- "Nội dung cần ôn lại" chỉ dựa trên căn cứ nguồn của các câu trả lời sai thực tế, không dùng AI để suy đoán điểm mạnh/yếu chủ quan. |
+| Mục tiêu / tác nhân | Student tự kiểm tra kiến thức và tìm lại nguồn của câu trả lời sai |
+| Kích hoạt / tiền điều kiện | Bắt đầu một Quiz READY thuộc Student, có quyền truy cập hợp lệ |
+| Luồng chính | 1. Java tạo attempt mới.<br>2. FE hiển thị câu hỏi và bốn lựa chọn, không đưa đáp án chuẩn vào payload làm bài.<br>3. Student chọn đáp án, nộp bài.<br>4. Java đối chiếu đáp án đã lưu, ghi từng answer và điểm trong transaction.<br>5. Ghi QUIZ_COMPLETED một lần cho attempt.<br>6. Hiển thị kết quả, giải thích và các trang Personal PDF liên quan tới câu sai. |
+| Thay thế | Làm lại tạo attempt mới, không ghi đè lịch sử |
+| Ngoại lệ | Submit lặp trả lại kết quả đã ghi, không cộng event lần nữa; mất kết nối hiển thị lỗi và cho thử lại an toàn, không mặc định cam kết chế độ offline |
+| Hậu điều kiện | Cập nhật thống kê Quiz, Daily Goal và Streak theo sự kiện hợp lệ; không tăng viewing progress của PPTX từ điểm Quiz |
 
----
+“Nội dung cần ôn lại” là phép tổng hợp từ câu sai và nguồn của câu hỏi, không phải kết luận AI về mức độ yếu/mạnh hoặc Topic Mastery.
+
+### 2.5.6. Các Use Case chung của hệ thống
+
+| Mã / tác nhân / kích hoạt | Tiền điều kiện | Luồng chính và kết quả | Ngoại lệ / giới hạn |
+|---|---|---|---|
+| UC-ENROLL-01 / Student, Teacher / nhập code | Lớp cho phép tham gia, code hợp lệ | Student gửi yêu cầu PENDING → Teacher owner duyệt APPROVED hoặc REJECTED → chỉ Student APPROVED được truy cập học liệu public | Code sai, lớp khóa, yêu cầu trùng được xử lý theo state machine; Admin không phải bước duyệt |
+| UC-OFFERING-01 / Teacher / tạo lớp | Teacher active, Subject hợp lệ và Semester cho phép tạo | Chọn Subject + Semester → nhập thông tin lớp → Java tạo Course Offering thuộc Teacher | Không tự đặt teacherId của người khác; không cần Admin phân công |
+| UC-PUBLISH-01 / Teacher / công bố học liệu | Cùng owner với lớp; PPTX READY | Upload PDF/PPTX → xử lý nếu PPTX → Teacher chủ động publish → Student APPROVED sử dụng | PDF chỉ download, PPTX chỉ xem artifact; revoke chặn truy cập mới |
+| UC-DASH-01 / Student / mở Dashboard | Đăng nhập | Java tổng hợp tiến độ chung/từng lớp, câu sai, Streak và Daily Goal; FE hỗ trợ mở/thu các khối | Không có route tiến độ độc lập; chỉ ba event học hợp lệ tính Streak |
+| UC-PLAN-01 / Student / thêm task hoặc lịch | Plan thuộc Student | Chọn tuần/ô giờ → nhập task hoặc lịch → Java validate và lưu → lịch tuần phản ánh dữ liệu; hoàn tất task sinh event một lần | Không tự động xếp lịch bằng AI; thao tác vượt owner bị từ chối |
+| UC-ADMIN-01 / Admin / quản trị | Đăng nhập với role Admin | Quản lý user/Subject/Semester/settings, xem feedback/audit và giám sát lớp | Không đọc mặc định Personal PDF/chat/Note/Quiz cá nhân; không tạo Teacher Quiz |
+
+### 2.5.7. Ma trận truy vết sang thiết kế và kiểm thử
+
+| Yêu cầu / Use Case | Thiết kế ở Chương 3 | Kiểm thử cần có |
+|---|---|---|
+| AI-F01 / UC-RAG-01 | Lớp RAG, activity RAG, sequence RAG | Owner/document/version isolation; evidence gate; citation theo trang; provider timeout |
+| AI-F02 / UC-TUTOR-01 | Lớp Tutor, activity Tutor, sequence Tutor | Enrollment/revoke; allowed slides; citation theo slide; không cộng Streak |
+| AI-F03 / UC-QUIZ-01 | Lớp Quiz, activity/sequence Quiz và lifecycle | Bốn phương án; một đáp án; scope; repair giới hạn; review/accept; regenerate giữ lịch sử |
+| UC-DOC-01 / UC-PUBLISH-01 | Sequence index và ranh giới lưu trữ | 202/poll; index idempotent; text-required; PPTX READY không tự public |
+| UC-ENROLL-01 / UC-OFFERING-01 | Entity/ERD và activity enrollment | Teacher owner; code; trạng thái pending/approved; từ chối vượt quyền |
+| UC-QUIZ-02 / UC-DASH-01 / UC-PLAN-01 | Entity/ERD, lifecycle và quy tắc event | Chấm bằng Java; submit/task idempotent; timezone; viewing progress tách Quiz |
+| UC-ADMIN-01 | Kiến trúc, dữ liệu và ma trận phân quyền | RBAC; audit an toàn; không lộ dữ liệu riêng |
 
 ## 2.6. Tổng kết chương
 
-Chương 2 đã hoàn thành toàn diện các nội dung của **Pha phân tích hệ thống (System Analysis Phase)**:
-1. Đã làm rõ bài toán thực tế của sinh viên đại học trong bối cảnh phân mảnh học liệu và rủi ro khi dùng AI không có kiểm soát; xác định mục tiêu và phạm vi ranh giới của các tác nhân (Student, Teacher, Admin, AI Service).
-2. Đã phân tích chi tiết các yêu cầu chức năng cho từng tác nhân và các yêu cầu phi chức năng nghiêm ngặt về bảo mật, hiệu năng, nguyên tắc trích dẫn nguồn có căn cứ (`grounded citations`) và phòng ngừa ảo giác (`NO_EVIDENCE`).
-3. Đã chuẩn hóa form thống nhất gồm 10 trường thông tin chi tiết cho 9 chức năng trọng tâm chia đều cho 3 thành viên; trong đó khẳng định rõ và hoàn thiện chi tiết 3 chức năng AI chủ lực của Thành viên 1, đồng thời thiết lập sẵn khung form mẫu chuẩn cho Thành viên 2 và Thành viên 3 hoàn thiện sau khi chốt danh mục.
-4. Đã xây dựng hệ thống biểu đồ Use Case trực quan, bao gồm Biểu đồ Use Case tổng quát và 3 biểu đồ Use Case phân rã chi tiết cho Student, Teacher và Admin.
-5. Đã xây dựng bộ kịch bản đặc tả Use Case chi tiết (Use Case Specifications) cho các ca sử dụng thuộc phạm vi chức năng AI đã chốt và luồng xử lý học liệu liên quan, làm cơ sở vững chắc cho pha thiết kế ở Chương 3.
+Chương 2 xác định các tác nhân, yêu cầu và ranh giới của MVP, đồng thời đặc tả ba chức năng AI được chọn và các Use Case chung cần cho luồng end-to-end. Use Case mô tả mục tiêu của người dùng; thiết kế kỹ thuật triển khai các mục tiêu đó được trình bày trong Chương 3.
+
+Form của hai thành viên còn lại được giữ để nhóm chốt và điền sau; không xem các ô chờ này là nội dung đã hoàn tất. Các tiêu chí nghiệm thu trong chương là yêu cầu cần kiểm thử, không phải số liệu đã đo hoặc khẳng định implementation đã hoàn thành.

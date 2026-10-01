@@ -1,0 +1,67 @@
+@startuml
+' Palette: class; based on the Visual Paradigm guide samples (see README).
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+hide circle
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+class PersonalRagController <<Java boundary>> {
++postMessage(id: UUID, body: MessageRequest): AnswerResponse
+}
+class MessageRequest <<DTO>> {
++message: String
+}
+class PersonalRagService <<Java control>> {
++ask(userId: UUID, id: UUID, message: String): AnswerResponse
+}
+class ConversationRepository <<Java repository>> {
++loadOwnedSnapshot(userId: UUID, id: UUID): ConversationSnapshot
+}
+class AiClient <<HTTP adapter>> {
++ask(request: InternalRagRequest): AnswerResponse
+}
+class RagPipeline <<Python control>> {
++run(request: InternalRagRequest): AnswerResponse
+}
+class ScopedRetriever <<Python service>> {
++search(scope: AuthorizedScope, query: String): EvidenceSet
+}
+class GroundingValidator <<Python service>> {
++validate(answer: GeneratedAnswer, evidence: EvidenceSet): ValidationResult
+}
+class AnswerResponse <<DTO>> {
++status: AnswerStatus
++answer: String?
++citations: PageCitation[]
+}
+PersonalRagController ..> MessageRequest
+PersonalRagController --> PersonalRagService
+PersonalRagService --> ConversationRepository
+PersonalRagService --> AiClient
+AiClient ..> RagPipeline : internal HTTP
+RagPipeline --> ScopedRetriever
+RagPipeline --> GroundingValidator
+PersonalRagService ..> AnswerResponse
+note bottom of PersonalRagService
+Java dựng scope từ snapshot có documentVersion.
+MessageRequest không cho đổi danh sách tài liệu.
+end note
+@enduml

@@ -10,12 +10,13 @@ Từ thực tế đó, đề tài xây dựng StudyFlow — nền tảng web th�
 
 **Tên đề tài:** Xây dựng hệ thống hỗ trợ học tập và ôn luyện ứng dụng Trí tuệ Nhân tạo.
 
-Luồng tổng quát của hệ thống:
+Hình 1.1 phân biệt hai nguồn học liệu và những hoạt động chính trong phạm vi MVP.
 
-```text
-Tài liệu → Xem/Ghi chú/Phiên học → AI Tutor/Quiz → Đánh giá
-         → Dashboard/Study Plan/Nội dung cần ôn → Làm lại
-```
+![Phạm vi StudyFlow](../diagrams/chuong-1/architecture-scope-01-pham-vi-studyflow.svg)
+
+*Hình 1.1. Phạm vi chức năng và các nhánh học tập của StudyFlow.*
+
+Hình cho thấy học liệu lớp học phần và Personal PDF đi theo hai nhánh riêng. Slide Tutor chỉ hỗ trợ PPTX đã công bố; RAG cá nhân và tạo Quiz cùng dùng Personal PDF nhưng không bắt buộc nối tiếp nhau. Java ghi nhận sự kiện học tập và chấm Quiz, còn sinh viên chủ động quản lý Kế hoạch & Lịch. Đây là sơ đồ phạm vi nghiệp vụ, không phải trình tự API hoặc minh chứng implementation đã hoàn thành.
 
 StudyFlow tổ chức môn học theo `Semester → Course Offering → Documents`. Teacher tự tạo Course Offering từ danh mục Subject và Semester, quản lý join code, duyệt Student và public học liệu. Student sử dụng PPTX của lớp, PDF tải xuống và Personal PDF cho chatbot hoặc Quiz. Admin quản lý danh mục, tài khoản và giám sát hệ thống.
 

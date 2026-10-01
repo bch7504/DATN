@@ -1,0 +1,65 @@
+@startuml
+' Palette: class; based on the Visual Paradigm guide samples (see README).
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+hide circle
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+class SlideTutorController <<Java boundary>> {
++ask(documentId: UUID, number: Integer, body: SlideQuestion): AnswerResponse
+}
+class SlideQuestion <<DTO>> {
++question: String
+}
+class SlideTutorService <<Java control>> {
++ask(userId: UUID, documentId: UUID, number: Integer, question: String): AnswerResponse
+}
+class MaterialAccessPolicy <<Java policy>> {
++authorize(userId: UUID, documentId: UUID, number: Integer): SlideScope
+}
+class AiClient <<HTTP adapter>> {
++askSlide(scope: SlideScope, question: String): AnswerResponse
+}
+class SlideTutorPipeline <<Python control>> {
++run(scope: SlideScope, question: String): AnswerResponse
+}
+class SlideScope <<DTO>> {
++documentId: UUID
++documentVersion: Integer
++courseOfferingId: UUID
++currentSlide: Integer
++allowedSlideNumbers: Integer[]
+}
+class GroundingValidator <<Python service>> {
++validate(answer: GeneratedAnswer, evidence: EvidenceSet): ValidationResult
+}
+SlideTutorController ..> SlideQuestion
+SlideTutorController --> SlideTutorService
+SlideTutorService --> MaterialAccessPolicy
+MaterialAccessPolicy ..> SlideScope
+SlideTutorService --> AiClient
+AiClient ..> SlideTutorPipeline : internal HTTP
+SlideTutorPipeline --> GroundingValidator
+note bottom of MaterialAccessPolicy
+Kiểm tra enrollment / publication / READY
+trước lời gọi AI và trước khi trả nội dung.
+end note
+@enduml

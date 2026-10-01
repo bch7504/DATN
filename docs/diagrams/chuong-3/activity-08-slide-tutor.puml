@@ -1,0 +1,53 @@
+@startuml
+' Palette: activity; based on the Visual Paradigm swimlane sample supplied by the project owner.
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActivityBackgroundColor #7ACFF5
+skinparam ActivityBorderColor #222222
+skinparam ActivityDiamondBackgroundColor #7ACFF5
+skinparam ActivityDiamondBorderColor #222222
+skinparam ActivityStartColor #111111
+skinparam ActivityEndColor #111111
+skinparam PartitionBackgroundColor white
+skinparam PartitionBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam roundcorner 16
+|Student|
+start
+:Đặt câu hỏi tại slide đang xem;
+|Java Backend|
+:Kiểm enrollment APPROVED;
+:Kiểm publication, READY và version;
+if (Được phép?) then (Có)
+  :Dựng current slide và allowed scope;
+  note right
+  Citation: documentId + slideNumber + excerpt.
+  ASK_AI không tăng progress hoặc Streak.
+  end note
+  |Python AI|
+  :Retrieval đúng document/version/scope;
+  if (Đủ bằng chứng?) then (Có)
+    :Sinh giải thích và citation;
+    :Validate; rewrite tối đa 1 lần;
+    |Java Backend|
+    :Revalidate quyền và citation;
+    |Student|
+    :Nhận câu trả lời cạnh slide;
+    stop
+  else (Không)
+    |Student|
+    :Nhận NO_EVIDENCE;
+    stop
+  endif
+else (Không)
+  |Student|
+  :Nhận lỗi access / revoked;
+  stop
+endif
+@enduml

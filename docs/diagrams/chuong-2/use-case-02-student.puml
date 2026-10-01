@@ -1,0 +1,67 @@
+@startuml
+' Palette: usecase; based on the Visual Paradigm guide samples (see README).
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+skinparam UsecaseBackgroundColor #7ACFF5
+skinparam UsecaseBorderColor #222222
+skinparam RectangleBackgroundColor #7ACFF5
+skinparam RectangleBorderColor #222222
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+left to right direction
+actor StudentLeft as "Student"
+rectangle "StudyFlow — Student" #7ACFF5 {
+usecase "Tham gia lớp\nbằng join code" as join
+usecase "Xem slide PPTX" as view
+usecase "Ghi chú slide" as note
+usecase "Hỏi Slide Tutor" as tutor
+usecase "Tải PDF của Teacher" as pdf
+usecase "Quản lý Personal PDF" as docs
+usecase "Hỏi đáp Personal RAG" as rag
+usecase "Tạo Quiz từ PDF\nvà prompt riêng" as generate
+usecase "Duyệt bản nháp Quiz" as review
+usecase "Làm Quiz / xem kết quả\nvà nội dung cần ôn lại" as attempt
+usecase "Xem Dashboard\nvà cấu hình Daily Goal" as dashboard
+usecase "Quản lý Kế hoạch & Lịch" as plan
+join -[hidden]down-> view
+view -[hidden]down-> note
+note -[hidden]down-> tutor
+tutor -[hidden]down-> pdf
+pdf -[hidden]down-> docs
+generate -[hidden]down-> review
+review -[hidden]down-> attempt
+attempt -[hidden]down-> dashboard
+dashboard -[hidden]down-> plan
+plan -[hidden]down-> rag
+join -[hidden]right-> generate
+note .> view : <<extend>>\n[khi chọn ghi chú]
+tutor .> view : <<extend>>\n[khi đặt câu hỏi]
+}
+actor StudentRight as "Student"
+StudentLeft -right- join
+StudentLeft -right- view
+StudentLeft -right- note
+StudentLeft -right- tutor
+StudentLeft -right- pdf
+StudentLeft -right- docs
+generate -right- StudentRight
+review -right- StudentRight
+attempt -right- StudentRight
+dashboard -right- StudentRight
+plan -right- StudentRight
+rag -right- StudentRight
+@enduml

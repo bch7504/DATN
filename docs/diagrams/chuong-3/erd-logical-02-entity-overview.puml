@@ -1,0 +1,165 @@
+@startuml
+' Palette: physical/logical entity diagram based on the Visual Paradigm ERD sample.
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam defaultFontColor #111111
+skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 34
+skinparam ranksep 44
+skinparam ArrowColor #222222
+skinparam EntityBackgroundColor #F2BB7B
+skinparam EntityBorderColor #222222
+skinparam EntityFontColor #111111
+skinparam EntityAttributeFontColor #111111
+skinparam ClassBackgroundColor #F2BB7B
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #F2BB7B
+skinparam ClassFontColor #111111
+skinparam ClassAttributeFontColor #111111
+hide circle
+left to right direction
+
+entity "users" as users {
+  * id : uuid <<PK>>
+  --
+  email : varchar(255) <<UQ>>
+  role : varchar(20)
+  time_zone : varchar(64)
+}
+entity "subjects" as subjects {
+  * id : uuid <<PK>>
+  --
+  code : varchar(30) <<UQ>>
+  name : varchar(255)
+}
+entity "semesters" as semesters {
+  * id : uuid <<PK>>
+  --
+  code : varchar(30) <<UQ>>
+  status : varchar(20)
+}
+entity "course_offerings" as offerings {
+  * id : uuid <<PK>>
+  --
+  subject_id : uuid <<FK>>
+  semester_id : uuid <<FK>>
+  teacher_id : uuid <<FK>>
+  status : varchar(20)
+}
+entity "course_enrollments" as enrollments {
+  * id : uuid <<PK>>
+  --
+  course_offering_id : uuid <<FK>>
+  student_id : uuid <<FK>>
+  status : varchar(20)
+}
+entity "documents" as documents {
+  * id : uuid <<PK>>
+  --
+  owner_id : uuid <<FK>>
+  document_version : integer
+  scope : varchar(20)
+  processing_status : varchar(20)
+}
+entity "document_publications" as publications {
+  * id : uuid <<PK>>
+  --
+  document_id : uuid <<FK>>
+  course_offering_id : uuid <<FK>>
+  status : varchar(20)
+}
+entity "slides" as slides {
+  * id : uuid <<PK>>
+  --
+  document_id : uuid <<FK>>
+  slide_number : integer
+  rendered_key : varchar(500)
+}
+entity "chat_conversations" as conversations {
+  * id : uuid <<PK>>
+  --
+  student_id : uuid <<FK>>
+  type : varchar(20)
+}
+entity "quizzes" as quizzes {
+  * id : uuid <<PK>>
+  --
+  student_id : uuid <<FK>>
+  course_offering_id : uuid <<FK, nullable>>
+  status : varchar(30)
+}
+entity "quiz_questions" as questions {
+  * id : uuid <<PK>>
+  --
+  quiz_id : uuid <<FK>>
+  options : jsonb
+  correct_option_index : smallint
+}
+entity "quiz_attempts" as attempts {
+  * id : uuid <<PK>>
+  --
+  quiz_id : uuid <<FK>>
+  student_id : uuid <<FK>>
+  score : numeric(5,2)
+}
+entity "learning_events" as events {
+  * id : uuid <<PK>>
+  --
+  student_id : uuid <<FK>>
+  event_type : varchar(30)
+  activity_date : date
+}
+entity "learning_progress" as progress {
+  * id : uuid <<PK>>
+  --
+  student_id : uuid <<FK>>
+  document_id : uuid <<FK>>
+  progress_percent : numeric(5,2)
+}
+entity "daily_goals" as goals {
+  * student_id : uuid <<PK, FK>>
+  --
+  slide_target : integer
+  quiz_question_target : integer
+  task_target : integer
+}
+entity "study_plans" as plans {
+  * id : uuid <<PK>>
+  --
+  student_id : uuid <<FK>>
+  title : varchar(255)
+}
+entity "study_plan_items" as plan_items {
+  * id : uuid <<PK>>
+  --
+  study_plan_id : uuid <<FK>>
+  course_offering_id : uuid <<FK, nullable>>
+  scheduled_at : timestamptz
+  status : varchar(20)
+}
+
+users ||--o{ offerings
+subjects ||--o{ offerings
+semesters ||--o{ offerings
+offerings ||--o{ enrollments
+users ||--o{ enrollments
+users ||--o{ documents
+documents ||--o{ publications
+offerings ||--o{ publications
+documents ||--o{ slides
+users ||--o{ conversations
+users ||--o{ quizzes
+offerings |o--o{ quizzes
+quizzes ||--o{ questions
+quizzes ||--o{ attempts
+users ||--o{ attempts
+users ||--o{ events
+users ||--o{ progress
+documents ||--o{ progress
+users ||--o| goals
+users ||--o{ plans
+plans ||--o{ plan_items
+offerings |o--o{ plan_items
+@enduml

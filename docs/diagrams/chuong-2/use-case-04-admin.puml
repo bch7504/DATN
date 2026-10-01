@@ -1,0 +1,54 @@
+@startuml
+' Palette: usecase; based on the Visual Paradigm guide samples (see README).
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+skinparam UsecaseBackgroundColor #7ACFF5
+skinparam UsecaseBorderColor #222222
+skinparam RectangleBackgroundColor #7ACFF5
+skinparam RectangleBorderColor #222222
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+actor Admin
+rectangle "StudyFlow — Admin" #7ACFF5 {
+usecase "Quản lý tài khoản\nvà vai trò" as users
+usecase "Quản lý Subject" as subjects
+usecase "Quản lý Semester" as semesters
+usecase "Giám sát Course Offering" as offerings
+usecase "Xử lý feedback" as feedback
+usecase "Xem audit / trạng thái AI" as audit
+usecase "Quản lý cấu hình hệ thống" as settings
+users -[hidden]down-> subjects
+subjects -[hidden]down-> semesters
+offerings -[hidden]down-> feedback
+feedback -[hidden]down-> audit
+audit -[hidden]down-> settings
+semesters -[hidden]down-> offerings
+}
+Admin -right- users
+Admin -[norank]- subjects
+Admin -[norank]- semesters
+Admin -[norank]- offerings
+Admin -[norank]- feedback
+Admin -[norank]- audit
+Admin -[norank]- settings
+note bottom of offerings
+Không phân công Teacher từng lớp;
+không quản lý Quiz, Progress
+hoặc đọc Personal PDF của Student.
+end note
+@enduml

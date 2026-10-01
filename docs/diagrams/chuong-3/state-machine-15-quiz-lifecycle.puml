@@ -1,0 +1,52 @@
+@startuml
+' Palette: state; Visual Paradigm-inspired UML State Machine.
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam defaultFontColor #111111
+skinparam ArrowColor #333333
+skinparam ArrowThickness 1
+skinparam StateBackgroundColor #7ACFF5
+skinparam StateBorderColor #333333
+skinparam StateStartColor #000000
+skinparam StateEndColor #000000
+skinparam NoteBackgroundColor #FFFDE7
+skinparam NoteBorderColor #666666
+skinparam roundcorner 14
+skinparam nodesep 35
+skinparam ranksep 42
+top to bottom direction
+
+[*] -down-> GENERATING
+
+state "Chuẩn bị Quiz" as PREPARATION #7ACFF5 {
+  state "Đang sinh" as GENERATING
+  state "Chờ duyệt" as REVIEW_REQUIRED
+  state "Sinh thất bại" as GENERATION_FAILED
+  state "Đã từ chối" as REJECTED
+
+  GENERATING -down-> REVIEW_REQUIRED : Bản nháp hợp lệ
+  GENERATING -right-> GENERATION_FAILED
+  GENERATION_FAILED -left-> GENERATING : Tạo yêu cầu hợp lệ
+  REVIEW_REQUIRED -right-> REJECTED
+}
+
+state "Sẵn sàng ôn tập" as READY
+
+REVIEW_REQUIRED -down-> READY : Student chấp nhận\n[Quiz cá nhân hoặc enrollment APPROVED]
+READY -right-> READY : Attempt mới
+REJECTED -down-> [*]
+GENERATION_FAILED -down-> [*]
+
+note left of GENERATING
+Mỗi lần tạo lại sinh một Quiz mới,
+không ghi đè phiên bản trước.
+end note
+
+note left of READY
+Mỗi attempt được lưu riêng.
+Java ghi nhận QUIZ_COMPLETED.
+end note
+@enduml

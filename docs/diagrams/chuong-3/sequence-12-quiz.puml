@@ -1,0 +1,70 @@
+@startuml
+' Palette: sequence; based on the Visual Paradigm guide samples (see README).
+' Interaction: Sinh và duyệt Quiz AI
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+skinparam ParticipantBackgroundColor #7ACFF5
+skinparam ParticipantBorderColor #222222
+skinparam LifeLineBackgroundColor #7ACFF5
+skinparam LifeLineBorderColor #222222
+skinparam SequenceGroupBackgroundColor white
+skinparam SequenceGroupBodyBackgroundColor white
+skinparam SequenceGroupBorderColor #222222
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+hide footbox
+autonumber
+autoactivate on
+actor Student
+participant ":Web" as Web
+participant ":Java API / worker" as Java
+participant ":Python AI" as AI
+participant ":Model Provider" as LLM
+participant ":app" as DB
+Student -> Web : Chọn Personal PDF và nhập prompt
+Web -> Java : Tạo Quiz {selectedDocumentIds, prompt}
+Java -> Java : Kiểm owner / READY; snapshot nguồn
+Java -> DB : Tạo Quiz GENERATING và run identity
+Java --> Web : 202 {quizId, status}
+Java -> AI : /internal/v1/quizzes/generate\nscope + userPrompt + Idempotency-Key
+AI -> AI : Retrieval có scope, evidence gate
+alt Thiếu evidence
+AI --> Java : Lỗi thiếu căn cứ; không sinh đề
+else Đủ evidence
+AI -> LLM : Yêu cầu JSON MCQ_SINGLE
+LLM --> AI : Structured draft
+AI -> AI : Schema + grounding; repair tối đa 1 lần
+AI --> Java : QuizDraft hoặc lỗi
+end
+alt Draft hợp lệ và nguồn còn được phép
+Java -> DB : Lưu toàn bộ câu hỏi; REVIEW_REQUIRED
+else Lỗi hoặc không hợp lệ
+Java -> DB : GENERATION_FAILED; không lưu câu hỏi lỗi
+end
+loop Poll có backoff giới hạn
+Web -> Java : GET trạng thái Quiz
+Java --> Web : Trạng thái / bản nháp khi sẵn sàng
+end
+opt Quiz REVIEW_REQUIRED và Student chọn accept
+Student -> Web : Review rồi accept (PERSONAL / Course Offering)
+Web -> Java : Accept Quiz
+Java -> Java : Owner, state, enrollment APPROVED nếu gắn lớp
+Java -> DB : Cập nhật READY
+Java --> Web : Quiz sẵn sàng làm bài
+end
+return Hoàn tất tương tác
+@enduml

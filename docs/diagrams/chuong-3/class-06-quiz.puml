@@ -1,0 +1,72 @@
+@startuml
+' Palette: class; based on the Visual Paradigm guide samples (see README).
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+hide circle
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+class QuizController <<Java boundary>> {
++generate(body: QuizRequest): AcceptedQuiz
++accept(id: UUID, body: AcceptQuizRequest): QuizSummary
+}
+class QuizRequest <<DTO>> {
++selectedDocumentIds: UUID[1..10]
++prompt: String
+}
+class QuizService <<Java control>> {
++create(userId: UUID, request: QuizRequest): AcceptedQuiz
++accept(userId: UUID, id: UUID, request: AcceptQuizRequest): QuizSummary
+}
+class QuizGenerationJob <<Java job>> {
++execute(quizId: UUID, runId: UUID): JobResult
+}
+class AiClient <<HTTP adapter>> {
++generate(request: InternalQuizRequest): QuizDraft
+}
+class QuizGenerator <<Python control>> {
++generate(scope: AuthorizedScope, prompt: String): QuizDraft
+}
+class QuizValidator <<Python service>> {
++validate(draft: QuizDraft, evidence: EvidenceSet): ValidationResult
+}
+class QuizDraft <<DTO>> {
++questions: McqSingleQuestion[]
+}
+class McqSingleQuestion <<DTO>> {
++options: String[4]
++correctOptionIndex: Integer
++explanation: String
++sources: PageCitation[]
+}
+QuizController ..> QuizRequest
+QuizController --> QuizService
+QuizService ..> QuizGenerationJob : enqueue
+QuizGenerationJob --> AiClient
+AiClient ..> QuizGenerator : internal HTTP
+QuizGenerator --> QuizValidator
+QuizDraft "1" *-- "1..*" McqSingleQuestion
+QuizGenerator ..> QuizDraft
+note bottom of QuizService
+Java sở hữu GENERATING / REVIEW_REQUIRED / READY,
+accept / reject / regenerate và scoring.
+Python chỉ trả draft hoặc lỗi có cấu trúc.
+end note
+@enduml

@@ -1,0 +1,57 @@
+@startuml
+' Palette: usecase; based on the Visual Paradigm guide samples (see README).
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+skinparam UsecaseBackgroundColor #7ACFF5
+skinparam UsecaseBorderColor #222222
+skinparam RectangleBackgroundColor #7ACFF5
+skinparam RectangleBorderColor #222222
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+actor Teacher
+rectangle "StudyFlow — Teacher" #7ACFF5 {
+usecase "Tạo / quản lý\nCourse Offering" as course
+usecase "Quản lý join code" as code
+usecase "Duyệt / từ chối\nyêu cầu tham gia" as enrollment
+usecase "Quản lý thành viên lớp" as members
+usecase "Upload PDF / PPTX" as upload
+usecase "Theo dõi xử lý PPTX" as processing
+usecase "Công bố học liệu" as publish
+usecase "Thu hồi công bố" as revoke
+course -[hidden]down-> code
+code -[hidden]down-> enrollment
+enrollment -[hidden]down-> members
+upload -[hidden]down-> processing
+processing -[hidden]down-> publish
+publish -[hidden]down-> revoke
+members -[hidden]down-> upload
+}
+Teacher -right- course
+Teacher -[norank]- code
+Teacher -[norank]- enrollment
+Teacher -[norank]- members
+Teacher -[norank]- upload
+Teacher -[norank]- processing
+Teacher -[norank]- publish
+Teacher -[norank]- revoke
+note bottom of publish
+Chỉ quản lý lớp/học liệu thuộc Teacher.
+PPTX READY mới được công bố.
+Upload, công bố và thu hồi là các mục tiêu độc lập.
+end note
+@enduml

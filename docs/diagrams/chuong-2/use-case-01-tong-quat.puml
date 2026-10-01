@@ -1,0 +1,88 @@
+@startuml
+' Palette: usecase; based on the Visual Paradigm guide samples (see README).
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+skinparam UsecaseBackgroundColor #7ACFF5
+skinparam UsecaseBorderColor #222222
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 34
+skinparam ranksep 42
+top to bottom direction
+
+actor Student
+actor Teacher
+actor Admin
+Student -[hidden]down-> Teacher
+Teacher -[hidden]down-> Admin
+
+rectangle "StudyFlow" #F8FAFC {
+  rectangle "Phân hệ Student" #FFFFFF {
+    usecase "Tham gia Course Offering\nbằng join code" as S1
+    usecase "Xem slide và lưu\nghi chú cá nhân" as S2
+    usecase "Hỏi đáp tài liệu cá nhân\nbằng RAG" as S3
+    usecase "Hỏi đáp slide\nbằng AI Tutor" as S4
+    usecase "Tạo, review và\nlàm Quiz AI" as S5
+    usecase "Xem Dashboard và\nnội dung cần ôn lại" as S6
+    usecase "Quản lý Kế hoạch\n& Lịch ôn tập" as S7
+    S1 -[hidden]right-> S2
+    S2 -[hidden]right-> S3
+    S3 -[hidden]right-> S4
+    S4 -[hidden]right-> S5
+    S5 -[hidden]right-> S6
+    S6 -[hidden]right-> S7
+  }
+
+  rectangle "Phân hệ Teacher" #FFFFFF {
+    usecase "Tạo và quản lý\nCourse Offering" as T1
+    usecase "Quản lý join code\nvà enrollment" as T2
+    usecase "Upload PDF/PPTX và\ntheo dõi xử lý" as T3
+    usecase "Công bố hoặc thu hồi\nhọc liệu" as T4
+    T1 -[hidden]right-> T2
+    T2 -[hidden]right-> T3
+    T3 -[hidden]right-> T4
+  }
+
+  rectangle "Phân hệ Admin" #FFFFFF {
+    usecase "Quản lý người dùng\nvà vai trò" as A1
+    usecase "Quản lý Subject\nvà Semester" as A2
+    usecase "Giám sát\nCourse Offering" as A3
+    usecase "Xem feedback, audit\nvà cấu hình hệ thống" as A4
+    A1 -[hidden]right-> A2
+    A2 -[hidden]right-> A3
+    A3 -[hidden]right-> A4
+  }
+
+  S1 -[hidden]down-> T1
+  T1 -[hidden]down-> A1
+}
+
+Student -right- S1
+Student -right- S2
+Student -right- S3
+Student -right- S4
+Student -right- S5
+Student -right- S6
+Student -right- S7
+
+Teacher -right- T1
+Teacher -right- T2
+Teacher -right- T3
+Teacher -right- T4
+
+Admin -right- A1
+Admin -right- A2
+Admin -right- A3
+Admin -right- A4
+@enduml

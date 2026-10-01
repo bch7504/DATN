@@ -1,0 +1,69 @@
+@startuml
+' Palette: activity; based on the Visual Paradigm swimlane sample supplied by the project owner.
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActivityBackgroundColor #7ACFF5
+skinparam ActivityBorderColor #222222
+skinparam ActivityDiamondBackgroundColor #7ACFF5
+skinparam ActivityDiamondBorderColor #222222
+skinparam ActivityStartColor #111111
+skinparam ActivityEndColor #111111
+skinparam PartitionBackgroundColor white
+skinparam PartitionBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam roundcorner 16
+|Student|
+start
+:Chọn 1–10 Personal PDF;
+:Nhập prompt tự do;
+note right
+Đúng 4 options, 1 correctOptionIndex,
+explanation và citation theo trang.
+Regenerate tạo Quiz mới.
+end note
+|Java Backend|
+:Kiểm owner / READY / version;
+if (Nguồn hợp lệ?) then (Có)
+  :Tạo Quiz GENERATING;
+  :Trả 202 + quizId;
+  |Python AI|
+  :Retrieval có scope và evidence gate;
+  if (Đủ bằng chứng?) then (Có)
+    :Sinh JSON MCQ_SINGLE;
+    :Validate schema + grounding;
+    if (Hợp lệ sau tối đa 1 repair?) then (Có)
+      |Java Backend|
+      :Kiểm toàn bộ batch;
+      :Lưu REVIEW_REQUIRED;
+      |Student|
+      :Review bản nháp;
+      if (Accept?) then (Có)
+        |Java Backend|
+        :Kiểm PERSONAL hoặc enrollment APPROVED;
+        :Chuyển READY;
+        stop
+      else (Reject)
+        :Chuyển REJECTED;
+        stop
+      endif
+    else (Không)
+      |Java Backend|
+      :Chuyển GENERATION_FAILED;
+      stop
+    endif
+  else (Không)
+    |Java Backend|
+    :Chuyển GENERATION_FAILED;
+    stop
+  endif
+else (Không)
+  :Không tạo Quiz;
+  stop
+endif
+@enduml

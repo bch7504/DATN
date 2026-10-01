@@ -1,0 +1,62 @@
+@startuml
+' Palette: sequence; based on the Visual Paradigm guide samples (see README).
+' Interaction: Hỏi đáp tài liệu cá nhân
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+skinparam ParticipantBackgroundColor #7ACFF5
+skinparam ParticipantBorderColor #222222
+skinparam LifeLineBackgroundColor #7ACFF5
+skinparam LifeLineBorderColor #222222
+skinparam SequenceGroupBackgroundColor white
+skinparam SequenceGroupBodyBackgroundColor white
+skinparam SequenceGroupBorderColor #222222
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+hide footbox
+autonumber
+autoactivate on
+actor Student
+participant ":Web" as Web
+participant ":Java Backend" as Java
+participant ":Python AI" as AI
+participant ":pgvector (ai)" as DB
+participant ":Model Provider" as LLM
+Student -> Web : Gửi message trong hội thoại đã chọn nguồn
+Web -> Java : POST /personal-rag/conversations/{id}/messages\n{message}
+Java -> Java : Kiểm owner, READY, snapshot/version
+alt Không được phép
+Java --> Web : Lỗi access theo contract (không lộ tài liệu)
+else Scope hợp lệ
+Java -> AI : POST /internal/v1/personal-rag/ask\nauthorized scope + message
+AI -> LLM : Embed query cùng model / dimensions / version
+LLM --> AI : Query vector
+AI -> DB : Search có filter scope trước cosine
+DB --> AI : Evidence snapshot
+alt Không đủ evidence
+AI --> Java : NO_EVIDENCE
+else Có evidence
+AI -> LLM : Context giới hạn + schema câu trả lời
+LLM --> AI : Answer + citations
+AI -> AI : Validate grounding; rewrite tối đa 1 lần
+AI --> Java : ANSWERED + page citations hoặc NO_EVIDENCE
+end
+Java -> Java : Kiểm lại quyền, validate response; lưu chat
+Java --> Web : AnswerResponse
+Web --> Student : Nội dung và thẻ citation
+end
+return Hoàn tất tương tác
+@enduml

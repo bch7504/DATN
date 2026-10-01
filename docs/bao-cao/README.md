@@ -14,7 +14,7 @@ Quy tắc làm việc:
 - Chương 1 dùng cho bối cảnh/phạm vi; Chương 2 là pha phân tích hệ thống; Chương 3 là pha thiết kế hệ thống.
 - Không ghi kết quả triển khai, test hoặc KPI nếu chưa có minh chứng chạy thực tế.
 - Khi thay đổi nghiệp vụ, đồng bộ tài liệu nguồn trước rồi cập nhật chương liên quan.
-- Sơ đồ các chương nằm tại `docs/diagrams/chuong-2/`, `docs/diagrams/chuong-3/`; ERD tổng quan nằm tại `docs/diagrams/erd/`.
+- Sơ đồ nằm tại `docs/diagrams/chuong-1/`, `chuong-2/`, `chuong-3/`; ERD tổng quan thuộc thư mục `chuong-3/`. Mở [gallery tổng](../diagrams/index.html) để xem và lấy ảnh; dùng `.puml` để chỉnh UML, `.svg` để chèn vector hoặc `.png` để chèn Word.
 - Mọi hình/sơ đồ phải có đủ ba phần: câu dẫn trước hình, chú thích đánh số ngay dưới hình và ít nhất một đoạn văn sau hình giải thích hình biểu diễn gì, dùng để làm rõ nội dung nào và điểm người đọc cần quan sát. Không chèn hình đứng riêng chỉ để minh họa.
-- Các sơ đồ luồng thống nhất nền trắng, khối xám, chữ và đường nối đen/xám; phân biệt nhánh bằng nhãn và hình dạng, không dùng màu. Luồng dài chia thành các cụm theo chiều ngang; ưu tiên trang landscape khi chèn vào báo cáo, không thu chữ quá nhỏ.
+- Màu sắc tham khảo mẫu Visual Paradigm của từng loại biểu đồ, không bắt buộc tất cả màu xám hoặc cùng một màu. Dùng nhất quán trong từng loại; nhãn và hình dạng vẫn phải đủ phân biệt ý nghĩa khi in đen trắng. Đường nối ưu tiên thẳng hoặc vuông góc, tránh đường cong giao cắt. Chỉ hình dài/nhiều cột mới trải ngang; hình ngắn ưu tiên dọc. Activity chia swimlane, Sequence để thời gian từ trên xuống, Use Case giữ actor ngoài boundary.
 - Xem [bộ sơ đồ và bảng đối chiếu PDF](../diagrams/README.md) để chọn đúng ảnh thay cho từng trang của `bao_cao_chuong_1_2_3.pdf`. Số hình trong bản PDF và bản Markdown hiện khác nhau; không sao chép số cũ trong nội dung ảnh.

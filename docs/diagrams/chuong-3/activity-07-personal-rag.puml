@@ -1,0 +1,58 @@
+@startuml
+' Palette: activity; based on the Visual Paradigm swimlane sample supplied by the project owner.
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActivityBackgroundColor #7ACFF5
+skinparam ActivityBorderColor #222222
+skinparam ActivityDiamondBackgroundColor #7ACFF5
+skinparam ActivityDiamondBorderColor #222222
+skinparam ActivityStartColor #111111
+skinparam ActivityEndColor #111111
+skinparam PartitionBackgroundColor white
+skinparam PartitionBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam roundcorner 16
+|Student|
+start
+:Gửi câu hỏi trong hội thoại;
+|Java Backend|
+:Kiểm owner, READY và snapshot phiên bản;
+note right
+Lỗi hạ tầng trả error riêng,
+không giả thành NO_EVIDENCE.
+end note
+if (Được phép?) then (Có)
+  |Python AI|
+  :Embedding và retrieval đúng scope;
+  if (Đủ bằng chứng?) then (Có)
+    :Sinh câu trả lời và citation;
+    :Kiểm grounding; rewrite tối đa 1 lần;
+    if (Grounding hợp lệ?) then (Có)
+      |Java Backend|
+      :Kiểm lại quyền và response;
+      :Lưu chat;
+      |Student|
+      :Nhận ANSWERED và citation theo trang;
+      stop
+    else (Không)
+      |Student|
+      :Nhận NO_EVIDENCE;
+      stop
+    endif
+  else (Không)
+    |Student|
+    :Nhận NO_EVIDENCE;
+    stop
+  endif
+else (Không)
+  |Student|
+  :Nhận lỗi truy cập an toàn;
+  stop
+endif
+@enduml
