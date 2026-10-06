@@ -21,7 +21,7 @@ Từ bài toán trên, StudyFlow được định hướng xây dựng như mộ
 Hệ thống StudyFlow hướng tới các mục tiêu cụ thể:
 - **Tổ chức học liệu theo cấu trúc học phần:** Giảng viên tạo Course Offering, công bố Course Material PDF và kiểm soát sinh viên bằng join code/enrollment.
 - **Hỗ trợ học tập tương tác trên PDF:** Sinh viên đọc PDF trực tuyến, ghi chú theo trang và dùng Course Material AI Tutor trong phạm vi tài liệu đã được cấp quyền.
-- **Không gian học tập cá nhân hóa:** Sinh viên dùng một Trợ lý tài liệu với Single Agent để hỏi đáp, tóm tắt hoặc tạo Quiz từ 1–10 Personal PDF, kèm trích dẫn trang.
+- **Không gian học tập cá nhân hóa:** Trang Tài liệu cá nhân gộp quản lý PDF và Single Agent để hỏi đáp, tóm tắt hoặc tạo Quiz từ 1–10 Personal PDF, kèm trích dẫn trang; không có menu trợ lý riêng.
 - **Hệ thống Quiz cho hai vai trò:** Student tạo Quiz cá nhân trong Trợ lý; Teacher sinh Quiz từ Course Material PDF theo số câu, độ khó, chủ đề và khoảng trang. Mọi draft được review trước khi sử dụng hoặc công bố.
 - **Thống kê và thúc đẩy động lực:** Ghi nhận `VIEW_PAGE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`, tính Study Streak, Daily Goal và Study Plan & Calendar.
 
@@ -47,7 +47,7 @@ Python AI Service, Java Backend và Next.js là các thành phần nội bộ, k
 3. **Khai thác học liệu của lớp:** Xem Course Material PDF đã công bố, đọc trực tuyến và ghi chú riêng theo từng trang.
 4. **Tương tác với Course Material AI Tutor:** Đặt câu hỏi tại trang đang xem; nhận câu trả lời có trích dẫn đúng trang hoặc `NO_EVIDENCE`.
 5. **Quản lý tài liệu học tập cá nhân (Personal Documents):** Tải lên các tệp tài liệu PDF cá nhân; theo dõi tiến trình xử lý và lập chỉ mục (`PROCESSING`, `READY`, `FAILED`); đổi tên hoặc xóa tài liệu khi không còn sử dụng.
-6. **Trợ lý tài liệu cá nhân:** Chọn 1–10 Personal PDF `READY`, nhập prompt tự nhiên để hỏi đáp, tóm tắt hoặc tạo Quiz; Agent hỏi lại khi thiếu tham số và mọi kết quả phải có citation trang.
+6. **AI trên tài liệu cá nhân:** Ngay trong trang Tài liệu cá nhân, chọn 1–10 Personal PDF `READY`, nhập prompt tự nhiên để hỏi đáp, tóm tắt hoặc tạo Quiz; Agent hỏi lại khi thiếu tham số và mọi kết quả phải có citation trang.
 7. **Duyệt Quiz AI:** Mở bản nháp `REVIEW_REQUIRED`, kiểm tra 4 phương án/một đáp án/giải thích/nguồn rồi Accept, Regenerate hoặc Reject.
 8. **Luyện tập và ôn thi (Take Quiz & Review):** Làm bài trắc nghiệm với giao diện trực quan; nộp bài để nhận kết quả chấm điểm tức thì từ hệ thống; xem lại lịch sử các lần làm bài (attempts); xem danh sách các câu trả lời sai kèm liên kết dẫn trực tiếp về trang tài liệu cần đọc lại.
 9. **Theo dõi tiến độ và Kế hoạch học tập:** Xem Dashboard về số trang PDF đã học, Quiz/task, Study Streak và Daily Goal; quản lý task và lịch tuần.

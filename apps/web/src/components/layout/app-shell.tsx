@@ -41,7 +41,6 @@ const STUDENT_NAV: NavItem[] = [
   { label: "Tổng quan", href: "/dashboard", icon: LayoutDashboard },
   { label: "Lớp học phần", href: "/course-offerings", icon: GraduationCap },
   { label: "Tài liệu cá nhân", href: "/personal-documents", icon: FileText },
-  { label: "Trợ lý tài liệu", href: "/chat", icon: Sparkles },
   { label: "Kế hoạch & Lịch", href: "/plan", icon: CalendarCheck },
   { label: "Ôn tập", href: "/review", icon: RotateCcw },
 ];
@@ -257,7 +256,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   } else if (pathname?.startsWith("/personal-documents")) {
                     crumbs.push("Tài liệu cá nhân");
                   } else if (pathname?.startsWith("/chat")) {
-                    crumbs.push("Trợ lý tài liệu cá nhân");
+                    crumbs.push("Tài liệu cá nhân");
                   } else if (pathname?.startsWith("/quiz/create")) {
                     crumbs.push("Ôn tập", "Sinh đề thi trắc nghiệm AI");
                   } else if (pathname?.startsWith("/review/")) {

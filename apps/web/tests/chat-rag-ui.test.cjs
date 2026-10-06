@@ -1,7 +1,33 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 test("FE-M4: Personal Document Assistant Contract & UI Policies", async (t) => {
+  await t.test("Personal PDF management and AI tools share one page without a separate navigation item", () => {
+    const personalDocumentsSource = fs.readFileSync(
+      path.join(process.cwd(), "src/app/(student)/personal-documents/page.tsx"),
+      "utf8",
+    );
+    const shellSource = fs.readFileSync(
+      path.join(process.cwd(), "src/components/layout/app-shell.tsx"),
+      "utf8",
+    );
+    const legacyChatSource = fs.readFileSync(
+      path.join(process.cwd(), "src/app/(student)/chat/page.tsx"),
+      "utf8",
+    );
+
+    assert.match(personalDocumentsSource, /if \(assistantOpen\)/);
+    assert.match(personalDocumentsSource, /onBackToLibrary=\{openLibrary\}/);
+    assert.match(personalDocumentsSource, /Hỏi đáp tài liệu cá nhân/);
+    assert.equal(shellSource.includes('{ label: "Trợ lý tài liệu", href: "/chat"'), false);
+    assert.equal(
+      legacyChatSource.includes('redirect("/personal-documents#personal-ai-assistant")'),
+      true,
+    );
+  });
+
   await t.test("Document scope validation: requires 1 to 10 READY documents", () => {
     function validateDocScope(docs, selectedIds) {
       if (!selectedIds || selectedIds.length === 0) {

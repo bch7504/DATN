@@ -18,8 +18,8 @@
 | Student | `/dashboard` | Toàn bộ progress, Daily Goal theo page/Quiz/task và Study Streak |
 | Student | `/course-offerings` | Join code, enrollment, mở Course Material PDF |
 | Student | `/materials/{documentId}/viewer` | PDF Viewer, Note theo trang và Course Material AI Tutor |
-| Student | `/personal-documents` | Upload/quản lý Personal PDF và mở Trợ lý tài liệu |
-| Student | `/chat` | Hỏi đáp, tóm tắt hoặc tạo Quiz bằng một composer |
+| Student | `/personal-documents` | Mặc định là kho PDF; bấm **Hỏi đáp tài liệu cá nhân** mới mở khu vực AI, có nút quay lại kho |
+| Student | `/quiz/create` | Form sinh đề riêng từ Personal PDF + prompt; xem bản nháp và chọn nơi lưu khi accept, không chuyển sang chatbot |
 | Student | `/review` | Quiz theo lớp/cá nhân, attempt và nội dung cần ôn từ câu sai |
 | Student | `/plan` | Kế hoạch & Lịch tuần theo FE mock |
 | Teacher | `/teacher/course-offerings` | Tạo/quản lý lớp và join code |
@@ -28,7 +28,7 @@
 | Teacher | `/teacher/quizzes/create` | Chọn PDF, trang, số câu, độ khó, chủ đề để tạo Quiz draft |
 | Admin | `/admin/*` | User/role, catalog, monitoring, feedback, audit và settings |
 
-`/quiz/create` chỉ giữ redirect tương thích sang `/chat`; Student không còn màn tạo Quiz rời.
+Chỉ `/chat` giữ redirect tương thích tới `/personal-documents#personal-ai-assistant`. `/quiz/create` là form độc lập thuộc luồng Ôn tập; sidebar không có mục Trợ lý tài liệu độc lập.
 
 ## 3. Student UX
 
@@ -42,6 +42,8 @@
 
 ### 3.2 Personal Document Assistant
 
+- Chỉ mở khi bấm **Hỏi đáp tài liệu cá nhân** trong kho; không render sẵn chat dưới danh sách PDF.
+- **Quay lại kho tài liệu** đóng khu vực hỏi đáp; phiên được lưu bởi Java và tải lại khi mở.
 - Bố cục 2 cột: hội thoại bên trái, nguồn Personal PDF bên phải.
 - Một composer nhận prompt tự nhiên và hiển thị capability đã chọn:
   - `ASK_DOCUMENT` — hỏi đáp có citation;
@@ -107,4 +109,4 @@
 - Daily Goal payload chỉ gửi target Page/Quiz/Task; Review Hub không lặp progress.
 - Responsive 360px, bàn phím, focus, contrast và các trạng thái lỗi.
 
-Kế hoạch AI chi tiết tại [ai-implementation-plan.md](ai-implementation-plan.md), ý tưởng UI tại [ai-ui-redesign-brief.md](ai-ui-redesign-brief.md).
+Kế hoạch AI chi tiết tại [ai-implementation-plan.md](ai-implementation-plan.md). Toàn bộ khung màn hình, modal, điều hướng và quy tắc cập nhật nằm tại [ui-design.md](ui-design.md).

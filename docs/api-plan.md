@@ -161,12 +161,23 @@ UX và contract lấy cảm hứng từ evidence-scoped workspace của repo tha
 
 History chỉ owner đọc; response có selected source metadata và messages/citations đã kiểm định, không có prompt/token/Agent Trace.
 
-#### Quiz từ Personal Documents trong Trợ lý
+#### Quiz từ Personal Documents trong khu vực hỏi đáp
 
 - Student nhập prompt tự do trong conversation đã gắn 1–10 Personal PDF `READY`; Agent nhận diện ý định và gọi tool `generate_quiz` bằng structured args.
 - Nếu thiếu `questionCount` hoặc phạm vi cần thiết, trả `NEEDS_CLARIFICATION`; không tự đoán giá trị quan trọng.
 - Prompt và conversation là dữ liệu không tin cậy, không được thay system instruction, schema `MCQ_SINGLE`, authorized scope hoặc citation rule.
 - Tạo thành công trả Quiz `REVIEW_REQUIRED`; Student mở Review Hub để duyệt/chấp nhận. AI không chấm điểm.
+
+#### Sinh đề trực tiếp từ form `/quiz/create` (không qua conversation)
+
+- Nút **Sinh đề thi trắc nghiệm AI** trong Ôn tập mở form riêng, không redirect sang hỏi đáp.
+- `POST /api/v1/quizzes`: input `{selectedDocumentIds:string[],prompt:string}`; 1–10 ID duy nhất, PDF `READY` thuộc Student, prompt trim 1–500 ký tự. Số câu/độ khó/chủ đề được Student diễn đạt trong prompt; Java/Python phải validate, không coi prompt là system instruction.
+- Header `Idempotency-Key` cho mỗi lần gửi chủ động; retry cùng thao tác phải giữ key.
+- Output `202 {quizId,status:"GENERATING"}`; FE lấy trạng thái qua `GET /api/v1/review/quizzes/{id}`. Adapter cũng hỗ trợ response bản nháp đầy đủ khi generation hoàn tất đồng bộ.
+- `GET /api/v1/review/quizzes/{id}`: owner-only, output `200 QuizDraft` gồm `{id,prompt,sourceDocumentIds,status,questions,createdAt}`. `questions` rỗng khi `GENERATING`; khi `REVIEW_REQUIRED`, mỗi câu có `{id,type:"MCQ_SINGLE",questionText,options:[{id,text}],correctOptionId,explanation,citation:{documentId,documentName,pageNumber,excerpt}}`, đúng 4 options và đúng một ID đáp án thuộc options.
+- Errors dùng error envelope chung: `401`, `404 QUIZ_NOT_FOUND`, `409 DOCUMENT_NOT_READY|DOCUMENT_SCOPE_CHANGED`, `422 INVALID_QUIZ_PROMPT|INVALID_DOCUMENT_SELECTION|NO_EVIDENCE`, `503 AI_SERVICE_UNAVAILABLE`. FE giữ input và cho thử lại; không tự tạo câu trả lời production.
+- Java dựng scope và gọi pipeline sinh Quiz nội bộ; không tạo conversation. Cùng lifecycle review/accept/attempt với Quiz sinh từ hỏi đáp. Regenerate trả ID mới, FE tiếp tục theo dõi ID đó.
+- Phạm vi lần cập nhật này: FE và tài liệu contract. Implementation/contract test Java–Python còn phải được xác nhận trong task tích hợp; không xem demo là API đã vận hành.
 
 ### 4.6 Dashboard, Study Streak và Daily Goal
 

@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PersonalDocumentAssistant } from "@/components/personal-documents/personal-document-assistant";
 import {
   FileText,
   Upload,
@@ -15,18 +16,32 @@ import {
   Info,
   CheckCircle2,
   FileCheck,
-  AlertCircle,
   MessageSquare,
 } from "lucide-react";
-import Link from "next/link";
 
-export default function StudentPersonalDocumentsPage() {
+/** No args. Owner-scoped library; hash opens the nested assistant. API errors stay in UI. */
+export default function StudentPersonalDocumentsPage(): React.JSX.Element {
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [documents, setDocuments] = useState<PersonalDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // A normal visit starts in the library; a legacy chat link explicitly opens AI.
+    const syncView = (): void => setAssistantOpen(window.location.hash === "#personal-ai-assistant");
+    syncView();
+    window.addEventListener("hashchange", syncView);
+    return () => window.removeEventListener("hashchange", syncView);
+  }, []);
+
+  /** args: none; input: current URL; output: void, library navigation; errors: none. */
+  const openLibrary = (): void => {
+    window.location.hash = "personal-pdf-library";
+    setAssistantOpen(false);
+  };
 
   const loadDocs = async () => {
     try {
@@ -95,6 +110,10 @@ export default function StudentPersonalDocumentsPage() {
     }
   };
 
+  if (assistantOpen) {
+    return <PersonalDocumentAssistant onBackToLibrary={openLibrary} />;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -104,18 +123,15 @@ export default function StudentPersonalDocumentsPage() {
             Kho Tài liệu Cá nhân
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Tải Personal PDF để hỏi đáp, tóm tắt hoặc tạo Quiz trong một Trợ lý tài liệu thống nhất
+            Quản lý PDF và mở hỏi đáp tài liệu cá nhân khi cần sử dụng AI
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/chat"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition"
-          >
-            <MessageSquare className="w-4 h-4" /> Mở Trợ lý tài liệu
-          </Link>
-        </div>
+        <a
+          href="#personal-ai-assistant"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ptit-red px-4 py-2 text-sm font-bold text-white"
+        >
+          <MessageSquare className="h-4 w-4" /> Hỏi đáp tài liệu cá nhân
+        </a>
       </div>
 
       {/* Policy Box */}
@@ -149,7 +165,7 @@ export default function StudentPersonalDocumentsPage() {
           Tải lên tài liệu PDF cá nhân
         </h3>
         <p className="text-xs text-slate-500 mb-4 max-w-sm">
-          Kéo thả tệp hoặc bấm nút bên dưới để chọn tệp từ máy tính (chỉ nhận .pdf, tối đa 20 MB)
+          Bấm nút bên dưới để chọn tệp từ máy tính (chỉ nhận .pdf, tối đa 20 MB)
         </p>
 
         <input
@@ -176,7 +192,7 @@ export default function StudentPersonalDocumentsPage() {
       </div>
 
       {/* Documents List */}
-      <div>
+      <div id="personal-pdf-library" className="scroll-mt-24">
         <h2 className="text-base font-bold text-slate-800 mb-3">
           Danh sách tài liệu đã tải lên ({documents.length})
         </h2>
@@ -188,7 +204,7 @@ export default function StudentPersonalDocumentsPage() {
         ) : documents.length === 0 ? (
           <EmptyState
             title="Chưa có tài liệu cá nhân nào"
-            description="Hãy tải PDF đầu tiên để dùng Trợ lý AI cho hỏi đáp, tóm tắt và tạo Quiz có citation theo trang."
+            description="Hãy tải PDF đầu tiên để hỏi đáp, tóm tắt và tạo Quiz có citation theo trang."
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -237,7 +253,7 @@ export default function StudentPersonalDocumentsPage() {
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
                   <span>Tải lên: {new Date(doc.uploadedAt).toLocaleDateString("vi-VN")}</span>
                   <span className="text-emerald-700 font-semibold flex items-center gap-1 text-[11px]">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Sẵn sàng cho Trợ lý AI
+                    <ShieldCheck className="w-3.5 h-3.5" /> {doc.status === "READY" ? "Sẵn sàng dùng AI" : "Chưa sẵn sàng dùng AI"}
                   </span>
                 </div>
               </div>
@@ -245,6 +261,7 @@ export default function StudentPersonalDocumentsPage() {
           </div>
         )}
       </div>
+
     </div>
   );
 }

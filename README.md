@@ -146,7 +146,7 @@ Tài liệu chuẩn bị triển khai:
 1. Admin tạo Subject/Semester và quản lý tài khoản.
 2. Teacher tạo Course Offering, lấy join code và duyệt Student.
 3. Teacher upload/public Course Material PDF; Student mở PDF Viewer, ghi Note và hỏi Tutor.
-4. Student upload Personal PDF, chọn nguồn rồi hỏi, tóm tắt hoặc tạo Quiz trong Trợ lý tài liệu.
+4. Student upload Personal PDF, chọn nguồn rồi hỏi, tóm tắt hoặc tạo Quiz ngay trong trang Tài liệu cá nhân.
 5. Teacher dùng AI Quiz Studio; Student/Teacher review Quiz theo đúng vai trò trước khi sử dụng/public.
 6. Dashboard cập nhật tiến độ, Streak, Daily Goal và công việc sắp tới.
 

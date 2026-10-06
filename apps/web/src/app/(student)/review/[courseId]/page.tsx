@@ -179,7 +179,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
         </div>
 
         <Link
-          href="/chat"
+          href="/quiz/create"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition flex-shrink-0 cursor-pointer"
         >
           <Sparkles className="w-4 h-4" />
@@ -432,7 +432,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                           </Link>
                         ) : (
                           <Link
-                            href="/chat"
+                            href="/quiz/create"
                             className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100  text-slate-700 rounded-xl text-xs font-bold transition self-start sm:self-auto cursor-pointer"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />

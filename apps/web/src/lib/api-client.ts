@@ -1163,22 +1163,33 @@ export const chatApi = {
  * Java backend owns quiz lifecycle, attempts, and scoring.
  */
 export const quizApi = {
+  /** Required owner draft id; returns status/draft from Java; rejects ApiClientError for denied/missing/unavailable data. */
+  async getDraft(draftId: string): Promise<QuizDraft> {
+    return apiFetch<QuizDraft>(`/review/quizzes/${encodeURIComponent(draftId)}`);
+  },
+
+  /** Required 1–10 unique document IDs and 1–500-char prompt; creates a draft/job, never a chat. Validation/API errors reject. */
   async createDraft(req: CreateQuizDraftRequest): Promise<QuizDraft> {
-    if (!req.sourceDocumentIds || req.sourceDocumentIds.length === 0) {
+    if (!req.sourceDocumentIds || req.sourceDocumentIds.length === 0 || req.sourceDocumentIds.length > 10 || new Set(req.sourceDocumentIds).size !== req.sourceDocumentIds.length) {
       throw new ApiClientError(422, {
         code: "INVALID_DOCUMENT_SELECTION",
         message: "Phải chọn ít nhất 1 tài liệu nguồn (tối đa 10 tài liệu).",
       });
     }
+    if (!req.prompt.trim() || req.prompt.trim().length > 500) {
+      throw new ApiClientError(422, { code: "INVALID_QUIZ_PROMPT", message: "Yêu cầu sinh đề phải có từ 1 đến 500 ký tự." });
+    }
 
     try {
-      return await apiFetch<QuizDraft>("/quizzes", {
+      const response = await apiFetch<QuizDraft | { quizId: string; status: "GENERATING" }>("/quizzes", {
         method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
           selectedDocumentIds: req.sourceDocumentIds,
-          prompt: req.prompt,
+          prompt: req.prompt.trim(),
         }),
       });
+      return "quizId" in response ? { id: response.quizId, status: response.status, prompt: req.prompt.trim(), sourceDocumentIds: req.sourceDocumentIds, questions: [], createdAt: "" } : response;
     } catch (err) {
       if (isDemoMode()) {
         const newDraft: QuizDraft = {
@@ -1234,16 +1245,19 @@ export const quizApi = {
     }
   },
 
+  /** Required owner draft id and prompt; creates a NEW generation, old draft remains. API errors reject. */
   async regenerateDraft(draftId: string, prompt: string): Promise<QuizDraft> {
     try {
-      return await apiFetch<QuizDraft>(`/review/quizzes/${draftId}/regenerate`, {
+      const response = await apiFetch<QuizDraft | { quizId: string; status: "GENERATING" }>(`/review/quizzes/${encodeURIComponent(draftId)}/regenerate`, {
         method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({ prompt }),
       });
+      return "quizId" in response ? { id: response.quizId, status: response.status, prompt, sourceDocumentIds: [], questions: [], createdAt: "" } : response;
     } catch (err) {
       if (isDemoMode()) {
         const regenerated: QuizDraft = {
-          id: draftId,
+          id: `draft_${crypto.randomUUID()}`,
           prompt: "Tạo lại bộ câu hỏi với độ khó tương đương",
           sourceDocumentIds: ["pdoc_01"],
           status: "REVIEW_REQUIRED",

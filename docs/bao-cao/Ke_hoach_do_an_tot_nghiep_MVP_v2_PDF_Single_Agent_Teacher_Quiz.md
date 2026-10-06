@@ -26,7 +26,7 @@ Next.js Web → Java Spring Boot → Python FastAPI
 
 - Join Course Offering và chờ Teacher approve.
 - Xem Course Material PDF, ghi Note theo trang và dùng Course Material AI Tutor.
-- Upload Personal PDF và dùng Trợ lý tài liệu cho ba tác vụ: hỏi đáp, tóm tắt, tạo Quiz.
+- Trên cùng trang Tài liệu cá nhân: upload/quản lý Personal PDF và dùng AI cho ba tác vụ hỏi đáp, tóm tắt, tạo Quiz; không có menu trợ lý riêng.
 - Review/accept Quiz cá nhân, làm bài, xem câu sai/page source.
 - Xem Dashboard và tự quản lý Kế hoạch & Lịch.
 

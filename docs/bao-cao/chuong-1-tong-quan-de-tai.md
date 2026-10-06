@@ -18,9 +18,9 @@ Hình 1.1 phân biệt hai nguồn học liệu và những hoạt động chín
 
 Hình cho thấy Course Material PDF và Personal PDF đi theo hai nhánh quyền riêng. Student Tutor chỉ dùng PDF lớp đã công bố; Personal Document Assistant dùng một Agent cho hỏi đáp, tóm tắt và tạo Quiz. Java ghi nhận sự kiện học tập và chấm Quiz, còn sinh viên chủ động quản lý Kế hoạch & Lịch. Đây là sơ đồ phạm vi nghiệp vụ, không phải trình tự API hoặc minh chứng implementation đã hoàn thành.
 
-StudyFlow tổ chức môn học theo `Semester → Course Offering → Documents`. Teacher tự tạo Course Offering, quản lý join code, duyệt Student, public Course Material PDF và sinh Quiz AI. Student đọc PDF của lớp, ghi chú/hỏi Tutor theo trang và dùng Personal PDF trong Trợ lý tài liệu. Admin quản lý danh mục, tài khoản và giám sát hệ thống.
+StudyFlow tổ chức môn học theo `Semester → Course Offering → Documents`. Teacher tự tạo Course Offering, quản lý join code, duyệt Student, public Course Material PDF và sinh Quiz AI. Student đọc PDF của lớp, ghi chú/hỏi Tutor theo trang; trang Tài liệu cá nhân đồng thời cho phép quản lý Personal PDF, hỏi đáp, tóm tắt và tạo Quiz. Admin quản lý danh mục, tài khoản và giám sát hệ thống.
 
-Quy trình học tập và ôn luyện phân định rõ hai nhánh: học liệu chính thức do Giảng viên công bố cho lớp học phần và tài liệu cá nhân PDF do Sinh viên tự tải lên. Trong Trợ lý tài liệu cá nhân, Sinh viên có thể hỏi đáp, yêu cầu tóm tắt hoặc tạo Quiz ngay bằng ngôn ngữ tự nhiên; Single Agent nhận diện ý định và gọi đúng tool, không bắt buộc phải hỏi đáp trước khi tạo Quiz. Backend kiểm soát quyền truy cập, vòng đời Quiz, chấm điểm và các sự kiện học tập thực tế, giúp sinh viên chủ động lập kế hoạch và ôn luyện phần kiến thức còn thiếu.
+Quy trình học tập và ôn luyện phân định rõ hai nhánh: học liệu chính thức do Giảng viên công bố cho lớp học phần và tài liệu cá nhân PDF do Sinh viên tự tải lên. Ngay trong trang Tài liệu cá nhân, Sinh viên có thể hỏi đáp, yêu cầu tóm tắt hoặc tạo Quiz bằng ngôn ngữ tự nhiên; Single Agent nhận diện ý định và gọi đúng tool, không bắt buộc phải hỏi đáp trước khi tạo Quiz. Backend kiểm soát quyền truy cập, vòng đời Quiz, chấm điểm và các sự kiện học tập thực tế, giúp sinh viên chủ động lập kế hoạch và ôn luyện phần kiến thức còn thiếu.
 
 ## 1.3. Mục tiêu đề tài
 
@@ -42,7 +42,7 @@ Xây dựng nền tảng web hỗ trợ sinh viên quản lý hoạt động t�
 
 ## 1.4. Đối tượng sử dụng
 
-- **Student:** tham gia lớp, xem Course Material PDF, ghi chú và hỏi Tutor theo trang, quản lý Personal PDF, dùng Trợ lý tài liệu, tạo/làm Quiz, xem Dashboard và lập kế hoạch.
+- **Student:** tham gia lớp, xem Course Material PDF, ghi chú và hỏi Tutor theo trang; quản lý Personal PDF, hỏi đáp, tóm tắt và tạo Quiz trên cùng trang; làm Quiz, xem Dashboard và lập kế hoạch.
 - **Teacher:** tạo Course Offering, quản lý join code/enrollment, upload/public Course Material PDF và tạo/review/publish Quiz AI.
 - **Admin:** quản lý user, Subject, Semester, giám sát Course Offering, feedback, audit và cấu hình.
 

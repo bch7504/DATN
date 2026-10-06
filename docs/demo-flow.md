@@ -20,12 +20,13 @@ Chứng minh end-to-end: `Course Offering → Enrollment → Course Material PDF
 4. **Teacher** approve; Student chuyển `APPROVED`.
 5. **Teacher** upload Course Material PDF, chờ `READY` và public vào lớp mình sở hữu.
 6. **Student** mở PDF Viewer, chuyển trang, lưu Note và hỏi Course Material AI Tutor. Câu trả lời có page citation; câu ngoài nguồn trả `NO_EVIDENCE`.
-7. **Student** upload Personal PDF và mở **Trợ lý tài liệu**. Trong cùng composer:
+7. **Student** upload Personal PDF. Trang **Tài liệu cá nhân** mặc định chỉ mở kho; bấm **Hỏi đáp tài liệu cá nhân** mới vào khu vực AI, bấm **Quay lại kho tài liệu** để đóng. Trong cùng composer:
    - hỏi một khái niệm → `ASK_DOCUMENT`;
    - yêu cầu tóm tắt → `SUMMARIZE_DOCUMENT`;
    - yêu cầu tạo 10 câu khó → `CREATE_QUIZ`;
    - yêu cầu “tạo Quiz” nhưng thiếu số câu → `NEEDS_CLARIFICATION`.
 8. Student bấm citation để mở drawer document/page/excerpt. Quiz được tạo ở `REVIEW_REQUIRED`, Student duyệt/chấp nhận trước khi làm.
+   - Kiểm tra đường vào riêng: **Ôn tập → Sinh đề thi trắc nghiệm AI → `/quiz/create`** phải mở form chọn PDF + prompt, không mở chatbot. Gửi yêu cầu, cập nhật trạng thái nếu còn `GENERATING`, xem bản nháp và accept vào Quiz cá nhân/lớp được duyệt.
 9. **Teacher** mở AI Quiz Studio từ một Course Material PDF, chọn 15 câu, độ khó, chủ đề và khoảng trang. Java kiểm ownership; Python sinh draft; Teacher review/sửa rồi publish.
 10. **Student** vào Review Hub, làm Quiz, xem attempt mới và nội dung cần ôn từ câu sai cùng link trang PDF nguồn.
 11. Dashboard hiển thị progress theo page, Study Streak và Daily Goal Page/Quiz/Task do Java tính; không có màn Progress riêng.

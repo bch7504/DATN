@@ -224,7 +224,7 @@ Python trả structured data; Java validate trước khi lưu. Mọi thay đổi
 - Khi thiếu bằng chứng, RAG/Tutor trả `NO_EVIDENCE`; không tự tạo câu trả lời không có nguồn.
 - Backend Java sở hữu Quiz lifecycle và chấm điểm; LLM không chấm Quiz.
 - Quiz dùng `MCQ_SINGLE`: mỗi câu có đúng 4 lựa chọn và một đáp án đúng. Quiz cá nhân phải được Student chấp nhận trước khi làm; Quiz lớp phải được Teacher duyệt trước khi công bố.
-- Student chủ động chọn Personal Documents và nhập prompt trong Trợ lý tài liệu để hỏi đáp, tóm tắt hoặc tạo Quiz. Agent có thể dùng context hội thoại để hiểu ý định nhưng tool tạo Quiz chỉ nhận structured args và authorized document scope; prompt không được thay thế system rule, schema hoặc grounding.
+- Student chủ động chọn Personal Documents và nhập prompt trong khu vực AI được gộp ngay trên trang Tài liệu cá nhân để hỏi đáp, tóm tắt hoặc tạo Quiz; không có menu/màn Trợ lý tài liệu độc lập. Agent có thể dùng context hội thoại để hiểu ý định nhưng tool tạo Quiz chỉ nhận structured args và authorized document scope; prompt không được thay thế system rule, schema hoặc grounding.
 - Khi accept, Quiz được gắn vào Course Offering có enrollment `APPROVED` hoặc giữ là Quiz cá nhân; nguồn sinh Quiz và nơi ôn tập là hai khái niệm độc lập.
 - “Nội dung cần ôn lại” chỉ tổng hợp từ câu trả lời sai và nguồn của câu hỏi; không dùng AI suy đoán Student yếu/mạnh. Mỗi lượt làm tạo attempt mới, không ghi đè lịch sử.
 - Recommendation tự động ngoài phạm vi MVP; Student chủ động quyết định Study Plan.
