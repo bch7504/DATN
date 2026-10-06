@@ -20,6 +20,8 @@ DATN/
 │       │   │   │   ├── course-offerings/
 │       │   │   │   ├── materials/
 │       │   │   │   ├── personal-documents/
+│       │   │   │   ├── chat/
+│       │   │   │   ├── quiz/
 │       │   │   │   ├── plan/
 │       │   │   │   └── review/
 │       │   │   ├── teacher/
@@ -27,7 +29,8 @@ DATN/
 │       │   │   │   ├── course-offerings/
 │       │   │   │   ├── enrollments/
 │       │   │   │   ├── documents/
-│       │   │   │   └── publications/
+│       │   │   │   ├── publications/
+│       │   │   │   └── quizzes/create/
 │       │   │   └── admin/
 │       │   │       ├── dashboard/
 │       │   │       ├── users/
@@ -51,7 +54,7 @@ DATN/
 │   │   │   ├── enrollment/
 │   │   │   ├── document/
 │   │   │   ├── publication/
-│   │   │   ├── slide/
+│   │   │   ├── material/
 │   │   │   ├── note/
 │   │   │   ├── progress/
 │   │   │   ├── study/
@@ -66,8 +69,10 @@ DATN/
 │   │   └── src/test/java/com/studyflow/
 │   └── ai/
 │       ├── app/
-│       │   ├── api/routes/      # health, documents, personal_rag, slides, quizzes
+│       │   ├── api/routes/      # health, documents, personal_assistant, course_materials, quizzes
 │       │   ├── core/
+│       │   ├── agents/          # Single Agent orchestration và tool allowlist
+│       │   ├── tools/           # ask_document, summarize_document, generate_quiz
 │       │   ├── schemas/
 │       │   ├── repositories/
 │       │   ├── pipelines/
@@ -78,7 +83,8 @@ DATN/
 │       ├── evals/
 │       └── tests/
 ├── docs/
-│   ├── bao-cao/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md
+│   ├── bao-cao/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md  # SUPERSEDED
+│   ├── bao-cao/Ke_hoach_do_an_tot_nghiep_MVP_v2_PDF_Single_Agent_Teacher_Quiz.md
 │   ├── architecture.md
 │   ├── low-level-design.md
 │   ├── backend-implementation-plan.md
@@ -100,11 +106,11 @@ DATN/
 | Java `academic` | Subject và Semester do Admin quản lý |
 | Java `courseoffering/enrollment` | Teacher tự tạo Course Offering/join code; Teacher duyệt Enrollment; Admin giám sát |
 | Java `document/publication` | Kho tài liệu, ownership, public/revoke |
-| Java `slide/note` | Slide access, Note và view event |
+| Java `material/note` | Course Material PDF/page access, Page Note và `VIEW_PAGE` event |
 | Java `progress/study/review` | Dashboard/Streak/Daily Goal, Kế hoạch & Lịch tuần, Quiz destination, attempt/scoring và wrong-answer review |
-| Python `pipelines` | Personal PDF indexing và Teacher PPTX render/index |
-| Python `services` | Retrieval, RAG, Slide AI Tutor, citation và sinh Quiz draft |
+| Python `pipelines` | Personal PDF và Course Material PDF parsing/indexing theo trang |
+| Python `services` | Single Agent, retrieval/RAG, Course Material AI Tutor, citation theo trang và sinh Quiz draft |
 | PostgreSQL `app` | Dữ liệu nghiệp vụ do Java sở hữu |
 | PostgreSQL `ai` | Job/chunk/vector do Python sở hữu |
 
-Không tạo module Topic, Quiz Teacher, Mastery, Exam/Mock Exam hoặc Recommendation trong MVP hiện tại.
+Không tạo module Topic, Mastery, Exam/Mock Exam hoặc Recommendation trong MVP hiện tại. Teacher Quiz là một mode của module Quiz chung, không phải chatbot/Tutor riêng cho Teacher.

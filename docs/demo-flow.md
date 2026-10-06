@@ -1,57 +1,58 @@
-# Demo flow — StudyFlow MVP v1.0
+# Demo flow — StudyFlow MVP
 
 ## 1. Mục tiêu
 
-Chứng minh luồng end-to-end `Semester → Course Offering → Enrollment → Material → AI Quiz prompt → Review → Wrong-answer review → Dashboard/Streak/Daily Goal` với dữ liệu demo được đánh dấu rõ.
+Chứng minh end-to-end: `Course Offering → Enrollment → Course Material PDF → Student Tutor/Teacher Quiz → Student Personal Assistant → Review → Dashboard/Streak/Daily Goal → Plan`.
 
 ## 2. Dữ liệu chuẩn bị
 
-- Admin, một Teacher và hai Student.
-- Một Semester active; hai Subject.
-- Một Course Offering do Teacher tạo, một join code và một request `PENDING`.
-- Một Teacher PPTX `READY`, một Teacher PDF, hai Personal PDF text-layer.
-- Dataset/evidence tổng hợp; không dùng tài liệu cá nhân thật.
+- Một Admin, một Teacher và hai Student.
+- Một Semester active, hai Subject và một Course Offering do Teacher sở hữu.
+- Một enrollment `PENDING`, một Student `APPROVED`.
+- Hai Course Material PDF và hai Personal PDF có text layer; tất cả nội dung là dữ liệu tổng hợp.
+- Một conversation demo và một số Quiz/attempt/review item có page citation.
 
 ## 3. Kịch bản chính
 
-1. **Admin** tạo Subject và Semester; mở trang giám sát Course Offering.
-2. **Teacher** chọn Subject + Semester, tự tạo Course Offering; hệ thống sinh join code.
-3. **Student** nhập join code; UI hiện enrollment `PENDING`, chưa xem được học liệu.
-4. **Teacher** mở yêu cầu tham gia và duyệt Student; enrollment thành `APPROVED`.
-5. **Teacher** upload PPTX/PDF vào Library và public vào Course Offering mình sở hữu.
-6. **Student** mở lớp: PPTX có nút **Xem slide**, PDF chỉ có **Tải PDF**.
-7. Trong Slide Viewer, Student ghi Note và hỏi Slide Tutor; câu trả lời có citation slide. Câu ngoài nguồn trả `NO_EVIDENCE`.
-8. Student mở **Personal RAG**: Giao diện chia 2 cột với Chatbot bên trái và bảng chọn tài liệu tinh gọn bên phải (~280px). Student chọn các nguồn PDF `READY`, chuyển đổi phiên hội thoại từ thanh session bar ở đầu khung chat, gửi câu hỏi; câu trả lời hiển thị chip trích dẫn trang. Nhấn trực tiếp vào chip trích dẫn để mở Drawer chi tiết trích dẫn đối chiếu grounding SHA-256 ngay trong khung chat.
-9. Student mở luồng Tạo Quiz riêng, chọn Personal Documents và tự nhập prompt; Java tạo `GENERATING`, nhận draft rồi chuyển `REVIEW_REQUIRED`. Student có thể regenerate toàn bộ rồi chọn nơi ôn. Chatbot context không được dùng làm điều kiện tạo Quiz.
-10. Student vào **Ôn tập**: Màn hình cấp 1 liệt kê các môn học được duyệt và Quiz cá nhân. Workspace cấp 2 tập trung vào Quiz, lịch sử attempt không ghi đè, câu sai và link mở nguồn cần ôn lại. Viewing progress của từng môn chỉ hiển thị trên Dashboard.
-11. Dashboard hiển thị viewing progress đầy đủ theo từng Course Offering, Study Streak và Daily Goal; Student chỉnh ba target rồi hoàn thành một hoạt động hợp lệ để thấy actual/Streak do Java cập nhật. Không có màn Progress riêng.
-12. Student mở **Kế hoạch & Lịch**, chuyển tuần, bấm ô trống hoặc nút **Thêm lịch học**, thêm task ôn tập và đánh dấu task hoàn thành. Màn này không lặp Daily Goal/Streak/progress của Dashboard.
-13. **Admin** thấy Course Offering, enrollment event và audit metadata nhưng không thấy nội dung tài liệu/chat/Note cá nhân.
+1. **Admin** quản lý Subject/Semester và giám sát Course Offering.
+2. **Teacher** tạo Course Offering; Java sinh join code.
+3. **Student** nhập join code; trạng thái `PENDING` chưa mở học liệu.
+4. **Teacher** approve; Student chuyển `APPROVED`.
+5. **Teacher** upload Course Material PDF, chờ `READY` và public vào lớp mình sở hữu.
+6. **Student** mở PDF Viewer, chuyển trang, lưu Note và hỏi Course Material AI Tutor. Câu trả lời có page citation; câu ngoài nguồn trả `NO_EVIDENCE`.
+7. **Student** upload Personal PDF và mở **Trợ lý tài liệu**. Trong cùng composer:
+   - hỏi một khái niệm → `ASK_DOCUMENT`;
+   - yêu cầu tóm tắt → `SUMMARIZE_DOCUMENT`;
+   - yêu cầu tạo 10 câu khó → `CREATE_QUIZ`;
+   - yêu cầu “tạo Quiz” nhưng thiếu số câu → `NEEDS_CLARIFICATION`.
+8. Student bấm citation để mở drawer document/page/excerpt. Quiz được tạo ở `REVIEW_REQUIRED`, Student duyệt/chấp nhận trước khi làm.
+9. **Teacher** mở AI Quiz Studio từ một Course Material PDF, chọn 15 câu, độ khó, chủ đề và khoảng trang. Java kiểm ownership; Python sinh draft; Teacher review/sửa rồi publish.
+10. **Student** vào Review Hub, làm Quiz, xem attempt mới và nội dung cần ôn từ câu sai cùng link trang PDF nguồn.
+11. Dashboard hiển thị progress theo page, Study Streak và Daily Goal Page/Quiz/Task do Java tính; không có màn Progress riêng.
+12. Student mở **Kế hoạch & Lịch**, chuyển tuần, thêm lịch/task và đánh dấu task hoàn thành.
+13. Admin thấy audit metadata nhưng không thấy nội dung Personal PDF, conversation, Note hoặc Quiz result cá nhân.
 
 ## 4. Negative paths bắt buộc
 
-- Join code sai hoặc lớp khóa không tạo enrollment.
-- Student `PENDING/REJECTED` không xem materials.
-- Teacher không public vào Course Offering của Teacher khác.
-- PPTX không tải file gốc; Teacher PDF không có Viewer/Tutor.
-- Personal upload không phải PDF, PDF mã hóa hoặc không có text layer bị từ chối/trạng thái lỗi an toàn.
-- Citation ngoài authorized document/version/page/slide bị Java từ chối.
-- Prompt injection trong tài liệu không đổi instruction/scope.
-- Prompt tạo Quiz không thể bỏ citation, đổi schema hoặc truy cập tài liệu ngoài scope; Course Offering ngoài enrollment không thể làm destination.
-- Không đủ evidence trả `NO_EVIDENCE`, không tạo câu trả lời đoán.
+- Join code sai/lớp khóa không tạo enrollment; `PENDING/REJECTED` không đọc Course Material.
+- Teacher không public/tạo Quiz từ PDF hoặc Course Offering của Teacher khác.
+- Upload PPTX/DOCX, PDF mã hóa hoặc PDF không có text layer bị từ chối/lỗi an toàn.
+- Teacher không có chatbot cá nhân và không có Course Material AI Tutor.
+- Citation ngoài authorized document/version/page bị Java từ chối.
+- Single Agent không được gọi tool ngoài ba tool đăng ký; confidence thấp/thiếu tham số phải hỏi lại.
+- Prompt/document injection không đổi system rule, tool schema, `MCQ_SINGLE`, 4 options hoặc source scope.
+- Thiếu evidence trả `NO_EVIDENCE`; AI không tự publish, accept, chấm điểm hoặc cập nhật progress.
 
-## 5. Checklist bảo vệ
+## 5. Checklist
 
-- [ ] UI chuẩn nhận diện PTIT (font Be Vietnam Pro + Manrope, màu đỏ thắm & vàng PTIT, huy hiệu chuẩn 1:1), responsive, luôn hiện “Dữ liệu demo” khi dùng fixture.
-- [ ] Ba vai trò có route guard và navigation đúng phạm vi.
-- [ ] Teacher tự tạo Course Offering; Admin chỉ quản lý catalog/giám sát.
-- [ ] Teacher duyệt Enrollment; Student chỉ học khi `APPROVED`.
-- [ ] Chính sách PPTX/PDF/Personal PDF đúng.
-- [ ] Personal RAG (bố cục 2 cột: Chatbot bên trái, source compact bên phải, session bar ở header chat, in-chat citation drawer) và Slide Tutor có source scope, history, citation, loading/error/`NO_EVIDENCE`.
-- [ ] Quiz dùng prompt tự do, phải qua `REVIEW_REQUIRED`; destination hợp lệ và Java chấm điểm.
-- [ ] Ôn tập 2 cấp độ (chọn môn → Quiz/Attempt history và nội dung cần ôn từ câu sai kèm link tài liệu/slide); attempt mới không ghi đè, không lặp tiến độ đã có trên Dashboard.
-- [ ] Streak chỉ tính Slide/Task/Quiz hợp lệ; Daily Goal chưa đạt 100% vẫn có thể duy trì Streak.
-- [ ] Kế hoạch & Lịch bám bố cục lịch tuần của mock; không hiển thị lại Daily Goal hoặc progress.
-- [ ] Không có menu Progress riêng hoặc XP/Level/Achievement/leaderboard.
-- [ ] Không có Topic Mastery, DOCX, OCR, Exam, Teacher Quiz, recommendation hoặc multi-agent trong MVP.
-- [ ] Trace ID xuất hiện ở lỗi/AI response nhưng không lộ secret hay nội dung riêng tư.
+- [ ] UI PTIT responsive; fixture luôn hiện “Dữ liệu demo”.
+- [ ] Browser chỉ gọi Java; không có AI key/direct Python URL ở client.
+- [ ] PDF-only policy đúng cho Course Material và Personal Document.
+- [ ] Student PDF Viewer có Page Note + Tutor; Teacher không có Tutor/chatbot.
+- [ ] Personal Assistant đủ ask/summary/quiz/clarification và citation drawer.
+- [ ] Teacher AI Quiz Studio có count/difficulty/topic/page range và review/publish flow.
+- [ ] Quiz `MCQ_SINGLE` có đúng 4 options, một đáp án đúng và page citation; Java chấm điểm.
+- [ ] Review item chỉ từ answer sai; attempt mới không ghi đè lịch sử.
+- [ ] Streak chỉ tính Page/Task/Quiz hợp lệ; Daily Goal chưa đủ vẫn có thể duy trì Streak.
+- [ ] Kế hoạch & Lịch đúng FE mock; không có AI recommendation tự động.
+- [ ] Không có PPTX/DOCX/OCR, multi-agent, Topic Mastery, Exam, XP/badge/leaderboard trong MVP.

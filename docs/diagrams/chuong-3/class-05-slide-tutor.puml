@@ -2,12 +2,8 @@
 ' Palette: class; based on the Visual Paradigm guide samples (see README).
 skinparam defaultFontColor #111111
 skinparam ArrowColor #222222
-skinparam ActorBackgroundColor #7ACFF5
-skinparam ActorBorderColor #222222
 skinparam NoteBackgroundColor #FFF9D9
 skinparam NoteBorderColor #555555
-skinparam RectangleBackgroundColor white
-skinparam RectangleBorderColor #222222
 hide circle
 skinparam ClassBackgroundColor #7ACFF5
 skinparam ClassBorderColor #222222
@@ -23,43 +19,47 @@ skinparam roundcorner 10
 skinparam nodesep 30
 skinparam ranksep 40
 top to bottom direction
-class SlideTutorController <<Java boundary>> {
-+ask(documentId: UUID, number: Integer, body: SlideQuestion): AnswerResponse
+
+class CourseMaterialTutorController <<Java boundary>> {
+  +ask(documentId: UUID, pageNumber: Integer, body: PageQuestion): AnswerResponse
 }
-class SlideQuestion <<DTO>> {
-+question: String
+class PageQuestion <<DTO>> {
+  +question: String
 }
-class SlideTutorService <<Java control>> {
-+ask(userId: UUID, documentId: UUID, number: Integer, question: String): AnswerResponse
+class CourseMaterialTutorService <<Java control>> {
+  +ask(userId: UUID, documentId: UUID, pageNumber: Integer, question: String): AnswerResponse
 }
 class MaterialAccessPolicy <<Java policy>> {
-+authorize(userId: UUID, documentId: UUID, number: Integer): SlideScope
+  +authorize(userId: UUID, documentId: UUID, pageNumber: Integer): PageScope
 }
 class AiClient <<HTTP adapter>> {
-+askSlide(scope: SlideScope, question: String): AnswerResponse
+  +askCourseMaterial(scope: PageScope, question: String): AnswerResponse
 }
-class SlideTutorPipeline <<Python control>> {
-+run(scope: SlideScope, question: String): AnswerResponse
+class CourseMaterialTutorPipeline <<Python control>> {
+  +run(scope: PageScope, question: String): AnswerResponse
 }
-class SlideScope <<DTO>> {
-+documentId: UUID
-+documentVersion: Integer
-+courseOfferingId: UUID
-+currentSlide: Integer
-+allowedSlideNumbers: Integer[]
+class PageScope <<DTO>> {
+  +documentId: UUID
+  +documentVersion: Integer
+  +courseOfferingId: UUID
+  +currentPage: Integer
+  +allowedPageNumbers: Integer[]
 }
 class GroundingValidator <<Python service>> {
-+validate(answer: GeneratedAnswer, evidence: EvidenceSet): ValidationResult
+  +validate(answer: GeneratedAnswer, evidence: EvidenceSet): ValidationResult
 }
-SlideTutorController ..> SlideQuestion
-SlideTutorController --> SlideTutorService
-SlideTutorService --> MaterialAccessPolicy
-MaterialAccessPolicy ..> SlideScope
-SlideTutorService --> AiClient
-AiClient ..> SlideTutorPipeline : internal HTTP
-SlideTutorPipeline --> GroundingValidator
+
+CourseMaterialTutorController ..> PageQuestion
+CourseMaterialTutorController --> CourseMaterialTutorService
+CourseMaterialTutorService --> MaterialAccessPolicy
+MaterialAccessPolicy ..> PageScope
+CourseMaterialTutorService --> AiClient
+AiClient ..> CourseMaterialTutorPipeline : internal HTTP
+CourseMaterialTutorPipeline --> GroundingValidator
+
 note bottom of MaterialAccessPolicy
-Kiểm tra enrollment / publication / READY
-trước lời gọi AI và trước khi trả nội dung.
+Kiểm tra enrollment APPROVED, publication và READY
+trước lời gọi AI và trước khi trả nội dung PDF.
+Tutor này chỉ dành cho Student.
 end note
 @enduml

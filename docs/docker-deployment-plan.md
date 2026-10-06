@@ -34,7 +34,7 @@ Next.js Web → Java Spring Boot → Python AI API → OpenRouter
 | `ai-api` | `services/ai/Dockerfile` | Chỉ mạng nội bộ `8000` | Internal API, RAG/citation/Quiz generation |
 | `ai-worker` | Cùng image với `ai-api` | Không mở port | Index/deindex job và document pipeline |
 | `postgres` | Image PostgreSQL có pgvector | Nội bộ; chỉ mở port ở profile dev khi cần | Schema `app`, schema `ai` và vector index |
-| `object-storage` | Image S3-compatible | Nội bộ; console chỉ bật ở dev | Tài liệu và slide artifact |
+| `object-storage` | Image S3-compatible | Nội bộ; console chỉ bật ở dev | Personal PDF và Course Material PDF |
 | `reverse-proxy` | Nginx/Caddy, chỉ profile production | Public `80/443` | TLS, routing và security headers |
 
 Không thêm Redis hoặc message broker trong MVP. Worker claim job từ PostgreSQL theo cơ chế đã mô tả trong kế hoạch AI.

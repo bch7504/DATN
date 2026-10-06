@@ -23,23 +23,23 @@ left to right direction
 
 rectangle "Learning Platform" as PLATFORM #FFFFFF {
   rectangle "Course Materials" as COURSE #FFFFFF {
-    rectangle "Teacher công bố\nPPTX / PDF" as TEACHER #F8FAFC
-    rectangle "Student được duyệt\nXem PPTX / tải PDF" as STUDENT #F1F5F9
+    rectangle "Teacher công bố\nCourse Material PDF" as TEACHER #F8FAFC
+    rectangle "Student được duyệt\nXem PDF theo trang" as STUDENT #F1F5F9
     TEACHER -down-> STUDENT
   }
 
   rectangle "Personal Workspace" as PERSONAL #FFFFFF {
     rectangle "Personal PDF\ncủa Student" as PDF #F8FAFC
-    rectangle "Tạo Quiz bằng prompt\nReview trước khi làm" as QUIZ #F0F7FF
-    rectangle "Hỏi đáp RAG\ncitation theo trang" as RAG #F0F7FF
-    PDF -down-> QUIZ
-    PDF -down-> RAG
+    rectangle "Personal Assistant\nHỏi · Tóm tắt · Tạo Quiz" as ASSISTANT #F0F7FF
+    rectangle "Single Agent + tools\ncitation theo trang" as AGENT #F0F7FF
+    PDF -down-> ASSISTANT
+    ASSISTANT -down-> AGENT
   }
 
   rectangle "Learning Services" as SERVICES #FFFFFF {
-    rectangle "Slide Viewer\nNote / Slide Tutor" as SLIDE #F0F7FF
+    rectangle "PDF Viewer\nPage Note / Course Tutor" as VIEWER #F0F7FF
     rectangle "Java chấm Quiz\nCâu sai → trang nguồn" as SCORE #F0FDF4
-    SLIDE -[hidden]down-> SCORE
+    VIEWER -[hidden]down-> SCORE
   }
 
   rectangle "Student Progress" as PROGRESS #FFFFFF {
@@ -48,9 +48,9 @@ rectangle "Learning Platform" as PLATFORM #FFFFFF {
     DASHBOARD -[hidden]down-> PLAN
   }
 
-  STUDENT -right-> SLIDE : chỉ PPTX
-  QUIZ -right-> SCORE : đã accept
-  SLIDE -right-> DASHBOARD : sự kiện xem slide
+  STUDENT -right-> VIEWER : PDF đã public
+  AGENT -right-> SCORE : Quiz đã accept
+  VIEWER -right-> DASHBOARD : sự kiện xem trang
   SCORE -right-> DASHBOARD : hoàn tất Quiz
 
   STUDENT -[hidden]down-> PDF
@@ -61,7 +61,7 @@ rectangle "Learning Platform" as PLATFORM #FFFFFF {
 
   note right of PLAN
   Không tự động lập kế hoạch bằng AI.
-  RAG và tạo Quiz là hai chức năng độc lập.
+  Teacher có AI Quiz Studio nhưng không có chatbot/Tutor.
   end note
 }
 @enduml

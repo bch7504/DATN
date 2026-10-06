@@ -5,7 +5,7 @@
 | ID | Priority | Target |
 |---|---|---|
 | NFR-PERF-001 | MUST | Public API không AI đạt p95 ≤ 1 giây khi service warm và 50 user đồng thời. |
-| NFR-PERF-002 | MUST | RAG/Slide AI Tutor đạt p95 ≤ 20 giây, không tính cold start platform. |
+| NFR-PERF-002 | MUST | Personal Assistant/Course Material AI Tutor đạt p95 ≤ 20 giây, không tính cold start platform. |
 | NFR-PERF-003 | MUST | Tạo Quiz trả `202` ≤ 1 giây; 95% job hoàn tất ≤ 60 giây. |
 | NFR-PERF-004 | SHOULD | Index file trong giới hạn kích thước hoàn tất ≤ 5 phút ở 95th percentile. |
 | NFR-PERF-005 | MUST | List API phân trang; mặc định 20, tối đa 100 item/page. |
@@ -71,7 +71,7 @@ Timeout mặc định:
 
 - Health: Java, Python API, worker, PostgreSQL/pgvector và Object Storage.
 - Metric vận hành: request latency/error, queue depth, processing failure, retry count, `NO_EVIDENCE` rate, citation rejection và token usage tổng hợp.
-- Metric evaluation: context precision/recall, claim precision/recall, faithfulness, answer relevancy, citation entailment/validity, refusal accuracy và scope violation; báo cáo riêng cho Personal RAG và Slide Tutor.
+- Metric evaluation: intent/tool routing, argument completeness, context precision/recall, faithfulness, answer relevancy, citation entailment/validity, refusal accuracy và scope violation; báo cáo riêng cho ask, summary, Student Quiz, Course Material Tutor và Teacher Quiz.
 - Alert demo: health down 2 phút, failure rate > 10% trong 5 phút hoặc queue job cũ nhất > 10 phút.
 - Trace ID đi xuyên Web-facing response, Java log và Python log.
 

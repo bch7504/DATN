@@ -2,12 +2,8 @@
 ' Palette: class; based on the Visual Paradigm guide samples (see README).
 skinparam defaultFontColor #111111
 skinparam ArrowColor #222222
-skinparam ActorBackgroundColor #7ACFF5
-skinparam ActorBorderColor #222222
 skinparam NoteBackgroundColor #FFF9D9
 skinparam NoteBorderColor #555555
-skinparam RectangleBackgroundColor white
-skinparam RectangleBorderColor #222222
 hide circle
 skinparam ClassBackgroundColor #7ACFF5
 skinparam ClassBorderColor #222222
@@ -23,45 +19,63 @@ skinparam roundcorner 10
 skinparam nodesep 30
 skinparam ranksep 40
 top to bottom direction
-class PersonalRagController <<Java boundary>> {
-+postMessage(id: UUID, body: MessageRequest): AnswerResponse
+
+class PersonalAssistantController <<Java boundary>> {
+  +postMessage(id: UUID, body: MessageRequest): AssistantResponse
 }
 class MessageRequest <<DTO>> {
-+message: String
+  +message: String
+  +selectedDocumentIds: UUID[]
 }
-class PersonalRagService <<Java control>> {
-+ask(userId: UUID, id: UUID, message: String): AnswerResponse
+class PersonalAssistantService <<Java control>> {
+  +run(userId: UUID, id: UUID, request: MessageRequest): AssistantResponse
 }
 class ConversationRepository <<Java repository>> {
-+loadOwnedSnapshot(userId: UUID, id: UUID): ConversationSnapshot
+  +loadOwnedSnapshot(userId: UUID, id: UUID): ConversationSnapshot
 }
 class AiClient <<HTTP adapter>> {
-+ask(request: InternalRagRequest): AnswerResponse
+  +runAssistant(request: InternalAssistantRequest): AssistantResponse
 }
-class RagPipeline <<Python control>> {
-+run(request: InternalRagRequest): AnswerResponse
+class SingleOrchestratorAgent <<Python agent>> {
+  +run(request: InternalAssistantRequest): AssistantResponse
+  -selectTool(message: String): ToolName
+}
+class AskDocumentTool <<Python tool>> {
+  +execute(args: AskArgs, scope: AuthorizedScope): AnswerResult
+}
+class SummarizeDocumentTool <<Python tool>> {
+  +execute(args: SummaryArgs, scope: AuthorizedScope): SummaryResult
+}
+class GenerateQuizTool <<Python tool>> {
+  +execute(args: QuizArgs, scope: AuthorizedScope): QuizDraftResult
 }
 class ScopedRetriever <<Python service>> {
-+search(scope: AuthorizedScope, query: String): EvidenceSet
+  +search(scope: AuthorizedScope, query: String): EvidenceSet
 }
-class GroundingValidator <<Python service>> {
-+validate(answer: GeneratedAnswer, evidence: EvidenceSet): ValidationResult
+class AssistantResponse <<DTO>> {
+  +status: AssistantStatus
+  +capability: Capability
+  +answer: String?
+  +quizDraft: QuizDraft?
+  +citations: PageCitation[]
 }
-class AnswerResponse <<DTO>> {
-+status: AnswerStatus
-+answer: String?
-+citations: PageCitation[]
-}
-PersonalRagController ..> MessageRequest
-PersonalRagController --> PersonalRagService
-PersonalRagService --> ConversationRepository
-PersonalRagService --> AiClient
-AiClient ..> RagPipeline : internal HTTP
-RagPipeline --> ScopedRetriever
-RagPipeline --> GroundingValidator
-PersonalRagService ..> AnswerResponse
-note bottom of PersonalRagService
-Java dựng scope từ snapshot có documentVersion.
-MessageRequest không cho đổi danh sách tài liệu.
+
+PersonalAssistantController ..> MessageRequest
+PersonalAssistantController --> PersonalAssistantService
+PersonalAssistantService --> ConversationRepository
+PersonalAssistantService --> AiClient
+AiClient ..> SingleOrchestratorAgent : internal HTTP
+SingleOrchestratorAgent --> AskDocumentTool
+SingleOrchestratorAgent --> SummarizeDocumentTool
+SingleOrchestratorAgent --> GenerateQuizTool
+AskDocumentTool --> ScopedRetriever
+SummarizeDocumentTool --> ScopedRetriever
+GenerateQuizTool --> ScopedRetriever
+PersonalAssistantService ..> AssistantResponse
+
+note bottom of SingleOrchestratorAgent
+Agent chỉ chọn một tool trong allowlist.
+Thiếu tham số phải trả NEEDS_CLARIFICATION;
+không tự mở rộng authorized scope.
 end note
 @enduml

@@ -18,27 +18,24 @@ skinparam PartitionBorderColor #222222
 skinparam NoteBackgroundColor #FFF9D9
 skinparam NoteBorderColor #555555
 skinparam roundcorner 16
+
 |Student|
 start
-:Đặt câu hỏi tại slide đang xem;
+:Đặt câu hỏi tại trang PDF đang xem;
 |Java Backend|
 :Kiểm enrollment APPROVED;
 :Kiểm publication, READY và version;
 if (Được phép?) then (Có)
-  :Dựng current slide và allowed scope;
-  note right
-  Citation: documentId + slideNumber + excerpt.
-  ASK_AI không tăng progress hoặc Streak.
-  end note
+  :Dựng current page và allowed page scope;
   |Python AI|
-  :Retrieval đúng document/version/scope;
+  :Retrieval đúng document/version/page scope;
   if (Đủ bằng chứng?) then (Có)
-    :Sinh giải thích và citation;
+    :Sinh giải thích và citation theo trang;
     :Validate; rewrite tối đa 1 lần;
     |Java Backend|
     :Revalidate quyền và citation;
     |Student|
-    :Nhận câu trả lời cạnh slide;
+    :Nhận câu trả lời cạnh trang PDF;
     stop
   else (Không)
     |Student|
@@ -50,4 +47,10 @@ else (Không)
   :Nhận lỗi access / revoked;
   stop
 endif
+
+note right
+Citation: documentId + pageNumber + excerpt.
+ASK_AI không tăng progress hoặc Streak.
+Teacher không có Tutor trong MVP.
+end note
 @enduml

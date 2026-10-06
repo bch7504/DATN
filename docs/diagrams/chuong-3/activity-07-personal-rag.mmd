@@ -1,33 +1,20 @@
 flowchart LR
-  subgraph AUTH["1. Tiếp nhận — Java"]
-    direction TB
-    A["Chọn 1–10 PDF READY<br/>tạo conversation; gửi câu hỏi"] --> B{"Owner / snapshot<br/>READY / version hợp lệ?"}
-    B -->|Không| X(["Từ chối; không gọi AI"])
-    B -->|Có| S["Cấp authorized scope"]
+  subgraph JAVA["Java Backend"]
+    A["Student chọn Personal PDF và gửi yêu cầu"] --> B{"Owner / READY / version hợp lệ?"}
+    B -->|Không| X(["Từ chối an toàn"])
+    B -->|Có| S["Dựng authorized scope"]
   end
-  subgraph RET["2. Retrieval — Python"]
-    direction TB
-    C["Embed query cùng index version<br/>filter scope trước vector search"] --> D["Post-filter<br/>đóng băng evidence snapshot"]
-    D --> E{"Đủ bằng chứng?"}
-    E -->|Không| N(["NO_EVIDENCE<br/>không gọi LLM"])
-    E -->|Có| CTX["Chuẩn bị context không tin cậy"]
+  subgraph AGENT["Python Single Agent"]
+    I["Nhận diện capability"] --> P{"Đủ tool args?"}
+    P -->|Không| C(["NEEDS_CLARIFICATION"])
+    P -->|Có| T{"Chọn tool trong allowlist"}
+    T --> Q["Ask Document"]
+    T --> M["Summarize Document"]
+    T --> G["Generate Quiz"]
+    Q & M & G --> R["Retrieval + evidence gate"]
+    R --> E{"Đủ bằng chứng?"}
+    E -->|Không| N(["NO_EVIDENCE"])
+    E -->|Có| O["Structured result + page citations"]
   end
-  subgraph GEN["3. Generation — Python"]
-    direction TB
-    F["LLM sinh draft từ snapshot"] --> G{"Grounding / citation đạt?"}
-    G -->|Có| OK["ANSWERED + page citations"]
-    G -->|Không| H["Rewrite tối đa 1 lần<br/>giữ nguyên snapshot"]
-    H --> I{"Kiểm lại đạt?"}
-    I -->|Có| OK
-    I -->|Không| NN["NO_EVIDENCE"]
-  end
-  subgraph RESP["4. Trả kết quả — Java"]
-    direction TB
-    J{"Revalidate quyền,<br/>version và output?"} -->|Hợp lệ| R["Lưu message; trả kết quả<br/>citation documentId + pageNumber"]
-    J -->|Không| XX(["Từ chối; không lộ nguồn"])
-    ERR["Lỗi hạ tầng trả safe code + trace ID<br/>không chuyển thành NO_EVIDENCE"]
-  end
-  AUTH -->|Scope hợp lệ| RET
-  RET -->|Đủ evidence| GEN
-  RET -->|NO_EVIDENCE| RESP
-  GEN -->|Structured result| RESP
+  S --> I
+  O --> V["Java revalidate và lưu message / REVIEW_REQUIRED"]

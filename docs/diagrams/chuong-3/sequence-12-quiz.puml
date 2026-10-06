@@ -7,8 +7,6 @@ skinparam ActorBackgroundColor #7ACFF5
 skinparam ActorBorderColor #222222
 skinparam NoteBackgroundColor #FFF9D9
 skinparam NoteBorderColor #555555
-skinparam RectangleBackgroundColor white
-skinparam RectangleBorderColor #222222
 skinparam ParticipantBackgroundColor #7ACFF5
 skinparam ParticipantBorderColor #222222
 skinparam LifeLineBackgroundColor #7ACFF5
@@ -21,50 +19,51 @@ skinparam linetype ortho
 skinparam backgroundColor white
 skinparam defaultFontName Arial
 skinparam defaultFontSize 15
-skinparam classAttributeIconSize 0
-skinparam packageStyle rectangle
 skinparam roundcorner 10
-skinparam nodesep 30
-skinparam ranksep 40
 hide footbox
 autonumber
 autoactivate on
-actor Student
+
+actor "Student / Teacher" as User
 participant ":Web" as Web
 participant ":Java API / worker" as Java
 participant ":Python AI" as AI
 participant ":Model Provider" as LLM
 participant ":app" as DB
-Student -> Web : Chọn Personal PDF và nhập prompt
-Web -> Java : Tạo Quiz {selectedDocumentIds, prompt}
-Java -> Java : Kiểm owner / READY; snapshot nguồn
+
+User -> Web : Chọn PDF, số câu, độ khó và yêu cầu
+Web -> Java : Tạo Quiz {mode, source, constraints}
+Java -> Java : Kiểm owner / READY / Course Offering; snapshot nguồn
 Java -> DB : Tạo Quiz GENERATING và run identity
 Java --> Web : 202 {quizId, status}
-Java -> AI : /internal/v1/quizzes/generate\nscope + userPrompt + Idempotency-Key
+Java -> AI : POST /internal/v1/quizzes/generate
 AI -> AI : Retrieval có scope, evidence gate
 alt Thiếu evidence
-AI --> Java : Lỗi thiếu căn cứ; không sinh đề
+  AI --> Java : NO_EVIDENCE
 else Đủ evidence
-AI -> LLM : Yêu cầu JSON MCQ_SINGLE
-LLM --> AI : Structured draft
-AI -> AI : Schema + grounding; repair tối đa 1 lần
-AI --> Java : QuizDraft hoặc lỗi
+  AI -> LLM : JSON Schema MCQ_SINGLE
+  LLM --> AI : Structured draft
+  AI -> AI : Đúng 4 options, 1 đáp án, grounding; repair tối đa 1 lần
+  AI --> Java : QuizDraft hoặc lỗi
 end
 alt Draft hợp lệ và nguồn còn được phép
-Java -> DB : Lưu toàn bộ câu hỏi; REVIEW_REQUIRED
+  Java -> DB : Lưu batch; REVIEW_REQUIRED
 else Lỗi hoặc không hợp lệ
-Java -> DB : GENERATION_FAILED; không lưu câu hỏi lỗi
+  Java -> DB : GENERATION_FAILED; không lưu câu hỏi lỗi
 end
 loop Poll có backoff giới hạn
-Web -> Java : GET trạng thái Quiz
-Java --> Web : Trạng thái / bản nháp khi sẵn sàng
+  Web -> Java : GET trạng thái Quiz
+  Java --> Web : Trạng thái / bản nháp
 end
-opt Quiz REVIEW_REQUIRED và Student chọn accept
-Student -> Web : Review rồi accept (PERSONAL / Course Offering)
-Web -> Java : Accept Quiz
-Java -> Java : Owner, state, enrollment APPROVED nếu gắn lớp
-Java -> DB : Cập nhật READY
-Java --> Web : Quiz sẵn sàng làm bài
+alt Student tạo từ Personal Assistant
+  User -> Web : Accept hoặc Reject
+  Web -> Java : Chuyển trạng thái Quiz cá nhân
+  Java -> DB : READY hoặc REJECTED
+else Teacher tạo từ Course Material PDF
+  User -> Web : Sửa rồi Publish hoặc Reject
+  Web -> Java : Publish Quiz cho Course Offering
+  Java -> DB : PUBLISHED hoặc REJECTED
 end
+Java --> Web : Trạng thái cuối
 return Hoàn tất tương tác
 @enduml

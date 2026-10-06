@@ -13,34 +13,29 @@ skinparam EntityBackgroundColor #F2BB7B
 skinparam EntityBorderColor #222222
 skinparam EntityFontColor #111111
 skinparam EntityAttributeFontColor #111111
-skinparam ClassBackgroundColor #F2BB7B
-skinparam ClassBorderColor #222222
-skinparam ClassHeaderBackgroundColor #F2BB7B
-skinparam ClassFontColor #111111
-skinparam ClassAttributeFontColor #111111
 hide circle
 left to right direction
 
-entity "users" as users {
+entity "users" as users #F2BB7B {
   * id : uuid <<PK>>
   --
   email : varchar(255) <<UQ>>
   role : varchar(20)
   time_zone : varchar(64)
 }
-entity "subjects" as subjects {
+entity "subjects" as subjects #F2BB7B {
   * id : uuid <<PK>>
   --
   code : varchar(30) <<UQ>>
   name : varchar(255)
 }
-entity "semesters" as semesters {
+entity "semesters" as semesters #F2BB7B {
   * id : uuid <<PK>>
   --
   code : varchar(30) <<UQ>>
   status : varchar(20)
 }
-entity "course_offerings" as offerings {
+entity "course_offerings" as offerings #F2BB7B {
   * id : uuid <<PK>>
   --
   subject_id : uuid <<FK>>
@@ -48,90 +43,103 @@ entity "course_offerings" as offerings {
   teacher_id : uuid <<FK>>
   status : varchar(20)
 }
-entity "course_enrollments" as enrollments {
+entity "course_enrollments" as enrollments #F2BB7B {
   * id : uuid <<PK>>
   --
   course_offering_id : uuid <<FK>>
   student_id : uuid <<FK>>
   status : varchar(20)
 }
-entity "documents" as documents {
+entity "documents" as documents #F2BB7B {
   * id : uuid <<PK>>
   --
   owner_id : uuid <<FK>>
   document_version : integer
-  scope : varchar(20)
+  scope : varchar(30)
+  file_type : varchar(10) = PDF
+  page_count : integer
   processing_status : varchar(20)
 }
-entity "document_publications" as publications {
+entity "document_publications" as publications #F2BB7B {
   * id : uuid <<PK>>
   --
   document_id : uuid <<FK>>
   course_offering_id : uuid <<FK>>
   status : varchar(20)
 }
-entity "slides" as slides {
+entity "document_pages" as pages #F2BB7B {
   * id : uuid <<PK>>
   --
   document_id : uuid <<FK>>
-  slide_number : integer
-  rendered_key : varchar(500)
+  page_number : integer
+  text_checksum : varchar(64)
 }
-entity "chat_conversations" as conversations {
+entity "page_notes" as notes #F2BB7B {
   * id : uuid <<PK>>
   --
   student_id : uuid <<FK>>
-  type : varchar(20)
+  document_id : uuid <<FK>>
+  page_number : integer
+  content : text
 }
-entity "quizzes" as quizzes {
+entity "chat_conversations" as conversations #F2BB7B {
   * id : uuid <<PK>>
   --
   student_id : uuid <<FK>>
+  type : varchar(30)
+}
+entity "quizzes" as quizzes #F2BB7B {
+  * id : uuid <<PK>>
+  --
+  created_by : uuid <<FK>>
+  creator_role : varchar(20)
+  generation_mode : varchar(30)
   course_offering_id : uuid <<FK, nullable>>
   status : varchar(30)
 }
-entity "quiz_questions" as questions {
+entity "quiz_questions" as questions #F2BB7B {
   * id : uuid <<PK>>
   --
   quiz_id : uuid <<FK>>
   options : jsonb
   correct_option_index : smallint
+  source_page_number : integer
 }
-entity "quiz_attempts" as attempts {
+entity "quiz_attempts" as attempts #F2BB7B {
   * id : uuid <<PK>>
   --
   quiz_id : uuid <<FK>>
   student_id : uuid <<FK>>
   score : numeric(5,2)
 }
-entity "learning_events" as events {
+entity "learning_events" as events #F2BB7B {
   * id : uuid <<PK>>
   --
   student_id : uuid <<FK>>
   event_type : varchar(30)
   activity_date : date
 }
-entity "learning_progress" as progress {
+entity "learning_progress" as progress #F2BB7B {
   * id : uuid <<PK>>
   --
   student_id : uuid <<FK>>
   document_id : uuid <<FK>>
   progress_percent : numeric(5,2)
 }
-entity "daily_goals" as goals {
+entity "daily_goals" as goals #F2BB7B {
   * student_id : uuid <<PK, FK>>
   --
-  slide_target : integer
+  page_target : integer
   quiz_question_target : integer
   task_target : integer
 }
-entity "study_plans" as plans {
+entity "study_plans" as plans #F2BB7B {
   * id : uuid <<PK>>
   --
   student_id : uuid <<FK>>
   title : varchar(255)
 }
-entity "study_plan_items" as plan_items {
+entity "study_plan_items" as plan_items #F2BB7B {
   * id : uuid <<PK>>
   --
   study_plan_id : uuid <<FK>>
@@ -148,7 +156,9 @@ users ||--o{ enrollments
 users ||--o{ documents
 documents ||--o{ publications
 offerings ||--o{ publications
-documents ||--o{ slides
+documents ||--o{ pages
+users ||--o{ notes
+documents ||--o{ notes
 users ||--o{ conversations
 users ||--o{ quizzes
 offerings |o--o{ quizzes

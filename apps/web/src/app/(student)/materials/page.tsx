@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { BookOpen, FileText, Filter, Info, Sparkles } from "lucide-react";
 import { materialApi, studentApi } from "@/lib/api-client";
 import { TeacherDocument } from "@/types/material";
 import { CourseOffering } from "@/types/course-offering";
@@ -8,26 +10,16 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  BookOpen,
-  Download,
-  Presentation,
-  FileText,
-  Filter,
-  Info,
-  ChevronRight,
-  ExternalLink,
-} from "lucide-react";
-import Link from "next/link";
 
 export default function StudentMaterialsPage() {
   const [materials, setMaterials] = useState<TeacherDocument[]>([]);
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
-  const [selectedOfferingId, setSelectedOfferingId] = useState<string>("ALL");
+  const [selectedOfferingId, setSelectedOfferingId] = useState("ALL");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = async (): Promise<void> => {
+    setIsLoading(true);
     try {
       const [offeringsData, materialsData] = await Promise.all([
         studentApi.getOfferings(),
@@ -35,165 +27,108 @@ export default function StudentMaterialsPage() {
       ]);
       setOfferings(offeringsData);
       setMaterials(materialsData);
-    } catch (err: unknown) {
-      setErrorMsg(
-        err instanceof Error ? err.message : "Không thể tải danh sách học liệu."
-      );
+      setErrorMsg(null);
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Không thể tải danh sách học liệu.");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
-  const filteredMaterials = materials.filter((m) => {
-    if (selectedOfferingId === "ALL") return true;
-    return m.publishedOfferings.some((p) => p.offeringId === selectedOfferingId);
-  });
+  const filteredMaterials = materials.filter(
+    (material) =>
+      selectedOfferingId === "ALL" ||
+      material.publishedOfferings.some((publication) => publication.offeringId === selectedOfferingId)
+  );
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Kho Học liệu & Bài giảng
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Học liệu chính thức do Giảng viên công bố cho các lớp học phần bạn đã được duyệt
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-600">Course Material</p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Học liệu PDF</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Đọc tài liệu giảng viên công bố, ghi chú theo trang và hỏi AI trong đúng phạm vi tài liệu.
           </p>
         </div>
-
-        {/* Filter by offering */}
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-400" />
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <Filter className="h-4 w-4 text-slate-400" />
+          <span className="sr-only">Lọc theo lớp học phần</span>
           <select
             value={selectedOfferingId}
-            onChange={(e) => setSelectedOfferingId(e.target.value)}
-            className="p-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-red-500"
+            onChange={(event) => setSelectedOfferingId(event.target.value)}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
           >
-            <option value="ALL">Tất cả lớp học phần đã duyệt</option>
-            {offerings.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.code} - {o.name}
+            <option value="ALL">Tất cả lớp học phần</option>
+            {offerings.map((offering) => (
+              <option key={offering.id} value={offering.id}>
+                {offering.code} - {offering.name}
               </option>
             ))}
           </select>
-        </div>
+        </label>
       </div>
 
-      {/* Policy Notice Box */}
-      <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3 text-xs leading-relaxed">
-        <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <span className="font-bold">Quy định truy cập học liệu (StudyFlow Policy):</span>
-          <ul className="list-disc pl-4 mt-1 space-y-0.5">
-            <li>
-              <b>Slide bài giảng (PPTX):</b> Xem trực tiếp trên trình đọc web (Slide Viewer), hỗ trợ ghi chú cá nhân và trợ lý AI Slide Tutor. Không cho phép tải tệp gốc để bảo vệ bản quyền giảng dạy.
-            </li>
-            <li>
-              <b>Tài liệu tham khảo (PDF):</b> Cho phép tải về (Download) để học tập ngoại tuyến. Không hỗ trợ Viewer, Note hoặc Slide Tutor.
-            </li>
-          </ul>
-        </div>
+      <div className="flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-slate-700">
+        <Info className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+        <p>
+          <strong className="text-slate-900">Chính sách mới:</strong> toàn bộ học liệu lớp được chuẩn hóa thành PDF có lớp văn bản. Student được xem trực tuyến, lưu ghi chú và dùng Course Material AI Tutor với citation theo số trang. Chỉ tài liệu đã công bố và enrollment <code>APPROVED</code> mới được truy cập.
+        </p>
       </div>
 
-      {errorMsg && (
-        <ErrorAlert message={errorMsg} onRetry={() => setErrorMsg(null)} />
-      )}
+      {errorMsg && <ErrorAlert message={errorMsg} onRetry={() => void loadData()} />}
 
       {isLoading ? (
-        <div className="py-12 flex justify-center">
-          <LoadingSpinner size="lg" text="Đang tải học liệu..." />
+        <div className="flex justify-center py-16">
+          <LoadingSpinner size="lg" text="Đang tải học liệu PDF..." />
         </div>
       ) : filteredMaterials.length === 0 ? (
-        <EmptyState
-          title="Chưa có học liệu nào"
-          description="Giảng viên chưa công bố bài giảng hoặc tài liệu cho lớp học phần này."
-        />
+        <EmptyState title="Chưa có học liệu PDF" description="Giảng viên chưa công bố tài liệu cho lớp học phần này." />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredMaterials.map((doc) => {
-            const isPptx = doc.fileType === "PPTX";
-
-            return (
-              <div
-                key={doc.id}
-                className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm  transition flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2.5 py-1 rounded-lg font-mono font-bold text-xs flex items-center gap-1 ${
-                          isPptx
-                            ? "bg-red-100 text-red-800"
-                            : "bg-blue-100 text-blue-800"
-                        }`}
-                      >
-                        {isPptx ? (
-                          <>
-                            <Presentation className="w-3.5 h-3.5" /> PPTX Bài giảng
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="w-3.5 h-3.5" /> PDF Tài liệu
-                          </>
-                        )}
-                      </span>
-                      <StatusBadge status={doc.status} size="sm" />
-                    </div>
-
-                    <span className="text-xs text-slate-400">
-                      {(doc.fileSize / (1024 * 1024)).toFixed(1)} MB
-                    </span>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {filteredMaterials.map((document) => (
+            <article key={document.id} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div>
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
+                    <FileText className="h-3.5 w-3.5" /> PDF
+                  </span>
+                  <StatusBadge status={document.status} size="sm" />
+                </div>
+                <h2 className="text-base font-bold text-slate-900">{document.title}</h2>
+                <p className="mt-1 truncate text-xs text-slate-500">{document.fileName}</p>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <div className="text-slate-500">Số trang</div>
+                    <div className="mt-1 font-bold text-slate-900">{document.totalPages} trang</div>
                   </div>
-
-                  <h3 className="font-bold text-slate-900 text-base mb-1">
-                    {doc.title}
-                  </h3>
-
-                  <div className="text-xs text-slate-500 mb-3 space-y-0.5">
-                    <div>
-                      {isPptx
-                        ? `Số trang slide: ${doc.totalSlides || 8} slide`
-                        : `Số trang: ${doc.totalPages || 12} trang`}
-                    </div>
-                    <div>
-                      Lớp áp dụng:{" "}
-                      {doc.publishedOfferings.map((p) => p.offeringCode).join(", ")}
-                    </div>
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <div className="text-slate-500">Dung lượng</div>
+                    <div className="mt-1 font-bold text-slate-900">{(document.fileSize / 1024 / 1024).toFixed(1)} MB</div>
                   </div>
                 </div>
-
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400">
-                    Công bố: {new Date(doc.createdAt).toLocaleDateString("vi-VN")}
-                  </span>
-
-                  {isPptx ? (
-                    <Link
-                      href={`/materials/${doc.id}/viewer`}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600  text-white rounded-xl text-xs font-bold shadow-sm transition"
-                    >
-                      <BookOpen className="w-4 h-4" /> Xem slide & Hỏi Tutor
-                    </Link>
-                  ) : (
-                    <a
-                      href={doc.downloadUrl || "#"}
-                      download={doc.fileName}
-                      onClick={() => alert(`Bắt đầu tải tệp: ${doc.fileName}`)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600  text-white rounded-xl text-xs font-bold shadow-sm transition"
-                    >
-                      <Download className="w-4 h-4" /> Tải tệp PDF
-                    </a>
-                  )}
+                <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                  <Sparkles className="h-3.5 w-3.5 text-red-600" />
+                  Viewer · Ghi chú theo trang · AI Tutor
                 </div>
               </div>
-            );
-          })}
+              <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                <span className="text-[11px] text-slate-400">
+                  {document.publishedOfferings.map((item) => item.offeringCode).join(", ")}
+                </span>
+                <Link
+                  href={`/materials/${document.id}/viewer`}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                >
+                  <BookOpen className="h-4 w-4" /> Xem PDF & Hỏi AI
+                </Link>
+              </div>
+            </article>
+          ))}
         </div>
       )}
     </div>

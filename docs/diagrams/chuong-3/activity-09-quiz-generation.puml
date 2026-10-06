@@ -18,17 +18,17 @@ skinparam PartitionBorderColor #222222
 skinparam NoteBackgroundColor #FFF9D9
 skinparam NoteBorderColor #555555
 skinparam roundcorner 16
-|Student|
+
+|Student / Teacher|
 start
-:Chọn 1–10 Personal PDF;
-:Nhập prompt tự do;
+:Chọn PDF, số câu, độ khó và yêu cầu;
 note right
-Đúng 4 options, 1 correctOptionIndex,
-explanation và citation theo trang.
-Regenerate tạo Quiz mới.
+Student tạo Quiz từ Personal PDF trong Assistant.
+Teacher tạo Quiz từ Course Material PDF, không có chatbot.
 end note
 |Java Backend|
-:Kiểm owner / READY / version;
+:Xác định STUDENT_PERSONAL hoặc TEACHER_COURSE;
+:Kiểm owner, READY, version và Course Offering;
 if (Nguồn hợp lệ?) then (Có)
   :Tạo Quiz GENERATING;
   :Trả 202 + quizId;
@@ -36,20 +36,22 @@ if (Nguồn hợp lệ?) then (Có)
   :Retrieval có scope và evidence gate;
   if (Đủ bằng chứng?) then (Có)
     :Sinh JSON MCQ_SINGLE;
-    :Validate schema + grounding;
+    :Kiểm đúng 4 lựa chọn, 1 đáp án và citation;
     if (Hợp lệ sau tối đa 1 repair?) then (Có)
       |Java Backend|
-      :Kiểm toàn bộ batch;
+      :Validate toàn bộ batch;
       :Lưu REVIEW_REQUIRED;
-      |Student|
+      |Student / Teacher|
       :Review bản nháp;
-      if (Accept?) then (Có)
+      if (Vai trò?) then (Student)
+        :Accept hoặc Reject;
         |Java Backend|
-        :Kiểm PERSONAL hoặc enrollment APPROVED;
-        :Chuyển READY;
+        :Chuyển READY hoặc REJECTED;
         stop
-      else (Reject)
-        :Chuyển REJECTED;
+      else (Teacher)
+        :Sửa nội dung và Publish hoặc Reject;
+        |Java Backend|
+        :Chuyển PUBLISHED hoặc REJECTED;
         stop
       endif
     else (Không)

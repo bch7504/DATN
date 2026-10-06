@@ -4,21 +4,18 @@ flowchart LR
   A["«actor» Admin"]
   subgraph SYS["StudyFlow — phạm vi hệ thống"]
     AUTH(["Xác thực và hồ sơ"])
-    LEARN(["Tham gia lớp; học liệu và ghi chú"])
-    RAG(["AI-F01: Hỏi đáp Personal PDF"])
-    TUTOR(["AI-F02: Hỏi đáp slide"])
-    QUIZ(["AI-F03: Sinh Quiz từ tài liệu + prompt"])
+    LEARN(["Tham gia lớp; xem Course Material PDF; Page Note"])
+    ASSIST(["AI-F01: Personal Document Assistant"])
+    TUTOR(["AI-F02: Course Material PDF Tutor"])
+    QUIZ(["AI-F03: Sinh Quiz AI có citation trang"])
     REVIEW(["Duyệt Quiz; làm bài; ôn câu sai"])
     PLAN(["Dashboard; Daily Goal; Kế hoạch & Lịch"])
     CLASS(["Tạo lớp; join code; duyệt enrollment"])
-    DOC(["Thư viện; xử lý; public/revoke PDF/PPTX"])
+    DOC(["Upload; index; public/revoke Course Material PDF"])
+    TQUIZ(["Teacher AI Quiz Studio"])
     CAT(["User/role; Subject; Semester"])
     OPS(["Giám sát lớp; feedback; audit; settings"])
   end
-  S --- AUTH & LEARN & RAG & TUTOR & QUIZ & REVIEW & PLAN
-  T --- AUTH & CLASS & DOC
+  S --- AUTH & LEARN & ASSIST & TUTOR & QUIZ & REVIEW & PLAN
+  T --- AUTH & CLASS & DOC & TQUIZ
   A --- AUTH & CAT & OPS
-  AUTH ~~~ RAG ~~~ QUIZ
-  LEARN ~~~ TUTOR ~~~ REVIEW
-  CLASS ~~~ DOC
-  CAT ~~~ OPS

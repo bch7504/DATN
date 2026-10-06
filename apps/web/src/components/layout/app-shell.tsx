@@ -24,6 +24,7 @@ import {
   FolderKanban,
   FileClock,
   Sparkles,
+  ListChecks,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
@@ -40,6 +41,7 @@ const STUDENT_NAV: NavItem[] = [
   { label: "Tổng quan", href: "/dashboard", icon: LayoutDashboard },
   { label: "Lớp học phần", href: "/course-offerings", icon: GraduationCap },
   { label: "Tài liệu cá nhân", href: "/personal-documents", icon: FileText },
+  { label: "Trợ lý tài liệu", href: "/chat", icon: Sparkles },
   { label: "Kế hoạch & Lịch", href: "/plan", icon: CalendarCheck },
   { label: "Ôn tập", href: "/review", icon: RotateCcw },
 ];
@@ -48,7 +50,8 @@ const TEACHER_NAV: NavItem[] = [
   { label: "Tổng quan", href: "/teacher/dashboard", icon: LayoutDashboard },
   { label: "Lớp học phần của tôi", href: "/teacher/course-offerings", icon: GraduationCap },
   { label: "Yêu cầu tham gia", href: "/teacher/enrollments", icon: UserCheck },
-  { label: "Kho tài liệu & Public", href: "/teacher/documents", icon: FolderKanban },
+  { label: "Kho học liệu PDF", href: "/teacher/documents", icon: FolderKanban },
+  { label: "AI Quiz Studio", href: "/teacher/quizzes/create", icon: ListChecks },
 ];
 
 const ADMIN_NAV: NavItem[] = [
@@ -244,7 +247,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {(() => {
                   const crumbs: string[] = [];
                   if (pathname?.startsWith("/materials/") && pathname?.includes("/viewer")) {
-                    crumbs.push("Lớp học phần", "Xem slide bài giảng");
+                    crumbs.push("Lớp học phần", "Xem học liệu PDF");
                   } else if (pathname?.startsWith("/materials")) {
                     crumbs.push("Lớp học phần", "Kho học liệu");
                   } else if (pathname === "/dashboard") {
@@ -254,7 +257,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   } else if (pathname?.startsWith("/personal-documents")) {
                     crumbs.push("Tài liệu cá nhân");
                   } else if (pathname?.startsWith("/chat")) {
-                    crumbs.push("Hỏi đáp tài liệu (RAG)");
+                    crumbs.push("Trợ lý tài liệu cá nhân");
                   } else if (pathname?.startsWith("/quiz/create")) {
                     crumbs.push("Ôn tập", "Sinh đề thi trắc nghiệm AI");
                   } else if (pathname?.startsWith("/review/")) {
@@ -270,7 +273,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   } else if (pathname?.startsWith("/teacher/enrollments")) {
                     crumbs.push("Phê duyệt sinh viên");
                   } else if (pathname?.startsWith("/teacher/documents")) {
-                    crumbs.push("Kho tài liệu giảng dạy");
+                    crumbs.push("Kho học liệu PDF");
+                  } else if (pathname?.startsWith("/teacher/quizzes")) {
+                    crumbs.push("AI Quiz Studio");
                   } else if (pathname === "/admin/dashboard") {
                     crumbs.push("Bảng điều khiển");
                   } else if (pathname?.startsWith("/admin/users")) {

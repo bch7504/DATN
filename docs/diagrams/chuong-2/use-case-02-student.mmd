@@ -3,20 +3,14 @@ flowchart LR
   subgraph SYS["StudyFlow — Student"]
     A(["Đăng ký / đăng nhập / hồ sơ"])
     B(["Nhập join code; xem trạng thái duyệt"])
-    C(["Xem PPTX public; ghi Note riêng"])
-    D(["Tải PDF của Teacher"])
+    C(["Xem Course Material PDF; lưu Page Note"])
+    D(["Hỏi Course Material Tutor theo trang"])
     E(["Upload / xóa Personal PDF; xem processing"])
-    F(["AI-F01: Chọn nguồn và hỏi Personal RAG"])
-    G(["AI-F02: Hỏi đáp slide đang xem"])
-    H(["AI-F03: Chọn nguồn + prompt sinh Quiz"])
-    I(["Review / Accept / Reject / Regenerate Quiz"])
-    J(["Làm Quiz; kết quả / lịch sử / câu sai"])
-    K(["Dashboard: toàn bộ tiến độ / Streak / Daily Goal"])
-    L(["Kế hoạch & Lịch tuần; task / deadline"])
-    M(["Cấu hình target Daily Goal"])
+    F(["Personal Assistant: hỏi đáp / tóm tắt"])
+    G(["Tạo Quiz từ Assistant"])
+    H(["Review / Accept / Reject / Regenerate Quiz"])
+    I(["Làm Quiz; lịch sử / câu sai / trang nguồn"])
+    J(["Dashboard: tiến độ / Streak / Daily Goal"])
+    K(["Kế hoạch & Lịch tuần; task / deadline"])
   end
-  S --- A & B & C & D & E & F & G & H & I & J & K & L & M
-  A ~~~ E ~~~ I ~~~ M
-  B ~~~ F ~~~ J
-  C ~~~ G ~~~ K
-  D ~~~ H ~~~ L
+  S --- A & B & C & D & E & F & G & H & I & J & K

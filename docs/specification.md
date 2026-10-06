@@ -1,123 +1,100 @@
 # StudyFlow — Master Specification
 
-- **Trạng thái:** Baseline triển khai theo phương án Course Offering
-- **Phiên bản:** 3.0 — Chốt Flow MVP v1.0 (24/09/2026)
-- **Phạm vi:** MVP đồ án tốt nghiệp trong 12 tuần
-- **Nguồn nghiệp vụ:** `bao-cao/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md`
-- **Nguồn tham khảo chatbot:** [Multi-Agent Document Intelligence Assistant](https://github.com/bch7504/Multi-Agent-Document-Intelligence-Assistant), chỉ dùng làm mẫu UX/grounding, không thay thế kiến trúc StudyFlow
+- **Trạng thái:** Baseline MVP hiện hành
+- **Phiên bản tài liệu:** 4.0 — PDF + Single Agent + Teacher AI Quiz
+- **Phạm vi:** MVP đồ án tốt nghiệp
+- **Chi tiết AI:** `ai-implementation-plan.md`
 
 ## 1. Mục tiêu sản phẩm
 
-StudyFlow hỗ trợ sinh viên học và ôn luyện theo mô hình:
-
 ```text
-Semester → Course Offering → Enrollment → Teacher Materials
-                                  ├→ Slide Viewer + Note + Tutor
-                                  └→ PDF Download
+Semester → Course Offering → Enrollment → Course Material PDF
+                                  └→ PDF Viewer + Page Note + Student AI Tutor
 
-Student → Personal PDF → RAG Chat + Citation → Quiz Draft → Review → Attempt
+Student → Personal PDF → Single Agent → Ask | Summarize | Create Quiz
+Teacher → Course Material PDF → AI Quiz Generator → Review → Publish
+Quiz → Attempt/Scoring → Wrong-answer Review → Dashboard/Plan
 ```
 
-Hệ thống phải chứng minh được năm giá trị:
+Giá trị cốt lõi:
 
-1. Teacher hợp lệ tự tạo Course Offering từ Subject và Semester đang cho phép.
-2. Student tham gia bằng join code và chỉ truy cập sau khi enrollment `APPROVED`.
-3. Teacher phân phối đúng học liệu cho Course Offering mình sở hữu.
-4. Student học Slide, lưu Note và hỏi AI bằng nguồn được kiểm quyền; Personal RAG chỉ dùng PDF cá nhân đã chọn.
-5. Java sở hữu authorization, state transition, Dashboard progress, Study Streak, Daily Goal, kế hoạch và Quiz scoring; Python chỉ xử lý document intelligence.
+1. Teacher tự tạo Course Offering và kiểm soát enrollment/học liệu.
+2. Student chỉ truy cập Course Material sau khi `APPROVED`.
+3. Toàn bộ nguồn AI trong MVP là PDF có text layer và citation theo trang.
+4. Personal Document Assistant dùng một Agent với ba tool; Teacher chỉ có AI Quiz Generator, không có chatbot/Tutor.
+5. Java sở hữu authorization, lifecycle, scoring, progress, Streak, Daily Goal và Plan; Python chỉ xử lý document intelligence.
 
 ## 2. Actor và quyền sở hữu
 
 | Actor | Trách nhiệm | Phạm vi dữ liệu |
 |---|---|---|
-| Student | Gửi join request, học Slide/PDF, quản lý Personal PDF, RAG, Quiz, Daily Goal và plan | Course Offering có enrollment `APPROVED` và dữ liệu cá nhân |
-| Teacher | Tạo/archived Course Offering, duyệt enrollment, quản lý và public tài liệu | Course Offering do mình tạo và document do mình sở hữu |
-| Admin | User/role, Subject, Semester, giám sát/lock/archive Course Offering, feedback/audit/settings | Metadata quản trị; không mặc định đọc dữ liệu học tập cá nhân |
-| Java Backend | System of record và public API | RBAC, ownership, enrollment, transaction, state và scoring |
-| Python AI Service | Index/retrieval/generation | Authorized document scope tối thiểu do Java cấp |
+| Student | Join lớp, đọc PDF, Note/Tutor, Personal Assistant, Quiz, Dashboard và Plan | Course Offering `APPROVED` và dữ liệu cá nhân |
+| Teacher | Tạo lớp, duyệt enrollment, upload/public PDF, tạo/review/publish Quiz AI | Lớp và Course Material do mình sở hữu |
+| Admin | User/role, Subject, Semester, monitoring, feedback/audit/settings | Metadata quản trị; không mặc định đọc dữ liệu học cá nhân |
+| Java Backend | System of record và public API | RBAC, ownership, transaction, state và scoring |
+| Python AI Service | PDF index/retrieval/generation/evaluation | Authorized scope tối thiểu do Java cấp |
 
-Admin duyệt quyền Teacher ở cấp tài khoản, không tạo/phân công và không duyệt từng Course Offering. Teacher không tạo tài khoản Student; Teacher chỉ duyệt quan hệ Student ↔ Course Offering.
+## 3. Trong phạm vi MVP
 
-## 3. Phạm vi MVP
+- Auth/profile/RBAC `STUDENT|TEACHER|ADMIN`.
+- Subject/Semester; Course Offering/join code; Enrollment approval.
+- Teacher Course Material PDF: upload, processing, public/revoke.
+- Student PDF Viewer, Page Note, Course Material AI Tutor và page progress.
+- Student Personal PDF, conversation history và Single Agent cho hỏi đáp/tóm tắt/tạo Quiz.
+- Teacher AI Quiz Generator từ PDF theo số câu, độ khó, chủ đề và khoảng trang.
+- Quiz `MCQ_SINGLE`: đúng 4 options, một đáp án đúng, explanation và page citation; review trước khi dùng/publish.
+- Review Hub, attempt history, wrong-answer review; Java scoring.
+- Dashboard đầy đủ progress/Streak/Daily Goal; Kế hoạch & Lịch tuần theo mock.
+- Admin monitoring, feedback/audit/settings; deploy/test/seed tổng hợp.
 
-### 3.1 Trong phạm vi
+Ngoài MVP: PPTX/DOCX/OCR, Teacher chatbot/Tutor, multi-agent, Topic Mastery, Exam, AI grading, recommendation tự động, XP/badge/leaderboard, calendar sync và advanced analytics.
 
-- Auth, profile, session/JWT và RBAC `STUDENT|TEACHER|ADMIN`.
-- Subject và Semester do Admin quản lý.
-- Teacher tự tạo Course Offering; hệ thống sinh join code unique và cho phép bật/tắt/regenerate.
-- Student gửi join request; Teacher approve/reject/remove enrollment.
-- Course Offering giữ lịch sử qua `ACTIVE|ARCHIVED|LOCKED`; Semester dùng `UPCOMING|ACTIVE|CLOSED`.
-- Teacher Library nhận PDF/PPTX; public/revoke theo Course Offering.
-- Student xem PPTX trên web; Teacher PDF public chỉ tải xuống.
-- Note theo slide, Slide AI Tutor và citation theo document/slide.
-- Personal PDF, multi-document RAG, lịch sử hội thoại và citation theo page.
-- AI sinh Quiz `MCQ_SINGLE` từ Personal Documents đã chọn và prompt tự do; Student review/regenerate/accept/reject trước attempt.
-- Khi accept, Student gắn Quiz vào Course Offering `APPROVED` hoặc giữ là Quiz cá nhân; nguồn sinh Quiz độc lập với nơi ôn tập.
-- Ôn tập (Review Hub) theo cấu trúc 2 tầng: Level 1 chọn môn/Quiz cá nhân; Level 2 gồm tổng quan ôn tập, Quiz `READY`, lịch sử attempt không ghi đè và nội dung cần ôn tổng hợp từ câu sai kèm link tài liệu/slide. Không hiển thị viewing progress và không dùng AI suy luận năng lực.
-- Dashboard tổng hợp đầy đủ viewing progress tổng quan và theo từng Course Offering, Study Streak, Daily Goal, Quiz và tóm tắt task sắp tới.
-- Màn `Kế hoạch & Lịch` tách khỏi Dashboard: Student quản lý task/lịch tuần theo khung giờ; Daily Goal, Streak và viewing progress không lặp lại tại đây.
-- Study Plan, task, deadline và lịch tuần.
-- Admin monitoring, feedback/report, audit log và typed settings.
-- Deploy end-to-end, test và seed data tổng hợp.
+## 4. Quy tắc nghiệp vụ
 
-### 3.2 Ngoài phạm vi
+- Chỉ enrollment `APPROVED` được xem Course Material PDF, Note, Tutor và progress.
+- Course Material và Personal Document chỉ nhận PDF có text layer; PDF scan/no text trả `PDF_TEXT_REQUIRED`, PDF mã hóa trả `PDF_ENCRYPTED`.
+- Personal Document thuộc owner; Teacher/Admin không mặc định đọc hoặc dùng làm Official Content.
+- Teacher chỉ public/tạo Quiz từ PDF và Course Offering mình sở hữu.
+- Teacher không có Personal Chatbot và không có Course Material AI Tutor.
+- Student Personal Assistant dùng một Single Orchestrator Agent, chỉ được gọi `ask_document`, `summarize_document`, `generate_quiz`.
+- Thiếu tham số quan trọng trả `NEEDS_CLARIFICATION`; thiếu bằng chứng trả `NO_EVIDENCE`.
+- Prompt/document content không thể thay system rule, tool schema, authorized scope hoặc citation rule.
+- AI không accept/publish/chấm Quiz, không cập nhật progress và không điều phối Study Plan.
 
-- Class/ClassSubject và Admin assignment Teacher theo lớp.
-- Chapter/Topic taxonomy và Topic Mastery.
-- Teacher Quiz, câu tự luận, AI grading hoặc recommendation tự động.
-- OCR PDF scan, DOCX, Exam/Mock Exam, spaced repetition và calendar sync.
-- XP, Level, Achievement, badge hoặc leaderboard.
-- Import thời khóa biểu/đăng ký tín chỉ và đồng bộ hệ thống đào tạo.
-- Multi-agent orchestration, model selector cho end user, Agent Trace chi tiết và Milvus.
+## 5. Tài liệu và citation
 
-## 4. Quy tắc Course Offering và Enrollment
-
-- Teacher chỉ tạo Course Offering khi account `ACTIVE/TEACHER`, Subject hợp lệ và Semester cho phép tạo lớp.
-- `joinCode` phải unique, khó đoán, có thể tắt hoặc regenerate; biết code không đồng nghĩa có quyền học.
-- Một Student chỉ có một enrollment trên mỗi Course Offering.
-- Chỉ `APPROVED` được truy cập material/slide/note/tutor/progress.
-- Teacher chỉ approve/reject/remove enrollment của Course Offering do mình sở hữu.
-- Admin có thể `LOCK` hoặc `ARCHIVE` để giám sát; Admin không duyệt từng lớp trước khi hoạt động.
-- Kết thúc học kỳ không xóa lớp/enrollment. Course Offering được archive và Student đã được duyệt có thể xem lịch sử theo policy.
-
-## 5. Ma trận hành vi tài liệu
-
-| Nguồn | Loại | Student action | AI action |
+| Nguồn | Người sử dụng | Chức năng AI | Citation |
 |---|---|---|---|
-| Teacher publication | PPTX | Viewer, Note; không tải bản gốc | Slide AI Tutor |
-| Teacher publication | PDF | Download qua Java | Không AI, không page progress |
-| Personal Document | PDF text layer | Quản lý, chọn 1–10 file cho hội thoại/Quiz | RAG, citation, Quiz generation |
+| Course Material PDF | Student `APPROVED` | Tutor; Teacher dùng làm nguồn Quiz | `documentId + pageNumber + excerpt` |
+| Personal PDF | Student owner | Ask, Summary, Personal Quiz | `documentId + pageNumber + excerpt` |
 
-Teacher Document gắn với owner, không nhân bản khi public cho nhiều Course Offering. Publication bị revoke phải mất quyền ở request kế tiếp.
+Publication bị revoke hoặc enrollment mất quyền phải có hiệu lực ở request kế tiếp. Query/document chunk luôn dùng cùng model, dimensions và index version.
 
-## 5.1 Dashboard, Study Streak và Daily Goal
+## 6. Hai luồng Quiz
 
-- Không có menu `Tiến độ & Thống kê` hoặc màn tiến độ Course Offering độc lập. Dashboard hiển thị đầy đủ tiến độ tổng quan và theo từng lớp/tài liệu.
-- Viewing Progress chỉ phản ánh slide đã mở/xem, không suy luận mức hiểu hoặc Topic Mastery.
-- Streak chỉ tính ngày có ít nhất một `VIEW_SLIDE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; login, Note hay `ASK_AI` không duy trì streak.
-- Nhiều hoạt động hợp lệ trong cùng ngày chỉ tạo một activity day. Java tính `currentStreak`, `longestStreak` và tuần hoạt động theo timezone tài khoản.
-- Daily Goal gồm `slideTarget`, `quizQuestionTarget`, `taskTarget`; target do Student cấu hình, actual do Java tổng hợp từ dữ liệu nghiệp vụ.
-- Hoàn thành Daily Goal không phải điều kiện duy trì Streak. Client không tự tăng actual, tính streak hoặc suy luận completion.
+### Student Personal Quiz
 
-## 6. Chatbot Personal RAG
+- Student yêu cầu ngay trong Personal Assistant; Agent hỏi lại khi thiếu số câu/phạm vi.
+- Java lưu `REVIEW_REQUIRED`; Student accept để chuyển `READY`, có thể gắn Course Offering `APPROVED` hoặc giữ cá nhân.
+- Nguồn sinh và nơi nhóm ôn tập là hai khái niệm độc lập.
 
-Chatbot dùng mẫu workspace evidence-scoped tối ưu giao diện 2 cột:
+### Teacher Course Quiz
 
-- Bố cục 2 cột: Khung Chatbot ở bên trái (linh hoạt độ rộng, ưu tiên trải nghiệm thảo luận); Cột chọn nguồn tài liệu cá nhân thu gọn bên phải (~280px) hiển thị Personal PDF, trạng thái `PROCESSING|READY|FAILED` và checkbox chỉ bật với `READY`.
-- Header khung chatbot tích hợp thanh phiên hội thoại (Session Bar) hiển thị các cuộc trò chuyện đang có và nút `+ Phiên mới` để chuyển ngữ cảnh nhanh chóng.
-- Empty state có câu hỏi gợi ý; composer hỗ trợ Enter gửi, Shift+Enter xuống dòng.
-- Mỗi lượt assistant trả `ANSWERED` hoặc `NO_EVIDENCE`, kèm chip citation hiển thị tên file và số trang.
-- In-Chat Citation Inspector: Nhấn vào chip citation sẽ mở Drawer chi tiết trích dẫn trượt ngay bên trong khung chatbot, hiển thị trích đoạn (excerpt), số trang, tên file và mã kiểm chứng grounding SHA-256.
-- Java tải conversation, kiểm owner và snapshot `selectedDocumentIds` trước mỗi message.
-- Python filter document/version/owner/source trước retrieval; citation chỉ dựng từ chunk đã retrieval và được kiểm định bằng code.
-- Prompt xem document content là dữ liệu không tin cậy, không phải instruction.
-- Không hiển thị model selector, prompt nội bộ, token usage hay Agent Trace cho Student trong MVP.
-- Tạo Quiz là action riêng: Student chọn Personal Documents và tự nhập prompt, không phụ thuộc conversation/chat; kết quả đi vào Java lifecycle.
-- MVP regenerate/accept/reject toàn bộ Quiz, chưa chỉnh từng câu. Mỗi lần làm tạo attempt mới và giữ lịch sử để so sánh.
+- Teacher cấu hình PDF/Course Offering/số câu/độ khó/chủ đề/trang.
+- Java kiểm ownership; Python sinh structured draft; Teacher review/sửa rồi publish.
+- State: `GENERATING → REVIEW_REQUIRED → PUBLISHED|REJECTED`; lỗi → `GENERATION_FAILED`.
 
-Những pattern trên được rút ra từ repo tham khảo; StudyFlow không dùng frontend gọi thẳng FastAPI, Supervisor tự route hay database/vector stack của repo đó.
+Mỗi attempt được lưu riêng. “Nội dung cần ôn lại” chỉ lấy từ answer sai và nguồn câu hỏi, không dùng AI suy luận năng lực.
 
-## 7. Kiến trúc bắt buộc
+## 7. Dashboard, Streak, Daily Goal và Plan
+
+- Không có màn Progress độc lập; Dashboard hiển thị aggregate và từng Course Offering.
+- Page progress chỉ phản ánh trang Course Material đã xem, không suy luận mức hiểu.
+- Streak chỉ tính ngày có `VIEW_PAGE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; login, Note và `ASK_AI` không tính.
+- Daily Goal gồm `pageTarget`, `quizQuestionTarget`, `taskTarget`; Java tính actual theo ngày/timezone.
+- Student chủ động quản lý task/lịch tuần; recommendation tự động ngoài MVP.
+
+## 8. Kiến trúc bắt buộc
 
 ```text
 Next.js Web → Java Spring Boot → PostgreSQL schema app
@@ -128,50 +105,28 @@ Next.js Web → Java Spring Boot → PostgreSQL schema app
 
 - Browser chỉ gọi Java `/api/v1`.
 - Java gọi Python `/internal/v1` bằng service credential, request ID, schema version và authorized scope.
-- Python không truy cập bảng user, enrollment, Note, plan, Quiz attempt/result.
+- Python không truy cập bảng user/enrollment/Note/plan/attempt và không chấm Quiz.
 - Java/Flyway sở hữu schema `app`; Python/Alembic sở hữu schema `ai`.
-
-## 8. Quy ước requirement và API
-
-Requirement ID dùng `{MODULE}-{TYPE}-{NNN}` với module `AUTH`, `COURSE`, `STU`, `PAI`, `DASH`, `PLAN`, `QUIZ`, `TCH`, `ADM`, `NFR`.
-
-- JSON camelCase; ID opaque string/UUID; timestamp ISO-8601 UTC.
-- List response dùng `items`, `page`, `size`, `totalItems`, `totalPages`.
-- Mutation nhạy cảm/retry dùng `Idempotency-Key`.
-- Error envelope thống nhất:
-
-```json
-{
-  "code": "ENROLLMENT_REQUIRED",
-  "message": "Bạn chưa được duyệt vào lớp học phần",
-  "details": {},
-  "traceId": "req_..."
-}
-```
-
-- `401` session không hợp lệ; `403` thiếu role; `404` tránh lộ tài nguyên ngoài scope; `409` state/conflict; `422` validation.
 
 ## 9. Danh mục feature spec
 
 | Tài liệu | Nội dung |
 |---|---|
 | `specs/01-auth-and-access.md` | Auth, session, profile và RBAC |
-| `specs/02-student-learning.md` | Join/enrollment, học liệu, Slide, Note và Tutor |
-| `specs/03-personal-ai-and-quiz.md` | Personal PDF, RAG, citation và Quiz generation |
-| `specs/04-plan-progress-review.md` | Dashboard progress, Study Streak, Daily Goal, lịch và Quiz review/attempt |
-| `specs/05-teacher-content.md` | Course Offering ownership, enrollment, library/publication |
-| `specs/06-admin-operations.md` | User, Subject, Semester, monitoring, audit/settings |
+| `specs/02-student-learning.md` | Join/enrollment, Course Material PDF, Page Note và Tutor |
+| `specs/03-personal-ai-and-quiz.md` | Personal Assistant và Student Quiz |
+| `specs/04-plan-progress-review.md` | Dashboard, Streak, Daily Goal, lịch và Review |
+| `specs/05-teacher-content.md` | Course Offering, enrollment, PDF publication và Teacher Quiz |
+| `specs/06-admin-operations.md` | User, catalog, monitoring, audit/settings |
 | `specs/07-non-functional.md` | Performance, security, privacy và reliability |
 | `specs/08-traceability.md` | Requirement/API/data/test/demo mapping |
 
 ## 10. Release criteria
 
-1. Teacher tạo Course Offering và join code đúng Subject/Semester; Student chỉ học sau approval.
-2. Toàn bộ requirement `MUST` có acceptance test bằng dữ liệu tổng hợp.
-3. Không có Web → Python/database/storage/provider.
-4. Course ownership, enrollment và Personal owner isolation có negative test.
-5. Citation luôn thuộc authorized scope; thiếu evidence trả `NO_EVIDENCE`.
-6. Quiz chưa `READY` không tạo attempt; Java là nơi duy nhất chấm điểm.
+1. Ownership/enrollment/role isolation có negative test.
+2. PDF-only policy và page citation đạt contract.
+3. Single Agent route đúng tool, hỏi lại khi thiếu args và không vượt scope.
+4. Student/Teacher Quiz đúng 4 options, một đáp án, review trước dùng/publish; Java chấm điểm.
+5. Không có Web → Python/database/storage/provider.
+6. Dashboard/Streak/Daily Goal do Java tính đúng; không có Topic Mastery hoặc gamification ngoài phạm vi.
 7. Không secret, upload thật, prompt hoặc document content trong log/test fixture.
-8. Demo flow Course Offering chạy end-to-end và có trace ID xuyên Java/Python.
-9. Dashboard/Streak/Daily Goal do Java tính đúng từ event hợp lệ; không có menu Progress độc lập hoặc gamification ngoài phạm vi.

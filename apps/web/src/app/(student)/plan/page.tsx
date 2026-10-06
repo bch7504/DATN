@@ -60,7 +60,7 @@ export default function StudentPlanPage() {
       id: "sb_01",
       day: "Thứ 4",
       timeSlot: "07:00",
-      title: "Xem Slide ERD & CSDL",
+      title: "Đọc trang ERD & CSDL",
       subtitle: "07:30–08:15 · DBI-01",
       type: "CLASS",
     },
@@ -102,7 +102,7 @@ export default function StudentPlanPage() {
   const [tasks, setTasks] = useState<StudyTask[]>([
     {
       id: "task_01",
-      title: "Xem lại slide 4-6 về Mô hình PEAS môn Trí tuệ nhân tạo",
+      title: "Xem lại trang 4-6 về Mô hình PEAS môn Trí tuệ nhân tạo",
       courseCode: "AI-02",
       dueDate: "Hôm nay, 21:00",
       completed: true,
@@ -546,7 +546,7 @@ export default function StudentPlanPage() {
                   type="text"
                   value={modalTitle}
                   onChange={(e) => setModalTitle(e.target.value)}
-                  placeholder="Ví dụ: Ôn tập Slide Mô hình PEAS..."
+                  placeholder="Ví dụ: Ôn tập phần Mô hình PEAS..."
                   className="w-full p-2.5 border border-slate-300 rounded-xl"
                   required
                 />

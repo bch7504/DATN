@@ -1,17 +1,14 @@
 flowchart LR
   T["«actor» Teacher"]
   subgraph SYS["StudyFlow — Teacher"]
-    A(["Đăng nhập / hồ sơ"])
-    DASH(["Xem Dashboard Teacher"])
+    A(["Đăng nhập / hồ sơ / Dashboard"])
     B(["Tạo Course Offering theo Subject + Semester"])
     C(["Quản lý join code"])
     D(["Duyệt / từ chối / remove enrollment"])
-    E(["Upload PDF/PPTX vào thư viện"])
-    F(["Theo dõi xử lý PPTX"])
-    G(["Public / revoke tài liệu vào lớp sở hữu"])
-    H(["Archive Course Offering"])
+    E(["Upload Course Material PDF"])
+    F(["Theo dõi xử lý PDF"])
+    G(["Public / revoke PDF vào lớp sở hữu"])
+    H(["Sinh / review / sửa / publish Quiz AI"])
+    I(["Archive Course Offering"])
   end
-  T --- A & DASH & B & C & D & E & F & G & H
-  A ~~~ C ~~~ F
-  DASH ~~~ D ~~~ G
-  B ~~~ E ~~~ H
+  T --- A & B & C & D & E & F & G & H & I

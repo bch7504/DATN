@@ -64,23 +64,22 @@ Business/error:
 
 | Method | Endpoint | Quy tắc |
 |---|---|---|
-| GET | `/api/v1/student/course-offerings/{offeringId}/materials` | Enrollment `APPROVED`; publication active; PPTX trước PDF |
-| GET | `/api/v1/student/materials/{documentId}/slides` | PPTX public/READY; artifact có kiểm quyền |
-| GET | `/api/v1/student/materials/{documentId}/slides/{number}` | Một artifact/metadata slide |
-| GET | `/api/v1/student/materials/{documentId}/download` | Chỉ PDF public; PPTX trả `403 FILE_TYPE_NOT_DOWNLOADABLE` |
+| GET | `/api/v1/student/course-offerings/{offeringId}/materials` | Enrollment `APPROVED`; publication active; chỉ Course Material PDF `READY` |
+| GET | `/api/v1/student/materials/{documentId}/pages` | Metadata các trang PDF có kiểm quyền |
+| GET | `/api/v1/student/materials/{documentId}/pages/{number}` | Một trang/metadata PDF trong authorized scope |
 
 Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ khi offering `ARCHIVED`, trừ khi `LOCKED`, publication revoked hoặc policy retention chặn.
 
-### 4.3 Slide Note, view event và Tutor
+### 4.3 Page Note, view event và Course Material AI Tutor
 
-- `GET/PUT /api/v1/student/materials/{documentId}/slides/{number}/note`
-- `POST /api/v1/student/materials/{documentId}/slides/{number}/view-events` với `Idempotency-Key`
-- `POST /api/v1/student/materials/{documentId}/slides/{number}/tutor`
+- `GET/PUT /api/v1/student/materials/{documentId}/pages/{number}/note`
+- `POST /api/v1/student/materials/{documentId}/pages/{number}/view-events` với `Idempotency-Key`
+- `POST /api/v1/student/materials/{documentId}/pages/{number}/tutor`
 
 Tutor request:
 
 ```json
-{"question":"Giải thích khái niệm trên slide này"}
+{"question":"Giải thích khái niệm trên trang này"}
 ```
 
 Tutor response:
@@ -89,12 +88,12 @@ Tutor response:
 {
   "status":"ANSWERED",
   "answer":"...",
-  "citations":[{"documentId":"doc_1","slideNumber":12,"excerpt":"..."}],
+  "citations":[{"documentId":"doc_1","pageNumber":12,"excerpt":"..."}],
   "traceId":"req_..."
 }
 ```
 
-Thiếu evidence trả `status=NO_EVIDENCE`, `answer=null`, `citations=[]`. Java tự dựng allowed slide scope sau khi kiểm enrollment/publication.
+Thiếu evidence trả `status=NO_EVIDENCE`, `answer=null`, `citations=[]`. Java tự dựng allowed page/document scope sau khi kiểm enrollment/publication. Teacher không sử dụng endpoint Tutor này.
 
 ### 4.4 Personal Documents
 
@@ -108,11 +107,11 @@ Thiếu evidence trả `status=NO_EVIDENCE`, `answer=null`, `citations=[]`. Java
 - Chỉ PDF có text layer. DOCX/PPTX trả `415`; scan/no text → job `FAILED/PDF_TEXT_REQUIRED`; encrypted → `PDF_ENCRYPTED`.
 - Status `UPLOADING|PENDING_PROCESSING|PROCESSING|READY|FAILED|DELETING`.
 
-### 4.5 Personal RAG conversation
+### 4.5 Personal Document Assistant
 
 UX và contract lấy cảm hứng từ evidence-scoped workspace của repo tham khảo nhưng mọi call vẫn qua Java.
 
-#### `POST /api/v1/personal-rag/conversations`
+#### `POST /api/v1/student/chat/conversations`
 
 - Input: `{selectedDocumentIds:[...]}` gồm 1–10 ID duy nhất.
 - Preconditions: mọi document thuộc current Student, PDF, `READY` và cùng embedding index version hợp lệ.
@@ -120,12 +119,12 @@ UX và contract lấy cảm hứng từ evidence-scoped workspace của repo tha
 - Errors: `404 DOCUMENT_NOT_FOUND`; `409 DOCUMENT_NOT_READY|EMBEDDING_VERSION_MISMATCH`; `422 INVALID_DOCUMENT_SCOPE`.
 - Side effect: Java lưu snapshot `conversation_documents`; client không tự thêm ID ở message request.
 
-#### `PATCH /api/v1/personal-rag/conversations/{id}`
+#### `PATCH /api/v1/student/chat/conversations/{id}`
 
 - Input cho phép `{title?}` hoặc `{selectedDocumentIds?}`.
 - Thay scope phải revalidate toàn bộ owner/READY và chỉ ảnh hưởng message tiếp theo.
 
-#### `POST /api/v1/personal-rag/conversations/{id}/messages`
+#### `POST /api/v1/student/chat/conversations/{id}/messages`
 
 - Input: `{message}` dài 1–2.000 ký tự; không nhận model/provider/document IDs.
 - Output:
@@ -134,6 +133,7 @@ UX và contract lấy cảm hứng từ evidence-scoped workspace của repo tha
 {
   "messageId":"msg_...",
   "status":"ANSWERED",
+  "capability":"ASK_DOCUMENT",
   "answer":"...",
   "citations":[
     {
@@ -147,26 +147,26 @@ UX và contract lấy cảm hứng từ evidence-scoped workspace của repo tha
 }
 ```
 
-- `NO_EVIDENCE` trả answer an toàn và citations rỗng; không đoán ngoài nguồn.
-- Java load conversation owner/scope, gọi Python, revalidate mọi citation rồi mới lưu User/Assistant messages.
+- `capability` là `ASK_DOCUMENT|SUMMARIZE_DOCUMENT|CREATE_QUIZ|NEEDS_CLARIFICATION`; cùng một composer được Single Agent định tuyến sang đúng tool.
+- `NO_EVIDENCE` trả answer an toàn và citations rỗng; không đoán ngoài nguồn. Yêu cầu thiếu tham số trả `NEEDS_CLARIFICATION` cùng `missingFields`.
+- Với `CREATE_QUIZ`, response trả `quizDraft:{quizId,questionCount,status:"REVIEW_REQUIRED"}`; Java validate/lưu draft trước khi trả.
+- Java load conversation owner/scope, gọi Python, revalidate mọi citation và structured output rồi mới lưu User/Assistant messages.
 - Errors: `404`; `409 DOCUMENT_SCOPE_CHANGED`; `422 INVALID_MESSAGE`; `503 AI_SERVICE_UNAVAILABLE`.
 
 #### History
 
-- `GET /api/v1/personal-rag/conversations`
-- `GET /api/v1/personal-rag/conversations/{id}`
-- `DELETE /api/v1/personal-rag/conversations/{id}`
+- `GET /api/v1/student/chat/conversations`
+- `GET /api/v1/student/chat/conversations/{id}`
+- `DELETE /api/v1/student/chat/conversations/{id}`
 
 History chỉ owner đọc; response có selected source metadata và messages/citations đã kiểm định, không có prompt/token/Agent Trace.
 
-#### Quiz từ Personal Documents và prompt tự do
+#### Quiz từ Personal Documents trong Trợ lý
 
-`POST /api/v1/quizzes`
-
-- Input `{selectedDocumentIds:[1..10],prompt}`; prompt dài 1–2.000 ký tự. Java load lại ownership/trạng thái của từng Personal Document, không phụ thuộc conversation/chat.
-- Output `202 {quizId,status:"GENERATING",userPrompt}`.
-- Python trả draft; Java validate/lưu `REVIEW_REQUIRED`. Không trả Quiz làm ngay trong chat.
-- Prompt là input không tin cậy, không được thay system instruction, output schema, authorized scope hoặc citation rule.
+- Student nhập prompt tự do trong conversation đã gắn 1–10 Personal PDF `READY`; Agent nhận diện ý định và gọi tool `generate_quiz` bằng structured args.
+- Nếu thiếu `questionCount` hoặc phạm vi cần thiết, trả `NEEDS_CLARIFICATION`; không tự đoán giá trị quan trọng.
+- Prompt và conversation là dữ liệu không tin cậy, không được thay system instruction, schema `MCQ_SINGLE`, authorized scope hoặc citation rule.
+- Tạo thành công trả Quiz `REVIEW_REQUIRED`; Student mở Review Hub để duyệt/chấp nhận. AI không chấm điểm.
 
 ### 4.6 Dashboard, Study Streak và Daily Goal
 
@@ -187,16 +187,16 @@ Không có API/menu/màn Progress độc lập. Dashboard là endpoint duy nhấ
     "activityDays": ["2026-09-18", "2026-09-19", "2026-09-20", "2026-09-22", "2026-09-23", "2026-09-24"]
   },
   "dailyGoal": {
-    "slideTarget": 5,
-    "slideActual": 3,
+    "pageTarget": 5,
+    "pageActual": 3,
     "quizQuestionTarget": 10,
     "quizQuestionActual": 6,
     "taskTarget": 2,
     "taskActual": 1
   },
   "overview": {
-    "viewedSlides": 38,
-    "totalPublishedSlides": 62,
+    "viewedPages": 38,
+    "totalPublishedPages": 62,
     "completedTasks": 9,
     "totalTasks": 12,
     "completedQuizzes": 7,
@@ -208,8 +208,8 @@ Không có API/menu/màn Progress độc lập. Dashboard là endpoint duy nhấ
       "courseOfferingId": "offering_dbi_01",
       "code": "DBI-01",
       "name": "Cơ sở dữ liệu",
-      "viewedSlides": 18,
-      "totalPublishedSlides": 28,
+      "viewedPages": 18,
+      "totalPublishedPages": 28,
       "progressPercent": 64,
       "completedQuizzes": 3,
       "averageQuizScore": 78.0,
@@ -225,17 +225,17 @@ Không có API/menu/màn Progress độc lập. Dashboard là endpoint duy nhấ
 #### `GET /api/v1/student/study-streak`
 
 - **Output `200`:** `{currentStreak,longestStreak,activityDays,timeZone,asOfDate}`.
-- Chỉ `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` tạo activity day. Login, Note và `ASK_AI` không được tính.
+- Chỉ `VIEW_PAGE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` tạo activity day. Login, Note và `ASK_AI` không được tính.
 - Nhiều event hợp lệ cùng local date chỉ tính một ngày; ngày thiếu hoạt động làm đứt current streak.
 
 #### `GET /api/v1/student/daily-goal`
 
 - **Output `200`:** target + actual của ngày hiện tại, `date`, `timeZone` và `completed:boolean`.
-- `slideActual` đếm slide phân biệt đã xem trong ngày; `quizQuestionActual` lấy từ số câu của attempt đã submit/scored; `taskActual` đếm task chuyển hoàn thành trong ngày.
+- `pageActual` đếm trang Course Material PDF phân biệt đã xem trong ngày; `quizQuestionActual` lấy từ số câu của attempt đã submit/scored; `taskActual` đếm task chuyển hoàn thành trong ngày.
 
 #### `PUT /api/v1/student/daily-goal`
 
-- **Input:** `{slideTarget:0..100,quizQuestionTarget:0..200,taskTarget:0..50}`; cả ba trường bắt buộc, ít nhất một target lớn hơn `0`.
+- **Input:** `{pageTarget:0..100,quizQuestionTarget:0..200,taskTarget:0..50}`; cả ba trường bắt buộc, ít nhất một target lớn hơn `0`.
 - **Output `200`:** cấu hình target đã lưu và actual hiện tại được tính lại; target này tiếp tục áp dụng cho các ngày sau đến khi Student đổi.
 - **Errors:** `422 INVALID_DAILY_GOAL`; caller giữ giá trị cũ và hiển thị validation.
 - **Side effect:** chỉ cập nhật target; không tạo learning event và không sửa Streak.
@@ -300,7 +300,7 @@ Plan item optional `courseOfferingId`. Java phát hiện conflict. Không có To
 
 Student list chỉ trả account metadata tối thiểu; không trả Personal Documents, Note, chat, plan, Quiz result hoặc progress cá nhân.
 
-### 5.3 Teacher Library và publication
+### 5.3 Teacher Course Material PDF và publication
 
 - `POST/GET /api/v1/teacher/documents`
 - `GET/PATCH/DELETE /api/v1/teacher/documents/{id}`
@@ -310,7 +310,18 @@ Student list chỉ trả account metadata tối thiểu; không trả Personal D
 - `GET /api/v1/teacher/documents/{id}/publications`
 - `DELETE /api/v1/teacher/publications/{publicationId}`
 
-Publication input `{courseOfferingIds:[...]}`. Java kiểm document owner + mọi offering owner/status. PPTX phải READY; PDF READY chỉ download. Re-public re-activate row cũ.
+Chỉ nhận PDF có text layer. Publication input `{courseOfferingIds:[...]}`. Java kiểm document owner + mọi offering owner/status; document phải `READY`. Student `APPROVED` được xem web, ghi Note theo trang và dùng Course Material AI Tutor. Re-public re-activate row cũ.
+
+### 5.4 Teacher AI Quiz Generator
+
+- `POST /api/v1/teacher/quizzes/generations`
+  - Input `{documentId,courseOfferingId,questionCount:5..30,difficulty,topic?,pageFrom,pageTo,instructions?}`.
+  - Java kiểm Teacher sở hữu document và Course Offering, PDF `READY`, page range hợp lệ; gửi structured request sang Python.
+  - Output `202 {quizId,status:"GENERATING"}`; mutation bắt buộc có `Idempotency-Key`.
+- `GET /api/v1/teacher/quizzes/{quizId}` trả draft/status cho đúng Teacher owner.
+- `PATCH /api/v1/teacher/quizzes/{quizId}` cho phép sửa title/question/options/đáp án/giải thích trong `REVIEW_REQUIRED`.
+- `POST /api/v1/teacher/quizzes/{quizId}/publish` chuyển Quiz đã duyệt sang `PUBLISHED` và gắn Course Offering nguồn.
+- Teacher không có Personal Document chatbot và không gọi Course Material AI Tutor.
 
 ## 6. Admin API
 
@@ -342,20 +353,21 @@ Idempotency-Key: ...   # index/deindex/Quiz generation
 | POST `/internal/v1/documents/index` | document/version, pipeline, owner?, signed URL, MIME | `202 {requestId,jobId,status}` |
 | POST `/internal/v1/documents/deindex` | document/version/pipeline | Idempotent job |
 | GET `/internal/v1/jobs/{jobId}` | job ID | status/attempt/error/artifact metadata |
-| POST `/internal/v1/personal-rag/ask` | userId, conversationId, authorized documents, message | answer/NO_EVIDENCE + page citations |
-| POST `/internal/v1/slides/ask` | user/document/current/allowed slides/question | answer/NO_EVIDENCE + slide citations |
-| POST `/internal/v1/quizzes/generate` | userId, authorized document/version scope, untrusted `userPrompt`; không nhận conversation/chat context | Structured `MCQ_SINGLE` draft; mỗi câu đúng 4 options, một correctOptionIndex và citation |
+| POST `/internal/v1/personal-assistant/runs` | userId, conversationId, authorized Personal PDF/version scope, history window, untrusted message | selected tool + `ANSWERED|SUMMARIZED|QUIZ_CREATED|NEEDS_CLARIFICATION|NO_EVIDENCE`, page citations và structured payload |
+| POST `/internal/v1/course-materials/ask` | user/document/current page/allowed page scope/question | `ANSWERED|NO_EVIDENCE` + page citations |
+| POST `/internal/v1/quizzes/generate` | actorId, mode `PERSONAL_STUDENT|COURSE_TEACHER`, authorized document/version/page scope, structured generation args | Structured `MCQ_SINGLE` draft; mỗi câu đúng 4 options, một correctOptionIndex và page citation |
 | GET `/internal/v1/health` | common headers | Liveness/readiness |
 
 ### Grounding contract
 
 - Index/deindex trả `202 {requestId,jobId,status}` sau khi nhận job, không giữ request chờ xử lý xong. Java poll `GET /internal/v1/jobs/{jobId}` với backoff; cập nhật document `READY` khi index thành công hoặc `FAILED` với safe error code khi thất bại. Browser chỉ poll trạng thái document qua Java.
-- Các nội dung trên làm rõ contract schema version 3 đã chốt; không thêm endpoint hoặc callback mới. Contract test Java/Python cho scope Quiz, output 4 options và vòng đời job cần được triển khai khi scaffold service theo kế hoạch.
+- Contract trên là schema version mới thay cho hai endpoint `personal-rag/ask` và `slides/ask`. Contract test Java/Python phải bao phủ tool routing, scope của hai chế độ Quiz, output 4 options và vòng đời job.
 
 - Retrieval filter được đẩy xuống repository theo document/version/owner/source; filter lại sau retrieval để defense in depth.
 - Citation được dựng từ retrieved chunk, deduplicate và validate document/location/excerpt bằng code.
 - Document content được delimit và xem là untrusted evidence, không phải instruction.
 - Khi evidence thiếu, trả `NO_EVIDENCE` mà không gọi model để bịa.
+- Single Orchestrator Agent chỉ được gọi tool đã đăng ký. Router confidence thấp hoặc thiếu trường bắt buộc phải trả `NEEDS_CLARIFICATION`, không tự mở rộng scope.
 - Reviewer nếu dùng chỉ đánh giá grounding trên cùng evidence snapshot; rewrite tối đa một lần theo kế hoạch AI, sau đó trả kết quả có căn cứ hoặc `NO_EVIDENCE`; không được mở rộng scope.
 - Python response không trả provider payload, prompt, token hoặc user-visible Agent Trace.
 

@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Check, CheckCircle2, FileText, ListChecks, PlusCircle, Share2, Upload, X } from "lucide-react";
 import { teacherDocApi, teacherApi } from "@/lib/api-client";
 import { TeacherDocument } from "@/types/material";
 import { CourseOffering } from "@/types/course-offering";
@@ -8,342 +10,206 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  FolderKanban,
-  Upload,
-  Presentation,
-  FileText,
-  Share2,
-  Trash2,
-  CheckCircle2,
-  PlusCircle,
-  X,
-  Check,
-} from "lucide-react";
 
+/** Teacher-owned Course Material PDF management and publication workspace. */
 export default function TeacherDocumentsPage() {
   const [documents, setDocuments] = useState<TeacherDocument[]>([]);
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  // Upload modal state
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  // Publish modal state
   const [publishDoc, setPublishDoc] = useState<TeacherDocument | null>(null);
   const [selectedOfferingIds, setSelectedOfferingIds] = useState<string[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const loadData = async () => {
+  /** Loads Teacher-owned documents and Course Offerings from the Java public API. */
+  const loadData = async (): Promise<void> => {
+    setIsLoading(true);
     try {
-      const [docsData, offeringsData] = await Promise.all([
+      const [documentData, offeringData] = await Promise.all([
         teacherDocApi.getDocuments(),
         teacherApi.getOfferings(),
       ]);
-      setDocuments(docsData);
-      setOfferings(offeringsData);
-    } catch (err: unknown) {
-      setErrorMsg(
-        err instanceof Error ? err.message : "Không thể tải kho học liệu."
-      );
+      setDocuments(documentData);
+      setOfferings(offeringData);
+      setErrorMsg(null);
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Không thể tải kho học liệu PDF.");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
-  const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /** Validates PDF-only input and uploads it through Java. */
+  const handleUpload = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
     if (!selectedFile) {
-      setErrorMsg("Vui lòng chọn một tệp PDF hoặc PPTX.");
+      setErrorMsg("Vui lòng chọn một tệp PDF.");
       return;
     }
-
-    const isPptx = selectedFile.name.toLowerCase().endsWith(".pptx");
-    const isPdf = selectedFile.name.toLowerCase().endsWith(".pdf");
-
-    if (!isPptx && !isPdf) {
-      setErrorMsg(
-        "Chỉ chấp nhận tệp định dạng PDF hoặc PPTX (không hỗ trợ DOCX trong MVP)."
-      );
+    if (!selectedFile.name.toLowerCase().endsWith(".pdf")) {
+      setErrorMsg("Course Material chỉ nhận PDF có lớp văn bản; không nhận PPTX hoặc DOCX.");
       return;
     }
-
     setIsUploading(true);
     setErrorMsg(null);
-    setSuccessMsg(null);
-
     try {
       await teacherDocApi.uploadDocument(selectedFile, uploadTitle.trim());
       setIsUploadModalOpen(false);
       setUploadTitle("");
       setSelectedFile(null);
-      setSuccessMsg(`Tải lên tài liệu thành công: ${selectedFile.name}`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setSuccessMsg(`Đã tải lên ${selectedFile.name}. Tài liệu cần READY trước khi công bố hoặc sinh Quiz.`);
       await loadData();
-    } catch (err: unknown) {
-      setErrorMsg(
-        err instanceof Error ? err.message : "Tải lên tài liệu thất bại."
-      );
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Tải lên tài liệu thất bại.");
     } finally {
       setIsUploading(false);
     }
   };
 
-  const openPublishModal = (doc: TeacherDocument) => {
-    setPublishDoc(doc);
-    setSelectedOfferingIds(doc.publishedOfferings.map((p) => p.offeringId));
+  /** Opens the publication selector with the document's current offering scope. */
+  const openPublishModal = (document: TeacherDocument): void => {
+    setPublishDoc(document);
+    setSelectedOfferingIds(document.publishedOfferings.map((item) => item.offeringId));
   };
 
-  const handleToggleOffering = (offId: string) => {
-    setSelectedOfferingIds((prev) =>
-      prev.includes(offId) ? prev.filter((id) => id !== offId) : [...prev, offId]
+  /** Adds or removes one Course Offering from the pending publication selection. */
+  const handleToggleOffering = (offeringId: string): void => {
+    setSelectedOfferingIds((current) =>
+      current.includes(offeringId)
+        ? current.filter((id) => id !== offeringId)
+        : [...current, offeringId]
     );
   };
 
-  const handleConfirmPublish = async () => {
+  /** Persists the publication selection through Java ownership checks. */
+  const handleConfirmPublish = async (): Promise<void> => {
     if (!publishDoc) return;
     setIsPublishing(true);
     try {
       await teacherDocApi.publishDocument(publishDoc.id, selectedOfferingIds);
       setPublishDoc(null);
-      setSuccessMsg("Cập nhật phạm vi công bố bài giảng thành công.");
+      setSuccessMsg("Đã cập nhật phạm vi công bố học liệu.");
       await loadData();
-    } catch (err: unknown) {
-      alert("Lỗi khi công bố: " + (err instanceof Error ? err.message : ""));
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Không thể công bố tài liệu.");
     } finally {
       setIsPublishing(false);
     }
   };
 
-  const handleRevoke = async (docId: string, offId: string) => {
-    if (!confirm("Gỡ tài liệu này khỏi lớp học phần?")) return;
+  /** Revokes one publication after user confirmation. */
+  const handleRevoke = async (documentId: string, offeringId: string): Promise<void> => {
+    if (!window.confirm("Gỡ tài liệu này khỏi lớp học phần?")) return;
     try {
-      await teacherDocApi.revokePublication(docId, offId);
+      await teacherDocApi.revokePublication(documentId, offeringId);
       await loadData();
-    } catch (err: unknown) {
-      alert("Lỗi khi gỡ: " + (err instanceof Error ? err.message : ""));
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Không thể gỡ công bố.");
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Kho Tài liệu & Học liệu Giảng dạy
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Tải lên bài giảng (PPTX) và tài liệu tham khảo (PDF), công bố vào các lớp học phần bạn sở hữu
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-600">Teacher Workspace</p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Kho học liệu PDF</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Tải Course Material PDF, công bố vào lớp sở hữu hoặc dùng làm nguồn tạo Quiz.
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setIsUploadModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600  text-white rounded-xl text-xs font-bold shadow-md transition flex-shrink-0"
-        >
-          <PlusCircle className="w-4 h-4" /> Tải lên tài liệu mới
+        <button type="button" onClick={() => setIsUploadModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm">
+          <PlusCircle className="h-4 w-4" /> Tải PDF mới
         </button>
       </div>
 
-      {errorMsg && (
-        <ErrorAlert message={errorMsg} onRetry={() => setErrorMsg(null)} />
-      )}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        Teacher không có chatbot cá nhân hoặc AI Tutor. AI của Teacher chỉ sinh bộ câu hỏi <code>MCQ_SINGLE</code> từ Course Material PDF do chính Teacher sở hữu; Teacher duyệt trước khi công bố.
+      </div>
 
+      {errorMsg && <ErrorAlert message={errorMsg} onRetry={() => void loadData()} />}
       {successMsg && (
-        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span>{successMsg}</span>
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          <CheckCircle2 className="h-4 w-4" /> {successMsg}
         </div>
       )}
 
       {isLoading ? (
-        <div className="py-12 flex justify-center">
-          <LoadingSpinner size="lg" text="Đang tải kho học liệu..." />
-        </div>
+        <div className="flex justify-center py-16"><LoadingSpinner size="lg" text="Đang tải kho PDF..." /></div>
       ) : documents.length === 0 ? (
-        <EmptyState
-          title="Kho học liệu chưa có tệp nào"
-          description="Bấm vào 'Tải lên tài liệu mới' để đưa tệp PPTX bài giảng hoặc PDF lên hệ thống."
-          actionLabel="Tải lên ngay"
-          onAction={() => setIsUploadModalOpen(true)}
-        />
+        <EmptyState title="Chưa có Course Material PDF" description="Tải PDF có lớp văn bản để công bố cho lớp hoặc tạo Quiz." actionLabel="Tải PDF" onAction={() => setIsUploadModalOpen(true)} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {documents.map((doc) => {
-            const isPptx = doc.fileType === "PPTX";
-
-            return (
-              <div
-                key={doc.id}
-                className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm  transition flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-lg font-mono font-bold text-xs flex items-center gap-1 ${
-                          isPptx
-                            ? "bg-red-100 text-red-800"
-                            : "bg-blue-100 text-blue-800"
-                        }`}
-                      >
-                        {isPptx ? (
-                          <>
-                            <Presentation className="w-3.5 h-3.5" /> PPTX Bài giảng
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="w-3.5 h-3.5" /> PDF Tài liệu
-                          </>
-                        )}
-                      </span>
-                      <StatusBadge status={doc.status} size="sm" />
-                    </div>
-
-                    <span className="text-xs text-slate-400">
-                      {(doc.fileSize / (1024 * 1024)).toFixed(1)} MB
-                    </span>
-                  </div>
-
-                  <h3 className="font-bold text-slate-900 text-base mb-1">
-                    {doc.title}
-                  </h3>
-                  <p className="text-xs text-slate-500 font-mono mb-3 truncate">
-                    {doc.fileName}
-                  </p>
-
-                  {/* Publications Box */}
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1.5 mb-4">
-                    <div className="text-[11px] font-bold uppercase text-slate-500">
-                      Lớp học phần đã công bố ({doc.publishedOfferings.length}):
-                    </div>
-                    {doc.publishedOfferings.length === 0 ? (
-                      <div className="text-xs text-amber-700 italic">
-                        Chưa công bố vào lớp nào. Sinh viên chưa thể nhìn thấy.
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5">
-                        {doc.publishedOfferings.map((p) => (
-                          <span
-                            key={p.offeringId}
-                            className="inline-flex items-center gap-1 text-[11px] bg-white border border-slate-200 px-2 py-0.5 rounded-md font-mono text-slate-700"
-                          >
-                            <span>{p.offeringCode}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRevoke(doc.id, p.offeringId)}
-                              className="text-slate-400  ml-1"
-                              title="Gỡ khỏi lớp này"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {documents.map((document) => (
+            <article key={document.id} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700"><FileText className="h-3.5 w-3.5" /> PDF · {document.totalPages} trang</span>
+                  <StatusBadge status={document.status} size="sm" />
                 </div>
-
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="text-slate-400">
-                    {new Date(doc.createdAt).toLocaleDateString("vi-VN")}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => openPublishModal(doc)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100   text-slate-700 font-bold transition"
-                  >
-                    <Share2 className="w-3.5 h-3.5" /> Công bố vào Lớp
-                  </button>
+                <h2 className="mt-3 text-base font-bold text-slate-900">{document.title}</h2>
+                <p className="mt-1 truncate text-xs text-slate-500">{document.fileName}</p>
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Đã công bố ({document.publishedOfferings.length})</div>
+                  {document.publishedOfferings.length === 0 ? (
+                    <p className="mt-2 text-xs italic text-amber-700">Chưa công bố vào lớp học phần.</p>
+                  ) : (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {document.publishedOfferings.map((publication) => (
+                        <span key={publication.offeringId} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700">
+                          {publication.offeringCode}
+                          <button type="button" onClick={() => void handleRevoke(document.id, publication.offeringId)} aria-label={`Gỡ ${publication.offeringCode}`} className="text-slate-400"><X className="h-3 w-3" /></button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            );
-          })}
+              <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+                <button type="button" onClick={() => openPublishModal(document)} className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700">
+                  <Share2 className="h-3.5 w-3.5" /> Công bố
+                </button>
+                <Link href={`/teacher/quizzes/create?documentId=${document.id}`} className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white">
+                  <ListChecks className="h-3.5 w-3.5" /> Tạo Quiz bằng AI
+                </Link>
+              </div>
+            </article>
+          ))}
         </div>
       )}
 
-      {/* Upload Modal */}
       {isUploadModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md space-y-4 rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-900 text-lg">
-                Tải lên học liệu giảng dạy
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsUploadModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 "
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <h2 className="text-lg font-bold text-slate-900">Tải Course Material PDF</h2>
+              <button type="button" onClick={() => setIsUploadModalOpen(false)} aria-label="Đóng" className="text-slate-500"><X className="h-5 w-5" /></button>
             </div>
-
             <form onSubmit={handleUpload} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Tiêu đề tài liệu
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={uploadTitle}
-                  onChange={(e) => setUploadTitle(e.target.value)}
-                  placeholder="VD: Bài giảng Chương 2 - Tìm kiếm thông minh"
-                  className="w-full p-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Chọn tệp bài giảng (.pptx) hoặc tài liệu (.pdf)
-                </label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  required
-                  accept=".pptx,.pdf"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                  className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-red-50 file:text-red-700 "
-                />
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  * PPTX sẽ được hiển thị trên Slide Viewer; PDF sẽ mở cho sinh viên tải xuống.
-                </span>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsUploadModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 "
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUploading}
-                  className="px-4 py-2 text-xs font-bold rounded-xl bg-red-600  text-white shadow-md disabled:opacity-60 flex items-center gap-1.5"
-                >
-                  {isUploading ? (
-                    <LoadingSpinner size="sm" />
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" /> Bắt đầu tải lên
-                    </>
-                  )}
+              <label className="block text-xs font-bold uppercase text-slate-700">
+                Tiêu đề
+                <input required value={uploadTitle} onChange={(event) => setUploadTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 p-2.5 text-sm font-normal outline-none focus:border-red-400" placeholder="Bài giảng Chương 2" />
+              </label>
+              <label className="block text-xs font-bold uppercase text-slate-700">
+                Tệp PDF có lớp văn bản
+                <input ref={fileInputRef} required type="file" accept="application/pdf,.pdf" onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)} className="mt-1 w-full text-xs text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-red-50 file:px-3 file:py-2 file:text-xs file:font-bold file:text-red-700" />
+              </label>
+              <p className="text-xs leading-5 text-slate-500">Không nhận PPTX/DOCX hoặc PDF scan không có text layer. Tài liệu được xử lý bất đồng bộ trước khi chuyển sang READY.</p>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setIsUploadModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600">Hủy</button>
+                <button type="submit" disabled={isUploading} className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-60">
+                  <Upload className="h-4 w-4" /> {isUploading ? "Đang tải..." : "Tải lên"}
                 </button>
               </div>
             </form>
@@ -351,96 +217,27 @@ export default function TeacherDocumentsPage() {
         </div>
       )}
 
-      {/* Publish Modal */}
       {publishDoc && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="font-bold text-slate-900 text-base">
-                  Công bố học liệu vào Lớp học phần
-                </h3>
-                <p className="text-xs text-slate-500 truncate max-w-xs">
-                  {publishDoc.title}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPublishDoc(null)}
-                className="p-1 rounded-lg text-slate-400 "
-              >
-                <X className="w-5 h-5" />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md space-y-4 rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+              <div><h2 className="font-bold text-slate-900">Công bố học liệu</h2><p className="mt-1 text-xs text-slate-500">{publishDoc.title}</p></div>
+              <button type="button" onClick={() => setPublishDoc(null)} aria-label="Đóng" className="text-slate-500"><X className="h-5 w-5" /></button>
             </div>
-
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-700">
-                Chọn các lớp bạn sở hữu để chia sẻ tài liệu:
-              </span>
-              {offerings.length === 0 ? (
-                <div className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-xl">
-                  Bạn chưa có lớp học phần nào.
-                </div>
-              ) : (
-                <div className="space-y-1.5 max-h-56 overflow-y-auto">
-                  {offerings.map((off) => {
-                    const isSelected = selectedOfferingIds.includes(off.id);
-                    return (
-                      <div
-                        key={off.id}
-                        onClick={() => handleToggleOffering(off.id)}
-                        className={`p-3 rounded-xl border text-xs cursor-pointer flex items-center justify-between transition ${
-                          isSelected
-                            ? "bg-red-50 border-red-300 text-red-900 font-bold"
-                            : "bg-slate-50 border-slate-200 text-slate-700 "
-                        }`}
-                      >
-                        <div className="space-y-0.5">
-                          <span className="font-mono">{off.code}</span> -{" "}
-                          <span>{off.name}</span>
-                          <div className="text-[10px] text-slate-500 font-normal">
-                            {off.semesterName}
-                          </div>
-                        </div>
-
-                        <div
-                          className={`w-5 h-5 rounded-md flex items-center justify-center border ${
-                            isSelected
-                              ? "bg-red-600 border-red-600 text-white"
-                              : "border-slate-300 bg-white"
-                          }`}
-                        >
-                          {isSelected && <Check className="w-3.5 h-3.5" />}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+            <div className="max-h-64 space-y-2 overflow-y-auto">
+              {offerings.map((offering) => {
+                const selected = selectedOfferingIds.includes(offering.id);
+                return (
+                  <button key={offering.id} type="button" onClick={() => handleToggleOffering(offering.id)} className={`flex w-full items-center justify-between rounded-xl border p-3 text-left text-xs ${selected ? "border-red-300 bg-red-50 text-red-900" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                    <span><strong>{offering.code}</strong> · {offering.name}</span>
+                    <span className={`flex h-5 w-5 items-center justify-center rounded border ${selected ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white"}`}>{selected && <Check className="h-3.5 w-3.5" />}</span>
+                  </button>
+                );
+              })}
             </div>
-
-            <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setPublishDoc(null)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 "
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                disabled={isPublishing}
-                onClick={handleConfirmPublish}
-                className="px-4 py-2 text-xs font-bold rounded-xl bg-red-600  text-white shadow-md disabled:opacity-60 flex items-center gap-1.5"
-              >
-                {isPublishing ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" /> Lưu cấu hình công bố
-                  </>
-                )}
-              </button>
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <button type="button" onClick={() => setPublishDoc(null)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600">Hủy</button>
+              <button type="button" disabled={isPublishing} onClick={() => void handleConfirmPublish()} className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-60"><Check className="h-4 w-4" /> Lưu công bố</button>
             </div>
           </div>
         </div>

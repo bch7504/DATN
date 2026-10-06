@@ -18,27 +18,37 @@ skinparam PartitionBorderColor #222222
 skinparam NoteBackgroundColor #FFF9D9
 skinparam NoteBorderColor #555555
 skinparam roundcorner 16
+
 |Student|
 start
-:Gửi câu hỏi trong hội thoại;
+:Chọn Personal PDF và gửi yêu cầu;
+note right
+Agent chỉ được chọn tool trong allowlist;
+không đổi source scope hoặc luật MCQ_SINGLE.
+end note
 |Java Backend|
 :Kiểm owner, READY và snapshot phiên bản;
-note right
-Lỗi hạ tầng trả error riêng,
-không giả thành NO_EVIDENCE.
-end note
 if (Được phép?) then (Có)
+  :Dựng authorized scope bất biến;
   |Python AI|
-  :Embedding và retrieval đúng scope;
-  if (Đủ bằng chứng?) then (Có)
-    :Sinh câu trả lời và citation;
-    :Kiểm grounding; rewrite tối đa 1 lần;
-    if (Grounding hợp lệ?) then (Có)
+  :Single Agent nhận diện ý định;
+  if (Đủ tham số cho tool?) then (Có)
+    if (Loại yêu cầu?) then (Hỏi đáp)
+      :Ask Document Tool;
+    elseif (Tóm tắt)
+      :Summarize Document Tool;
+    else (Tạo Quiz)
+      :Generate Quiz Tool;
+    endif
+    :Retrieval và evidence gate đúng scope;
+    if (Đủ bằng chứng?) then (Có)
+      :Sinh structured result và citation theo trang;
+      :Kiểm schema và grounding;
       |Java Backend|
-      :Kiểm lại quyền và response;
-      :Lưu chat;
+      :Revalidate quyền và response;
+      :Lưu message hoặc Quiz REVIEW_REQUIRED;
       |Student|
-      :Nhận ANSWERED và citation theo trang;
+      :Nhận ANSWERED, SUMMARY hoặc QUIZ_DRAFT;
       stop
     else (Không)
       |Student|
@@ -47,7 +57,7 @@ if (Được phép?) then (Có)
     endif
   else (Không)
     |Student|
-    :Nhận NO_EVIDENCE;
+    :Nhận NEEDS_CLARIFICATION;
     stop
   endif
 else (Không)

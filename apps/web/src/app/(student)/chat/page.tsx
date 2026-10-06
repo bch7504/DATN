@@ -1,867 +1,482 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { chatApi, personalDocApi, ApiClientError } from "@/lib/api-client";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertCircle,
+  ArrowRight,
+  Bot,
+  BookOpen,
+  Check,
+  CheckSquare,
+  ChevronRight,
+  Copy,
+  FileQuestion,
+  FileText,
+  ListChecks,
+  Plus,
+  Search,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Square,
+  X,
+} from "lucide-react";
+import { ApiClientError, chatApi, personalDocApi } from "@/lib/api-client";
+import type {
+  AssistantCapability,
   ChatConversation,
   ChatMessage,
   PersonalCitation,
 } from "@/types/chat";
-import { PersonalDocument } from "@/types/material";
-import {
-  Bot,
-  Send,
-  Plus,
-  Trash2,
-  FileText,
-  Search,
-  CheckSquare,
-  Square,
-  AlertCircle,
-  Sparkles,
-  ExternalLink,
-  X,
-  Copy,
-  Check,
-  ShieldCheck,
-  Clock,
-  ArrowRight,
-  BookOpen,
-} from "lucide-react";
+import type { PersonalDocument } from "@/types/material";
 
-export default function StudentChatPage() {
-  // Conversations & Selection
+const SUGGESTIONS = [
+  {
+    icon: FileQuestion,
+    title: "Hỏi đáp tài liệu",
+    prompt: "Giải thích ACID dựa trên các tài liệu đã chọn.",
+  },
+  {
+    icon: FileText,
+    title: "Tóm tắt nội dung",
+    prompt: "Tóm tắt tài liệu thành 7 ý chính và kèm trích dẫn.",
+  },
+  {
+    icon: ListChecks,
+    title: "Tạo Quiz ôn tập",
+    prompt: "Tạo 15 câu trắc nghiệm khó từ tài liệu đã chọn.",
+  },
+] as const;
+
+const CAPABILITY_LABELS: Record<AssistantCapability, string> = {
+  ASK_DOCUMENT: "Hỏi đáp tài liệu",
+  SUMMARIZE_DOCUMENT: "Tóm tắt tài liệu",
+  CREATE_QUIZ: "Tạo Quiz",
+  NEEDS_CLARIFICATION: "Cần thêm thông tin",
+};
+
+export default function PersonalDocumentAssistantPage() {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [activeConvId, setActiveConvId] = useState<string | null>(null);
-  const [activeConv, setActiveConv] = useState<ChatConversation | null>(null);
-
-  // Documents
+  const [activeConversation, setActiveConversation] = useState<ChatConversation | null>(null);
   const [documents, setDocuments] = useState<PersonalDocument[]>([]);
-  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
-  const [docSearch, setDocSearch] = useState<string>("");
-
-  // Input & Messaging
-  const [inputMessage, setInputMessage] = useState<string>("");
-  const [isSending, setIsSending] = useState<boolean>(false);
-  const [isLoadingConv, setIsLoadingConv] = useState<boolean>(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Citation Drawer
-  const [activeCitation, setActiveCitation] = useState<PersonalCitation | null>(
-    null
-  );
-  const [copiedSha, setCopiedSha] = useState<boolean>(false);
-
-  // Auto-scroll ref
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [citation, setCitation] = useState<PersonalCitation | null>(null);
+  const [copied, setCopied] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load initial conversations & documents
   useEffect(() => {
     let mounted = true;
-
-    async function loadInitialData() {
-      setIsLoadingConv(true);
-      setErrorMessage(null);
-      try {
-        const [convList, docList] = await Promise.all([
-          chatApi.getConversations(),
-          personalDocApi.getDocuments(),
-        ]);
-
+    Promise.all([chatApi.getConversations(), personalDocApi.getDocuments()])
+      .then(([conversationItems, documentItems]) => {
         if (!mounted) return;
-        setConversations(convList);
-        setDocuments(docList);
-
-        if (convList.length > 0) {
-          const first = convList[0];
-          setActiveConvId(first.id);
-          setActiveConv(first);
-          setSelectedDocIds(first.selectedDocumentIds);
-        } else {
-          // Select ready docs by default
-          const readyDocs = docList.filter((d) => d.status === "READY");
-          setSelectedDocIds(readyDocs.slice(0, 3).map((d) => d.id));
-        }
-      } catch (err: unknown) {
+        setConversations(conversationItems);
+        setDocuments(documentItems);
+        const first = conversationItems[0] ?? null;
+        setActiveConversation(first);
+        setSelectedDocumentIds(
+          first?.selectedDocumentIds ??
+            documentItems.filter((item) => item.status === "READY").slice(0, 2).map((item) => item.id),
+        );
+      })
+      .catch((reason: unknown) => {
         if (!mounted) return;
-        if (err instanceof ApiClientError) {
-          setErrorMessage(err.message);
-        } else {
-          setErrorMessage("Không thể tải danh sách phiên trò chuyện hoặc tài liệu.");
-        }
-      } finally {
-        if (mounted) setIsLoadingConv(false);
-      }
-    }
-
-    loadInitialData();
+        setError(reason instanceof Error ? reason.message : "Không thể tải Trợ lý tài liệu.");
+      })
+      .finally(() => mounted && setLoading(false));
     return () => {
       mounted = false;
     };
   }, []);
 
-  // Switch conversation
-  const handleSelectConversation = async (convId: string) => {
-    if (convId === activeConvId) return;
-    setIsLoadingConv(true);
-    setErrorMessage(null);
-    setActiveCitation(null);
-    try {
-      const conv = await chatApi.getConversation(convId);
-      setActiveConvId(conv.id);
-      setActiveConv(conv);
-      setSelectedDocIds(conv.selectedDocumentIds);
-    } catch (err: unknown) {
-      if (err instanceof ApiClientError) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage("Lỗi khi tải phiên trò chuyện.");
-      }
-    } finally {
-      setIsLoadingConv(false);
-    }
-  };
+  const readyDocuments = useMemo(
+    () => documents.filter((item) => item.status === "READY"),
+    [documents],
+  );
 
-  // Create new conversation
-  const handleCreateNewConversation = async () => {
-    const readySelected = selectedDocIds.filter((id) =>
-      documents.some((d) => d.id === id && d.status === "READY")
+  const filteredDocuments = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return documents;
+    return documents.filter(
+      (item) =>
+        item.title.toLowerCase().includes(keyword) ||
+        item.fileName.toLowerCase().includes(keyword),
     );
+  }, [documents, search]);
 
-    if (readySelected.length === 0) {
-      // Pick first ready document if none selected
-      const readyDoc = documents.find((d) => d.status === "READY");
-      if (!readyDoc) {
-        setErrorMessage(
-          "Bạn chưa có tài liệu cá nhân nào ở trạng thái READY để hỏi đáp. Hãy tải lên tài liệu PDF trước."
-        );
-        return;
-      }
-      readySelected.push(readyDoc.id);
-      setSelectedDocIds([readyDoc.id]);
+  async function createConversation(initialTitle = "Phiên tài liệu mới") {
+    const scope = selectedDocumentIds.filter((id) =>
+      readyDocuments.some((document) => document.id === id),
+    );
+    if (scope.length === 0) {
+      setError("Hãy chọn ít nhất một Personal PDF ở trạng thái READY.");
+      return null;
     }
+    const created = await chatApi.createConversation({
+      selectedDocumentIds: scope,
+      title: initialTitle,
+    });
+    setConversations((current) => [created, ...current]);
+    setActiveConversation(created);
+    return created;
+  }
 
+  async function switchConversation(id: string) {
+    setLoading(true);
+    setCitation(null);
     try {
-      setIsLoadingConv(true);
-      setErrorMessage(null);
-      const newConv = await chatApi.createConversation({
-        selectedDocumentIds: readySelected,
-        title: "Phiên thảo luận mới",
-      });
-      setConversations((prev) => [newConv, ...prev]);
-      setActiveConvId(newConv.id);
-      setActiveConv(newConv);
-      setActiveCitation(null);
-    } catch (err: unknown) {
-      if (err instanceof ApiClientError) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage("Không thể tạo phiên trò chuyện mới.");
-      }
+      const selected = await chatApi.getConversation(id);
+      setActiveConversation(selected);
+      setSelectedDocumentIds(selected.selectedDocumentIds);
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : "Không thể mở phiên tài liệu.");
     } finally {
-      setIsLoadingConv(false);
+      setLoading(false);
     }
-  };
+  }
 
-  // Delete conversation
-  const handleDeleteConversation = async (convId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm("Bạn có chắc chắn muốn xóa phiên trò chuyện này không?")) return;
-
-    try {
-      await chatApi.deleteConversation(convId);
-      const remaining = conversations.filter((c) => c.id !== convId);
-      setConversations(remaining);
-      if (activeConvId === convId) {
-        if (remaining.length > 0) {
-          handleSelectConversation(remaining[0].id);
-        } else {
-          setActiveConvId(null);
-          setActiveConv(null);
-        }
-      }
-    } catch (err: unknown) {
-      if (err instanceof ApiClientError) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage("Không thể xóa phiên trò chuyện.");
-      }
-    }
-  };
-
-  // Send message
-  const handleSendMessage = async (textToSend?: string) => {
-    const query = (textToSend || inputMessage).trim();
-    if (!query || isSending) return;
-
-    if (selectedDocIds.length === 0) {
-      setErrorMessage(
-        "Vui lòng chọn ít nhất 1 tài liệu nguồn (tối đa 10 tài liệu) trước khi gửi câu hỏi."
-      );
+  async function sendMessage(value?: string) {
+    const content = (value ?? message).trim();
+    if (!content || sending) return;
+    if (selectedDocumentIds.length === 0) {
+      setError("Hãy chọn ít nhất một Personal PDF trước khi gửi yêu cầu.");
       return;
     }
 
-    let targetConv = activeConv;
-    setIsSending(true);
-    setErrorMessage(null);
-
+    setSending(true);
+    setError(null);
     try {
-      // If no active conversation, create one first
-      if (!targetConv) {
-        targetConv = await chatApi.createConversation({
-          selectedDocumentIds: selectedDocIds,
-          title: query.length > 30 ? query.substring(0, 30) + "..." : query,
-        });
-        setConversations((prev) => [targetConv!, ...prev]);
-        setActiveConvId(targetConv.id);
-        setActiveConv(targetConv);
-      }
+      const conversation =
+        activeConversation ??
+        (await createConversation(content.length > 38 ? `${content.slice(0, 38)}…` : content));
+      if (!conversation) return;
 
-      // Optimistically add user message
-      const tempUserMsg: ChatMessage = {
-        id: `temp_${Date.now()}`,
+      const optimisticMessage: ChatMessage = {
+        id: `local-${Date.now()}`,
         role: "user",
-        content: query,
+        content,
         createdAt: new Date().toISOString(),
       };
-
-      setActiveConv((prev) =>
-        prev
-          ? {
-              ...prev,
-              messages: [...prev.messages, tempUserMsg],
-            }
-          : null
+      setActiveConversation((current) =>
+        current ? { ...current, messages: [...current.messages, optimisticMessage] } : current,
       );
-      setInputMessage("");
+      setMessage("");
 
-      // Send to API
-      const assistantMsg = await chatApi.sendMessage(targetConv.id, {
-        message: query,
-      });
-
-      // Update active conversation
-      setActiveConv((prev) =>
-        prev
-          ? {
-              ...prev,
-              title:
-                prev.title === "Phiên thảo luận mới"
-                  ? query.length > 30
-                    ? query.substring(0, 30) + "..."
-                    : query
-                  : prev.title,
-              messages: [...prev.messages.filter((m) => m.id !== tempUserMsg.id), tempUserMsg, assistantMsg],
-            }
-          : null
+      const response = await chatApi.sendMessage(conversation.id, { message: content });
+      setActiveConversation((current) =>
+        current ? { ...current, messages: [...current.messages, response] } : current,
       );
-
-      // Update in conversations list
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === targetConv!.id
-            ? {
-                ...c,
-                title:
-                  c.title === "Phiên thảo luận mới"
-                    ? query.length > 30
-                      ? query.substring(0, 30) + "..."
-                      : query
-                    : c.title,
-                updatedAt: new Date().toISOString(),
-              }
-            : c
-        )
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    } catch (reason: unknown) {
+      setError(
+        reason instanceof ApiClientError
+          ? reason.message
+          : reason instanceof Error
+            ? reason.message
+            : "Không thể gửi yêu cầu tới Trợ lý tài liệu.",
       );
-    } catch (err: unknown) {
-      if (err instanceof ApiClientError) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage("Lỗi khi gửi câu hỏi đến AI RAG service.");
-      }
     } finally {
-      setIsSending(false);
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+      setSending(false);
     }
-  };
+  }
 
-  // Toggle doc selection
-  const handleToggleDoc = (docId: string) => {
-    if (selectedDocIds.includes(docId)) {
-      setSelectedDocIds((prev) => prev.filter((id) => id !== docId));
-    } else {
-      if (selectedDocIds.length >= 10) {
-        setErrorMessage("Chỉ được chọn tối đa 10 tài liệu làm nguồn đối chiếu.");
-        return;
-      }
-      setSelectedDocIds((prev) => [...prev, docId]);
-    }
-  };
+  function toggleDocument(document: PersonalDocument) {
+    if (document.status !== "READY") return;
+    setSelectedDocumentIds((current) =>
+      current.includes(document.id)
+        ? current.filter((id) => id !== document.id)
+        : current.length < 10
+          ? [...current, document.id]
+          : current,
+    );
+  }
 
-  // Select all / Deselect all
-  const readyDocs = documents.filter((d) => d.status === "READY");
-  const filteredDocs = readyDocs.filter(
-    (d) =>
-      d.title.toLowerCase().includes(docSearch.toLowerCase()) ||
-      d.fileName.toLowerCase().includes(docSearch.toLowerCase())
-  );
-
-  const handleSelectAll = () => {
-    const toSelect = readyDocs.slice(0, 10).map((d) => d.id);
-    setSelectedDocIds(toSelect);
-  };
-
-  const handleDeselectAll = () => {
-    setSelectedDocIds([]);
-  };
-
-  // Copy SHA256
-  const handleCopySha = (sha?: string) => {
-    if (!sha) return;
-    navigator.clipboard.writeText(sha);
-    setCopiedSha(true);
-    setTimeout(() => setCopiedSha(false), 2000);
-  };
-
-  // Keydown in composer
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  // Prompt suggestions
-  const SUGGESTED_PROMPTS = [
-    "Điều kiện để một lược đồ quan hệ đạt dạng chuẩn 3 (3NF) là gì?",
-    "Khi nào nên dùng EXISTS thay cho IN trong câu lệnh SQL con?",
-    "Tóm tắt các định nghĩa và nguyên tắc cốt lõi trong tài liệu này.",
-  ];
+  function capabilityClass(capability?: AssistantCapability) {
+    if (capability === "CREATE_QUIZ") return "border-violet-200 bg-violet-50 text-violet-700";
+    if (capability === "SUMMARIZE_DOCUMENT") return "border-blue-200 bg-blue-50 text-blue-700";
+    if (capability === "NEEDS_CLARIFICATION") return "border-amber-200 bg-amber-50 text-amber-800";
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Top Banner / Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200">
+    <div className="space-y-5">
+      <header className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-red-50 text-ptit-red">
-              <Sparkles className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-display">
-              Hỏi đáp tài liệu cá nhân (Personal RAG)
-            </h1>
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-bold text-ptit-red">
+            <Sparkles className="h-3.5 w-3.5" /> Single AI Assistant
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Không gian đối chiếu và tra cứu câu trả lời được neo nguồn trực tiếp
-            vào PDF cá nhân của bạn.
+          <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
+            Trợ lý tài liệu cá nhân
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">
+            Hỏi đáp, tóm tắt hoặc tạo Quiz từ Personal PDF. Hệ thống tự nhận diện yêu cầu và luôn trả kết quả kèm nguồn.
           </p>
         </div>
+        <Link
+          href="/personal-documents"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ptit-red px-4 py-2 text-sm font-bold text-white shadow-sm"
+        >
+          <BookOpen className="h-4 w-4" /> Quản lý PDF
+        </Link>
+      </header>
 
-        <div className="flex items-center gap-2">
-          <Link
-            href="/personal-documents"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-ptit-red bg-red-50  rounded-lg transition-colors"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            Quản lý kho PDF cá nhân
-          </Link>
-        </div>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-xs sm:text-sm text-red-800">
-          <AlertCircle className="w-4 h-4 text-ptit-red flex-shrink-0 mt-0.5" />
-          <div className="flex-1">{errorMessage}</div>
-          <button
-            onClick={() => setErrorMessage(null)}
-            className="text-red-600  text-xs font-medium"
-          >
-            Đóng
+      {error && (
+        <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button type="button" onClick={() => setError(null)} aria-label="Đóng thông báo">
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Main 2-Column Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-210px)] min-h-[580px]">
-        {/* Left Column: Chatbot Workspace (flex-1 / col-span-8 or 9) */}
-        <div className="lg:col-span-8 xl:col-span-9 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
-          {/* Header of Chatbot: Session Bar */}
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 overflow-x-auto">
-            {/* Session Tabs Carousel */}
-            <div className="flex items-center gap-2 overflow-x-auto flex-1 py-1 no-scrollbar">
-              <button
-                onClick={handleCreateNewConversation}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-ptit-red  rounded-lg shadow-sm flex-shrink-0 transition-colors"
-                title="Tạo phiên hội thoại mới"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Phiên mới</span>
-              </button>
-
-              {conversations.length === 0 ? (
-                <span className="text-xs text-slate-400 italic">
-                  Chưa có phiên trò chuyện nào
-                </span>
-              ) : (
-                conversations.map((conv) => {
-                  const isActive = conv.id === activeConvId;
-                  return (
-                    <div
-                      key={conv.id}
-                      onClick={() => handleSelectConversation(conv.id)}
-                      className={`group inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg cursor-pointer transition-all flex-shrink-0 max-w-[200px] border ${
-                        isActive
-                          ? "bg-white text-ptit-red border-red-200 font-semibold shadow-xs"
-                          : "bg-slate-100 text-slate-600  border-transparent"
-                      }`}
-                    >
-                      <Bot className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span className="truncate">{conv.title}</span>
-                      <button
-                        onClick={(e) => handleDeleteConversation(conv.id, e)}
-                        className="opacity-0   p-0.5 rounded transition-opacity"
-                        title="Xóa phiên"
-                      >
-                        <Trash2 className="w-3 h-3 text-slate-400 " />
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Scope Badge */}
-            <div className="flex-shrink-0 hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-md text-[11px] text-slate-600">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>
-                Áp dụng: <strong>{selectedDocIds.length}</strong> nguồn
-              </span>
-            </div>
-          </div>
-
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-gradient-to-b from-slate-50/50 to-white">
-            {isLoadingConv ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
-                <div className="w-8 h-8 border-3 border-ptit-red border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs">Đang tải cuộc trò chuyện...</span>
-              </div>
-            ) : !activeConv || activeConv.messages.length === 0 ? (
-              /* Empty state with suggested prompts */
-              <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto py-8">
-                <div className="w-14 h-14 rounded-2xl bg-red-50 text-ptit-red flex items-center justify-center mb-3 shadow-xs">
-                  <Bot className="w-7 h-7" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900 font-display">
-                  Sẵn sàng hỏi đáp với Personal AI Tutor
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 mb-6">
-                  Đặt câu hỏi về nội dung tài liệu của bạn. Mọi câu trả lời đều
-                  kèm trích đoạn đối chiếu chính xác và số trang grounding.
-                </p>
-
-                <div className="w-full space-y-2 text-left">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    Câu hỏi gợi ý nhanh:
-                  </div>
-                  {SUGGESTED_PROMPTS.map((prompt, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleSendMessage(prompt)}
-                      className="w-full text-left p-3 text-xs bg-white  border border-slate-200  rounded-xl text-slate-700  transition-all flex items-center justify-between group shadow-2xs"
-                    >
-                      <span>{prompt}</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-slate-400  flex-shrink-0 ml-2" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              /* Message list */
-              activeConv.messages.map((msg) => {
-                const isUser = msg.role === "user";
-                const isNoEvidence = msg.status === "NO_EVIDENCE";
-
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex items-start gap-3 ${
-                      isUser ? "flex-row-reverse" : "flex-row"
-                    }`}
-                  >
-                    {/* Avatar */}
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-                        isUser
-                          ? "bg-ptit-red text-white shadow-xs"
-                          : isNoEvidence
-                          ? "bg-amber-100 text-amber-800 border border-amber-300"
-                          : "bg-red-50 text-ptit-red border border-red-200"
-                      }`}
-                    >
-                      {isUser ? "SV" : <Bot className="w-4 h-4" />}
-                    </div>
-
-                    {/* Bubble */}
-                    <div
-                      className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
-                        isUser
-                          ? "bg-ptit-red text-white rounded-tr-xs shadow-sm"
-                          : isNoEvidence
-                          ? "bg-amber-50/80 border border-amber-200 text-slate-800 rounded-tl-xs shadow-2xs"
-                          : "bg-white border border-slate-200 text-slate-800 rounded-tl-xs shadow-2xs"
-                      }`}
-                    >
-                      {/* NO_EVIDENCE Badge */}
-                      {!isUser && isNoEvidence && (
-                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 mb-2 rounded bg-amber-100 text-amber-900 text-[11px] font-bold border border-amber-300">
-                          <AlertCircle className="w-3 h-3 text-amber-700" />
-                          <span>NO_EVIDENCE: Không tìm thấy căn cứ</span>
-                        </div>
-                      )}
-
-                      <div className="whitespace-pre-line">{msg.content}</div>
-
-                      {/* Citations Chips */}
-                      {!isUser && msg.citations && msg.citations.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-slate-100">
-                          <div className="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                            <span>Căn cứ trích dẫn nguồn (Click để soi chi tiết):</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {msg.citations.map((cite, cIdx) => (
-                              <button
-                                key={cIdx}
-                                onClick={() => setActiveCitation(cite)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50/70  border border-red-200 text-ptit-red rounded-lg text-[11px] font-semibold transition-colors group cursor-pointer"
-                                title="Bấm để mở Inspector đối chiếu đoạn trích & SHA-256"
-                              >
-                                <FileText className="w-3 h-3 text-ptit-red" />
-                                <span>
-                                  Trang {cite.pageNumber} · {cite.documentName}
-                                </span>
-                                <ExternalLink className="w-2.5 h-2.5 opacity-60 " />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Timestamp */}
-                      <div
-                        className={`text-[10px] mt-1.5 text-right ${
-                          isUser ? "text-red-200" : "text-slate-400"
-                        }`}
-                      >
-                        {new Date(msg.createdAt).toLocaleTimeString("vi-VN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-
-            {/* In-Flight Sending Indicator */}
-            {isSending && (
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-red-50 text-ptit-red border border-red-200 flex items-center justify-center flex-shrink-0 animate-pulse">
-                  <Bot className="w-4 h-4" />
-                </div>
-                <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-xs p-3.5 shadow-2xs text-xs text-slate-600 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-ptit-red animate-ping" />
-                  <span>Đang truy xuất và đối chiếu nguồn tài liệu...</span>
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Composer */}
-          <div className="p-3 sm:p-4 bg-white border-t border-slate-200">
-            <div className="relative border border-slate-300 focus-within:border-ptit-red focus-within:ring-2 focus-within:ring-red-100 rounded-xl transition-all bg-white">
-              <textarea
-                ref={textareaRef}
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Nhập câu hỏi cần đối chiếu từ tài liệu... (Enter để gửi, Shift+Enter để xuống dòng)"
-                rows={2}
-                maxLength={2000}
-                className="w-full p-3 pr-24 text-xs sm:text-sm text-slate-800 placeholder-slate-400 bg-transparent resize-none focus:outline-none"
-              />
-              <div className="absolute right-2.5 bottom-2.5 flex items-center gap-2">
-                <span className="text-[10px] text-slate-400 hidden sm:inline">
-                  {inputMessage.length}/2000
-                </span>
-                <button
-                  onClick={() => handleSendMessage()}
-                  disabled={!inputMessage.trim() || isSending}
-                  className={`p-2 rounded-lg transition-colors flex items-center justify-center ${
-                    !inputMessage.trim() || isSending
-                      ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                      : "bg-ptit-red text-white  shadow-xs cursor-pointer"
-                  }`}
-                  title="Gửi câu hỏi"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
-              <span>Hỏi đáp tuân thủ chính sách RAG đối chiếu grounding tài liệu.</span>
-              <span className="text-ptit-red font-semibold">
-                {selectedDocIds.length === 0
-                  ? "Chưa chọn tài liệu nguồn!"
-                  : `Đang kết nối ${selectedDocIds.length} tài liệu`}
-              </span>
-            </div>
-          </div>
-
-          {/* In-Chat Citation Drawer (Slide-over Inspector) */}
-          {activeCitation && (
-            <div className="absolute right-0 top-0 bottom-0 w-80 sm:w-96 bg-white border-l border-slate-200 shadow-2xl z-20 flex flex-col animate-in slide-in-from-right duration-200">
-              <div className="px-4 py-3 bg-red-50 border-b border-red-100 flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-ptit-red">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Drawer Đối Chiếu Trích Dẫn</span>
-                </div>
-                <button
-                  onClick={() => setActiveCitation(null)}
-                  className="p-1 rounded text-slate-400   transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="p-4 space-y-4 overflow-y-auto flex-1 text-xs">
-                <div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                    Tài liệu nguồn:
-                  </div>
-                  <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                    <FileText className="w-4 h-4 text-ptit-red flex-shrink-0" />
-                    <span className="truncate">{activeCitation.documentName}</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                    <div className="text-[10px] text-slate-400 uppercase">Trang đối chiếu</div>
-                    <div className="text-sm font-bold text-ptit-red">
-                      Trang {activeCitation.pageNumber}
-                    </div>
-                  </div>
-                  <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                    <div className="text-[10px] text-slate-400 uppercase">Trạng thái</div>
-                    <div className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5" /> Khớp chính xác
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                    Trích đoạn nguyên văn (Excerpt):
-                  </div>
-                  <blockquote className="p-3 bg-red-50/50 border-l-3 border-ptit-red rounded-r-lg text-slate-700 text-xs italic leading-relaxed">
-                    &ldquo;{activeCitation.excerpt}&rdquo;
-                  </blockquote>
-                </div>
-
-                {activeCitation.sha256 && (
-                  <div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
-                      <span>Mã Grounding SHA-256:</span>
-                      <button
-                        onClick={() => handleCopySha(activeCitation.sha256)}
-                        className="inline-flex items-center gap-1 text-[10px] text-ptit-red  cursor-pointer"
-                      >
-                        {copiedSha ? (
-                          <>
-                            <Check className="w-3 h-3 text-emerald-600" />
-                            <span className="text-emerald-600">Đã chép</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            <span>Sao chép</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <div className="p-2 bg-slate-100 rounded text-[10px] font-mono text-slate-700 break-all border border-slate-200 select-all">
-                      {activeCitation.sha256}
-                    </div>
-                  </div>
-                )}
-
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-500 leading-normal">
-                  Hệ thống AI Tutor chỉ suy luận từ các câu chữ thực tế có trong
-                  tài liệu. Bằng chứng được xác thực tự động bởi chuỗi hash SHA-256
-                  đảm bảo không bị thay đổi.
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Evidence Source Selector (~280px / col-span-4 or 3) */}
-        <div className="lg:col-span-4 xl:col-span-3 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Header */}
-          <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-ptit-red" />
-              <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                Nguồn đối chiếu
-              </h2>
-            </div>
-            <span
-              className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                selectedDocIds.length > 0
-                  ? "bg-red-100 text-ptit-red"
-                  : "bg-slate-200 text-slate-600"
-              }`}
+      <div className="grid min-h-[680px] grid-cols-1 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm xl:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="flex min-h-[680px] min-w-0 flex-col">
+          <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-200 bg-slate-50 px-4 py-3">
+            <button
+              type="button"
+              onClick={() => void createConversation()}
+              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-ptit-red px-3 text-xs font-bold text-white"
             >
-              {selectedDocIds.length}/10 nguồn
+              <Plus className="h-4 w-4" /> Phiên mới
+            </button>
+            {conversations.map((conversation) => (
+              <button
+                type="button"
+                key={conversation.id}
+                onClick={() => void switchConversation(conversation.id)}
+                className={`max-w-56 shrink-0 truncate rounded-xl border px-3 py-2 text-left text-xs font-semibold ${
+                  activeConversation?.id === conversation.id
+                    ? "border-red-200 bg-white text-ptit-red"
+                    : "border-slate-200 bg-white text-slate-600"
+                }`}
+              >
+                {conversation.title}
+              </button>
+            ))}
+            <span className="ml-auto hidden shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] text-slate-600 sm:inline-flex">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> {selectedDocumentIds.length} nguồn được cấp quyền
             </span>
           </div>
 
-          {/* Quick Filter & Select All / Deselect All */}
-          <div className="p-3 border-b border-slate-100 space-y-2 bg-white">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-              <input
-                type="text"
-                value={docSearch}
-                onChange={(e) => setDocSearch(e.target.value)}
-                placeholder="Tìm tài liệu theo tên..."
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-ptit-red"
-              />
-            </div>
-
-            <div className="flex items-center justify-between text-[11px]">
-              <button
-                onClick={handleSelectAll}
-                className="text-ptit-red  font-semibold cursor-pointer"
-              >
-                Chọn tất cả (tối đa 10)
-              </button>
-              <button
-                onClick={handleDeselectAll}
-                className="text-slate-500  cursor-pointer"
-              >
-                Bỏ chọn tất cả
-              </button>
-            </div>
-          </div>
-
-          {/* Documents List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 divide-y divide-slate-100">
-            {documents.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-xs">
-                <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                <p>Bạn chưa có tài liệu cá nhân nào.</p>
-                <Link
-                  href="/personal-documents"
-                  className="mt-2 inline-block text-ptit-red font-bold "
-                >
-                  Tải lên PDF ngay
-                </Link>
-              </div>
-            ) : filteredDocs.length === 0 ? (
-              <div className="text-center py-6 text-slate-400 text-xs">
-                Không tìm thấy tài liệu phù hợp.
+          <div className="flex-1 space-y-5 overflow-y-auto bg-gradient-to-b from-slate-50/70 to-white p-4 sm:p-6">
+            {loading ? (
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">Đang tải phiên làm việc…</div>
+            ) : !activeConversation || activeConversation.messages.length === 0 ? (
+              <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center py-12 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-ptit-red">
+                  <Bot className="h-8 w-8" />
+                </div>
+                <h2 className="font-display text-xl font-bold text-slate-900">Bạn muốn làm gì với tài liệu?</h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Chỉ cần viết yêu cầu tự nhiên. Trợ lý sẽ chọn đúng chức năng và không truy cập ngoài những PDF bạn đã chọn.
+                </p>
+                <div className="mt-7 grid w-full gap-3 sm:grid-cols-3">
+                  {SUGGESTIONS.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        type="button"
+                        key={item.title}
+                        onClick={() => void sendMessage(item.prompt)}
+                        className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm"
+                      >
+                        <Icon className="h-5 w-5 text-ptit-red" />
+                        <strong className="mt-3 block text-sm text-slate-900">{item.title}</strong>
+                        <span className="mt-1 block text-xs leading-5 text-slate-500">{item.prompt}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
-              filteredDocs.map((doc) => {
-                const isSelected = selectedDocIds.includes(doc.id);
-                return (
-                  <div
-                    key={doc.id}
-                    onClick={() => handleToggleDoc(doc.id)}
-                    className={`pt-2 first:pt-0 p-2 rounded-xl transition-all cursor-pointer flex items-start gap-2.5 ${
-                      isSelected
-                        ? "bg-red-50/60 border border-red-200/80"
-                        : " border border-transparent"
-                    }`}
-                  >
-                    <div className="mt-0.5 text-ptit-red flex-shrink-0">
-                      {isSelected ? (
-                        <CheckSquare className="w-4 h-4 fill-red-100" />
-                      ) : (
-                        <Square className="w-4 h-4 text-slate-300" />
+              activeConversation.messages.map((item) => (
+                <div key={item.id} className={`flex gap-3 ${item.role === "user" ? "justify-end" : "justify-start"}`}>
+                  {item.role === "assistant" && (
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-50 text-ptit-red">
+                      <Bot className="h-4 w-4" />
+                    </div>
+                  )}
+                  <div className={`max-w-3xl ${item.role === "user" ? "rounded-2xl rounded-tr-md bg-ptit-red px-4 py-3 text-white" : "space-y-3"}`}>
+                    {item.role === "assistant" && item.capability && (
+                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${capabilityClass(item.capability)}`}>
+                        {CAPABILITY_LABELS[item.capability]}
+                      </span>
+                    )}
+                    <div className={item.role === "assistant" ? "rounded-2xl rounded-tl-md border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm" : "text-sm leading-6"}>
+                      <p className="whitespace-pre-line">{item.content}</p>
+                      {item.citations && item.citations.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                          {item.citations.map((source) => (
+                            <button
+                              type="button"
+                              key={`${item.id}-${source.documentId}-${source.pageNumber}`}
+                              onClick={() => setCitation(source)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-ptit-red"
+                            >
+                              <FileText className="h-3.5 w-3.5" /> Trang {source.pageNumber}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-xs text-slate-900 truncate">
-                        {doc.title}
+                    {item.status === "NEEDS_CLARIFICATION" && (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <label className="text-xs font-bold text-slate-700">
+                            Số câu
+                            <input className="mt-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2" defaultValue="15" />
+                          </label>
+                          <label className="text-xs font-bold text-slate-700">
+                            Phạm vi
+                            <select className="mt-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2" defaultValue="all">
+                              <option value="all">Toàn bộ tài liệu</option>
+                              <option value="range">Chọn khoảng trang</option>
+                            </select>
+                          </label>
+                          <label className="text-xs font-bold text-slate-700">
+                            Độ khó
+                            <select className="mt-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2" defaultValue="mixed">
+                              <option value="mixed">Hỗn hợp</option>
+                              <option value="easy">Dễ</option>
+                              <option value="hard">Khó</option>
+                            </select>
+                          </label>
+                        </div>
+                        <button type="button" onClick={() => void sendMessage("Tạo 15 câu trắc nghiệm mức độ hỗn hợp từ toàn bộ tài liệu đã chọn.")} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl bg-ptit-red px-4 text-xs font-bold text-white">
+                          Tiếp tục <ArrowRight className="h-4 w-4" />
+                        </button>
                       </div>
-                      <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
-                        <span>{doc.pageCount} trang</span>
-                        <span>•</span>
-                        <span>{(doc.fileSize / (1024 * 1024)).toFixed(1)} MB</span>
-                      </div>
-                      <div className="mt-1 flex items-center gap-1 text-[9px] font-mono text-slate-400 truncate">
-                        <span className="text-emerald-600 font-bold">READY</span>
-                        {doc.sha256 && (
-                          <>
-                            <span>•</span>
-                            <span>{doc.sha256.substring(0, 12)}...</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+                    )}
 
-            {/* List other non-ready docs if any */}
-            {documents.filter((d) => d.status !== "READY").length > 0 && (
-              <div className="pt-3">
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                  Đang xử lý / Không sẵn sàng:
+                    {item.quizDraft && (
+                      <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-violet-700"><ListChecks className="h-5 w-5" /></div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-slate-900">Bản nháp Quiz đã sẵn sàng</h3>
+                            <p className="mt-1 text-xs text-slate-600">{item.quizDraft.questionCount} câu · {item.quizDraft.difficulty ?? "Hỗn hợp"} · REVIEW_REQUIRED</p>
+                          </div>
+                        </div>
+                        <Link href="/review" className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-ptit-red px-4 text-xs font-bold text-white">
+                          Xem và duyệt Quiz <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {documents
-                  .filter((d) => d.status !== "READY")
-                  .map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="p-2 rounded-lg bg-slate-50 border border-slate-200 opacity-60 text-xs flex items-center justify-between"
-                    >
-                      <span className="truncate max-w-[160px] text-slate-600">
-                        {doc.title}
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">
-                        {doc.status}
-                      </span>
-                    </div>
-                  ))}
+              ))
+            )}
+            {sending && (
+              <div className="flex items-center gap-3 text-sm text-slate-500">
+                <div className="h-8 w-8 animate-pulse rounded-full bg-red-100" />
+                Đang nhận diện yêu cầu và đối chiếu nguồn…
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
-          {/* Footer of Document Selector */}
-          <div className="p-3 bg-slate-50 border-t border-slate-200 text-center">
-            <Link
-              href="/personal-documents"
-              className="text-xs font-semibold text-ptit-red  inline-flex items-center gap-1"
-            >
-              <span>+ Thêm tài liệu PDF mới</span>
-            </Link>
+          <div className="border-t border-slate-200 bg-white p-4">
+            <div className="flex items-end gap-2 rounded-2xl border border-slate-300 bg-slate-50 p-2 focus-within:border-red-300 focus-within:ring-2 focus-within:ring-red-100">
+              <textarea
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void sendMessage();
+                  }
+                }}
+                rows={2}
+                className="min-h-12 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none"
+                placeholder="Hỏi, yêu cầu tóm tắt hoặc tạo Quiz…"
+              />
+              <button
+                type="button"
+                disabled={sending || !message.trim()}
+                onClick={() => void sendMessage()}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ptit-red text-white disabled:opacity-40"
+                aria-label="Gửi yêu cầu"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-2 text-center text-[11px] text-slate-400">AI có thể sai. Hãy kiểm tra citation trước khi sử dụng kết quả.</p>
           </div>
-        </div>
+        </section>
+
+        <aside className="border-t border-slate-200 bg-slate-50/70 p-4 xl:border-l xl:border-t-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-bold text-slate-900">Nguồn đang sử dụng</h2>
+              <p className="text-xs text-slate-500">Chỉ Personal PDF của bạn</p>
+            </div>
+            <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-ptit-red">{selectedDocumentIds.length}/10</span>
+          </div>
+          <div className="relative mt-4">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs outline-none focus:border-red-300" placeholder="Tìm Personal PDF…" />
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => setSelectedDocumentIds(readyDocuments.slice(0, 10).map((item) => item.id))} className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-slate-600">Chọn tất cả</button>
+            <button type="button" onClick={() => setSelectedDocumentIds([])} className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-slate-600">Bỏ chọn</button>
+          </div>
+          <div className="mt-4 space-y-2">
+            {filteredDocuments.map((document) => {
+              const selected = selectedDocumentIds.includes(document.id);
+              const ready = document.status === "READY";
+              return (
+                <button
+                  type="button"
+                  key={document.id}
+                  disabled={!ready}
+                  onClick={() => toggleDocument(document)}
+                  className={`flex w-full items-start gap-2 rounded-xl border p-3 text-left ${selected ? "border-red-200 bg-red-50" : "border-slate-200 bg-white"} disabled:opacity-55`}
+                >
+                  {selected ? <CheckSquare className="mt-0.5 h-4 w-4 shrink-0 text-ptit-red" /> : <Square className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />}
+                  <span className="min-w-0 flex-1">
+                    <strong className="block truncate text-xs text-slate-800">{document.title}</strong>
+                    <span className="mt-1 block text-[11px] text-slate-500">{ready ? `${document.pageCount} trang · READY` : document.status}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <Link href="/personal-documents" className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2.5 text-xs font-bold text-ptit-red">
+            <Plus className="h-4 w-4" /> Tải thêm PDF
+          </Link>
+        </aside>
       </div>
+
+      {citation && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/35" role="dialog" aria-modal="true" aria-label="Chi tiết trích dẫn">
+          <button type="button" className="flex-1" onClick={() => setCitation(null)} aria-label="Đóng chi tiết trích dẫn" />
+          <aside className="h-full w-full max-w-md overflow-y-auto bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-ptit-red">Nguồn trích dẫn</span>
+                <h2 className="mt-1 font-display text-xl font-bold text-slate-900">Trang {citation.pageNumber}</h2>
+              </div>
+              <button type="button" onClick={() => setCitation(null)} className="rounded-lg border border-slate-200 p-2 text-slate-500" aria-label="Đóng"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-900"><FileText className="h-4 w-4 text-ptit-red" /> {citation.documentName}</div>
+              <p className="mt-4 border-l-2 border-red-300 pl-3 text-sm leading-6 text-slate-700">{citation.excerpt}</p>
+            </div>
+            {citation.sha256 && (
+              <button type="button" onClick={() => { void navigator.clipboard.writeText(citation.sha256 ?? ""); setCopied(true); setTimeout(() => setCopied(false), 1500); }} className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
+                {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />} {copied ? "Đã sao chép mã đối chiếu" : "Sao chép mã đối chiếu"}
+              </button>
+            )}
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

@@ -26,13 +26,11 @@ left to right direction
 actor StudentLeft as "Student"
 rectangle "StudyFlow — Student" #7ACFF5 {
 usecase "Tham gia lớp\nbằng join code" as join
-usecase "Xem slide PPTX" as view
-usecase "Ghi chú slide" as note
-usecase "Hỏi Slide Tutor" as tutor
-usecase "Tải PDF của Teacher" as pdf
+usecase "Xem Course Material PDF" as view
+usecase "Ghi chú theo trang" as note
+usecase "Hỏi Course Material Tutor" as tutor
 usecase "Quản lý Personal PDF" as docs
-usecase "Hỏi đáp Personal RAG" as rag
-usecase "Tạo Quiz từ PDF\nvà prompt riêng" as generate
+usecase "Dùng Trợ lý tài liệu:\nhỏi đáp / tóm tắt / tạo Quiz" as rag
 usecase "Duyệt bản nháp Quiz" as review
 usecase "Làm Quiz / xem kết quả\nvà nội dung cần ôn lại" as attempt
 usecase "Xem Dashboard\nvà cấu hình Daily Goal" as dashboard
@@ -40,14 +38,12 @@ usecase "Quản lý Kế hoạch & Lịch" as plan
 join -[hidden]down-> view
 view -[hidden]down-> note
 note -[hidden]down-> tutor
-tutor -[hidden]down-> pdf
-pdf -[hidden]down-> docs
-generate -[hidden]down-> review
+ tutor -[hidden]down-> docs
+rag -[hidden]down-> review
 review -[hidden]down-> attempt
 attempt -[hidden]down-> dashboard
 dashboard -[hidden]down-> plan
 plan -[hidden]down-> rag
-join -[hidden]right-> generate
 note .> view : <<extend>>\n[khi chọn ghi chú]
 tutor .> view : <<extend>>\n[khi đặt câu hỏi]
 }
@@ -56,12 +52,10 @@ StudentLeft -right- join
 StudentLeft -right- view
 StudentLeft -right- note
 StudentLeft -right- tutor
-StudentLeft -right- pdf
 StudentLeft -right- docs
-generate -right- StudentRight
+rag -right- StudentRight
 review -right- StudentRight
 attempt -right- StudentRight
 dashboard -right- StudentRight
 plan -right- StudentRight
-rag -right- StudentRight
 @enduml

@@ -1,14 +1,12 @@
 @startuml
 ' Palette: sequence; based on the Visual Paradigm guide samples (see README).
-' Interaction: Xử lý và lập chỉ mục tài liệu
+' Interaction: Xử lý và lập chỉ mục PDF
 skinparam defaultFontColor #111111
 skinparam ArrowColor #222222
 skinparam ActorBackgroundColor #7ACFF5
 skinparam ActorBorderColor #222222
 skinparam NoteBackgroundColor #FFF9D9
 skinparam NoteBorderColor #555555
-skinparam RectangleBackgroundColor white
-skinparam RectangleBorderColor #222222
 skinparam ParticipantBackgroundColor #7ACFF5
 skinparam ParticipantBorderColor #222222
 skinparam LifeLineBackgroundColor #7ACFF5
@@ -21,44 +19,41 @@ skinparam linetype ortho
 skinparam backgroundColor white
 skinparam defaultFontName Arial
 skinparam defaultFontSize 15
-skinparam classAttributeIconSize 0
-skinparam packageStyle rectangle
 skinparam roundcorner 10
-skinparam nodesep 30
-skinparam ranksep 40
 hide footbox
 autonumber
 autoactivate on
+
 actor "Student / Teacher" as User
 participant ":Web" as Web
 participant ":Java" as Java
 participant ":Python job API / worker" as AI
 participant ":Object Storage" as Storage
 participant ":pgvector (ai)" as DB
-User -> Web : Upload Personal PDF / Teacher PPTX
+
+User -> Web : Upload Personal PDF / Course Material PDF
 Web -> Java : Multipart upload
-Java -> Java : Xác thực owner, định dạng và dung lượng
+Java -> Java : Xác thực owner, PDF và dung lượng
 Java -> Storage : Lưu tệp riêng tư
-Java -> AI : /documents/index (signed URL, scope, idempotency)
+Java -> AI : POST /internal/v1/documents/index
 AI --> Java : 202 {jobId, status}
-Java --> Web : Document đang xử lý
-AI -> Storage : Đọc tệp bằng quyền tạm
-AI -> AI : Parse theo trang/slide; chunk + embedding
-AI -> DB : Lưu index/version/chunks idempotent
-opt Teacher PPTX
-AI -> Storage : Lưu slide artifacts
-end
+Java --> Web : Document PROCESSING
+AI -> Storage : Đọc PDF bằng signed URL tạm
+AI -> AI : Kiểm encryption/text layer; parse theo trang
+AI -> AI : Chunk + embedding cùng index version
+AI -> DB : Lưu document index và chunks idempotent
 loop Poll job có backoff
-Java -> AI : GET /jobs/{jobId}
-AI --> Java : Status / safe error / artifact metadata
+  Java -> AI : GET /internal/v1/jobs/{jobId}
+  AI --> Java : Status / safe error / page metadata
 end
-Java -> Java : READY + metadata hoặc FAILED
+Java -> Java : READY + pageCount hoặc FAILED
 Web -> Java : Poll document status
 Java --> Web : Trạng thái và metadata an toàn
 return Hoàn tất xử lý
+
 note over User,Java
-Personal PDF: tối đa 20 MB, phải có text layer.
-Teacher PPTX: tối đa 50 MB, READY chưa tự public.
-Teacher PDF: chỉ lưu/tải; không đi qua pipeline AI.
+MVP chỉ nhận PDF có text layer.
+Personal PDF thuộc Student; Course Material PDF thuộc Teacher.
+READY chưa đồng nghĩa với tài liệu Teacher đã public.
 end note
 @enduml

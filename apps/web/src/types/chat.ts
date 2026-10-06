@@ -1,6 +1,4 @@
-/**
- * Personal RAG Citation contract per docs/api-plan.md Section 4.5
- */
+/** Citation của Personal PDF theo page/chunk scope đã được Java xác thực. */
 export interface PersonalCitation {
   documentId: string;
   documentName: string;
@@ -9,21 +7,33 @@ export interface PersonalCitation {
   sha256?: string;
 }
 
-/**
- * Message in a Personal RAG conversation
- */
+export type AssistantCapability =
+  | "ASK_DOCUMENT"
+  | "SUMMARIZE_DOCUMENT"
+  | "CREATE_QUIZ"
+  | "NEEDS_CLARIFICATION";
+
+export interface QuizDraftSummary {
+  quizId: string;
+  questionCount: number;
+  difficulty?: string;
+  pageFrom?: number;
+  pageTo?: number;
+  status: "REVIEW_REQUIRED" | "GENERATION_FAILED";
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
-  status?: "ANSWERED" | "NO_EVIDENCE";
+  status?: "ANSWERED" | "SUMMARIZED" | "QUIZ_CREATED" | "NEEDS_CLARIFICATION" | "NO_EVIDENCE";
+  capability?: AssistantCapability;
   citations?: PersonalCitation[];
+  quizDraft?: QuizDraftSummary;
+  missingFields?: string[];
   createdAt: string;
 }
 
-/**
- * Personal RAG Conversation session
- */
 export interface ChatConversation {
   id: string;
   title: string;
@@ -34,10 +44,10 @@ export interface ChatConversation {
 }
 
 export interface CreateConversationRequest {
-  selectedDocumentIds: string[]; // 1 to 10 unique IDs
+  selectedDocumentIds: string[];
   title?: string;
 }
 
 export interface SendMessageRequest {
-  message: string; // 1 to 2000 chars, untrusted input
+  message: string;
 }

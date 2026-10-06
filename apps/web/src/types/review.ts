@@ -39,16 +39,16 @@ export interface CourseReviewWorkspace {
 }
 
 export interface DailyGoalConfig {
-  targetSlides: number;
+  targetPages: number;
   targetQuizQuestions: number;
   targetTasks: number;
 }
 
 export interface DailyGoalProgress {
   date: string;
-  targetSlides: number;
-  actualSlides: number;
-  slidesPercentage: number;
+  targetPages: number;
+  actualPages: number;
+  pagesPercentage: number;
   targetQuizQuestions: number;
   actualQuizQuestions: number;
   quizPercentage: number;

@@ -4,8 +4,8 @@
 
 - Next.js 16, React 19, TypeScript và Tailwind/CSS tokens.
 - App shell ba vai trò; API client chỉ gọi Java `/api/v1`.
-- Student: Dashboard/Streak/Daily Goal, Course Offering/join, materials, Viewer/Note/Tutor, Personal RAG, free-prompt Quiz, review theo môn/câu sai và Kế hoạch & Lịch tuần theo mock.
-- Teacher: tự tạo Course Offering, join code, Enrollment approval, Library/publication.
+- Student: Dashboard/Streak/Daily Goal, Course Offering/join, Course Material PDF Viewer/Page Note/Tutor, Personal Document Assistant, Quiz, review theo môn/câu sai và Kế hoạch & Lịch tuần theo mock.
+- Teacher: tự tạo Course Offering, join code, Enrollment approval, PDF Library/publication và AI Quiz Studio.
 - Admin: User/Role, Subject, Semester, Course Offering monitoring, feedback/audit/settings.
 - Fixture chỉ bật qua `NEXT_PUBLIC_DEMO_MODE=true` và hiển thị nhãn demo.
 
@@ -18,8 +18,8 @@
 ## Python AI service
 
 - FastAPI, Pydantic, SQLAlchemy/Alembic và worker tách biệt API.
-- Parsing Personal PDF và Teacher PPTX; chunk/embed/retrieval; RAG/citation; Slide Tutor; Quiz draft; evaluation.
-- Không dùng multi-agent trong MVP. Pipeline code-first có claim reviewer giới hạn thay vì Supervisor/auto routing.
+- Parsing Personal PDF và Course Material PDF; chunk/embed/retrieval; RAG/citation theo trang; Course Material Tutor; Quiz draft; evaluation.
+- LangChain `create_agent` trên LangGraph runtime cho một Single Orchestrator Agent với ba tool có schema: hỏi đáp, tóm tắt và tạo Quiz. Không dùng multi-agent/Supervisor trong MVP.
 
 ## Data và storage
 

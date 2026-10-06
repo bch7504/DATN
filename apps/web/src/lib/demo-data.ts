@@ -7,8 +7,7 @@ import {
 } from "@/types/course-offering";
 import {
   TeacherDocument,
-  Slide,
-  SlideNote,
+  MaterialPage,
   PersonalDocument,
 } from "@/types/material";
 import { ChatConversation } from "@/types/chat";
@@ -169,13 +168,14 @@ export let demoEnrollments: CourseEnrollment[] = [
 // Teacher Documents and Publications (FE-M3)
 export let demoTeacherDocs: TeacherDocument[] = [
   {
-    id: "doc_pptx_01",
+    id: "doc_course_pdf_01",
     title: "Bài giảng Chương 1: Giới thiệu Trí tuệ nhân tạo & Tác tử thông minh",
-    fileName: "AI_Chuong1_TacTuThongMinh.pptx",
-    fileType: "PPTX",
+    fileName: "AI_Chuong1_TacTuThongMinh.pdf",
+    fileType: "PDF",
     fileSize: 4820000,
     status: "READY",
-    totalSlides: 8,
+    totalPages: 8,
+    downloadUrl: "/api/v1/student/materials/doc_course_pdf_01/download",
     publishedOfferings: [
       {
         offeringId: "offering_ai_02",
@@ -219,10 +219,10 @@ export let demoTeacherDocs: TeacherDocument[] = [
   },
 ];
 
-// Slides for doc_pptx_01
-export const DEMO_SLIDES_AI: Slide[] = [
+// Extracted page summaries for the PDF viewer demo.
+export const DEMO_MATERIAL_PAGES: MaterialPage[] = [
   {
-    slideNumber: 1,
+    pageNumber: 1,
     title: "Chương 1: Tổng quan về Trí tuệ Nhân tạo",
     bullets: [
       "Định nghĩa AI: Khoa học và kỹ thuật tạo ra các cỗ máy thông minh.",
@@ -232,7 +232,7 @@ export const DEMO_SLIDES_AI: Slide[] = [
     ],
   },
   {
-    slideNumber: 2,
+    pageNumber: 2,
     title: "Khái niệm Tác tử (Agent) và Môi trường",
     bullets: [
       "Tác tử (Agent) là bất kỳ thực thể nào cảm nhận môi trường thông qua các bộ cảm biến (Sensors) và tác động lên môi trường đó thông qua các bộ phận chấp hành (Actuators).",
@@ -241,7 +241,7 @@ export const DEMO_SLIDES_AI: Slide[] = [
     ],
   },
   {
-    slideNumber: 3,
+    pageNumber: 3,
     title: "Tính Hợp lý (Rationality)",
     bullets: [
       "Tác tử hợp lý (Rational Agent): Là tác tử mà với mỗi chuỗi nhận thức có thể có, nó sẽ chọn một hành động giúp tối đa hóa thước đo hiệu quả (Performance measure).",
@@ -250,7 +250,7 @@ export const DEMO_SLIDES_AI: Slide[] = [
     ],
   },
   {
-    slideNumber: 4,
+    pageNumber: 4,
     title: "Cấu trúc PEAS mô tả môi trường nhiệm vụ",
     bullets: [
       "P (Performance): Thước đo hiệu quả - Tiêu chí đánh giá mức độ thành công của tác tử.",
@@ -261,7 +261,7 @@ export const DEMO_SLIDES_AI: Slide[] = [
     ],
   },
   {
-    slideNumber: 5,
+    pageNumber: 5,
     title: "Các đặc tính của Môi trường",
     bullets: [
       "Quan sát được toàn phần vs. Quan sát được một phần (Fully observable vs. Partially observable).",
@@ -273,7 +273,7 @@ export const DEMO_SLIDES_AI: Slide[] = [
     ],
   },
   {
-    slideNumber: 6,
+    pageNumber: 6,
     title: "Các loại Cấu trúc Tác tử cơ bản",
     bullets: [
       "1. Tác tử phản xạ đơn giản (Simple reflex agent): Chỉ dựa vào nhận thức hiện tại (Luật Condition-Action).",
@@ -284,7 +284,7 @@ export const DEMO_SLIDES_AI: Slide[] = [
     ],
   },
   {
-    slideNumber: 7,
+    pageNumber: 7,
     title: "Tác tử dựa trên Mục tiêu (Goal-based Agents)",
     bullets: [
       "Kiến thức về trạng thái hiện tại là chưa đủ; tác tử cần biết mục tiêu (Goal) cần đạt được.",
@@ -294,7 +294,7 @@ export const DEMO_SLIDES_AI: Slide[] = [
     ],
   },
   {
-    slideNumber: 8,
+    pageNumber: 8,
     title: "Tổng kết & Bài tập Chương 1",
     bullets: [
       "Trọng tâm: Nắm vững mô hình PEAS và phân loại đặc tính môi trường cho các bài toán thực tế.",
@@ -305,10 +305,10 @@ export const DEMO_SLIDES_AI: Slide[] = [
   },
 ];
 
-// In-memory notes storage: key = `${documentId}:${slideNumber}`
-export const demoSlideNotes: Record<string, string> = {
-  "doc_pptx_01:4": "Chú ý ghi nhớ PEAS cho kỳ thi trắc nghiệm! Thầy hay ra ví dụ về xe tự hành và chẩn đoán y khoa.",
-  "doc_pptx_01:2": "Hàm tác tử f: P* -> A nhận chuỗi nhận thức làm đầu vào.",
+// In-memory notes storage: key = `${documentId}:${pageNumber}`
+export const demoPageNotes: Record<string, string> = {
+  "doc_course_pdf_01:4": "Chú ý ghi nhớ PEAS cho kỳ thi trắc nghiệm! Thầy hay ra ví dụ về xe tự hành và chẩn đoán y khoa.",
+  "doc_course_pdf_01:2": "Hàm tác tử f: P* -> A nhận chuỗi nhận thức làm đầu vào.",
 };
 
 // Personal Documents (FE-M3)
@@ -445,9 +445,9 @@ export let demoQuizzes: Quiz[] = [
         correctOptionId: "B",
         explanation: "Mô hình PEAS gồm Performance measure, Environment, Actuators, Sensors. Chữ E là Environment (Môi trường).",
         citation: {
-          documentId: "doc_pptx_01",
-          documentName: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
-          slideNumber: 4,
+          documentId: "doc_course_pdf_01",
+          documentName: "Bai_giang_Tri_tue_Nhan_tao_Chuong_1.pdf",
+          pageNumber: 4,
           excerpt: "PEAS: P (Performance), E (Environment), A (Actuators), S (Sensors).",
         },
       },
@@ -464,9 +464,9 @@ export let demoQuizzes: Quiz[] = [
         correctOptionId: "B",
         explanation: "Tác tử phản xạ dựa trên mô hình (Model-based reflex agent) lưu giữ trạng thái bên trong để bù đắp cho môi trường quan sát một phần.",
         citation: {
-          documentId: "doc_pptx_01",
-          documentName: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
-          slideNumber: 6,
+          documentId: "doc_course_pdf_01",
+          documentName: "Bai_giang_Tri_tue_Nhan_tao_Chuong_1.pdf",
+          pageNumber: 6,
           excerpt: "2. Tác tử phản xạ dựa trên mô hình: Duy trì trạng thái bên trong để theo dõi thế giới không quan sát được.",
         },
       },
@@ -483,9 +483,9 @@ export let demoQuizzes: Quiz[] = [
         correctOptionId: "C",
         explanation: "Hàm tác tử f: P* -> A ánh xạ mọi chuỗi nhận thức P* thành một hành động A cụ thể.",
         citation: {
-          documentId: "doc_pptx_01",
-          documentName: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
-          slideNumber: 2,
+          documentId: "doc_course_pdf_01",
+          documentName: "Bai_giang_Tri_tue_Nhan_tao_Chuong_1.pdf",
+          pageNumber: 2,
           excerpt: "Hàm tác tử: f: P* -> A (từ chuỗi nhận thức sang hành động).",
         },
       },
@@ -652,9 +652,9 @@ export let demoReviewItems: ReviewItem[] = [
     correctOptionText: "B: Environment (Môi trường hoạt động)",
     explanation: "Mô hình PEAS: P (Performance), E (Environment), A (Actuators), S (Sensors). Chữ E là Environment.",
     citation: {
-      documentId: "doc_pptx_01",
-      documentName: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
-      slideNumber: 4,
+      documentId: "doc_course_pdf_01",
+      documentName: "Bai_giang_Tri_tue_Nhan_tao_Chuong_1.pdf",
+      pageNumber: 4,
       excerpt: "PEAS: P (Performance), E (Environment), A (Actuators), S (Sensors).",
     },
     lastAttemptAt: "2026-09-24T09:00:00Z",
@@ -670,9 +670,9 @@ export let demoReviewItems: ReviewItem[] = [
     correctOptionText: "C: Action (Hành động của tác tử)",
     explanation: "Hàm tác tử f: P* -> A ánh xạ chuỗi nhận thức P* thành một hành động A cụ thể.",
     citation: {
-      documentId: "doc_pptx_01",
-      documentName: "Chuong_1_Tong_quan_Tri_tue_Nhan_tao.pptx",
-      slideNumber: 2,
+      documentId: "doc_course_pdf_01",
+      documentName: "Bai_giang_Tri_tue_Nhan_tao_Chuong_1.pdf",
+      pageNumber: 2,
       excerpt: "Hàm tác tử: f: P* -> A (từ chuỗi nhận thức sang hành động).",
     },
     lastAttemptAt: "2026-09-24T09:00:00Z",
@@ -700,7 +700,7 @@ export let demoReviewItems: ReviewItem[] = [
 
 // Daily Goal Configuration (Student configures target only)
 export let demoDailyGoalConfig: DailyGoalConfig = {
-  targetSlides: 8,
+  targetPages: 8,
   targetQuizQuestions: 10,
   targetTasks: 2,
 };
@@ -708,9 +708,9 @@ export let demoDailyGoalConfig: DailyGoalConfig = {
 // Daily Goal Progress computed by Java backend
 export let demoDailyGoalProgress: DailyGoalProgress = {
   date: "2026-09-29",
-  targetSlides: 8,
-  actualSlides: 6,
-  slidesPercentage: 75,
+  targetPages: 8,
+  actualPages: 6,
+  pagesPercentage: 75,
   targetQuizQuestions: 10,
   actualQuizQuestions: 8,
   quizPercentage: 80,
@@ -720,7 +720,7 @@ export let demoDailyGoalProgress: DailyGoalProgress = {
   isCompleted: false, // overall completed only when all targets reached
 };
 
-// Study Streak computed by Java backend (Streak is based on VIEW_SLIDE, STUDY_TASK_COMPLETED, QUIZ_COMPLETED)
+// Study Streak computed by Java backend (Streak is based on VIEW_PAGE, STUDY_TASK_COMPLETED, QUIZ_COMPLETED)
 export let demoStudyStreak: StudyStreak = {
   currentStreak: 5,
   longestStreak: 12,

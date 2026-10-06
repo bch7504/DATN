@@ -102,7 +102,7 @@ export default function TeacherDashboardPage() {
             </div>
             <div className="text-2xl font-extrabold text-slate-800">10</div>
             <div className="text-[11px] text-slate-500 mt-0.5">
-              8 PPTX · 2 PDF
+              10 Course Material PDF
             </div>
           </div>
         </div>

@@ -1,34 +1,31 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-test("FE-M3: Document policy (PPTX Viewer vs PDF Download & Personal Upload)", async (t) => {
-  await t.test("Teacher PPTX policy: Viewer enabled, direct download forbidden", () => {
-    function getDocumentCapabilities(fileType) {
-      if (fileType === "PPTX") {
-        return { canViewWeb: true, canDownload: false, hasTutor: true, hasNotes: true };
-      }
-      if (fileType === "PDF") {
-        return { canViewWeb: false, canDownload: true, hasTutor: false, hasNotes: false };
-      }
-      throw new Error("Invalid fileType");
+test("FE-M3: Course Material and Personal Document PDF policy", async (t) => {
+  await t.test("Course Material PDF supports Student viewer, page notes and Tutor", () => {
+    function getStudentCapabilities(fileType, enrollmentStatus, published) {
+      if (fileType !== "PDF") throw new Error("UNSUPPORTED_MEDIA_TYPE");
+      const authorized = enrollmentStatus === "APPROVED" && published;
+      return {
+        canViewWeb: authorized,
+        hasTutor: authorized,
+        hasPageNotes: authorized,
+        citationKey: "pageNumber",
+      };
     }
 
-    const pptxCaps = getDocumentCapabilities("PPTX");
-    assert.equal(pptxCaps.canViewWeb, true, "PPTX must have web slide viewer");
-    assert.equal(pptxCaps.canDownload, false, "PPTX must NOT have direct download");
-    assert.equal(pptxCaps.hasTutor, true, "PPTX must support AI Slide Tutor");
-    assert.equal(pptxCaps.hasNotes, true, "PPTX must support personal slide notes");
-
-    const pdfCaps = getDocumentCapabilities("PDF");
-    assert.equal(pdfCaps.canViewWeb, false, "Teacher PDF must NOT have web viewer");
-    assert.equal(pdfCaps.canDownload, true, "Teacher PDF must be downloadable");
-    assert.equal(pdfCaps.hasTutor, false, "Teacher PDF must NOT have tutor in MVP");
+    const capabilities = getStudentCapabilities("PDF", "APPROVED", true);
+    assert.equal(capabilities.canViewWeb, true);
+    assert.equal(capabilities.hasTutor, true);
+    assert.equal(capabilities.hasPageNotes, true);
+    assert.equal(capabilities.citationKey, "pageNumber");
+    assert.throws(() => getStudentCapabilities("PPTX", "APPROVED", true), /UNSUPPORTED_MEDIA_TYPE/);
+    assert.equal(getStudentCapabilities("PDF", "PENDING", true).canViewWeb, false);
   });
 
-  await t.test("Personal document upload policy: only PDF accepted, DOCX/PPTX rejected", () => {
-    function validatePersonalUpload(fileName, sizeInBytes) {
-      const lower = fileName.toLowerCase();
-      if (!lower.endsWith(".pdf")) {
+  await t.test("Teacher and Personal uploads accept PDF only", () => {
+    function validatePdfUpload(fileName, sizeInBytes) {
+      if (!fileName.toLowerCase().endsWith(".pdf")) {
         return { valid: false, code: "UNSUPPORTED_MEDIA_TYPE", status: 415 };
       }
       if (sizeInBytes > 20 * 1024 * 1024) {
@@ -37,34 +34,31 @@ test("FE-M3: Document policy (PPTX Viewer vs PDF Download & Personal Upload)", a
       return { valid: true };
     }
 
-    assert.equal(validatePersonalUpload("notes.pdf", 1024).valid, true);
-    assert.equal(validatePersonalUpload("essay.docx", 1024).valid, false);
-    assert.equal(validatePersonalUpload("essay.docx", 1024).code, "UNSUPPORTED_MEDIA_TYPE");
-    assert.equal(validatePersonalUpload("slides.pptx", 1024).valid, false);
-    assert.equal(validatePersonalUpload("huge.pdf", 25 * 1024 * 1024).valid, false);
-    assert.equal(validatePersonalUpload("huge.pdf", 25 * 1024 * 1024).code, "FILE_TOO_LARGE");
+    assert.equal(validatePdfUpload("notes.pdf", 1024).valid, true);
+    assert.equal(validatePdfUpload("slides.pptx", 1024).code, "UNSUPPORTED_MEDIA_TYPE");
+    assert.equal(validatePdfUpload("essay.docx", 1024).valid, false);
+    assert.equal(validatePdfUpload("huge.pdf", 25 * 1024 * 1024).code, "FILE_TOO_LARGE");
   });
 
-  await t.test("Slide Tutor grounding: off-topic questions must return NO_EVIDENCE", () => {
-    function simulateTutor(slideContent, question) {
-      const q = question.toLowerCase();
-      if (q.includes("thời tiết") || q.includes("bóng đá")) {
+  await t.test("Course Material Tutor returns page citations or NO_EVIDENCE", () => {
+    function simulateTutor(pageContent, question) {
+      const normalized = question.toLowerCase();
+      if (normalized.includes("thời tiết") || normalized.includes("bóng đá")) {
         return { status: "NO_EVIDENCE", answer: null, citations: [] };
       }
       return {
         status: "ANSWERED",
-        answer: `Dựa trên slide: ${slideContent}`,
-        citations: [{ slideNumber: 1, excerpt: slideContent }],
+        answer: `Dựa trên trang PDF: ${pageContent}`,
+        citations: [{ pageNumber: 1, excerpt: pageContent }],
       };
     }
 
-    const onTopic = simulateTutor("Khái niệm về Tác tử thông minh", "Tác tử là gì?");
+    const onTopic = simulateTutor("Khái niệm về tác tử thông minh", "Tác tử là gì?");
     assert.equal(onTopic.status, "ANSWERED");
-    assert.ok(onTopic.citations.length > 0);
+    assert.equal(onTopic.citations[0].pageNumber, 1);
 
-    const offTopic = simulateTutor("Khái niệm về Tác tử thông minh", "Dự báo thời tiết hôm nay?");
+    const offTopic = simulateTutor("Khái niệm về tác tử thông minh", "Dự báo thời tiết hôm nay?");
     assert.equal(offTopic.status, "NO_EVIDENCE");
     assert.equal(offTopic.answer, null);
-    assert.equal(offTopic.citations.length, 0);
   });
 });

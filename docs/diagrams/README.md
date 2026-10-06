@@ -4,8 +4,8 @@ Mở [gallery tổng](index.html), [PDF sơ đồ](luong-use-case-studyflow.pdf)
 
 ## Nguồn và cách dùng
 
-- `.puml`: nguồn UML hiện hành; `.svg` và `.png`: ảnh xuất tương ứng. Các `.mmd` cũ cùng tên chỉ là bản trước khi chuẩn hóa UML, không dùng để render đè bộ mới.
-- ERD vật lý dùng ảnh `chuong-3/erd-physical-03-studyflow-overview.svg`; quy ước và chú giải nguồn được ghi ngay trong file này. Đây không phải file PlantUML hay schema đã migrate.
+- `.puml`: nguồn UML hiện hành; `.svg` và `.png`: ảnh xuất tương ứng. Các `.mmd` cùng tên là bản mô tả Mermaid phụ đã được đồng bộ nội dung nhưng không dùng để render đè bộ UML báo cáo.
+- ERD vật lý dùng nguồn `chuong-3/erd-physical-03-studyflow-overview.puml` và ảnh cùng tên. Đây là thiết kế mục tiêu 27 bảng `app` + 4 bảng `ai`, chưa phải bằng chứng migration đã chạy.
 - Word: ưu tiên SVG, dùng PNG nếu trình soạn thảo không hỗ trợ. Đường nối dùng đoạn thẳng/vuông góc và hạn chế giao cắt. Chỉ hình có nhiều bước/cột mới dùng bố cục và trang ngang; hình ngắn dùng dọc. Sequence vẫn tiến triển thời gian từ trên xuống, Activity chia swimlane; ERD tổng quan dùng trang phù hợp hoặc phụ lục khổ lớn, không xoay chữ hay thu nhỏ tới mức không đọc được.
 - Trước mỗi ảnh có câu dẫn; dưới ảnh có số hình/tên; sau ảnh có đoạn giải thích. Không lấy số hình của bản PDF cũ làm số hình hiện hành.
 - Màu sắc theo mẫu tham khảo của từng loại biểu đồ Visual Paradigm; không bắt buộc màu xám hay một palette duy nhất cho mọi hình. Phân biệt trạng thái/nhánh bằng ký hiệu và nhãn, không chỉ bằng màu.
@@ -62,9 +62,9 @@ Số trang dưới đây tính từ trang đầu file PDF, không phải số in
 |---|---|---|
 | 19–20 | Chuẩn hóa actor/elip/boundary; bỏ quan hệ thao tác trước/sau trong Use Case | 2.1–2.4 |
 | 24 | Giữ luồng Teacher duyệt; làm rõ PENDING chưa có quyền học | 3.13 |
-| 25–26 | RAG và tạo Quiz độc lập; nguồn câu sai Quiz là trang Personal PDF, không phải slide; Student tự lập lịch | 3.7, 3.9, 3.15, 3.16 |
+| 25–26 | Personal Assistant chọn tool hỏi/tóm tắt/tạo Quiz; không cần hỏi trước khi tạo Quiz; nguồn câu sai là trang Personal PDF; Student tự lập lịch | 3.7, 3.9, 3.15, 3.16 |
 | 27 | Giữ ba event tính Streak; không yêu cầu Daily Goal 100% | 3.17 |
-| 28 | Sửa endpoint Tutor thành `/student/materials/{documentId}/slides/{number}/tutor` | 3.11 |
+| 28 | Sửa endpoint Tutor thành `/student/materials/{documentId}/pages/{pageNumber}/tutor` | 3.11 |
 | 29 | Bổ sung public 202, polling Java và accept trước làm bài | 3.12 |
 | 30 | Evidence gate trước model sinh đáp án; rewrite giới hạn cùng snapshot | 3.10 |
 | 31–32 | Index trả 202/jobId, Java poll; không vẽ callback hay chờ đồng bộ đến READY | 3.1, 3.14 |

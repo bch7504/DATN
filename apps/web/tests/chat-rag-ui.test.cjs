@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-test("FE-M4: Personal Chat RAG Contract & UI Policies", async (t) => {
+test("FE-M4: Personal Document Assistant Contract & UI Policies", async (t) => {
   await t.test("Document scope validation: requires 1 to 10 READY documents", () => {
     function validateDocScope(docs, selectedIds) {
       if (!selectedIds || selectedIds.length === 0) {

@@ -7,8 +7,8 @@
 | DASH-FR-001 | Student Dashboard hiển thị Course Offering, deadline, viewing progress, task, Quiz, Study Streak và Daily Goal. |
 | DASH-FR-002 | Không có menu/route/màn `Tiến độ & Thống kê` độc lập; Dashboard hiển thị đầy đủ tiến độ theo từng Course Offering. |
 | DASH-FR-003 | Java tính `currentStreak`, `longestStreak`, `activityDays`; client không tự tính. |
-| DASH-FR-004 | Streak chỉ dùng `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`, không dùng login/Note/ASK_AI. |
-| DASH-FR-005 | Student cấu hình target Slide/câu Quiz/Study Task; Java tính actual theo local date. |
+| DASH-FR-004 | Streak chỉ dùng `VIEW_PAGE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`, không dùng login/Note/ASK_AI. |
+| DASH-FR-005 | Student cấu hình target Page/câu Quiz/Study Task; Java tính actual theo local date. |
 | DASH-BR-001 | Daily Goal completion không quyết định Streak; một hoạt động hợp lệ là đủ duy trì ngày học. |
 | PLAN-FR-001 | Student tự CRUD Kế hoạch/task/deadline và xem projection lịch tuần theo khung giờ; AI không tự điều phối. |
 | PLAN-FR-002 | Màn Kế hoạch & Lịch hỗ trợ chuyển tuần, thêm lịch bằng nút hoặc ô trống, thêm task và cập nhật trạng thái task. |
@@ -27,7 +27,7 @@
 - **Errors:** `401 UNAUTHENTICATED`; `422 INVALID_TIME_ZONE` nếu không thể dùng timezone hợp lệ/fallback.
 - **Side effect:** không có; endpoint read-only.
 
-`activeCourseOfferings` trong Dashboard chứa progress theo PPTX/document cùng Quiz/Study Plan summary của từng lớp được phép. Teacher PDF không có page progress. Viewing Progress không đồng nghĩa hiểu/thành thạo; không có Topic Mastery.
+`activeCourseOfferings` trong Dashboard chứa progress theo Course Material PDF cùng Quiz/Study Plan summary của từng lớp được phép. Personal PDF không có progress lớp. Viewing Progress không đồng nghĩa hiểu/thành thạo; không có Topic Mastery.
 
 ## 3. Study Streak contract
 
@@ -43,13 +43,13 @@
 ### `GET /api/v1/student/daily-goal`
 
 - **Output:** target/actual, `completed`, `date`, `timeZone`.
-- `slideActual`: số slide phân biệt đã xem trong ngày.
+- `pageActual`: số trang Course Material PDF phân biệt đã xem trong ngày.
 - `quizQuestionActual`: số câu thuộc attempt đã submit/scored trong ngày.
 - `taskActual`: số Study Task chuyển completed trong ngày.
 
 ### `PUT /api/v1/student/daily-goal`
 
-- **Input:** `{slideTarget:0..100,quizQuestionTarget:0..200,taskTarget:0..50}`; bắt buộc đủ ba trường và tổng target > 0.
+- **Input:** `{pageTarget:0..100,quizQuestionTarget:0..200,taskTarget:0..50}`; bắt buộc đủ ba trường và tổng target > 0.
 - **Output:** target mới cùng actual do Java tính lại.
 - **Errors:** `422 INVALID_DAILY_GOAL`; caller giữ target cũ.
 - **Side effect:** cập nhật cấu hình lặp cho các ngày sau; không tạo learning event và không sửa Streak.
@@ -72,11 +72,11 @@
 ## 6. Acceptance criteria
 
 - Retry cùng view/task/Quiz idempotency key không tăng actual hoặc progress hai lần.
-- Xem lại cùng slide trong một ngày chỉ tăng `slideActual` một lần; vẫn giữ view timestamp cần thiết.
+- Xem lại cùng page trong một ngày chỉ tăng `pageActual` một lần; vẫn giữ view timestamp cần thiết.
 - Hoạt động hợp lệ ngày hôm nay duy trì Streak dù Daily Goal chưa đạt 100%.
 - Chỉ login, lưu Note hoặc hỏi AI không duy trì Streak.
 - Client sửa actual/currentStreak/score trong payload không ảnh hưởng kết quả Java.
 - Dashboard không có link sang trang Progress riêng và hiển thị trực tiếp tiến độ đúng enrollment của từng Course Offering.
 - MVP không xuất hiện XP, Level, Achievement, badge hoặc leaderboard.
-- Nội dung cần ôn lại trỏ đúng document + page/slide của câu sai; không xuất hiện nhãn “yếu/mạnh” do AI suy luận.
+- Nội dung cần ôn lại trỏ đúng document + page của câu sai; không xuất hiện nhãn “yếu/mạnh” do AI suy luận.
 - Làm lại Quiz tạo attempt mới và giữ nguyên các attempt trước để so sánh.

@@ -33,21 +33,21 @@ rectangle "StudyFlow Platform" as platform {
 
   rectangle "Backend services" as backend {
     component "Java Spring Boot\nAuth · RBAC · nghiệp vụ\nQuiz lifecycle · progress" as java
-    component "Python FastAPI\nParsing · RAG · citation\nSinh Quiz · evaluation" as ai
+    component "Python FastAPI\nPDF intelligence · RAG · citation\nSingle Agent · sinh Quiz · evaluation" as ai
   }
 
   rectangle "Platform data & file storage" as data {
     database "PostgreSQL\nschema app\nJava sở hữu" as appdb
     database "PostgreSQL + pgvector\nschema ai\nPython sở hữu" as aidb
-    storage "Object Storage\nTài liệu và slide artifacts" as storage
+    storage "Object Storage\nPersonal PDF · Course Material PDF" as storage
   }
 
   web --> java : REST /api/v1
   java --> ai : Internal API\nauthorized scope
   java --> appdb
   ai --> aidb
-  java --> storage : quản lý metadata / cấp URL
-  ai --> storage : đọc và render theo scope
+  java --> storage : metadata / signed URL
+  ai --> storage : đọc PDF theo scope
 }
 
 cloud "Model Provider\nChat model · Embedding model" as model

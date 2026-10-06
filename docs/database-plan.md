@@ -70,11 +70,11 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 ### `documents`
 
-`id`, `owner_id`, `owner_role`, `document_scope (TEACHER_LIBRARY|PERSONAL)`, `file_name`, `display_name`, `file_type (PDF|PPTX)`, `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, `slide_count`, timestamps, soft-delete fields.
+`id`, `owner_id`, `owner_role`, `document_scope (COURSE_MATERIAL|PERSONAL)`, `file_name`, `display_name`, `file_type=PDF`, `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, timestamps, soft-delete fields.
 
 - Personal: owner Student, chỉ PDF có text layer cho AI.
-- Teacher Library: owner Teacher, PDF/PPTX.
-- PPTX muốn public phải `READY`; PDF Teacher không AI index.
+- Course Material: owner Teacher, chỉ PDF có text layer và được AI index theo trang.
+- Mọi document muốn dùng cho Tutor/Quiz hoặc public phải `READY`.
 - Object key không trả browser.
 
 ### `document_publications`
@@ -85,25 +85,25 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 - Document owner và Course Offering owner phải là Teacher hiện tại.
 - Re-public re-activate row cũ; không tạo duplicate hoặc nhân bản file.
 
-### `slides`
+### `document_pages`
 
-`id`, `document_id`, `slide_number`, `rendered_key`, `preview_key`, `extracted_text`, `processing_status`.
+`id`, `document_id`, `page_number`, optional `preview_key`, `processing_status`.
 
-- Unique `(document_id, slide_number)`.
-- Chỉ PPTX Teacher; frontend không nhận file gốc.
+- Unique `(document_id, page_number)`.
+- Metadata trang phục vụ Viewer/Note/progress; text/chunk/vector thuộc schema `ai`.
 
-### `slide_notes`
+### `page_notes`
 
-`id`, `student_id`, `document_id`, `slide_number`, `content`, timestamps.
+`id`, `student_id`, `document_id`, `page_number`, `content`, timestamps.
 
-- Unique `(student_id, document_id, slide_number)`.
+- Unique `(student_id, document_id, page_number)`.
 - Mọi read/write kiểm enrollment `APPROVED`, publication và archive/lock policy hiện tại.
 
 ## 5. Chat và AI data
 
 ### Schema `app`
 
-`chat_conversations`: `id`, `student_id`, `type (PERSONAL_RAG|SLIDE_TUTOR)`, `title`, `status`, timestamps.
+`chat_conversations`: `id`, `student_id`, `type=PERSONAL_ASSISTANT`, `title`, `status`, timestamps.
 
 `conversation_documents`: `conversation_id`, `document_id`, `document_version`, timestamps.
 
@@ -111,10 +111,10 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 - Chỉ Personal PDF owner/READY được thêm vào Personal conversation.
 - Đây là snapshot scope do Java sở hữu; client không tự mở rộng scope khi gửi message.
 
-`chat_messages`: `id`, `conversation_id`, `role`, `content`, `answer_status`, `citations_json`, `trace_id`, timestamps.
+`chat_messages`: `id`, `conversation_id`, `role`, `content`, `answer_status`, `capability`, `structured_result_json`, `citations_json`, `trace_id`, timestamps.
 
 - Retention theo system setting; system log không sao chép message content.
-- Citation JSON chỉ lưu structured document/page hoặc document/slide data đã Java revalidate.
+- Citation JSON chỉ lưu structured document/page data đã Java revalidate. `structured_result_json` không chứa provider payload hoặc internal prompt.
 
 ### Schema `ai`
 
@@ -122,7 +122,9 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 `ai.document_indexes`: document/version/pipeline, embedding provider/model/dimensions, status, activated_at.
 
-`ai.document_chunks`: `id`, document/version/owner/source_type, page/slide, chunk_index, content, `embedding vector(1024)`, timestamps.
+`ai.document_chunks`: `id`, document/version/owner/source_type, page_number, chunk_index, content, `embedding vector(1024)`, timestamps.
+
+`ai.agent_runs`: `id`, `request_id`, `conversation_id`, `selected_tool`, `status`, safe latency/token/error metadata, timestamps. Không lưu document content hoặc secret.
 
 - Unique job idempotency key.
 - Unique `(document_id, document_version, chunk_index)`.
@@ -134,10 +136,10 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 ### `learning_progress`
 
-`id`, `student_id`, `course_offering_id`, `document_id`, `last_slide`, `viewed_slide_count`, `progress_percent`, `completed_at`, `updated_at`.
+`id`, `student_id`, `course_offering_id`, `document_id`, `last_page`, `viewed_page_count`, `progress_percent`, `completed_at`, `updated_at`.
 
 - Unique `(student_id, document_id)`.
-- Chỉ PPTX/Slide có document progress; PDF Teacher không page progress.
+- Course Material PDF có progress theo trang; Personal PDF không tính progress lớp.
 - Mọi update kiểm enrollment `APPROVED` hoặc archive access policy.
 
 ### `learning_events`
@@ -146,7 +148,7 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 - `activity_date` được Java chốt theo `users.time_zone` tại thời điểm ghi event; không để client truyền.
 - `quantity >= 1`; `QUIZ_COMPLETED` dùng số câu trong attempt đã chấm, `STUDY_TASK_COMPLETED` dùng `1`.
-- Unique `(student_id, idempotency_key)`; partial unique `(student_id, target_id, activity_date, event_type)` cho `VIEW_SLIDE` để Daily Goal không đếm lại cùng slide trong ngày.
+- Unique `(student_id, idempotency_key)`; partial unique `(student_id, target_id, activity_date, event_type)` cho `VIEW_PAGE` để Daily Goal không đếm lại cùng trang trong ngày.
 - Index `(student_id, activity_date, event_type)` phục vụ Dashboard/Streak/Daily Goal.
 
 Event chính:
@@ -154,7 +156,7 @@ Event chính:
 ```text
 COURSE_JOIN_REQUESTED
 COURSE_JOIN_APPROVED
-VIEW_SLIDE
+VIEW_PAGE
 NOTE_SAVED
 PERSONAL_DOCUMENT_UPLOADED
 PERSONAL_DOCUMENT_INDEXED
@@ -168,15 +170,15 @@ QUIZ_COMPLETED
 
 Metadata không chứa join code, prompt, document text hay secret.
 
-Chỉ `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` được dùng để tính Streak. Login, `NOTE_SAVED`, `ASK_AI` và upload/index không tạo activity day.
+Chỉ `VIEW_PAGE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` được dùng để tính Streak. Login, `NOTE_SAVED`, `ASK_AI` và upload/index không tạo activity day.
 
 ### `daily_goals`
 
-`student_id`, `slide_target`, `quiz_question_target`, `task_target`, `updated_at`.
+`student_id`, `page_target`, `quiz_question_target`, `task_target`, `updated_at`.
 
 - Primary key/FK `student_id`; một cấu hình đang áp dụng cho mỗi Student và lặp lại cho các ngày sau đến khi thay đổi.
-- Check: `slide_target 0..100`, `quiz_question_target 0..200`, `task_target 0..50` và tổng target lớn hơn `0`.
-- Chỉ lưu target. `slide_actual`, `quiz_question_actual`, `task_actual` và `completed` được Java tính từ dữ liệu/event của `activity_date` hiện tại, không lưu để client cập nhật.
+- Check: `page_target 0..100`, `quiz_question_target 0..200`, `task_target 0..50` và tổng target lớn hơn `0`.
+- Chỉ lưu target. `page_actual`, `quiz_question_actual`, `task_actual` và `completed` được Java tính từ dữ liệu/event của `activity_date` hiện tại, không lưu để client cập nhật.
 - Streak không phụ thuộc `completed`; một event học hợp lệ là đủ duy trì ngày học.
 
 ## 7. Kế hoạch & Lịch (Study Plan/Calendar)
@@ -195,13 +197,13 @@ Các bảng phần này phục vụ task, deadline và projection lịch tuần 
 
 ### `quizzes`
 
-`id`, `student_id`, nullable `course_offering_id`, title/description, `user_prompt`, `generation_type=AI_PERSONAL_DOCUMENTS`, status, question_count, optional `regenerated_from_quiz_id`, timestamps.
+`id`, `created_by`, `creator_role (STUDENT|TEACHER)`, nullable `course_offering_id`, title/description, `user_prompt`, `generation_type (PERSONAL_STUDENT|COURSE_TEACHER)`, status, question_count, optional `regenerated_from_quiz_id`, timestamps.
 
-State: `GENERATING → REVIEW_REQUIRED → READY|REJECTED`; generation lỗi → `GENERATION_FAILED`; lịch sử → `ARCHIVED`.
+Student state: `GENERATING → REVIEW_REQUIRED → READY|REJECTED`; Teacher state: `GENERATING → REVIEW_REQUIRED → PUBLISHED|REJECTED`; generation lỗi → `GENERATION_FAILED`; lịch sử → `ARCHIVED`.
 
 ### Source/question/attempt
 
-- `quiz_sources`: quiz + Personal document/version; unique `(quiz_id, document_id)`.
+- `quiz_sources`: quiz + PDF document/version/page range/source type; unique `(quiz_id, document_id)`.
 - `quiz_questions`: `MCQ_SINGLE`, đúng 4 options, một correct index, explanation, order.
 - `quiz_question_sources`: question + document/page/excerpt.
 - `quiz_attempts`: quiz/student/start/submit/score/status.
@@ -209,7 +211,7 @@ State: `GENERATING → REVIEW_REQUIRED → READY|REJECTED`; generation lỗi →
 
 Java validate structured output và chấm trong transaction. Python/LLM không tạo attempt và không chấm điểm.
 
-- `course_offering_id` chỉ được gán khi Student accept và có enrollment `APPROVED`; `NULL` nghĩa là Quiz cá nhân.
+- Student có thể gắn `course_offering_id` khi accept và có enrollment `APPROVED`; Teacher Quiz bắt buộc gắn Course Offering do Teacher sở hữu trước khi publish. `NULL` nghĩa là Quiz cá nhân.
 - `quiz_sources` luôn mô tả nguồn sinh Quiz và độc lập với `course_offering_id` dùng để nhóm nơi ôn tập.
 - “Nội dung cần ôn lại” là projection từ `quiz_answers.is_correct=false → quiz_questions → quiz_question_sources`; không lưu kết luận năng lực do AI.
 - Mỗi lượt làm là một `quiz_attempts` mới; submit không overwrite attempt đã hoàn thành.

@@ -11,7 +11,6 @@ export interface QuizOption {
 export interface QuizCitation {
   documentId: string;
   documentName: string;
-  slideNumber?: number;
   pageNumber?: number;
   excerpt?: string;
 }

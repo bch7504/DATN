@@ -28,15 +28,18 @@ state "Chuẩn bị Quiz" as PREPARATION #7ACFF5 {
   state "Đã từ chối" as REJECTED
 
   GENERATING -down-> REVIEW_REQUIRED : Bản nháp hợp lệ
-  GENERATING -right-> GENERATION_FAILED
-  GENERATION_FAILED -left-> GENERATING : Tạo yêu cầu hợp lệ
-  REVIEW_REQUIRED -right-> REJECTED
+  GENERATING -right-> GENERATION_FAILED : Lỗi sinh / thiếu evidence
+  GENERATION_FAILED -left-> GENERATING : Tạo yêu cầu mới hợp lệ
+  REVIEW_REQUIRED -right-> REJECTED : Từ chối
 }
 
-state "Sẵn sàng ôn tập" as READY
+state "Sẵn sàng ôn tập cá nhân" as READY
+state "Đã phát hành cho lớp" as PUBLISHED
 
-REVIEW_REQUIRED -down-> READY : Student chấp nhận\n[Quiz cá nhân hoặc enrollment APPROVED]
+REVIEW_REQUIRED -down-> READY : Student chấp nhận
+REVIEW_REQUIRED -down-> PUBLISHED : Teacher phát hành
 READY -right-> READY : Attempt mới
+PUBLISHED -right-> PUBLISHED : Student attempt mới
 REJECTED -down-> [*]
 GENERATION_FAILED -down-> [*]
 
@@ -46,7 +49,12 @@ không ghi đè phiên bản trước.
 end note
 
 note left of READY
+Quiz cá nhân chỉ sẵn sàng sau khi Student accept.
 Mỗi attempt được lưu riêng.
-Java ghi nhận QUIZ_COMPLETED.
+end note
+
+note right of PUBLISHED
+Teacher review/chỉnh sửa trước khi publish.
+Teacher không có chatbot cá nhân hoặc Tutor.
 end note
 @enduml

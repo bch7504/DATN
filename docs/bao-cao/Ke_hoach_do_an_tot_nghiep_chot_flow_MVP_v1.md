@@ -2059,3 +2059,6 @@ Flow này được sử dụng làm baseline để đồng bộ:
 8.  Phân chia công việc 3 thành viên.
 9.  Test cases.
 10. Demo flow.
+# TRẠNG THÁI TÀI LIỆU: SUPERSEDED
+
+> Đây là phương án MVP v1 được giữ lại để truy vết lịch sử. Không dùng file này làm nguồn triển khai hiện hành. Phương án đang áp dụng là [MVP v2 — PDF, Single Agent và Teacher AI Quiz](Ke_hoach_do_an_tot_nghiep_MVP_v2_PDF_Single_Agent_Teacher_Quiz.md), cùng `docs/specification.md` và `docs/api-plan.md`.

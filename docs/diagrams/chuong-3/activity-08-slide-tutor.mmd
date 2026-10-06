@@ -1,33 +1,14 @@
 flowchart LR
-  subgraph AUTH["1. Hỏi tại slide — Java"]
-    direction TB
-    A["Student nhập câu hỏi"] --> B{"APPROVED, public,<br/>READY, không lock/revoke?"}
+  subgraph AUTH["1. Course Material PDF — Java"]
+    A["Student hỏi tại trang đang xem"] --> B{"APPROVED, public, READY?"}
     B -->|Không| X(["Từ chối; không gọi AI"])
-    B -->|Có| C["Cấp document / version<br/>current slide / allowed slides"]
+    B -->|Có| C["document/version/currentPage/allowedPages"]
   end
-  subgraph RET["2. Retrieval — Python"]
-    direction TB
-    D["Filter scope trước vector search<br/>ưu tiên slide hiện tại"] --> SS["Post-filter; evidence snapshot"]
-    SS --> E{"Đủ bằng chứng?"}
-    E -->|Không| N(["NO_EVIDENCE<br/>không gọi LLM"])
-    E -->|Có| CTX["Context từ slide được phép"]
+  subgraph AI["2. Python AI"]
+    D["Retrieval đúng page scope"] --> E{"Đủ bằng chứng?"}
+    E -->|Không| N(["NO_EVIDENCE"])
+    E -->|Có| G["Sinh answer + page citations"]
+    G --> H["Validate grounding; rewrite tối đa 1 lần"]
   end
-  subgraph GEN["3. Generation — Python"]
-    direction TB
-    F["LLM sinh answer từ snapshot"] --> G{"Grounding / citation đạt?"}
-    G -->|Không| H["Rewrite tối đa 1 lần<br/>giữ snapshot"]
-    H --> I{"Kiểm lại đạt?"}
-    I -->|Không| NN["NO_EVIDENCE"]
-    I -->|Có| OK["ANSWERED + slide citations"]
-    G -->|Có| OK
-  end
-  subgraph RESP["4. Phản hồi — Java"]
-    direction TB
-    J{"Revalidate quyền,<br/>version / output đạt?"} -->|Có| R["Hiển thị cạnh slide<br/>citation documentId + slideNumber"]
-    J -->|Không| XX(["Từ chối; không lộ nguồn"])
-    ERR["Lỗi hạ tầng trả safe code<br/>không phải NO_EVIDENCE"]
-  end
-  AUTH -->|Scope hợp lệ| RET
-  RET -->|Đủ evidence| GEN
-  RET -->|NO_EVIDENCE| RESP
-  GEN -->|Structured result| RESP
+  C --> D
+  H --> J["Java revalidate rồi trả cạnh PDF Viewer"]

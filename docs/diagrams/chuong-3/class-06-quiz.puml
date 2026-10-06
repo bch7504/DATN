@@ -2,12 +2,8 @@
 ' Palette: class; based on the Visual Paradigm guide samples (see README).
 skinparam defaultFontColor #111111
 skinparam ArrowColor #222222
-skinparam ActorBackgroundColor #7ACFF5
-skinparam ActorBorderColor #222222
 skinparam NoteBackgroundColor #FFF9D9
 skinparam NoteBorderColor #555555
-skinparam RectangleBackgroundColor white
-skinparam RectangleBorderColor #222222
 hide circle
 skinparam ClassBackgroundColor #7ACFF5
 skinparam ClassBorderColor #222222
@@ -23,39 +19,48 @@ skinparam roundcorner 10
 skinparam nodesep 30
 skinparam ranksep 40
 top to bottom direction
+
 class QuizController <<Java boundary>> {
-+generate(body: QuizRequest): AcceptedQuiz
-+accept(id: UUID, body: AcceptQuizRequest): QuizSummary
+  +generate(body: QuizRequest): AcceptedQuiz
+  +accept(id: UUID, body: AcceptQuizRequest): QuizSummary
+  +publish(id: UUID, body: PublishQuizRequest): QuizSummary
 }
 class QuizRequest <<DTO>> {
-+selectedDocumentIds: UUID[1..10]
-+prompt: String
+  +mode: GenerationMode
+  +selectedDocumentIds: UUID[1..10]
+  +questionCount: Integer
+  +difficulty: Difficulty
+  +topic: String?
+  +pageRange: PageRange?
+  +instructions: String?
 }
 class QuizService <<Java control>> {
-+create(userId: UUID, request: QuizRequest): AcceptedQuiz
-+accept(userId: UUID, id: UUID, request: AcceptQuizRequest): QuizSummary
+  +create(actorId: UUID, request: QuizRequest): AcceptedQuiz
+  +acceptStudent(userId: UUID, id: UUID, request: AcceptQuizRequest): QuizSummary
+  +publishTeacher(teacherId: UUID, id: UUID, request: PublishQuizRequest): QuizSummary
 }
 class QuizGenerationJob <<Java job>> {
-+execute(quizId: UUID, runId: UUID): JobResult
+  +execute(quizId: UUID, runId: UUID): JobResult
 }
 class AiClient <<HTTP adapter>> {
-+generate(request: InternalQuizRequest): QuizDraft
+  +generate(request: InternalQuizRequest): QuizDraft
 }
 class QuizGenerator <<Python control>> {
-+generate(scope: AuthorizedScope, prompt: String): QuizDraft
+  +generate(scope: AuthorizedScope, constraints: QuizConstraints): QuizDraft
 }
 class QuizValidator <<Python service>> {
-+validate(draft: QuizDraft, evidence: EvidenceSet): ValidationResult
+  +validate(draft: QuizDraft, evidence: EvidenceSet): ValidationResult
 }
 class QuizDraft <<DTO>> {
-+questions: McqSingleQuestion[]
+  +questions: McqSingleQuestion[]
 }
 class McqSingleQuestion <<DTO>> {
-+options: String[4]
-+correctOptionIndex: Integer
-+explanation: String
-+sources: PageCitation[]
+  +options: String[4]
+  +correctOptionIndex: Integer
+  +explanation: String
+  +sources: PageCitation[]
 }
+
 QuizController ..> QuizRequest
 QuizController --> QuizService
 QuizService ..> QuizGenerationJob : enqueue
@@ -64,9 +69,10 @@ AiClient ..> QuizGenerator : internal HTTP
 QuizGenerator --> QuizValidator
 QuizDraft "1" *-- "1..*" McqSingleQuestion
 QuizGenerator ..> QuizDraft
+
 note bottom of QuizService
-Java sở hữu GENERATING / REVIEW_REQUIRED / READY,
-accept / reject / regenerate và scoring.
-Python chỉ trả draft hoặc lỗi có cấu trúc.
+Student: REVIEW_REQUIRED → READY / REJECTED.
+Teacher: REVIEW_REQUIRED → PUBLISHED / REJECTED.
+Java sở hữu lifecycle và scoring; Python chỉ trả draft.
 end note
 @enduml

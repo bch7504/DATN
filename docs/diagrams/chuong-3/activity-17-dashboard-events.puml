@@ -24,11 +24,11 @@ start
 :Kiểm quyền, target và idempotency;
 if (Event tính hoạt động?) then (Có)
   :Chốt activity_date theo timezone;
-  :Lưu VIEW_SLIDE / STUDY_TASK_COMPLETED
+  :Lưu VIEW_PAGE / STUDY_TASK_COMPLETED
 hoặc QUIZ_COMPLETED;
   :Tổng hợp Streak và Daily Goal;
-  if (VIEW_SLIDE?) then (Có)
-    :Cập nhật viewing progress;
+  if (VIEW_PAGE?) then (Có)
+    :Cập nhật page progress;
   else (Không)
   endif
 else (Không)

@@ -10,9 +10,9 @@ StudyFlow là nền tảng web giúp sinh viên học theo lớp học phần, q
 
 - Học theo mô hình `Semester → Course Offering → Documents`.
 - Teacher tự tạo Course Offering, quản lý join code, duyệt Student và công bố học liệu.
-- Student xem PPTX trên web, ghi chú theo slide và hỏi Slide AI Tutor.
-- Personal RAG hỏi đáp trên các PDF do Student lựa chọn, trả citation theo trang.
-- Sinh Quiz từ Personal Documents và prompt tự do; Student review trước khi làm.
+- Student xem Course Material PDF, ghi chú theo trang và hỏi Course Material AI Tutor.
+- Personal Document Assistant dùng một Single Agent để hỏi đáp, tóm tắt hoặc tạo Quiz từ PDF cá nhân, kèm citation theo trang.
+- Teacher sinh Quiz từ Course Material PDF theo số câu/độ khó/chủ đề/trang và review trước khi public.
 - Java chấm `MCQ_SINGLE`, lưu từng attempt và liên kết câu sai với nguồn cần ôn lại.
 - Dashboard tổng hợp tiến độ theo lớp, Study Streak và Daily Goal; màn Kế hoạch & Lịch quản lý task và lịch tuần riêng.
 - Giao diện đỏ–trắng theo định hướng nhận diện PTIT, hỗ trợ Student, Teacher và Admin.
@@ -21,21 +21,20 @@ StudyFlow là nền tảng web giúp sinh viên học theo lớp học phần, q
 
 | Vai trò | Chức năng chính |
 |---|---|
-| Student | Tham gia lớp, sử dụng học liệu, Personal RAG, Slide Tutor, Quiz, Dashboard và Kế hoạch & Lịch tuần |
-| Teacher | Tạo Course Offering, quản lý join code/enrollment, upload và public PDF/PPTX |
+| Student | Tham gia lớp, PDF Viewer/Page Note/Tutor, Personal Assistant, Quiz, Dashboard và Kế hoạch & Lịch tuần |
+| Teacher | Tạo Course Offering, quản lý join code/enrollment, upload/public PDF và AI Quiz Studio |
 | Admin | Quản lý tài khoản, Subject, Semester, giám sát lớp, feedback, audit và settings |
 
-Ngoài phạm vi MVP: DOCX, OCR cho PDF scan, Topic Mastery, Teacher Quiz, Exam/Mock Exam, recommendation tự động, XP, level, badge và leaderboard.
+Ngoài phạm vi MVP: PPTX/DOCX, OCR cho PDF scan, Teacher chatbot/Tutor, multi-agent, Topic Mastery, Exam/Mock Exam, recommendation tự động, XP, level, badge và leaderboard.
 
 ## Quy tắc học liệu và AI
 
 | Nguồn | Chính sách MVP |
 |---|---|
-| PPTX của Teacher | Student được duyệt có thể xem web, ghi Note và dùng Slide Tutor; không tải file gốc |
-| PDF của Teacher | Chỉ tải xuống; không Viewer, Note, Tutor hoặc AI indexing |
+| Course Material PDF | Student được duyệt xem web, ghi Note và dùng Tutor; Teacher dùng làm nguồn tạo Quiz |
 | Personal Document | Chỉ PDF có text layer, thuộc Student owner |
-| Personal RAG | Chỉ truy xuất trong các tài liệu `READY` đã chọn; thiếu bằng chứng trả `NO_EVIDENCE` |
-| Quiz AI | Dùng Personal Documents + prompt tự do; đúng 4 phương án và 1 đáp án; Java validate/chấm điểm |
+| Personal Assistant | Single Agent chỉ dùng nguồn `READY`; hỏi đáp/tóm tắt/tạo Quiz; thiếu bằng chứng trả `NO_EVIDENCE` |
+| Quiz AI | Hai mode Student/Teacher; đúng 4 phương án và 1 đáp án; Java validate/lifecycle/chấm điểm |
 
 ## Kiến trúc
 
@@ -53,7 +52,7 @@ Python FastAPI ─────────► PostgreSQL schema ai + pgvector
 
 - **Frontend** chỉ gọi public Java API.
 - **Java Backend** là system of record: auth/RBAC, Course Offering, enrollment, publication, Quiz lifecycle/scoring, progress và plan.
-- **Python AI Service** xử lý PDF/PPTX, chunking, embedding, retrieval, RAG, citation và Quiz draft.
+- **Python AI Service** xử lý PDF, chunking, embedding, retrieval, Single Agent, Tutor, citation và Quiz draft.
 - PostgreSQL dùng chung một cluster nhưng tách schema và database role; Java không đọc vector, Python không đọc bảng nghiệp vụ.
 
 Xem chi tiết tại [Architecture](docs/architecture.md) và [API plan](docs/api-plan.md).
@@ -146,9 +145,9 @@ Tài liệu chuẩn bị triển khai:
 
 1. Admin tạo Subject/Semester và quản lý tài khoản.
 2. Teacher tạo Course Offering, lấy join code và duyệt Student.
-3. Teacher upload/public PPTX; Student mở Slide Viewer, ghi Note và hỏi Tutor.
-4. Student upload Personal PDF, chọn nguồn và hỏi chatbot RAG.
-5. Student nhập prompt tạo Quiz, review, accept, làm bài và xem câu sai.
+3. Teacher upload/public Course Material PDF; Student mở PDF Viewer, ghi Note và hỏi Tutor.
+4. Student upload Personal PDF, chọn nguồn rồi hỏi, tóm tắt hoặc tạo Quiz trong Trợ lý tài liệu.
+5. Teacher dùng AI Quiz Studio; Student/Teacher review Quiz theo đúng vai trò trước khi sử dụng/public.
 6. Dashboard cập nhật tiến độ, Streak, Daily Goal và công việc sắp tới.
 
 Chi tiết xem tại [demo flow](docs/demo-flow.md).
@@ -156,7 +155,7 @@ Chi tiết xem tại [demo flow](docs/demo-flow.md).
 ## Tài liệu
 
 - [Mục lục báo cáo Chương 1–3](docs/bao-cao/README.md)
-- [Kế hoạch và flow MVP](docs/bao-cao/Ke_hoach_do_an_tot_nghiep_chot_flow_MVP_v1.md)
+- [Kế hoạch và flow MVP v2 hiện hành](docs/bao-cao/Ke_hoach_do_an_tot_nghiep_MVP_v2_PDF_Single_Agent_Teacher_Quiz.md)
 - [Master specification](docs/specification.md)
 - [High-level architecture](docs/architecture.md)
 - [Low-level design](docs/low-level-design.md)

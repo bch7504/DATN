@@ -1,0 +1,274 @@
+@startuml
+' Palette: physical ERD based on the Visual Paradigm ERD sample.
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam defaultFontColor #111111
+skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 24
+skinparam ranksep 34
+skinparam ArrowColor #222222
+skinparam EntityBackgroundColor #F2BB7B
+skinparam EntityBorderColor #222222
+skinparam EntityFontColor #111111
+skinparam EntityAttributeFontColor #111111
+skinparam ClassBackgroundColor #F2BB7B
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #F2BB7B
+skinparam ClassFontColor #111111
+skinparam ClassAttributeFontColor #111111
+skinparam PackageStyle rectangle
+skinparam PackagePadding 24
+hide circle
+left to right direction
+
+package "schema app — Java sở hữu" as APP {
+  entity users #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    email : varchar(255) <<UQ>>
+    role : varchar(20)
+  }
+  entity refresh_tokens #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    user_id : uuid <<FK>>
+    token_hash : varchar(255)
+  }
+  entity subjects #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    code : varchar(30) <<UQ>>
+  }
+  entity semesters #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    code : varchar(30) <<UQ>>
+  }
+  entity course_offerings #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    subject_id : uuid <<FK>>
+    semester_id : uuid <<FK>>
+    teacher_id : uuid <<FK>>
+  }
+  entity course_enrollments #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    course_offering_id : uuid <<FK>>
+    student_id : uuid <<FK>>
+    status : varchar(20)
+  }
+  entity documents #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    owner_id : uuid <<FK>>
+    document_scope : varchar(30)
+    file_type : varchar(10)
+    document_version : integer
+  }
+  entity document_publications #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    document_id : uuid <<FK>>
+    course_offering_id : uuid <<FK>>
+  }
+  entity document_pages #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    document_id : uuid <<FK>>
+    page_number : integer
+  }
+  entity page_notes #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    student_id : uuid <<FK>>
+    document_id : uuid <<FK>>
+    page_number : integer
+  }
+  entity chat_conversations #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    student_id : uuid <<FK>>
+    type : varchar(30)
+  }
+  entity conversation_documents #F2BB7B {
+    * conversation_id : uuid <<PK,FK>>
+    * document_id : uuid <<PK,FK>>
+    --
+    document_version : integer
+  }
+  entity chat_messages #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    conversation_id : uuid <<FK>>
+    capability : varchar(30)
+    answer_status : varchar(30)
+  }
+  entity learning_progress #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    student_id : uuid <<FK>>
+    document_id : uuid <<FK>>
+    progress_percent : numeric(5,2)
+  }
+  entity learning_events #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    student_id : uuid <<FK>>
+    event_type : varchar(30)
+    activity_date : date
+  }
+  entity daily_goals #F2BB7B {
+    * student_id : uuid <<PK,FK>>
+    --
+    page_target : integer
+    quiz_question_target : integer
+    task_target : integer
+  }
+  entity study_plans #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    student_id : uuid <<FK>>
+    title : varchar(255)
+  }
+  entity study_plan_items #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    study_plan_id : uuid <<FK>>
+    course_offering_id : uuid <<FK,nullable>>
+  }
+  entity quizzes #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    created_by : uuid <<FK>>
+    course_offering_id : uuid <<FK,nullable>>
+    generation_type : varchar(30)
+    status : varchar(30)
+  }
+  entity quiz_sources #F2BB7B {
+    * quiz_id : uuid <<PK,FK>>
+    * document_id : uuid <<PK,FK>>
+    --
+    document_version : integer
+  }
+  entity quiz_questions #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    quiz_id : uuid <<FK>>
+    options : jsonb
+    correct_option_index : smallint
+  }
+  entity quiz_question_sources #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    question_id : uuid <<FK>>
+    document_id : uuid <<FK>>
+    page_number : integer
+  }
+  entity quiz_attempts #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    quiz_id : uuid <<FK>>
+    student_id : uuid <<FK>>
+  }
+  entity quiz_answers #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    attempt_id : uuid <<FK>>
+    question_id : uuid <<FK>>
+    is_correct : boolean
+  }
+  entity feedback_reports #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    reporter_id : uuid <<FK>>
+    status : varchar(20)
+  }
+  entity system_logs #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    actor_id : uuid <<FK,nullable>>
+    action : varchar(100)
+  }
+  entity system_settings #F2BB7B {
+    * key : varchar(100) <<PK>>
+    --
+    value_json : jsonb
+  }
+}
+
+package "schema ai — Python sở hữu" as AI {
+  entity "ai.index_jobs" as index_jobs #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    document_id : uuid
+    document_version : integer
+    idempotency_key : varchar(255) <<UQ>>
+  }
+  entity "ai.document_indexes" as document_indexes #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    document_id : uuid
+    document_version : integer
+    embedding_dimensions : integer
+  }
+  entity "ai.document_chunks" as document_chunks #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    document_index_id : uuid <<FK>>
+    page_number : integer
+    embedding : vector(1024)
+  }
+  entity "ai.agent_runs" as agent_runs #F2BB7B {
+    * id : uuid <<PK>>
+    --
+    conversation_id : uuid
+    selected_tool : varchar(40)
+    status : varchar(30)
+  }
+}
+
+users ||--o{ refresh_tokens
+users ||--o{ course_offerings
+subjects ||--o{ course_offerings
+semesters ||--o{ course_offerings
+course_offerings ||--o{ course_enrollments
+users ||--o{ course_enrollments
+users ||--o{ documents
+documents ||--o{ document_publications
+course_offerings ||--o{ document_publications
+documents ||--o{ document_pages
+users ||--o{ page_notes
+documents ||--o{ page_notes
+users ||--o{ chat_conversations
+chat_conversations ||--o{ conversation_documents
+documents ||--o{ conversation_documents
+chat_conversations ||--o{ chat_messages
+users ||--o{ learning_progress
+documents ||--o{ learning_progress
+users ||--o{ learning_events
+users ||--o| daily_goals
+users ||--o{ study_plans
+study_plans ||--o{ study_plan_items
+course_offerings |o--o{ study_plan_items
+users ||--o{ quizzes
+course_offerings |o--o{ quizzes
+quizzes ||--o{ quiz_sources
+documents ||--o{ quiz_sources
+quizzes ||--o{ quiz_questions
+quiz_questions ||--o{ quiz_question_sources
+documents ||--o{ quiz_question_sources
+quizzes ||--o{ quiz_attempts
+users ||--o{ quiz_attempts
+quiz_attempts ||--o{ quiz_answers
+quiz_questions ||--o{ quiz_answers
+users ||--o{ feedback_reports
+users |o--o{ system_logs
+
+index_jobs ..> documents : logical document/version
+document_indexes ..> documents : logical document/version
+document_indexes ||--o{ document_chunks
+agent_runs ..> chat_conversations : logical conversation
+@enduml

@@ -104,7 +104,7 @@ export default function StudentPersonalDocumentsPage() {
             Kho Tài liệu Cá nhân
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Tải lên tài liệu PDF cá nhân để hỏi đáp AI (Personal RAG) và tự sinh câu hỏi ôn thi
+            Tải Personal PDF để hỏi đáp, tóm tắt hoặc tạo Quiz trong một Trợ lý tài liệu thống nhất
           </p>
         </div>
 
@@ -113,7 +113,7 @@ export default function StudentPersonalDocumentsPage() {
             href="/chat"
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition"
           >
-            <MessageSquare className="w-4 h-4" /> Hỏi đáp AI RAG
+            <MessageSquare className="w-4 h-4" /> Mở Trợ lý tài liệu
           </Link>
         </div>
       </div>
@@ -188,7 +188,7 @@ export default function StudentPersonalDocumentsPage() {
         ) : documents.length === 0 ? (
           <EmptyState
             title="Chưa có tài liệu cá nhân nào"
-            description="Hãy tải lên tệp PDF đầu tiên của bạn để sử dụng tính năng Chatbot RAG và sinh đề ôn thi."
+            description="Hãy tải PDF đầu tiên để dùng Trợ lý AI cho hỏi đáp, tóm tắt và tạo Quiz có citation theo trang."
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -237,7 +237,7 @@ export default function StudentPersonalDocumentsPage() {
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
                   <span>Tải lên: {new Date(doc.uploadedAt).toLocaleDateString("vi-VN")}</span>
                   <span className="text-emerald-700 font-semibold flex items-center gap-1 text-[11px]">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Sẵn sàng làm nguồn RAG
+                    <ShieldCheck className="w-3.5 h-3.5" /> Sẵn sàng cho Trợ lý AI
                   </span>
                 </div>
               </div>

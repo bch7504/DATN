@@ -1,3 +1,3 @@
 # Web tests
 
-Placeholder cho Route guard, role navigation, document rules, Slide Viewer, Personal RAG và Quiz UI test bằng fixture tổng hợp. Hiện chưa có test implementation.
+Kiểm thử Route guard, role navigation, PDF-only policy, Course Material Viewer/Tutor, Personal Document Assistant, Quiz và Review bằng fixture tổng hợp.

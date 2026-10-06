@@ -33,7 +33,7 @@ export default function StudentDashboardPage() {
 
   // Daily Goal Config Modal
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
-  const [targetSlides, setTargetSlides] = useState(8);
+  const [targetPages, setTargetPages] = useState(8);
   const [targetQuiz, setTargetQuiz] = useState(10);
   const [targetTasks, setTargetTasks] = useState(2);
   const [isSavingGoal, setIsSavingGoal] = useState(false);
@@ -51,7 +51,7 @@ export default function StudentDashboardPage() {
         setDailyGoal(goalData);
         setStreak(streakData);
         setOfferings(offeringsData.filter((o) => o.status === "ACTIVE"));
-        setTargetSlides(goalData.targetSlides);
+        setTargetPages(goalData.targetPages);
         setTargetQuiz(goalData.targetQuizQuestions);
         setTargetTasks(goalData.targetTasks);
       } catch (err: unknown) {
@@ -70,7 +70,7 @@ export default function StudentDashboardPage() {
     setIsSavingGoal(true);
     try {
       const updated = await reviewApi.updateDailyGoalConfig({
-        targetSlides,
+        targetPages,
         targetQuizQuestions: targetQuiz,
         targetTasks,
       });
@@ -84,8 +84,8 @@ export default function StudentDashboardPage() {
   };
 
   const overview = {
-    viewedSlides: 38,
-    totalPublishedSlides: 62,
+    viewedPages: 38,
+    totalPublishedPages: 62,
     completedTasks: 9,
     totalTasks: 12,
     completedQuizzes: 7,
@@ -146,23 +146,23 @@ export default function StudentDashboardPage() {
           </div>
         </div>
 
-        {/* Slide Progress Card */}
+        {/* Course Material page progress card */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-red-50 text-ptit-red border border-red-200 flex items-center justify-center flex-shrink-0 shadow-2xs">
             <BookOpen className="w-6 h-6" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Slide bài giảng
+              Trang học liệu PDF
             </div>
             <div className="text-2xl font-extrabold text-slate-800 font-display">
-              {overview.viewedSlides}
+              {overview.viewedPages}
               <span className="text-sm font-normal text-slate-400">
-                /{overview.totalPublishedSlides}
+                /{overview.totalPublishedPages}
               </span>
             </div>
             <div className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">
-              Đạt {Math.round((overview.viewedSlides / overview.totalPublishedSlides) * 100)}% toàn bộ môn
+              Đạt {Math.round((overview.viewedPages / overview.totalPublishedPages) * 100)}% toàn bộ môn
             </div>
           </div>
         </div>
@@ -186,9 +186,9 @@ export default function StudentDashboardPage() {
               </button>
             </div>
             <div className="text-2xl font-extrabold text-slate-800 font-display">
-              {dailyGoal ? dailyGoal.actualSlides + dailyGoal.actualQuizQuestions + dailyGoal.actualTasks : 16}
+              {dailyGoal ? dailyGoal.actualPages + dailyGoal.actualQuizQuestions + dailyGoal.actualTasks : 16}
               <span className="text-sm font-normal text-slate-400">
-                /{dailyGoal ? dailyGoal.targetSlides + dailyGoal.targetQuizQuestions + dailyGoal.targetTasks : 20}
+                /{dailyGoal ? dailyGoal.targetPages + dailyGoal.targetQuizQuestions + dailyGoal.targetTasks : 20}
               </span>
             </div>
             <div className="text-[11px] text-blue-700 font-semibold mt-0.5 truncate">
@@ -228,7 +228,7 @@ export default function StudentDashboardPage() {
                   Lớp học phần đang theo học
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Xem học liệu bài giảng slide và câu hỏi ôn thi gắn với từng môn học
+                  Xem học liệu PDF, tiến độ đọc và câu hỏi ôn tập gắn với từng môn học
                 </p>
               </div>
               <Link
@@ -262,7 +262,7 @@ export default function StudentDashboardPage() {
 
                     <div className="space-y-1.5 mb-4">
                       <div className="flex justify-between text-xs text-slate-600">
-                        <span>Tiến độ xem slide</span>
+                        <span>Tiến độ đọc PDF</span>
                         <span className="font-bold text-slate-800">75%</span>
                       </div>
                       <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
@@ -298,7 +298,7 @@ export default function StudentDashboardPage() {
                   Có 3 câu hỏi trắc nghiệm cần ôn tập lại
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Được hệ thống tự động tổng hợp từ các lần làm bài chưa chính xác. Bạn có thể nhảy đến đúng slide để xem lại lý thuyết.
+                  Được hệ thống tự động tổng hợp từ các lần làm bài chưa chính xác. Bạn có thể mở đúng trang PDF nguồn để xem lại lý thuyết.
                 </p>
               </div>
             </div>
@@ -336,15 +336,15 @@ export default function StudentDashboardPage() {
               <div className="space-y-3.5 text-xs">
                 <div>
                   <div className="flex justify-between text-slate-600 mb-1">
-                    <span>Xem slide bài giảng</span>
+                    <span>Đọc trang học liệu PDF</span>
                     <span className="font-bold text-slate-900">
-                      {dailyGoal.actualSlides}/{dailyGoal.targetSlides} slide
+                      {dailyGoal.actualPages}/{dailyGoal.targetPages} trang
                     </span>
                   </div>
                   <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-ptit-red rounded-full"
-                      style={{ width: `${dailyGoal.slidesPercentage}%` }}
+                      style={{ width: `${dailyGoal.pagesPercentage}%` }}
                     />
                   </div>
                 </div>
@@ -447,14 +447,14 @@ export default function StudentDashboardPage() {
             <form onSubmit={handleSaveGoal} className="space-y-3 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Mục tiêu số slide xem mỗi ngày:
+                  Mục tiêu số trang PDF đọc mỗi ngày:
                 </label>
                 <input
                   type="number"
                   min={1}
                   max={50}
-                  value={targetSlides}
-                  onChange={(e) => setTargetSlides(Number(e.target.value))}
+                  value={targetPages}
+                  onChange={(e) => setTargetPages(Number(e.target.value))}
                   className="w-full p-2.5 border border-slate-300 rounded-xl"
                   required
                 />

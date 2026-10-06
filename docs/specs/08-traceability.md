@@ -4,10 +4,10 @@
 |---|---|---|---|
 | AUT-FR-001..005 | auth, `/me` | Java auth/user | role guard, token rotation, internal auth |
 | STU-FR-001..003 | join, Student offerings/materials | `course_offerings`, `course_enrollments` | invalid code, pending denied, approved allowed |
-| STU-FR-004..006 | materials/viewer/tutor | publication/slide/note + AI result | PPTX no-download, PDF download-only, citation scope |
-| PAI-FR-001..008, PAI-BR-004..005 | personal docs/conversations/free-prompt Quiz | Java conversation/Quiz + AI indexes | owner isolation, prompt injection, schema/citation, destination access |
+| STU-FR-004..006 | PDF materials/viewer/page-note/tutor | publication/page/note + AI result | approved access, `NO_EVIDENCE`, page citation scope |
+| PAI-FR-001..008 | personal docs/assistant/Quiz | Java conversation/Quiz + AI indexes/agent runs | owner isolation, tool routing, clarification, prompt injection, schema/citation |
 | TCH-FR-001..003 | Teacher offerings/join/enrollments | Java offering/enrollment | owner-only, rotation, transition idempotency |
-| TCH-FR-004..006 | library/publication/archive | Java document/publication | type policy, multi-publication, no hard delete |
+| TCH-FR-004..007 | PDF library/publication/AI Quiz | Java document/publication/Quiz | PDF-only, owner scope, draft review/publish |
 | ADM-FR-001..005 | Admin users/catalog/monitoring | Java app/audit | no assignment UI, lock/archive audited |
 | DASH-FR-001..006 | Dashboard gồm aggregate và progress từng Course Offering, Streak, Daily Goal | Java `learning_events`, `daily_goals`, viewing progress | đúng lớp/quyền/event/ngày/múi giờ, idempotency, goal độc lập streak |
 | Plan/Quiz review | plan, subject/personal review workspace, attempts | Java plans/quizzes/answers/sources | Java scoring, wrong-answer citation, attempt history, manual plan |
@@ -21,8 +21,9 @@
 | Teacher sở hữu Course Offering | Java application service/repository | Teacher A sửa/public lớp B bị từ chối |
 | Student cần Enrollment approved | Java authorization trước URL/AI | pending/rejected không có artifact/chunk |
 | Python chỉ dùng authorized scope | request schema + retrieval filter | chunk ngoài document/version/owner/offering không xuất hiện |
+| Single Agent chỉ dùng tool registry | router + JSON Schema args | intent mơ hồ hỏi lại; không gọi tool ngoài scope |
 | Citation entail claim | claim reviewer + validator | citation ID đúng nhưng không chứng minh claim bị loại |
 | Java chấm Quiz | Quiz service/transaction | client/LLM gửi score bị bỏ qua |
-| Nguồn Quiz độc lập nơi ôn | accept policy + nullable offering | ngoài enrollment bị từ chối; source không đổi khi gắn môn |
+| Hai mode Quiz đúng owner | Student accept/Teacher publish policy | ngoài enrollment/ownership bị từ chối; source không đổi khi gắn môn |
 | Review không suy luận | answer/source projection | chỉ câu sai xuất hiện; không gọi AI mastery |
 | Java tính Streak/Daily Goal | learning-event projector + user timezone | login/Note/ASK_AI không tăng streak; client gửi actual bị bỏ qua |

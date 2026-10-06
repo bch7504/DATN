@@ -7,8 +7,8 @@ import {
   demoOfferings,
   demoEnrollments,
   demoTeacherDocs,
-  DEMO_SLIDES_AI,
-  demoSlideNotes,
+  DEMO_MATERIAL_PAGES,
+  demoPageNotes,
   demoPersonalDocs,
   demoConversations,
   demoQuizzes,
@@ -29,8 +29,8 @@ import {
 } from "@/types/course-offering";
 import {
   TeacherDocument,
-  Slide,
-  SlideTutorResponse,
+  MaterialPage,
+  CourseMaterialTutorResponse,
   PersonalDocument,
 } from "@/types/material";
 import {
@@ -351,7 +351,7 @@ export const studentApi = {
 };
 
 /**
- * Student Materials, Slide Viewer, Notes, and Tutor API (docs/api-plan.md Section 4.2 & 4.3)
+ * Student Course Material PDF Viewer, Page Notes, and Tutor API.
  */
 export const materialApi = {
   async getMaterials(offeringId?: string): Promise<TeacherDocument[]> {
@@ -369,12 +369,7 @@ export const materialApi = {
             d.publishedOfferings.some((p) => p.offeringId === offeringId)
           );
         }
-        // Per spec: PPTX before PDF
-        return [...docs].sort((a, b) => {
-          if (a.fileType === "PPTX" && b.fileType === "PDF") return -1;
-          if (a.fileType === "PDF" && b.fileType === "PPTX") return 1;
-          return 0;
-        });
+        return [...docs];
       }
       throw err;
     }
@@ -394,43 +389,43 @@ export const materialApi = {
     return apiFetch<TeacherDocument>(`/student/materials/${documentId}`);
   },
 
-  async getSlides(documentId: string): Promise<Slide[]> {
+  async getPages(documentId: string): Promise<MaterialPage[]> {
     try {
-      const res = await apiFetch<Slide[]>(`/student/materials/${documentId}/slides`);
+      const res = await apiFetch<MaterialPage[]>(`/student/materials/${documentId}/pages`);
       return res;
     } catch (err) {
       if (isDemoMode()) {
-        return DEMO_SLIDES_AI.map((s) => ({
-          ...s,
-          hasNote: !!demoSlideNotes[`${documentId}:${s.slideNumber}`],
+        return DEMO_MATERIAL_PAGES.map((page) => ({
+          ...page,
+          hasNote: !!demoPageNotes[`${documentId}:${page.pageNumber}`],
         }));
       }
       throw err;
     }
   },
 
-  async getSlideNote(documentId: string, slideNumber: number): Promise<string> {
+  async getPageNote(documentId: string, pageNumber: number): Promise<string> {
     try {
       const res = await apiFetch<{ content: string }>(
-        `/student/materials/${documentId}/slides/${slideNumber}/note`
+        `/student/materials/${documentId}/pages/${pageNumber}/note`
       );
       return res.content;
     } catch (err) {
       if (isDemoMode()) {
-        return demoSlideNotes[`${documentId}:${slideNumber}`] || "";
+        return demoPageNotes[`${documentId}:${pageNumber}`] || "";
       }
       throw err;
     }
   },
 
-  async saveSlideNote(
+  async savePageNote(
     documentId: string,
-    slideNumber: number,
+    pageNumber: number,
     content: string
   ): Promise<void> {
     try {
       await apiFetch<void>(
-        `/student/materials/${documentId}/slides/${slideNumber}/note`,
+        `/student/materials/${documentId}/pages/${pageNumber}/note`,
         {
           method: "PUT",
           body: JSON.stringify({ content }),
@@ -438,21 +433,21 @@ export const materialApi = {
       );
     } catch (err) {
       if (isDemoMode()) {
-        demoSlideNotes[`${documentId}:${slideNumber}`] = content;
+        demoPageNotes[`${documentId}:${pageNumber}`] = content;
         return;
       }
       throw err;
     }
   },
 
-  async askSlideTutor(
+  async askCourseMaterialTutor(
     documentId: string,
-    slideNumber: number,
+    pageNumber: number,
     question: string
-  ): Promise<SlideTutorResponse> {
+  ): Promise<CourseMaterialTutorResponse> {
     try {
-      return await apiFetch<SlideTutorResponse>(
-        `/student/materials/${documentId}/slides/${slideNumber}/tutor`,
+      return await apiFetch<CourseMaterialTutorResponse>(
+        `/student/materials/${documentId}/pages/${pageNumber}/tutor`,
         {
           method: "POST",
           body: JSON.stringify({ question }),
@@ -460,10 +455,10 @@ export const materialApi = {
       );
     } catch (err) {
       if (isDemoMode()) {
-        const slide = DEMO_SLIDES_AI.find((s) => s.slideNumber === slideNumber);
+        const page = DEMO_MATERIAL_PAGES.find((item) => item.pageNumber === pageNumber);
         const cleanQ = question.toLowerCase();
 
-        // Off-topic or question lacking evidence in current slide
+        // Off-topic or question lacking evidence in the authorized PDF scope
         if (
           cleanQ.includes("thời tiết") ||
           cleanQ.includes("bóng đá") ||
@@ -478,18 +473,17 @@ export const materialApi = {
           };
         }
 
-        // Slide-grounded answer based on current slide content
-        const excerpt = slide ? slide.bullets[0] : "Nội dung slide bài giảng.";
+        const excerpt = page ? page.bullets[0] : "Nội dung trang tài liệu.";
         return {
           status: "ANSWERED",
-          answer: `Dựa trên nội dung của Slide ${slideNumber} (${slide?.title || ""}): ${
-            slide?.bullets.join(" ") || "Khái niệm chính được trình bày trên slide."
+          answer: `Dựa trên nội dung của trang ${pageNumber} (${page?.title || ""}): ${
+            page?.bullets.join(" ") || "Khái niệm chính được trình bày trong tài liệu."
           }`,
           citations: [
             {
               documentId,
               documentName: "Bài giảng AI - Chương 1",
-              slideNumber,
+              pageNumber,
               excerpt,
             },
           ],
@@ -500,17 +494,17 @@ export const materialApi = {
     }
   },
 
-  async recordSlideView(
+  async recordPageView(
     documentId: string,
-    slideNumber: number
+    pageNumber: number
   ): Promise<void> {
     try {
       await apiFetch<void>(
-        `/student/materials/${documentId}/slides/${slideNumber}/view-events`,
+        `/student/materials/${documentId}/pages/${pageNumber}/view-events`,
         {
           method: "POST",
           headers: {
-            "Idempotency-Key": `view:${documentId}:${slideNumber}:${Date.now()}`,
+            "Idempotency-Key": `view:${documentId}:${pageNumber}:${Date.now()}`,
           },
         }
       );
@@ -794,13 +788,12 @@ export const teacherApi = {
     file: File,
     title: string
   ): Promise<TeacherDocument> {
-    const isPptx = file.name.toLowerCase().endsWith(".pptx");
     const isPdf = file.name.toLowerCase().endsWith(".pdf");
 
-    if (!isPptx && !isPdf) {
+    if (!isPdf) {
       throw new ApiClientError(415, {
         code: "UNSUPPORTED_MEDIA_TYPE",
-        message: "Giảng viên chỉ tải lên tệp PDF hoặc PPTX. Không hỗ trợ DOCX trong MVP.",
+        message: "Giảng viên chỉ tải lên Course Material dạng PDF có lớp văn bản.",
       });
     }
 
@@ -818,12 +811,11 @@ export const teacherApi = {
           id: `doc_${Date.now()}`,
           title: title || file.name,
           fileName: file.name,
-          fileType: isPptx ? "PPTX" : "PDF",
+          fileType: "PDF",
           fileSize: file.size,
           status: "READY",
-          totalSlides: isPptx ? 8 : undefined,
-          totalPages: isPdf ? 10 : undefined,
-          downloadUrl: isPdf ? `/api/v1/student/materials/doc_${Date.now()}/download` : undefined,
+          totalPages: 10,
+          downloadUrl: `/api/v1/student/materials/doc_${Date.now()}/download`,
           publishedOfferings: [],
           createdAt: new Date().toISOString(),
         };
@@ -1054,6 +1046,9 @@ export const chatApi = {
           lowerQuery.includes("nấu ăn") ||
           lowerQuery.includes("bóng đá") ||
           lowerQuery.includes("bitcoin");
+        const wantsSummary = /tóm tắt|ý chính|dàn ý/.test(lowerQuery);
+        const wantsQuiz = /tạo.*(quiz|câu hỏi|trắc nghiệm)|sinh.*(quiz|câu hỏi)/.test(lowerQuery);
+        const questionCountMatch = lowerQuery.match(/\b(\d{1,2})\s*câu\b/);
 
         let assistantMsg: ChatMessage;
 
@@ -1064,7 +1059,18 @@ export const chatApi = {
             content:
               "Không tìm thấy bằng chứng phù hợp trong các tài liệu đã chọn để trả lời câu hỏi này (NO_EVIDENCE). Vui lòng đặt câu hỏi liên quan đến nội dung tài liệu.",
             status: "NO_EVIDENCE",
+            capability: "ASK_DOCUMENT",
             citations: [],
+            createdAt: new Date().toISOString(),
+          };
+        } else if (wantsQuiz && !questionCountMatch) {
+          assistantMsg = {
+            id: `msg_a_${Date.now()}`,
+            role: "assistant",
+            content: "Tôi đã nhận diện yêu cầu tạo Quiz. Bạn muốn tạo bao nhiêu câu hỏi?",
+            status: "NEEDS_CLARIFICATION",
+            capability: "NEEDS_CLARIFICATION",
+            missingFields: ["questionCount"],
             createdAt: new Date().toISOString(),
           };
         } else {
@@ -1072,24 +1078,54 @@ export const chatApi = {
             demoPersonalDocs.find((d) => conv.selectedDocumentIds.includes(d.id)) ||
             demoPersonalDocs[0];
 
-          assistantMsg = {
-            id: `msg_a_${Date.now()}`,
-            role: "assistant",
-            content: `Dựa trên tài liệu '${matchingDoc?.title || "Tài liệu cá nhân"}' (Trang 3):\n\nCâu trả lời chi tiết cho câu hỏi "${text}":\nNội dung đã được đối chiếu chính xác với các định nghĩa và nguyên lý trong tài liệu. Mọi thông tin phản hồi đều được neo chắc chắn (grounding) vào tài liệu nguồn bạn đã cung cấp.`,
-            status: "ANSWERED",
-            citations: [
-              {
-                documentId: matchingDoc?.id || "pdoc_01",
-                documentName: matchingDoc?.title || "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
-                pageNumber: 3,
-                excerpt: `Trích đoạn đối chiếu từ ${matchingDoc?.title || "tài liệu"}: "Định nghĩa và các nguyên tắc cốt lõi áp dụng trực tiếp cho vấn đề được nêu trong câu hỏi."`,
-                sha256:
-                  matchingDoc?.sha256 ||
-                  "a3b91c89f4e2d8109867cbaef19034871239abcef19034871239abcef1903487",
-              },
-            ],
-            createdAt: new Date().toISOString(),
+          const citation = {
+            documentId: matchingDoc?.id || "pdoc_01",
+            documentName: matchingDoc?.title || "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+            pageNumber: 3,
+            excerpt: `Trích đoạn đối chiếu từ ${matchingDoc?.title || "tài liệu"}: "Định nghĩa và các nguyên tắc cốt lõi áp dụng trực tiếp cho yêu cầu của người dùng."`,
+            sha256:
+              matchingDoc?.sha256 ||
+              "a3b91c89f4e2d8109867cbaef19034871239abcef19034871239abcef1903487",
           };
+
+          if (wantsQuiz) {
+            const questionCount = Number(questionCountMatch?.[1]);
+            assistantMsg = {
+              id: `msg_a_${Date.now()}`,
+              role: "assistant",
+              content: `Đã tạo bản nháp Quiz gồm ${questionCount} câu từ tài liệu đã chọn. Hãy mở bản nháp để kiểm tra trước khi chấp nhận.`,
+              status: "QUIZ_CREATED",
+              capability: "CREATE_QUIZ",
+              citations: [citation],
+              quizDraft: {
+                quizId: `quiz_draft_${Date.now()}`,
+                questionCount,
+                difficulty: lowerQuery.includes("khó") ? "HARD" : "MIXED",
+                status: "REVIEW_REQUIRED",
+              },
+              createdAt: new Date().toISOString(),
+            };
+          } else if (wantsSummary) {
+            assistantMsg = {
+              id: `msg_a_${Date.now()}`,
+              role: "assistant",
+              content: `Tóm tắt từ '${matchingDoc?.title || "Tài liệu cá nhân"}':\n\n• Khái niệm và định nghĩa trọng tâm được hệ thống hóa theo từng phần.\n• Các nguyên tắc chính được liên kết với ví dụ trong tài liệu.\n• Những nội dung cần ôn tập được giữ nguyên phạm vi nguồn đã chọn.`,
+              status: "SUMMARIZED",
+              capability: "SUMMARIZE_DOCUMENT",
+              citations: [citation],
+              createdAt: new Date().toISOString(),
+            };
+          } else {
+            assistantMsg = {
+              id: `msg_a_${Date.now()}`,
+              role: "assistant",
+              content: `Dựa trên tài liệu '${matchingDoc?.title || "Tài liệu cá nhân"}' (Trang 3):\n\nCâu trả lời cho "${text}" đã được đối chiếu với nội dung PDF trong phạm vi bạn chọn.`,
+              status: "ANSWERED",
+              capability: "ASK_DOCUMENT",
+              citations: [citation],
+              createdAt: new Date().toISOString(),
+            };
+          }
         }
 
         conv.messages.push(assistantMsg);
@@ -1495,10 +1531,10 @@ export const reviewApi = {
       if (isDemoMode()) {
         Object.assign(demoDailyGoalConfig, config);
         Object.assign(demoDailyGoalProgress, {
-          targetSlides: config.targetSlides,
+          targetPages: config.targetPages,
           targetQuizQuestions: config.targetQuizQuestions,
           targetTasks: config.targetTasks,
-          slidesPercentage: Math.min(100, Math.round((demoDailyGoalProgress.actualSlides / config.targetSlides) * 100)),
+          pagesPercentage: Math.min(100, Math.round((demoDailyGoalProgress.actualPages / config.targetPages) * 100)),
           quizPercentage: Math.min(100, Math.round((demoDailyGoalProgress.actualQuizQuestions / config.targetQuizQuestions) * 100)),
           tasksPercentage: Math.min(100, Math.round((demoDailyGoalProgress.actualTasks / config.targetTasks) * 100)),
         });

@@ -59,7 +59,7 @@ export default function StudentReviewLevel1Page() {
         </div>
 
         <Link
-          href="/quiz/create"
+          href="/chat"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition flex-shrink-0 cursor-pointer"
         >
           <Sparkles className="w-4 h-4" />

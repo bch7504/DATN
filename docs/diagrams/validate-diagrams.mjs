@@ -40,7 +40,7 @@ for (const chapter of ['chuong-1', 'chuong-2', 'chuong-3']) {
     if (source.includes("' Palette: sequence")) {
       assert(svg.includes('data-sequence-frame="true"'), 'Sequence diagram must contain an sd interaction frame: ' + file);
     }
-    const expectedColor = file === 'erd-logical-02-entity-overview.puml'
+    const expectedColor = file.startsWith('erd-')
       ? '#F2BB7B'
       : file === 'architecture-scope-01-pham-vi-studyflow.puml'
         ? '#F8FAFC'
@@ -61,5 +61,5 @@ for (const file of ['index.html', 'chuong-1/index.html', 'chuong-2/index.html', 
 }
 await fs.access(path.join(root, 'chuong-3/erd-physical-03-studyflow-overview.png'));
 assert.equal(figures, 22, 'Unexpected report figure count');
-assert.equal(sources, 21, 'Unexpected UML source count');
+assert.equal(sources, 22, 'Unexpected UML source count');
 console.log(`PASS: ${figures} captioned figures, ${sources} UML/SVG/PNG sets, ${links} local links`);

@@ -7,7 +7,7 @@ File này là chỉ dẫn bắt buộc cho mọi AI agent làm việc trong repo
 StudyFlow là nền tảng quản lý học tập và hỗ trợ ôn thi cho sinh viên:
 
 ```text
-Document → Notes/Study Session → AI Tutor/Quiz → Assessment
+PDF → Notes/Study Session → Personal Assistant/Course Material Tutor/Quiz → Assessment
          → Content Progress/Statistics → Study Plan/Review
          → Re-assessment
 ```
@@ -23,7 +23,7 @@ Next.js Web → Java Spring Boot Backend → Python AI Service
 
 - Frontend chỉ gọi Java backend.
 - Java backend là system of record và sở hữu toàn bộ luật nghiệp vụ.
-- Python AI service xử lý parsing/chunking/embedding, RAG, citation, sinh quiz và evaluation.
+- Python AI service xử lý PDF parsing/chunking/embedding, RAG, citation, Single Orchestrator Agent, sinh quiz và evaluation.
 - Python không tự chấm điểm, cập nhật progress, study plan hoặc Quiz lifecycle.
 - PostgreSQL dùng chung một cluster nhưng tách schema/role: Java sở hữu `app`, Python sở hữu `ai` và dùng pgvector; Java không đọc/ghi vector trực tiếp.
 
@@ -203,8 +203,8 @@ Java gọi Python qua internal HTTP API:
 - `POST /internal/v1/documents/index`
 - `POST /internal/v1/documents/deindex`
 - `GET /internal/v1/jobs/{jobId}`
-- `POST /internal/v1/personal-rag/ask`
-- `POST /internal/v1/slides/ask`
+- `POST /internal/v1/personal-assistant/runs`
+- `POST /internal/v1/course-materials/ask`
 - `POST /internal/v1/quizzes/generate`
 - `GET /internal/v1/health`
 
@@ -212,7 +212,7 @@ Mỗi request phải có:
 
 - `requestId` để trace xuyên service.
 - Service credential; không chuyển tiếp JWT người dùng nếu không cần.
-- Authorized scope tối thiểu như user/document/version/Course Offering/page hoặc slide.
+- Authorized scope tối thiểu như user/document/version/Course Offering/page.
 - Timeout; retry chỉ cho thao tác an toàn hoặc có idempotency key.
 - Schema version khi contract bắt đầu thay đổi.
 
@@ -223,20 +223,20 @@ Python trả structured data; Java validate trước khi lưu. Mọi thay đổi
 - MVP chỉ tính `Content Progress` từ hoạt động học; không triển khai hoặc suy luận `Topic Mastery`.
 - Khi thiếu bằng chứng, RAG/Tutor trả `NO_EVIDENCE`; không tự tạo câu trả lời không có nguồn.
 - Backend Java sở hữu Quiz lifecycle và chấm điểm; LLM không chấm Quiz.
-- Quiz dùng `MCQ_SINGLE`: mỗi câu có nhiều lựa chọn nhưng chỉ một đáp án đúng; Quiz AI phải được Student chấp nhận trước khi làm.
-- Student chủ động chọn Personal Documents và tự nhập prompt để tạo Quiz, không phụ thuộc conversation/chat context; prompt không được thay thế system rule, schema, grounding hoặc authorized scope.
+- Quiz dùng `MCQ_SINGLE`: mỗi câu có đúng 4 lựa chọn và một đáp án đúng. Quiz cá nhân phải được Student chấp nhận trước khi làm; Quiz lớp phải được Teacher duyệt trước khi công bố.
+- Student chủ động chọn Personal Documents và nhập prompt trong Trợ lý tài liệu để hỏi đáp, tóm tắt hoặc tạo Quiz. Agent có thể dùng context hội thoại để hiểu ý định nhưng tool tạo Quiz chỉ nhận structured args và authorized document scope; prompt không được thay thế system rule, schema hoặc grounding.
 - Khi accept, Quiz được gắn vào Course Offering có enrollment `APPROVED` hoặc giữ là Quiz cá nhân; nguồn sinh Quiz và nơi ôn tập là hai khái niệm độc lập.
 - “Nội dung cần ôn lại” chỉ tổng hợp từ câu trả lời sai và nguồn của câu hỏi; không dùng AI suy đoán Student yếu/mạnh. Mỗi lượt làm tạo attempt mới, không ghi đè lịch sử.
 - Recommendation tự động ngoài phạm vi MVP; Student chủ động quyết định Study Plan.
 - Personal Document thuộc owner; Admin không mặc định được dùng làm Official Content.
-- AI Tutor phải trả citation theo document + pageNumber (Personal PDF) hoặc slideNumber (Teacher PPTX) và retrieval phải filter đúng scope.
-- PPTX Teacher public chỉ xem web; PDF Teacher public chỉ tải xuống.
-- Teacher chỉ upload PDF/PPTX; Personal Document chỉ upload PDF. Không nhận DOCX trong MVP. PDF Teacher không có Viewer, Note, Tutor, page progress hoặc AI indexing; PPTX giữ Slide Viewer/Note/Tutor.
+- Mọi AI trả lời, tóm tắt và Quiz phải grounded trên PDF được cấp quyền và citation theo `documentId + pageNumber`; thiếu bằng chứng trả `NO_EVIDENCE`.
+- Course Material của Teacher và Personal Document của Student chỉ nhận PDF có text layer. Không nhận PPTX/DOCX và không OCR trong MVP.
+- Personal Document Assistant dùng một Single Orchestrator Agent để chọn đúng tool hỏi đáp, tóm tắt hoặc tạo Quiz. Không dùng multi-agent; Java vẫn dựng authorized scope và validate output.
 - Teacher tự tạo Course Offering theo Subject + Semester, quản lý join code và duyệt Course Enrollment. Admin chỉ quản lý danh mục/giám sát, không phân công từng lớp trong MVP.
-- Teacher upload và public tài liệu vào Course Offering mình sở hữu; chỉ Student có enrollment `APPROVED` mới xem PPTX, lưu Note cá nhân và dùng Slide Tutor. Không mô tả các chức năng học này là chức năng của Teacher.
+- Teacher upload/public Course Material PDF vào Course Offering mình sở hữu và có AI Quiz Generator với số câu, độ khó, chủ đề, phạm vi trang tùy chọn. Teacher không có Personal Chatbot hoặc AI Tutor; chỉ Student có enrollment `APPROVED` mới xem PDF, lưu Note cá nhân và dùng Course Material AI Tutor.
 - Admin không quản lý Quiz hoặc Progress cá nhân của Student trong MVP.
 - Không có menu/route `Tiến độ & Thống kê` hoặc màn tiến độ Course Offering độc lập; Dashboard hiển thị đầy đủ tiến độ tổng quan và tiến độ của từng Course Offering.
-- Study Streak chỉ tính ngày có ít nhất một `VIEW_SLIDE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; login, Note và `ASK_AI` không được tính.
+- Study Streak chỉ tính ngày có ít nhất một `VIEW_PAGE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; login, Note và `ASK_AI` không được tính.
 - Student chỉ cấu hình target Daily Goal. Java tính actual/phần trăm theo ngày và múi giờ người dùng; hoàn thành Daily Goal không phải điều kiện duy trì Study Streak.
 - Không triển khai XP, Level, Achievement, badge hoặc leaderboard trong MVP.
 

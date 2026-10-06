@@ -9,28 +9,28 @@ Chương này trình bày toàn bộ kết quả của pha phân tích trong quy
 ### 2.1.1. Mô tả bài toán thực tế
 
 Trong môi trường giáo dục đại học hiện nay, sinh viên thường phải đối mặt với tình trạng quá tải thông tin và phân mảnh công cụ học tập. Quá trình tự học và ôn thi của sinh viên thường gặp các khó khăn điển hình:
-1. **Phân mảnh tài liệu học tập:** Học liệu chính thức của giảng viên (bài giảng slide PPTX, tài liệu tham khảo PDF) và tài liệu nghiên cứu cá nhân của sinh viên được lưu trữ rời rạc trên nhiều nền tảng (email, mạng xã hội, ổ đĩa cá nhân), gây mất nhiều thời gian tìm kiếm và đồng bộ.
-2. **Khai thác kiến thức thiếu định hướng và nguy cơ sai lệch từ AI:** Việc ứng dụng các mô hình ngôn ngữ lớn (LLM) phổ thông như ChatGPT trong học tập tiềm ẩn rủi ro "ảo giác" (hallucination), cung cấp thông tin không có căn cứ hoặc nằm ngoài giáo trình được giảng dạy. Sinh viên không thể xác minh câu trả lời trích xuất từ trang sách hay slide bài giảng nào.
+1. **Phân mảnh tài liệu học tập:** Course Material PDF của giảng viên và tài liệu PDF cá nhân của sinh viên được lưu trữ rời rạc trên nhiều nền tảng, gây mất thời gian tìm kiếm và thiếu một không gian học tập thống nhất.
+2. **Khai thác kiến thức thiếu định hướng và nguy cơ sai lệch từ AI:** Việc dùng LLM phổ thông tiềm ẩn rủi ro “ảo giác”, cung cấp thông tin không có căn cứ hoặc ngoài giáo trình. Sinh viên khó xác minh câu trả lời được lấy từ trang tài liệu nào.
 3. **Thiếu công cụ tự đánh giá gắn liền với nguồn học liệu:** Việc tự ôn luyện bằng trắc nghiệm thường thiếu sự liên kết trực tiếp với bài học. Khi làm sai, sinh viên không được chỉ dẫn chính xác đoạn kiến thức cụ thể cần đọc lại để củng cố.
-4. **Quản lý kế hoạch và theo dõi tiến độ thụ động:** Sinh viên thiếu công cụ định lượng nỗ lực học tập thực tế hàng ngày (thời gian đọc slide, số câu hỏi ôn tập hoàn thành) và khó duy trì động lực học tập đều đặn.
+4. **Quản lý kế hoạch và theo dõi tiến độ thụ động:** Sinh viên thiếu công cụ định lượng nỗ lực hàng ngày như số trang PDF đã đọc, số câu Quiz và task đã hoàn thành.
 
 Từ bài toán trên, StudyFlow được định hướng xây dựng như một nền tảng hỗ trợ học tập và ôn luyện thông minh, thống nhất học liệu chính thức theo lớp học phần với tài liệu tự học cá nhân, tích hợp công nghệ Trí tuệ Nhân tạo có kiểm soát (Retrieval-Augmented Generation - RAG) với nguyên tắc trích dẫn nguồn minh bạch (grounded citations) và từ chối trả lời khi thiếu căn cứ (`NO_EVIDENCE`).
 
 ### 2.1.2. Mục tiêu hệ thống
 
 Hệ thống StudyFlow hướng tới các mục tiêu cụ thể:
-- **Tổ chức học liệu theo cấu trúc học phần:** Giảng viên chủ động tạo lớp học phần (Course Offering), công bố học liệu bài giảng (PPTX, PDF) và kiểm soát sinh viên tham gia lớp thông qua mã mời (join code).
-- **Hỗ trợ học tập tương tác trên bài giảng:** Sinh viên có thể xem trực tiếp slide bài giảng trên web, ghi chú cá nhân theo từng slide và tương tác với Trợ lý AI (Slide AI Tutor) được giới hạn phạm vi kiến thức trong bài giảng đó.
-- **Không gian học tập cá nhân hóa:** Sinh viên tải lên và quản lý tài liệu nghiên cứu cá nhân (Personal PDF), thực hiện hỏi đáp chuyên sâu (Personal RAG) trên một hoặc nhiều tài liệu được chọn với trích dẫn số trang chính xác.
-- **Hệ thống tạo Quiz và ôn luyện thông minh:** Tự động sinh câu hỏi trắc nghiệm một đáp án đúng (`MCQ_SINGLE`) từ tài liệu do sinh viên lựa chọn; hỗ trợ sinh viên duyệt (review) bộ câu hỏi trước khi học; tự động chấm điểm và điều hướng người học về đúng trang tài liệu chứa kiến thức của các câu trả lời sai.
-- **Thống kê và thúc đẩy động lực:** Tự động ghi nhận các sự kiện học tập thực tế (`VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`), tính toán chuỗi ngày học tập liên tục (Study Streak), tiến độ hoàn thành mục tiêu ngày (Daily Goal) và quản lý lịch học (Study Plan & Calendar).
+- **Tổ chức học liệu theo cấu trúc học phần:** Giảng viên tạo Course Offering, công bố Course Material PDF và kiểm soát sinh viên bằng join code/enrollment.
+- **Hỗ trợ học tập tương tác trên PDF:** Sinh viên đọc PDF trực tuyến, ghi chú theo trang và dùng Course Material AI Tutor trong phạm vi tài liệu đã được cấp quyền.
+- **Không gian học tập cá nhân hóa:** Sinh viên dùng một Trợ lý tài liệu với Single Agent để hỏi đáp, tóm tắt hoặc tạo Quiz từ 1–10 Personal PDF, kèm trích dẫn trang.
+- **Hệ thống Quiz cho hai vai trò:** Student tạo Quiz cá nhân trong Trợ lý; Teacher sinh Quiz từ Course Material PDF theo số câu, độ khó, chủ đề và khoảng trang. Mọi draft được review trước khi sử dụng hoặc công bố.
+- **Thống kê và thúc đẩy động lực:** Ghi nhận `VIEW_PAGE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`, tính Study Streak, Daily Goal và Study Plan & Calendar.
 
 ### 2.1.3. Các tác nhân tham gia hệ thống (Actors)
 
 | Tác nhân | Phân loại | Mô tả vai trò và trách nhiệm chính trong hệ thống |
 |---|---|---|
-| **Student** (Sinh viên) | Tác nhân con người (Primary User) | Tham gia lớp học phần bằng mã mời; xem bài giảng PPTX trực tuyến, ghi chú slide; tải tài liệu PDF của giảng viên; tải lên và quản lý tài liệu cá nhân; hỏi đáp với Trợ lý AI (Personal RAG và Slide Tutor); tạo, duyệt và làm bài Quiz; xem thống kê Dashboard, quản lý kế hoạch và lịch học cá nhân. |
-| **Teacher** (Giảng viên) | Tác nhân con người (Primary User) | Khởi tạo và quản lý lớp học phần (Course Offering) theo học kỳ và môn học; cấu hình mã mời (join code); xét duyệt hoặc từ chối sinh viên tham gia lớp; tải lên và công bố tài liệu bài giảng (PPTX, PDF) cho sinh viên trong lớp; quản lý lưu trữ tài liệu môn học. |
+| **Student** (Sinh viên) | Tác nhân con người (Primary User) | Tham gia lớp; xem Course Material PDF, ghi chú/hỏi Tutor theo trang; quản lý Personal PDF; dùng Trợ lý AI để hỏi đáp, tóm tắt hoặc tạo Quiz; làm bài, xem Dashboard và quản lý lịch cá nhân. |
+| **Teacher** (Giảng viên) | Tác nhân con người (Primary User) | Tạo/quản lý Course Offering, join code và enrollment; tải lên/công bố Course Material PDF; cấu hình, review và publish Quiz AI. Teacher không có chatbot cá nhân hoặc AI Tutor. |
 | **Admin** (Quản trị viên) | Tác nhân con người (System Administrator) | Quản lý danh mục đào tạo (Môn học - Subject, Học kỳ - Semester); quản trị tài khoản người dùng và phân quyền; giám sát hoạt động của các lớp học phần; xem nhật ký hệ thống (Audit Log), phản hồi người dùng và cấu hình thông số hệ thống. |
 | **LLM & Embedding Provider** | Tác nhân bên ngoài (External Service) | Nhà cung cấp dịch vụ mô hình ngôn ngữ lớn và mô hình nhúng (thông qua API tương thích OpenAI) phục vụ việc tính toán vector và sinh văn bản theo cấu trúc. |
 
@@ -44,20 +44,21 @@ Python AI Service, Java Backend và Next.js là các thành phần nội bộ, k
 
 1. **Quản lý tài khoản và hồ sơ:** Đăng ký tài khoản, đăng nhập hệ thống qua JWT, xem và cập nhật thông tin cá nhân, đổi mật khẩu.
 2. **Tham gia lớp học phần:** Nhập mã mời (join code) để gửi yêu cầu tham gia lớp; theo dõi trạng thái yêu cầu (`PENDING`, `APPROVED`, `REJECTED`); truy cập không gian học tập của lớp khi đã được duyệt.
-3. **Khai thác học liệu của lớp:** Xem danh sách bài giảng đã được công bố; đọc slide PPTX trực tiếp qua trình xem trực tuyến (Slide Viewer); ghi chú riêng theo từng slide; tải tài liệu tham khảo định dạng PDF của giảng viên về máy tính cá nhân.
-4. **Tương tác với Slide AI Tutor:** Đặt câu hỏi thắc mắc ngay tại slide đang xem; nhận câu trả lời có trích dẫn đúng số slide bài giảng; nhận thông báo `NO_EVIDENCE` nếu câu hỏi nằm ngoài phạm vi kiến thức của bài giảng.
+3. **Khai thác học liệu của lớp:** Xem Course Material PDF đã công bố, đọc trực tuyến và ghi chú riêng theo từng trang.
+4. **Tương tác với Course Material AI Tutor:** Đặt câu hỏi tại trang đang xem; nhận câu trả lời có trích dẫn đúng trang hoặc `NO_EVIDENCE`.
 5. **Quản lý tài liệu học tập cá nhân (Personal Documents):** Tải lên các tệp tài liệu PDF cá nhân; theo dõi tiến trình xử lý và lập chỉ mục (`PROCESSING`, `READY`, `FAILED`); đổi tên hoặc xóa tài liệu khi không còn sử dụng.
-6. **Hỏi đáp tài liệu cá nhân (Personal RAG):** Lựa chọn từ 1 đến 10 tài liệu PDF cá nhân đang ở trạng thái `READY`; tạo cuộc hội thoại mới; gửi câu hỏi truy vấn; nhận câu trả lời kèm trích dẫn số trang và đoạn trích dẫn đối chiếu; nhận thông báo `NO_EVIDENCE` khi tài liệu không chứa đủ thông tin trả lời.
-7. **Khởi tạo và duyệt Quiz AI (AI Quiz Generation & Review):** Chọn tài liệu cá nhân làm nguồn kiến thức; nhập yêu cầu (prompt) tùy chỉnh về số lượng câu hỏi, mức độ khó, chủ đề trọng tâm; xem trước bản nháp câu hỏi trắc nghiệm gồm 4 phương án, đáp án đúng, giải thích và căn cứ nguồn; thực hiện Chấp nhận (Accept) để đưa vào kho ôn tập, Tạo lại (Regenerate) hoặc Hủy bỏ (Reject).
+6. **Trợ lý tài liệu cá nhân:** Chọn 1–10 Personal PDF `READY`, nhập prompt tự nhiên để hỏi đáp, tóm tắt hoặc tạo Quiz; Agent hỏi lại khi thiếu tham số và mọi kết quả phải có citation trang.
+7. **Duyệt Quiz AI:** Mở bản nháp `REVIEW_REQUIRED`, kiểm tra 4 phương án/một đáp án/giải thích/nguồn rồi Accept, Regenerate hoặc Reject.
 8. **Luyện tập và ôn thi (Take Quiz & Review):** Làm bài trắc nghiệm với giao diện trực quan; nộp bài để nhận kết quả chấm điểm tức thì từ hệ thống; xem lại lịch sử các lần làm bài (attempts); xem danh sách các câu trả lời sai kèm liên kết dẫn trực tiếp về trang tài liệu cần đọc lại.
-9. **Theo dõi tiến độ và Kế hoạch học tập:** Xem Dashboard tổng quan về tỷ lệ hoàn thành học phần, số slide đã học, số câu hỏi Quiz đã làm; theo dõi chuỗi ngày học tập liên tục (Study Streak); thiết lập mục tiêu học tập hàng ngày (Daily Goal); quản lý danh sách công việc (Task) và lịch học tập theo tuần (Study Plan & Calendar).
+9. **Theo dõi tiến độ và Kế hoạch học tập:** Xem Dashboard về số trang PDF đã học, Quiz/task, Study Streak và Daily Goal; quản lý task và lịch tuần.
 
 ### 2.2.2. Yêu cầu chức năng phân hệ Giảng viên (Teacher)
 
 1. **Quản lý lớp học phần (Course Offering):** Tạo lớp học phần mới trên cơ sở Môn học (Subject) và Học kỳ (Semester) hợp lệ trong danh mục; cập nhật thông tin lớp; lưu trữ (Archive) lớp học phần khi kết thúc học kỳ.
 2. **Quản lý mã mời và thành viên lớp:** Bật/tắt hoặc cấp lại mã mời (join code) ngẫu nhiên cho lớp; xem danh sách sinh viên đang chờ duyệt (`PENDING`); thực hiện duyệt (`APPROVED`) hoặc từ chối (`REJECTED`) yêu cầu tham gia; xóa sinh viên khỏi lớp học khi cần thiết.
-3. **Quản lý kho học liệu môn học:** Tải lên các tệp bài giảng PPTX và tài liệu tham khảo PDF vào thư viện học liệu cá nhân; theo dõi quá trình trích xuất và xử lý slide bài giảng.
+3. **Quản lý kho học liệu môn học:** Tải Course Material PDF có lớp văn bản, theo dõi xử lý/index và công bố vào lớp sở hữu.
 4. **Công bố học liệu (Publishing):** Lựa chọn tài liệu từ thư viện để công bố (Public) vào lớp học phần cụ thể cho sinh viên truy cập; thu hồi (Revoke) quyền truy cập tài liệu khi cần chỉnh sửa hoặc thay thế.
+5. **Sinh Quiz AI cho lớp:** Chọn PDF, Course Offering, số câu, độ khó, chủ đề và khoảng trang; review/sửa bản nháp trước khi publish.
 
 ### 2.2.3. Yêu cầu chức năng phân hệ Quản trị viên (Admin)
 
@@ -69,9 +70,9 @@ Python AI Service, Java Backend và Next.js là các thành phần nội bộ, k
 ### 2.2.4. Yêu cầu phi chức năng
 
 - **Bảo mật và Phân quyền (Security & Authorization):** Áp dụng kiến trúc xác thực Stateless dựa trên JWT (Access Token ngắn hạn trong Header và Refresh Token trong Cookie HttpOnly/SameSite). Phân quyền theo vai trò (RBAC) và theo quyền sở hữu tài nguyên (Resource Ownership). Sinh viên chỉ được truy cập học liệu của lớp khi có trạng thái `APPROVED`, chỉ được thao tác trên tài liệu cá nhân của chính mình.
-- **Tính toàn vẹn và Tin cậy của AI (AI Grounding & Hallucination Prevention):** Toàn bộ truy xuất AI phải được giới hạn trong phạm vi tài liệu được cấp phép (Authorized Scope). Phải có cơ chế kiểm duyệt căn cứ (Evidence Gate) trước khi sinh văn bản; bắt buộc trích dẫn nguồn (Citations) kèm số trang/số slide; kiên quyết trả về trạng thái `NO_EVIDENCE` khi thông tin nguồn không đủ chứng minh.
+- **Tính toàn vẹn và Tin cậy của AI (AI Grounding & Hallucination Prevention):** Toàn bộ truy xuất AI phải giới hạn trong Authorized Scope, citation theo trang PDF và trả `NO_EVIDENCE` khi thiếu căn cứ. Single Agent chỉ được gọi ba tool có schema và phải trả `NEEDS_CLARIFICATION` khi thiếu tham số.
 - **Tính nhất quán nghiệp vụ (Business Rule Consistency):** Backend Java đóng vai trò là "System of Record", sở hữu toàn bộ logic nghiệp vụ, trạng thái vòng đời Quiz, chấm điểm trắc nghiệm và tính toán tiến độ. AI Service tuyệt đối không can thiệp trực tiếp vào cơ sở dữ liệu nghiệp vụ hoặc tự ý chấm điểm.
-- **Hiệu năng và Tính sẵn sàng (Performance & Scalability):** Các tác vụ xử lý tệp nặng (trích xuất slide, tạo embedding, sinh câu hỏi) phải được thực hiện bất đồng bộ (Asynchronous Background Jobs) với cơ chế Idempotency Key để tránh xử lý lặp. Thời gian phản hồi cho các truy vấn đọc dữ liệu thông thường dưới 500ms.
+- **Hiệu năng và Tính sẵn sàng (Performance & Scalability):** Các tác vụ parse PDF, embedding và sinh Quiz chạy bất đồng bộ với Idempotency Key; API đọc dữ liệu thông thường đáp ứng mục tiêu hiệu năng đã quy định.
 - **Trải nghiệm người dùng và Chuẩn giao diện (UI/UX Standards):** Thiết kế giao diện responsive tương thích từ màn hình di động (360px) đến máy tính để bàn; tuân thủ chuẩn thẩm mỹ hiện đại với tông màu nhận diện học đường (Đỏ PTIT - Trắng - Xám Slate); hỗ trợ điều hướng bàn phím và khả năng tiếp cận (Accessibility - WCAG AA).
 
 ---
@@ -100,35 +101,35 @@ Theo quy định phân công đồ án tốt nghiệp trong nhóm 3 thành viên
 
 ### 2.3.1. Ba chức năng trọng tâm của Thành viên 1 (Phụ trách AI — Đã chốt chính thức)
 
-#### AI-F01 — Hỏi đáp tài liệu cá nhân bằng RAG (Personal RAG)
+#### AI-F01 — Trợ lý tài liệu cá nhân bằng RAG
 
 | Trường thông tin | Nội dung |
 |---|---|
-| **Mã và tên chức năng** | **AI-F01: Hỏi đáp tài liệu cá nhân bằng RAG (Personal RAG)** |
-| **Thành viên/phạm vi phụ trách** | Thành viên 1 - AI Python; Python AI Service, xử lý văn bản, vector embedding, retrieval, LLM prompt generation và trích dẫn nguồn |
-| **Mục tiêu** | Cho phép Student đặt câu hỏi trên một hoặc nhiều tài liệu PDF cá nhân đã chọn và nhận câu trả lời bám sát bằng chứng thực tế kèm số trang trích dẫn |
+| **Mã và tên chức năng** | **AI-F01: Trợ lý tài liệu cá nhân bằng RAG** |
+| **Thành viên/phạm vi phụ trách** | Thành viên 1 - AI Python; Single Orchestrator Agent, PDF retrieval, tool calling và citation validation |
+| **Mục tiêu** | Cho phép Student dùng một giao diện để hỏi đáp, tóm tắt hoặc yêu cầu tạo Quiz trên Personal PDF, luôn bám bằng chứng trang |
 | **Tác nhân** | Student (chính), nhà cung cấp mô hình (hỗ trợ); các service là thành phần thực thi |
 | **Tiền điều kiện** | Student đã đăng nhập; là owner của tài liệu; tài liệu PDF có lớp văn bản; tài liệu và chỉ mục đang ở trạng thái `READY` |
-| **Đầu vào** | Khi tạo hội thoại: 1–10 `selectedDocumentIds` duy nhất. Khi gửi tin: `conversationId` trên URL và body `{message}` dài 1–2.000 ký tự; Java lấy danh sách tài liệu/phiên bản từ snapshot đã xác thực, client không truyền lại scope |
-| **Luồng xử lý chính** | 1. Java kiểm tra quyền owner và trạng thái tài liệu → gọi nội bộ sang Python AI Service.<br>2. Python embed câu hỏi bằng đúng phiên bản mô hình nhúng.<br>3. Lọc phạm vi theo `ownerId`, `documentId`, `version` và tìm kiếm Cosine trên pgvector.<br>4. Đưa các đoạn trích qua bộ lọc kiểm tra căn cứ (Evidence Gate).<br>5. Đóng gói context và gửi prompt tới LLM sinh câu trả lời kèm citation.<br>6. Kiểm tra tính hợp lệ của trích dẫn (Grounding Validator) và trả về JSON có cấu trúc cho Java. |
-| **Đầu ra** | Trạng thái `ANSWERED` cùng nội dung câu trả lời và mảng citation (`documentId + pageNumber + excerpt`), hoặc trạng thái `NO_EVIDENCE` |
-| **Ngoại lệ và quy tắc** | Tuyệt đối không dùng chunk ngoài scope; prompt injection trong tài liệu không được thay đổi system rule; thiếu bằng chứng bắt buộc trả `NO_EVIDENCE`; không ghi log nội dung tài liệu hoặc prompt nhạy cảm |
-| **Tiêu chí nghiệm thu** | Cách ly dữ liệu giữa các user/document/version đạt 100%; citation trỏ đúng trang và chứng minh được nội dung trả lời; câu hỏi ngoài phạm vi tài liệu trả về `NO_EVIDENCE`; schema phản hồi hợp lệ |
+| **Đầu vào** | Conversation có 1–10 `selectedDocumentIds`; body `{message}` 1–2.000 ký tự; Java cấp document/version scope và bounded history |
+| **Luồng xử lý chính** | 1. Java kiểm owner/READY và dựng scope.<br>2. Agent nhận diện intent và validate args.<br>3. Agent gọi đúng một tool `ask_document`, `summarize_document` hoặc `generate_quiz`.<br>4. Tool retrieval trên pgvector trong scope và tạo evidence snapshot.<br>5. LLM sinh structured result; validator kiểm citation/schema.<br>6. Java revalidate rồi lưu conversation hoặc Quiz draft. |
+| **Đầu ra** | `ANSWERED`, `SUMMARIZED`, `QUIZ_CREATED`, `NEEDS_CLARIFICATION` hoặc `NO_EVIDENCE`; kết quả có `documentId + pageNumber + excerpt` khi dùng bằng chứng |
+| **Ngoại lệ và quy tắc** | Không dùng chunk ngoài scope; không cho prompt injection đổi system/tool; thiếu args phải hỏi lại; thiếu evidence trả `NO_EVIDENCE`; không log nội dung tài liệu/prompt |
+| **Tiêu chí nghiệm thu** | Owner isolation 100%; route đúng tool; citation đúng trang; intent mơ hồ được hỏi lại; không scope leakage |
 
-#### AI-F02 — Hỏi đáp nội dung bài giảng với Slide AI Tutor
+#### AI-F02 — Hỏi đáp Course Material PDF với AI Tutor
 
 | Trường thông tin | Nội dung |
 |---|---|
-| **Mã và tên chức năng** | **AI-F02: Hỏi đáp nội dung bài giảng với Slide AI Tutor** |
-| **Thành viên/phạm vi phụ trách** | Thành viên 1 - AI Python; bóc tách cấu trúc PPTX, trích xuất văn bản theo từng slide, retrieval theo lớp học phần và điều phối Slide AI Tutor |
-| **Mục tiêu** | Giải thích nội dung kiến thức bài giảng theo đúng slide mà Student đang xem trên web hoặc phạm vi bài giảng được phép, có trích dẫn đúng số slide bài giảng |
+| **Mã và tên chức năng** | **AI-F02: Hỏi đáp Course Material PDF với AI Tutor** |
+| **Thành viên/phạm vi phụ trách** | Thành viên 1 - AI Python; PDF parsing theo trang, retrieval theo Course Offering và grounding validator |
+| **Mục tiêu** | Giải thích nội dung Course Material PDF cho Student được duyệt, ưu tiên trang đang xem và trích dẫn đúng trang |
 | **Tác nhân** | Student (chính), nhà cung cấp mô hình (hỗ trợ) |
-| **Tiền điều kiện** | Student có enrollment `APPROVED`; bài giảng PPTX đã được Giảng viên công bố và trạng thái chỉ mục là `READY`; lớp và tài liệu chưa bị khóa/thu hồi |
-| **Đầu vào** | Câu hỏi của Student, `documentId`, `documentVersion`, `courseOfferingId`, `slideNumber` hiện tại và phạm vi slide được Java cấp quyền |
-| **Luồng xử lý chính** | 1. Java kiểm tra quyền enrollment và publication → cấp authorized scope cho Python.<br>2. Python lọc đúng bài giảng/phiên bản/lớp học phần.<br>3. Ưu tiên slide hiện tại, chỉ lấy slide liên quan nằm trong allowed scope.<br>4. Kiểm tra đủ bằng chứng trước khi gọi LLM; nếu thiếu trả `NO_EVIDENCE`.<br>5. Validator kiểm tra citation theo slide và trả kết quả cấu trúc về Java. |
-| **Đầu ra** | Trạng thái `ANSWERED` cùng citation (`documentId + slideNumber + excerpt`), hoặc trạng thái `NO_EVIDENCE` |
-| **Ngoại lệ và quy tắc** | Tài liệu PDF của Giảng viên chỉ cho tải về, không áp dụng Slide Tutor; Student không được tải tệp PPTX gốc; publication bị thu hồi phải chặn truy vấn ngay lập tức; không suy diễn ngoài nội dung có bằng chứng trong slide |
-| **Tiêu chí nghiệm thu** | Tuyệt đối không truy xuất ngoài lớp học phần được phép; citation trỏ đúng số slide bài giảng; câu hỏi ngoài nội dung bài giảng trả `NO_EVIDENCE`; prompt injection không thay đổi được phạm vi bài giảng |
+| **Tiền điều kiện** | Student có enrollment `APPROVED`; Course Material PDF đã public và index `READY`; lớp/tài liệu không bị khóa/thu hồi |
+| **Đầu vào** | Câu hỏi, `documentId`, `documentVersion`, `courseOfferingId`, `pageNumber` hiện tại và allowed page scope từ Java |
+| **Luồng xử lý chính** | 1. Java kiểm enrollment/publication.<br>2. Python filter đúng PDF/version/lớp.<br>3. Ưu tiên page hiện tại và retrieval trong allowed scope.<br>4. Evidence Gate từ chối khi thiếu căn cứ.<br>5. Validator kiểm page citation và trả structured result. |
+| **Đầu ra** | `ANSWERED` với `documentId + pageNumber + excerpt` hoặc `NO_EVIDENCE` |
+| **Ngoại lệ và quy tắc** | Chỉ Student dùng Tutor; Teacher không có Tutor; revoke chặn request kế tiếp; không suy diễn ngoài evidence |
+| **Tiêu chí nghiệm thu** | Không retrieval ngoài Course Offering được phép; citation đúng trang; câu ngoài nguồn trả `NO_EVIDENCE` |
 
 #### AI-F03 — Sinh bộ câu hỏi ôn tập AI (AI Quiz Generator)
 
@@ -136,14 +137,14 @@ Theo quy định phân công đồ án tốt nghiệp trong nhóm 3 thành viên
 |---|---|
 | **Mã và tên chức năng** | **AI-F03: Sinh bộ câu hỏi ôn tập AI (AI Quiz Generator)** |
 | **Thành viên/phạm vi phụ trách** | Thành viên 1 - AI Python; retrieval có grounding và structured Quiz generation tuân thủ schema nghiêm ngặt trong Python AI Service |
-| **Mục tiêu** | Tự động sinh bộ câu hỏi trắc nghiệm một đáp án đúng (`MCQ_SINGLE`) từ các tài liệu cá nhân do Student chủ động lựa chọn kết hợp prompt yêu cầu tự do |
-| **Tác nhân** | Student (chính), nhà cung cấp mô hình (hỗ trợ) |
-| **Tiền điều kiện** | Student là owner của các tài liệu; các tài liệu PDF cá nhân đang ở trạng thái `READY`; Java đã khởi tạo Quiz ở trạng thái `GENERATING` |
-| **Đầu vào** | Danh sách 1–10 `selectedDocumentIds` duy nhất; Java xác định phiên bản tài liệu; prompt dài 1–2.000 ký tự mô tả số lượng câu, độ khó, chủ đề cần tập trung; không phụ thuộc vào ngữ cảnh chat trước |
+| **Mục tiêu** | Sinh `MCQ_SINGLE` có căn cứ cho hai chế độ: Student từ Personal PDF và Teacher từ Course Material PDF |
+| **Tác nhân** | Student hoặc Teacher (chính), nhà cung cấp mô hình (hỗ trợ) |
+| **Tiền điều kiện** | Nguồn PDF `READY`; Java đã xác thực Student owner hoặc Teacher sở hữu document/Course Offering |
+| **Đầu vào** | `mode=PERSONAL_STUDENT|COURSE_TEACHER`, authorized document/version/page scope, số câu, độ khó, chủ đề và yêu cầu bổ sung; Student có thể cung cấp qua tool của Agent, Teacher qua form |
 | **Luồng xử lý chính** | 1. Java xác thực nguồn tài liệu và tạo scope.<br>2. Python truy xuất các đoạn kiến thức trọng tâm từ tài liệu.<br>3. LLM sinh JSON theo định dạng chuẩn `MCQ_SINGLE`.<br>4. Kiểm tra mỗi câu có đúng 4 phương án, đúng 1 đáp án chính xác, có giải thích và trích dẫn số trang.<br>5. Sửa lỗi cấu trúc tự động (repair) tối đa 1 lần nếu cần.<br>6. Trả bản nháp Quiz có cấu trúc cho Java lưu trữ. |
 | **Đầu ra** | Bản nháp Quiz chứa danh sách câu hỏi, các phương án lựa chọn, chỉ số `correctOptionIndex`, lời giải thích và sources; Java chuyển sang `REVIEW_REQUIRED` hoặc `GENERATION_FAILED` |
-| **Ngoại lệ và quy tắc** | Prompt tự do của Student không được phép phá vỡ schema hoặc mở rộng scope; Python không tự ý chấp nhận (Accept), chấm điểm hay cập nhật tiến độ; output không hợp lệ sau khi repair sẽ trả lỗi có cấu trúc |
-| **Tiêu chí nghiệm thu** | 100% câu hỏi sinh ra đúng schema `MCQ_SINGLE` với 4 phương án và 1 đáp án đúng; toàn bộ câu hỏi đều có nguồn dẫn chứng hợp lệ; Java kiểm soát hoàn toàn vòng đời Quiz và việc chấm điểm |
+| **Ngoại lệ và quy tắc** | Prompt/instructions không phá schema/scope; Python không accept/publish/chấm/update progress; Teacher phải review trước publish, Student review trước attempt |
+| **Tiêu chí nghiệm thu** | 100% câu đúng schema với 4 phương án, 1 đáp án đúng và page source; Java kiểm soát lifecycle/scoring |
 
 ---
 
@@ -264,8 +265,8 @@ Biểu đồ Use Case tổng quát thể hiện bức tranh toàn cảnh về ra
 *Hình 2.1. Biểu đồ Use Case tổng quát toàn hệ thống StudyFlow.*
 
 **Thuyết minh biểu đồ Hình 2.1:**
-- Tác nhân **Student** tương tác với bảy nhóm chức năng chính: tham gia Course Offering, học bằng slide và ghi chú, Personal RAG, Slide Tutor, Quiz AI, Dashboard và Kế hoạch & Lịch ôn tập.
-- Tác nhân **Teacher** tạo và quản lý Course Offering, quản lý join code/enrollment, upload PDF/PPTX, theo dõi xử lý và chủ động công bố hoặc thu hồi học liệu.
+- Tác nhân **Student** tương tác với Course Offering, Course Material PDF/Page Note/Tutor, Personal Document Assistant, Quiz/Review, Dashboard và Kế hoạch & Lịch.
+- Tác nhân **Teacher** tạo/quản lý Course Offering, enrollment, Course Material PDF/publication và AI Quiz Generator; không có chatbot hoặc Tutor.
 - Tác nhân **Admin** quản lý người dùng, vai trò, Subject, Semester, giám sát Course Offering, feedback, audit và cấu hình hệ thống; Admin không mặc định được đọc dữ liệu học tập cá nhân của Student.
 - Ba khung chức năng nằm trong một System Boundary duy nhất của StudyFlow. Hình 2.2–2.4 tiếp tục phân rã nghiệp vụ theo từng vai trò để tránh đưa chi tiết luồng xử lý vào biểu đồ tổng quát.
 - Biểu đồ phân định ranh giới nghiệp vụ rõ ràng: Giảng viên và Quản trị viên không can thiệp vào kho tài liệu cá nhân, nội dung hỏi đáp riêng tư, kết quả làm Quiz và lịch học của từng sinh viên.
@@ -282,9 +283,9 @@ Biểu đồ phân rã chi tiết các ca sử dụng dành riêng cho tác nhâ
 
 **Thuyết minh biểu đồ Hình 2.2:**
 - Ký hiệu Student được lặp ở hai phía nhưng cùng biểu diễn một tác nhân; cách trình bày này rút ngắn association, giữ đường nối thẳng và không tạo thêm vai trò nghiệp vụ.
-- Nhóm ca sử dụng lớp học phần: Sinh viên nhập mã mời (Join Class), khi được duyệt sẽ có quyền xem slide bài giảng trực tuyến, ghi chú slide (`slide_notes`), và đặt câu hỏi cho Slide AI Tutor (`<<extend>>` từ việc xem slide).
-- Nhóm ca sử dụng tài liệu cá nhân và RAG: Sinh viên tải lên tài liệu PDF cá nhân; chọn tài liệu để tạo phiên hội thoại hỏi đáp RAG. Hỏi đáp bắt buộc kiểm tra căn cứ và trích dẫn số trang; đây là quy tắc nội bộ, không tách mỗi bước xử lý thành một Use Case.
-- Nhóm ca sử dụng Quiz AI: Sinh viên chọn tài liệu và nhập prompt để hệ thống sinh bản nháp Quiz; sinh viên duyệt bản nháp (Accept/Reject/Regenerate) trước khi tiến hành làm bài; hệ thống tự động chấm điểm và trích xuất danh sách câu sai liên kết về nguồn học liệu.
+- Nhóm lớp học phần: khi được duyệt, Student xem Course Material PDF, lưu `page_notes` và hỏi Course Material AI Tutor.
+- Nhóm tài liệu cá nhân: Student upload PDF, chọn nguồn rồi dùng cùng một Assistant để hỏi, tóm tắt hoặc tạo Quiz; citation theo trang và thiếu căn cứ trả `NO_EVIDENCE`.
+- Nhóm Quiz AI: Quiz Student tạo trong Assistant phải review trước attempt; Java chấm điểm và tổng hợp câu sai theo page source.
 - Nhóm ca sử dụng tiến độ và kế hoạch: Sinh viên thiết lập Daily Goal, quản lý các đầu việc Task trên giao diện lịch tuần và theo dõi thống kê chuỗi ngày học Streak trên Dashboard.
 
 ---
@@ -300,7 +301,7 @@ Biểu đồ mô tả chi tiết các quyền hạn và chức năng nghiệp v�
 **Thuyết minh biểu đồ Hình 2.3:**
 - Giảng viên trực tiếp khởi tạo lớp học phần (Create Course Offering) dựa trên danh mục Môn học và Học kỳ do Nhà trường/Admin ban hành mà không cần chờ phê duyệt lớp.
 - Quản lý thành viên lớp: Giảng viên xem danh sách yêu cầu tham gia, thực hiện phê duyệt (`Approve Enrollment`) để cấp quyền cho sinh viên hoặc từ chối (`Reject Enrollment`). Giảng viên có quyền tạo mới hoặc vô hiệu hóa mã mời (Manage Join Code).
-- Quản lý học liệu: Giảng viên tải lên tài liệu bài giảng PPTX và tài liệu tham khảo PDF vào thư viện tài liệu của mình; thực hiện thao tác công bố (`Publish Document`) tài liệu vào một hoặc nhiều lớp học phần đang giảng dạy, hoặc thu hồi (`Revoke Publication`) khi cần thiết.
+- Quản lý học liệu và Quiz: Giảng viên upload/public/revoke Course Material PDF, sau đó có thể chọn PDF, số câu, độ khó, chủ đề và trang để tạo Quiz AI; Teacher review trước khi publish.
 
 ---
 
@@ -337,33 +338,33 @@ Mỗi đặc tả dùng cùng một form: mã/tên, mục tiêu, tác nhân, kí
 
 `NO_EVIDENCE` là cơ chế từ chối có kiểm soát, không phải cam kết mô hình không bao giờ sai. Chất lượng cần được kiểm chứng bằng tập đánh giá có bằng chứng tham chiếu; số liệu nghiệm thu chỉ được công bố sau khi chạy đánh giá.
 
-### 2.5.2. UC-TUTOR-01 — Hỏi đáp slide (AI-F02)
+### 2.5.2. UC-TUTOR-01 — Hỏi đáp Course Material PDF (AI-F02)
 
 | Thuộc tính | Nội dung |
 |---|---|
-| Mục tiêu / tác nhân | Student hiểu nội dung slide đang học; nhà cung cấp mô hình hỗ trợ |
-| Kích hoạt | Student nhập câu hỏi trong khung Tutor cạnh Slide Viewer |
-| Tiền điều kiện | Enrollment APPROVED; PPTX đã công bố, READY; tài liệu/slide tồn tại và được phép truy cập theo chính sách lớp hiện tại |
-| Luồng chính | 1. Mở slide và nhập câu hỏi.<br>2. Java kiểm tra enrollment, publication, trạng thái và phiên bản tài liệu.<br>3. Dựng scope gồm slide hiện tại và các slide được phép.<br>4. Python truy xuất trong scope, ưu tiên slide hiện tại, kiểm tra đủ bằng chứng.<br>5. Sinh giải thích, kiểm tra citation; rewrite tối đa một lần nếu cần.<br>6. Java kiểm tra lại quyền và kết quả trước khi trả về Viewer. |
+| Mục tiêu / tác nhân | Student hiểu nội dung trang PDF đang học; nhà cung cấp mô hình hỗ trợ |
+| Kích hoạt | Student nhập câu hỏi trong khung Tutor cạnh PDF Viewer |
+| Tiền điều kiện | Enrollment APPROVED; Course Material PDF đã công bố và READY; trang tồn tại trong authorized scope |
+| Luồng chính | 1. Mở trang PDF và nhập câu hỏi.<br>2. Java kiểm enrollment/publication/version.<br>3. Dựng scope gồm trang hiện tại và phạm vi trang được phép.<br>4. Python retrieval trong scope, ưu tiên trang hiện tại.<br>5. Sinh giải thích và validate citation.<br>6. Java kiểm lại quyền/kết quả trước khi trả Viewer. |
 | Thay thế | Thiếu căn cứ: `NO_EVIDENCE`; Student có thể điều chỉnh câu hỏi |
-| Ngoại lệ | Chưa được duyệt, bị remove, tài liệu bị revoke/khóa hoặc slide không tồn tại: từ chối theo contract; lỗi hạ tầng có error code riêng |
-| Hậu điều kiện | Trả citation `documentId + slideNumber + excerpt`; không dùng publicationId thay documentId |
+| Ngoại lệ | Chưa được duyệt, bị remove, tài liệu bị revoke/khóa hoặc page không tồn tại: từ chối theo contract; lỗi hạ tầng có error code riêng |
+| Hậu điều kiện | Trả citation `documentId + pageNumber + excerpt`; không dùng publicationId thay documentId |
 
-Không tự mở rộng sang tài liệu khác hoặc toàn bộ lớp. Teacher PDF không có Tutor. `ASK_AI` không được tính vào Streak; xem slide là hoạt động được ghi nhận riêng theo luật của Java.
+Không tự mở rộng sang tài liệu khác hoặc toàn bộ lớp. Teacher không có Tutor. `ASK_AI` không được tính vào Streak; `VIEW_PAGE` được ghi nhận riêng theo luật Java.
 
 ### 2.5.3. UC-QUIZ-01 — Sinh và duyệt Quiz AI (AI-F03)
 
 | Thuộc tính | Nội dung |
 |---|---|
-| Mục tiêu / tác nhân | Student tạo bộ ôn tập từ tài liệu mình chọn; nhà cung cấp mô hình sinh bản nháp |
-| Kích hoạt | Chọn 1–10 Personal PDF và nhập prompt dài 1–2.000 ký tự |
-| Tiền điều kiện | Nguồn thuộc owner, READY, đúng phiên bản; không phụ thuộc vào hội thoại RAG |
-| Luồng chính | 1. Student gửi nguồn và prompt.<br>2. Java xác thực, lưu snapshot và tạo Quiz GENERATING; trả `202 + quizId`.<br>3. Tác vụ nền gọi Python để retrieval, sinh bản nháp và kiểm tra schema/grounding.<br>4. Python trả mỗi câu đúng bốn phương án, một `correctOptionIndex` trong 0..3, explanation và page citations; repair tối đa một lần.<br>5. Java kiểm tra toàn bộ bản nháp trước khi lưu REVIEW_REQUIRED; FE polling Java để nhận trạng thái.<br>6. Student review và accept vào PERSONAL hoặc Course Offering có enrollment APPROVED.<br>7. Java kiểm tra destination rồi chuyển READY. |
+| Mục tiêu / tác nhân | Student hoặc Teacher tạo bộ ôn tập có nguồn; nhà cung cấp mô hình sinh bản nháp |
+| Kích hoạt | Student yêu cầu trong Personal Assistant hoặc Teacher gửi form AI Quiz Studio |
+| Tiền điều kiện | PDF READY; Java xác thực Student owner hoặc Teacher sở hữu PDF/Course Offering |
+| Luồng chính | 1. Java dựng source/page scope và mode.<br>2. Student Agent hỏi lại nếu thiếu args; Teacher form được validate.<br>3. Java tạo Quiz GENERATING và gọi Python.<br>4. Python retrieval, sinh mỗi câu đúng 4 phương án, một `correctOptionIndex`, explanation và page citations.<br>5. Java validate toàn batch rồi lưu REVIEW_REQUIRED.<br>6. Student accept thành READY hoặc Teacher review/edit rồi PUBLISHED. |
 | Thay thế | Reject chuyển REJECTED; regenerate tạo Quiz mới và bảo toàn bản cũ/lịch sử; destination không hợp lệ thì chưa accept |
 | Ngoại lệ | Thiếu nguồn, provider lỗi hoặc output không đạt sau repair: Java ghi GENERATION_FAILED, không lưu bộ câu hỏi không hợp lệ |
 | Hậu điều kiện | Quiz chỉ làm được sau accept; Python không tự cập nhật lifecycle hoặc chấm điểm |
 
-Prompt tự do được dùng để nêu chủ đề, độ khó và mong muốn của Student; không được thay thế system rule, authorized scope, schema hoặc yêu cầu citation. Nguồn sinh Quiz và nơi lưu Quiz để ôn tập là hai khái niệm độc lập.
+Prompt/instructions chỉ nêu chủ đề và yêu cầu sư phạm; không thay system rule, authorized scope, schema hoặc citation. Nguồn sinh Quiz và nơi ôn tập/công bố là hai khái niệm độc lập.
 
 ### 2.5.4. UC-DOC-01 — Chuẩn bị Personal PDF
 
@@ -385,7 +386,7 @@ Prompt tự do được dùng để nêu chủ đề, độ khó và mong muốn
 | Luồng chính | 1. Java tạo attempt mới.<br>2. FE hiển thị câu hỏi và bốn lựa chọn, không đưa đáp án chuẩn vào payload làm bài.<br>3. Student chọn đáp án, nộp bài.<br>4. Java đối chiếu đáp án đã lưu, ghi từng answer và điểm trong transaction.<br>5. Ghi QUIZ_COMPLETED một lần cho attempt.<br>6. Hiển thị kết quả, giải thích và các trang Personal PDF liên quan tới câu sai. |
 | Thay thế | Làm lại tạo attempt mới, không ghi đè lịch sử |
 | Ngoại lệ | Submit lặp trả lại kết quả đã ghi, không cộng event lần nữa; mất kết nối hiển thị lỗi và cho thử lại an toàn, không mặc định cam kết chế độ offline |
-| Hậu điều kiện | Cập nhật thống kê Quiz, Daily Goal và Streak theo sự kiện hợp lệ; không tăng viewing progress của PPTX từ điểm Quiz |
+| Hậu điều kiện | Cập nhật thống kê Quiz, Daily Goal và Streak theo sự kiện hợp lệ; không tăng page progress từ điểm Quiz |
 
 “Nội dung cần ôn lại” là phép tổng hợp từ câu sai và nguồn của câu hỏi, không phải kết luận AI về mức độ yếu/mạnh hoặc Topic Mastery.
 
@@ -395,19 +396,19 @@ Prompt tự do được dùng để nêu chủ đề, độ khó và mong muốn
 |---|---|---|---|
 | UC-ENROLL-01 / Student, Teacher / nhập code | Lớp cho phép tham gia, code hợp lệ | Student gửi yêu cầu PENDING → Teacher owner duyệt APPROVED hoặc REJECTED → chỉ Student APPROVED được truy cập học liệu public | Code sai, lớp khóa, yêu cầu trùng được xử lý theo state machine; Admin không phải bước duyệt |
 | UC-OFFERING-01 / Teacher / tạo lớp | Teacher active, Subject hợp lệ và Semester cho phép tạo | Chọn Subject + Semester → nhập thông tin lớp → Java tạo Course Offering thuộc Teacher | Không tự đặt teacherId của người khác; không cần Admin phân công |
-| UC-PUBLISH-01 / Teacher / công bố học liệu | Cùng owner với lớp; PPTX READY | Upload PDF/PPTX → xử lý nếu PPTX → Teacher chủ động publish → Student APPROVED sử dụng | PDF chỉ download, PPTX chỉ xem artifact; revoke chặn truy cập mới |
+| UC-PUBLISH-01 / Teacher / công bố học liệu | Cùng owner với lớp; PDF READY | Upload/index PDF → Teacher publish → Student APPROVED xem/Note/Tutor | Revoke chặn truy cập mới; không nhận PPTX/DOCX |
 | UC-DASH-01 / Student / mở Dashboard | Đăng nhập | Java tổng hợp tiến độ chung/từng lớp, câu sai, Streak và Daily Goal; FE hỗ trợ mở/thu các khối | Không có route tiến độ độc lập; chỉ ba event học hợp lệ tính Streak |
 | UC-PLAN-01 / Student / thêm task hoặc lịch | Plan thuộc Student | Chọn tuần/ô giờ → nhập task hoặc lịch → Java validate và lưu → lịch tuần phản ánh dữ liệu; hoàn tất task sinh event một lần | Không tự động xếp lịch bằng AI; thao tác vượt owner bị từ chối |
-| UC-ADMIN-01 / Admin / quản trị | Đăng nhập với role Admin | Quản lý user/Subject/Semester/settings, xem feedback/audit và giám sát lớp | Không đọc mặc định Personal PDF/chat/Note/Quiz cá nhân; không tạo Teacher Quiz |
+| UC-ADMIN-01 / Admin / quản trị | Đăng nhập với role Admin | Quản lý user/Subject/Semester/settings, xem feedback/audit và giám sát lớp | Không đọc mặc định Personal PDF/chat/Note/Quiz cá nhân; không tạo/publish Quiz thay Teacher |
 
 ### 2.5.7. Ma trận truy vết sang thiết kế và kiểm thử
 
 | Yêu cầu / Use Case | Thiết kế ở Chương 3 | Kiểm thử cần có |
 |---|---|---|
 | AI-F01 / UC-RAG-01 | Lớp RAG, activity RAG, sequence RAG | Owner/document/version isolation; evidence gate; citation theo trang; provider timeout |
-| AI-F02 / UC-TUTOR-01 | Lớp Tutor, activity Tutor, sequence Tutor | Enrollment/revoke; allowed slides; citation theo slide; không cộng Streak |
-| AI-F03 / UC-QUIZ-01 | Lớp Quiz, activity/sequence Quiz và lifecycle | Bốn phương án; một đáp án; scope; repair giới hạn; review/accept; regenerate giữ lịch sử |
-| UC-DOC-01 / UC-PUBLISH-01 | Sequence index và ranh giới lưu trữ | 202/poll; index idempotent; text-required; PPTX READY không tự public |
+| AI-F02 / UC-TUTOR-01 | Lớp Tutor, activity Tutor, sequence Tutor | Enrollment/revoke; allowed pages; citation theo page; không cộng Streak |
+| AI-F03 / UC-QUIZ-01 | Lớp Quiz, activity/sequence Quiz và lifecycle | Hai mode; bốn phương án; một đáp án; scope; Student accept/Teacher publish |
+| UC-DOC-01 / UC-PUBLISH-01 | Sequence index và ranh giới lưu trữ | 202/poll; index idempotent; text-required; PDF READY không tự public |
 | UC-ENROLL-01 / UC-OFFERING-01 | Entity/ERD và activity enrollment | Teacher owner; code; trạng thái pending/approved; từ chối vượt quyền |
 | UC-QUIZ-02 / UC-DASH-01 / UC-PLAN-01 | Entity/ERD, lifecycle và quy tắc event | Chấm bằng Java; submit/task idempotent; timezone; viewing progress tách Quiz |
 | UC-ADMIN-01 | Kiến trúc, dữ liệu và ma trận phân quyền | RBAC; audit an toàn; không lộ dữ liệu riêng |

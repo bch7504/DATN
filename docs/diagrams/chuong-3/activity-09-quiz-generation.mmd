@@ -1,35 +1,11 @@
 flowchart LR
-  subgraph REQ["1. Yêu cầu — Student / Java"]
-    direction TB
-    A["Chọn 1–10 Personal PDF<br/>+ prompt riêng, độc lập chat"] --> B{"Owner, READY,<br/>version, prompt hợp lệ?"}
-    B -->|Không| X(["Từ chối"])
-    B -->|Có| C["quizId mới GENERATING<br/>trả 202; Web poll Java"]
-  end
-  subgraph GEN["2. Sinh draft — Python"]
-    direction TB
-    D["Internal generate idempotent<br/>retrieval theo scope"] --> E{"Đủ evidence?"}
-    E -->|Không| FAIL["Lỗi generation an toàn"]
-    E -->|Có| F["MCQ_SINGLE: đúng 4 options<br/>1 đáp án / explanation / sources"]
-    F --> G{"Schema / grounding đạt?"}
-    G -->|Không| H["Repair duy nhất 1 lần<br/>giữ snapshot; kiểm tra lại"]
-    H --> I{"Sau repair đạt?"}
-    I -->|Không| FAIL
-    I -->|Có| OK["Trả structured draft"]
-    G -->|Có| OK
-  end
-  subgraph VAL["3. Lưu draft — Java"]
-    direction TB
-    J{"Draft và source<br/>hợp lệ toàn bộ?"} -->|Không hoặc AI lỗi| GF(["GENERATION_FAILED"])
-    J -->|Có| K["Lưu REVIEW_REQUIRED<br/>Student xem câu / đáp án / nguồn"]
-  end
-  subgraph REV["4. Quyết định — Student / Java"]
-    direction TB
-    L{"Review?"} -->|Reject| RJ(["REJECTED"])
-    L -->|Regenerate| NEW(["quizId mới GENERATING<br/>giữ draft / attempt cũ"])
-    L -->|Accept| M{"PERSONAL hoặc<br/>lớp APPROVED?"}
-    M -->|Không| KEEP(["Từ chối Accept<br/>giữ REVIEW_REQUIRED"])
-    M -->|Có| READY(["Lưu destination; READY"])
-  end
-  REQ -->|Xử lý nền với scope hợp lệ| GEN
-  GEN -->|Draft hoặc safe error| VAL
-  VAL -->|Chỉ REVIEW_REQUIRED| REV
+  U["Student hoặc Teacher chọn PDF và cấu hình Quiz"] --> J{"Java kiểm source / mode / quyền"}
+  J -->|Không| X(["Không tạo Quiz"])
+  J -->|Có| G["Tạo GENERATING; trả 202"]
+  G --> AI["Python retrieval; sinh MCQ_SINGLE"]
+  AI --> V{"Đúng 4 lựa chọn, 1 đáp án, citation?"}
+  V -->|Không| F(["GENERATION_FAILED"])
+  V -->|Có| R["Java lưu REVIEW_REQUIRED"]
+  R --> ROLE{"Vai trò"}
+  ROLE -->|Student| S["Accept / Reject → READY / REJECTED"]
+  ROLE -->|Teacher| T["Sửa + Publish / Reject → PUBLISHED / REJECTED"]

@@ -32,7 +32,7 @@ async function collectFigures() {
       const size = svgMarkup.match(/<svg[^>]*width="([\d.]+)(?:px)?"[^>]*height="([\d.]+)(?:px)?"/);
       if (!size) throw new Error('Missing SVG dimensions: ' + relative);
       const orientation = Number(size[1]) / Number(size[2]) > 1.7 ? 'landscape' : 'portrait';
-      const source = relative.includes('/erd-physical-') ? 'README.md' : relative.slice(0, -4) + '.puml';
+      const source = relative.slice(0, -4) + '.puml';
       await fs.access(path.join(root, source));
       const description = match[4].startsWith('**Thuyết minh')
         ? report.slice(match.index + match[0].length).split(/\n(?:---|###)/)[0].trim()

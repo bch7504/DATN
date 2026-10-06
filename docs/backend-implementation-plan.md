@@ -10,7 +10,7 @@ Java Spring Boot là public API duy nhất cho Web và system of record của to
 
 - auth/session/RBAC và account status;
 - Subject, Semester, Course Offering, join code, Course Enrollment;
-- Teacher Library, publication, slide metadata, Note;
+- Teacher Course Material PDF, publication, page metadata, Note;
 - Personal Document metadata và conversation history;
 - Quiz prompt/lifecycle, destination, validation, attempt/scoring và wrong-answer review projection;
 - Dashboard aggregate, Content Progress, Study Streak, Daily Goal và dữ liệu Kế hoạch & Lịch tuần;
@@ -58,9 +58,9 @@ services/backend/
 │   ├── enrollment/           # request/approve/reject/access policy
 │   ├── document/             # Teacher/Personal metadata và upload lifecycle
 │   ├── publication/          # document ↔ Course Offering
-│   ├── slide/                # artifact metadata, signed access, view event
-│   ├── note/                 # Student + Slide note
-│   ├── conversation/         # Personal RAG conversation/history/citation record
+│   ├── material/             # PDF page metadata, signed access, view event
+│   ├── note/                 # Student + PDF page note
+│   ├── conversation/         # Personal Assistant conversation/history/citation/tool result
 │   ├── review/               # Quiz draft/review/attempt/scoring
 │   ├── progress/             # Dashboard aggregate, Content Progress, Streak, Daily Goal
 │   ├── study/                # Kế hoạch/Task/Session/Calendar projection theo tuần
@@ -129,22 +129,23 @@ Enrollment:      PENDING → APPROVED | REJECTED
 - Teacher role hợp lệ tự tạo lớp từ Subject/Semester active.
 - Join code được normalize, lưu hash/hint, unique và rotate nguyên tử.
 - Teacher owner duyệt Enrollment; Admin không duyệt từng request.
-- `APPROVED` là điều kiện để cấp materials/slide/Tutor, trừ historical policy đã định nghĩa.
+- `APPROVED` là điều kiện để cấp Course Material PDF/page/Tutor, trừ historical policy đã định nghĩa.
 - Archive/lock không hard-delete enrollment, learning history hoặc Note.
 
 ### Document/Quiz
 
 ```text
 Document: UPLOADING → PENDING_PROCESSING → PROCESSING → READY | FAILED → DELETING
-Quiz:     GENERATING → REVIEW_REQUIRED → READY | REJECTED → ARCHIVED
+Student Quiz: GENERATING → REVIEW_REQUIRED → READY | REJECTED → ARCHIVED
+Teacher Quiz: GENERATING → REVIEW_REQUIRED → PUBLISHED | REJECTED → ARCHIVED
           GENERATING → GENERATION_FAILED
 ```
 
-- Teacher PDF không gọi AI; Teacher PPTX và Personal PDF gọi pipeline đúng loại.
+- Course Material PDF và Personal PDF đều gọi pipeline PDF theo `sourceType`; không nhận PPTX/DOCX.
 - Java kiểm lại mọi citation/source/Quiz output trước khi lưu.
 - Quiz submit/scoring là transaction và không nhận score từ client/LLM.
-- Quiz generation nhận prompt tự do như untrusted input; Java vẫn khóa authorized source, schema và validation.
-- Accept gắn Quiz vào Course Offering `APPROVED` hoặc để `courseOfferingId=null` cho Quiz cá nhân; source generation không thay đổi theo destination.
+- Student Quiz có thể được yêu cầu qua Personal Assistant; Teacher Quiz dùng form có cấu trúc. Java vẫn khóa authorized source, mode, schema và validation.
+- Student accept gắn Quiz vào Course Offering `APPROVED` hoặc để `courseOfferingId=null` cho Quiz cá nhân; Teacher publish chỉ gắn vào Course Offering mình sở hữu. Source generation không thay đổi theo destination.
 - Regenerate tạo generation/draft mới có liên kết, không overwrite Quiz hoặc attempt cũ.
 - Review content được project từ answer sai và question source; không gọi AI để suy luận năng lực.
 
@@ -152,8 +153,8 @@ Quiz:     GENERATING → REVIEW_REQUIRED → READY | REJECTED → ARCHIVED
 
 - Không có API Progress độc lập cho Web; `progress` cung cấp một Dashboard projection gồm aggregate và tiến độ theo từng Course Offering.
 - Java chốt `activityDate` từ `occurredAt + users.timeZone`; client không được gửi ngày dùng tính Streak.
-- Chỉ `VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` duy trì Streak; distinct local date quyết định current/longest streak.
-- Daily Goal chỉ lưu target. Actual lấy từ slide phân biệt đã xem, số câu trong attempt đã chấm và task hoàn thành trong ngày.
+- Chỉ `VIEW_PAGE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` duy trì Streak; distinct local date quyết định current/longest streak.
+- Daily Goal chỉ lưu target. Actual lấy từ trang Course Material PDF phân biệt đã xem, số câu trong attempt đã chấm và task hoàn thành trong ngày.
 - Retry view/task/Quiz dùng idempotency key và không tăng actual hai lần. Daily Goal completion độc lập với Streak.
 
 ## 6. Security và integration
@@ -174,7 +175,7 @@ Migration chỉ tiến, không sửa migration đã chạy:
 3. course_offerings, join-code hash/hint/index;
 4. course_enrollments và unique Student–Offering;
 5. documents, publications, processing jobs metadata;
-6. slides, notes, learning progress/events và daily goals;
+6. PDF pages, notes, learning progress/events và daily goals;
 7. conversations/messages/citations;
 8. quizzes (prompt/destination/regeneration), questions/options/sources/attempts/answers;
 9. study plans/tasks/sessions;
@@ -190,9 +191,9 @@ Chi tiết bảng/constraint tại `docs/database-plan.md`. Không tạo bảng 
 | BE-M1 | Auth/session/RBAC/User | login/refresh/logout/role guard đạt |
 | BE-M2 | Subject/Semester/Course Offering/join code | Teacher self-create, Admin catalog/monitor đúng |
 | BE-M3 | Enrollment authorization | request/approve/reject và access policy đạt |
-| BE-M4 | Document/publication/storage/PPTX handoff | file policy, owner scope, async status đạt |
-| BE-M5 | Slide/Note/Personal conversation + AI adapter | contract v3, citation revalidation, NO_EVIDENCE đạt |
-| BE-M6 | Quiz prompt/lifecycle/destination/scoring/review | REVIEW_REQUIRED, approved destination, wrong-answer citation và Java scoring đạt |
+| BE-M4 | PDF Document/publication/storage/index handoff | file policy, owner scope, async status đạt |
+| BE-M5 | Page/Note/Personal Assistant + AI adapter | Single Agent contract, citation revalidation, clarification và NO_EVIDENCE đạt |
+| BE-M6 | Student/Teacher Quiz lifecycle/scoring/review/publish | Hai mode generation, REVIEW_REQUIRED, owner/destination scope và Java scoring đạt |
 | BE-M7 | Dashboard/Streak/Daily Goal/Kế hoạch & Lịch | event idempotent, timezone/day boundary, calendar projection và no Topic Mastery đạt |
 | BE-M8 | Admin/audit/hardening/E2E | demo flow, performance/security đạt |
 
@@ -205,8 +206,8 @@ Chi tiết bảng/constraint tại `docs/database-plan.md`. Không tạo bảng 
 - AI adapter với fake server: timeout, malformed JSON, wrong schema, citation ngoài scope, `NO_EVIDENCE`.
 - Storage test: MIME/size, signed URL, delete/retry idempotent.
 - Quiz test: prompt injection, option trùng, answer index sai, destination ngoài enrollment, regenerate không overwrite, client gửi score giả, submit lặp và attempt history.
-- Review test: chỉ answer sai sinh review item; citation đúng page/slide; không có AI mastery inference.
-- Dashboard test: cùng slide trong ngày không đếm lặp, ba loại event hợp lệ duy trì Streak, login/Note/ASK_AI không tính, goal chưa đủ vẫn giữ Streak.
+- Review test: chỉ answer sai sinh review item; citation đúng page; không có AI mastery inference.
+- Dashboard test: cùng page trong ngày không đếm lặp, ba loại event hợp lệ duy trì Streak, login/Note/ASK_AI không tính, goal chưa đủ vẫn giữ Streak.
 - Daily Goal test: target bounds, actual server-side, rollover theo timezone và client không thể sửa actual/currentStreak.
 - E2E dùng seed tổng hợp theo `docs/demo-flow.md`.
 

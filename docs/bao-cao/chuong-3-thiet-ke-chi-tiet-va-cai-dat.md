@@ -1,6 +1,6 @@
 # CHƯƠNG 3. PHA THIẾT KẾ HỆ THỐNG
 
-Từ yêu cầu và Use Case của Chương 2, chương này trình bày kiến trúc, mô hình thực thể, cơ sở dữ liệu, lớp xử lý và tương tác động của StudyFlow. Phần chung phục vụ toàn nhóm; phần chuyên sâu tập trung vào ba chức năng đã chọn: Personal RAG, Slide Tutor và sinh Quiz AI. Các sơ đồ là thiết kế mục tiêu, không thay thế bằng chứng cài đặt và kiểm thử.
+Từ yêu cầu và Use Case của Chương 2, chương này trình bày kiến trúc, mô hình thực thể, cơ sở dữ liệu, lớp xử lý và tương tác động của StudyFlow. Phần chuyên sâu tập trung vào ba chức năng AI: Personal Document Assistant bằng RAG, Course Material PDF Tutor và sinh Quiz AI cho Student/Teacher. Các sơ đồ là thiết kế mục tiêu, không thay thế bằng chứng cài đặt và kiểm thử.
 
 Nguồn đối chiếu là [đặc tả](../specification.md), [kiến trúc](../architecture.md), [API contract](../api-plan.md), [database plan](../database-plan.md) và [kế hoạch AI](../ai-implementation-plan.md). Ký pháp UML tham khảo Visual Paradigm; quy ước hình, nguồn chỉnh sửa và vị trí chèn được tập hợp tại [bộ sơ đồ](../diagrams/README.md).
 
@@ -16,7 +16,7 @@ Hình 3.1 mô tả các khối xử lý và quyền sở hữu dữ liệu; các
 
 Next.js chỉ gọi Java qua `/api/v1`. Java là system of record, quyết định quyền truy cập, vòng đời Quiz, chấm điểm, tiến độ và kế hoạch. Python nhận authorized scope từ Java để xử lý tài liệu, embedding, retrieval, RAG/Tutor, citation và sinh bản nháp Quiz; không tự truy cập dữ liệu nghiệp vụ của Student.
 
-PostgreSQL dùng chung cluster nhưng tách schema và database role: Java sở hữu `app`, Python sở hữu `ai` và pgvector. Tệp gốc cùng slide artifact nằm tại Object Storage; cơ sở dữ liệu lưu metadata và object key. API key nhà cung cấp chỉ nằm phía Python, không đưa vào biến public của Frontend.
+PostgreSQL dùng chung cluster nhưng tách schema và database role: Java sở hữu `app`, Python sở hữu `ai` và pgvector. PDF gốc cùng preview/page artifact cần thiết nằm tại Object Storage; cơ sở dữ liệu lưu metadata và object key. API key chỉ nằm phía Python.
 
 ### 3.1.2. Phân tầng và hợp đồng tích hợp
 
@@ -55,22 +55,22 @@ Quiz có thể không gắn lớp nên đầu Course Offering có bội số `0.
 ### 3.2.2. Quy tắc toàn vẹn mức miền
 
 - Conversation Document và Quiz Source giữ `documentVersion` để bảo toàn snapshot. Có FK tới Document không thay thế kiểm tra owner, trạng thái và version hiện tại.
-- Slide Note thuộc Student và vị trí `documentId + slideNumber`; không phải ghi chú dùng chung của Teacher.
+- Page Note thuộc Student và vị trí `documentId + pageNumber`; không phải ghi chú dùng chung của Teacher.
 - Quiz Question lưu đúng bốn options, một đáp án chuẩn và source theo trang Personal PDF. Quiz Answer thuộc một attempt và một question; mỗi lần làm lại tạo attempt mới.
-- Learning Progress là viewing progress của PPTX, độc lập với điểm Quiz. Learning Event dùng ngày địa phương do Java xác định theo múi giờ của Student.
+- Learning Progress là viewing progress của Course Material PDF theo trang, độc lập với điểm Quiz. Learning Event dùng ngày địa phương do Java xác định theo múi giờ của Student.
 - Study Plan Item là nguồn của task/lịch tuần. Calendar, Streak và nội dung cần ôn lại là các phép tổng hợp, không phải ba thực thể lưu trữ mới.
 
 ## 3.3. Thiết kế cơ sở dữ liệu chung
 
 ### 3.3.1. ERD tổng quan
 
-Hình 3.3 trình bày một ERD tổng quan gồm 30 bảng, giữ tên cột, kiểu dữ liệu đề xuất và ký hiệu PK/FK để hỗ trợ đối chiếu khi triển khai migration.
+Hình 3.3 trình bày ERD vật lý tổng quan gồm 27 bảng trong schema `app` và 4 bảng trong schema `ai`, giữ tên cột, kiểu dữ liệu đề xuất và ký hiệu PK/FK để hỗ trợ đối chiếu khi triển khai migration.
 
 ![ERD StudyFlow](../diagrams/chuong-3/erd-physical-03-studyflow-overview.svg)
 
-*Hình 3.3. ERD tổng quan: 27 bảng schema app và 3 bảng schema ai.*
+*Hình 3.3. ERD tổng quan: 27 bảng schema app và 4 bảng schema ai.*
 
-Quan hệ chân quạ thể hiện bội số; PK là khóa chính, FK là khóa ngoại và N là cho phép NULL. Các định danh document/version trong schema ai là tham chiếu logic từ contract, không tạo FK xuyên sang schema app. Hình được chèn ở trang ngang; nên xem SVG gốc hoặc phụ lục khi cần đọc toàn bộ thuộc tính, không ép 30 bảng xuống một hình nhỏ trong trang dọc.
+Quan hệ chân quạ thể hiện bội số; PK là khóa chính, FK là khóa ngoại và nullable là cho phép NULL. Các định danh document/version/conversation trong schema `ai` là tham chiếu logic từ contract, không tạo FK xuyên sang schema `app`. Hình tổng hợp 31 bảng nên được chèn ở trang ngang hoặc phụ lục khổ lớn; khi cần đọc thuộc tính phải dùng SVG gốc, không ép ảnh xuống một trang dọc.
 
 Đây là thiết kế đề xuất, chưa phải kết quả introspect database đã chạy. Độ dài varchar, precision, nullable và một số khóa ghép phải được chốt bằng migration. [Quy ước sơ đồ](../diagrams/README.md) ghi phạm vi và cách sử dụng ERD vật lý trong báo cáo.
 
@@ -84,19 +84,19 @@ Quan hệ chân quạ thể hiện bội số; PK là khóa chính, FK là khóa
 | app.semesters | id, code, start_date, end_date, status, offering_creation_enabled | Ngày kết thúc không trước ngày bắt đầu; Java kiểm điều kiện tạo lớp |
 | app.course_offerings | id, subject_id, semester_id, teacher_id, join_code_hash, status | Owner Teacher; code unique theo học kỳ; không log join code |
 | app.course_enrollments | id, course_offering_id, student_id, status, decided_by | Unique cặp lớp/Student; PENDING/APPROVED/REJECTED/REMOVED |
-| app.documents | id, owner_id, document_scope, file_type, storage_key, document_version, processing_status | Personal chỉ PDF; Teacher PDF/PPTX; object key không trả browser |
+| app.documents | id, owner_id, document_scope, file_type, storage_key, document_version, processing_status, page_count | Personal và Course Material chỉ PDF text layer; object key không trả browser |
 | app.document_publications | id, document_id, course_offering_id, published_by, status | Unique tài liệu/lớp; PUBLISHED/REVOKED; cùng Teacher owner |
-| app.slides | id, document_id, slide_number, rendered_key, preview_key | Unique tài liệu/số slide; chỉ Teacher PPTX |
-| app.slide_notes | id, student_id, document_id, slide_number, content | Unique Student/tài liệu/slide; kiểm quyền ở mỗi lần đọc/ghi |
-| app.chat_conversations | id, student_id, type, title, status | Hội thoại riêng của owner; PERSONAL_RAG/SLIDE_TUTOR |
+| app.document_pages | id, document_id, page_number, preview_key | Unique tài liệu/số trang; metadata page cho Viewer/Note/progress |
+| app.page_notes | id, student_id, document_id, page_number, content | Unique Student/tài liệu/trang; kiểm quyền ở mỗi lần đọc/ghi |
+| app.chat_conversations | id, student_id, type, title, status | Hội thoại riêng của owner; loại PERSONAL_ASSISTANT |
 | app.conversation_documents | conversation_id, document_id, document_version | Snapshot nguồn; unique hội thoại/tài liệu |
 | app.chat_messages | id, conversation_id, role, content, answer_status, citations_json, trace_id | Citation đã được Java validate; không sao chép content vào audit |
-| app.learning_progress | id, student_id, document_id, course_offering_id, last_slide, viewed_slide_count, progress_percent | Unique Student/tài liệu; không lưu mastery |
+| app.learning_progress | id, student_id, document_id, course_offering_id, last_page, viewed_page_count, progress_percent | Unique Student/tài liệu; không lưu mastery |
 | app.learning_events | id, student_id, event_type, activity_date, quantity, idempotency_key | Chống ghi trùng; activity_date do Java chốt |
-| app.daily_goals | student_id (PK/FK), slide_target, quiz_question_target, task_target | Chỉ lưu target; actual tính từ event |
+| app.daily_goals | student_id (PK/FK), page_target, quiz_question_target, task_target | Chỉ lưu target; actual tính từ event |
 | app.study_plans | id, student_id, thông tin kế hoạch | Owner Student; không có AI tự lập plan |
 | app.study_plan_items | id, plan_id, course_offering_id?, trạng thái và lịch | Lớp tùy chọn; nguồn dựng lịch tuần |
-| app.quizzes | id, student_id, course_offering_id?, status, regenerated_from_quiz_id? | Java quản lý lifecycle; Quiz cá nhân không bắt buộc lớp |
+| app.quizzes | id, created_by, creator_role, generation_type, course_offering_id?, status, regenerated_from_quiz_id? | Java quản lý lifecycle cho Student Quiz và Teacher Quiz |
 | app.quiz_sources | quiz_id, document_id, document_version | Snapshot độc lập với destination của Quiz |
 | app.quiz_questions | id, quiz_id, options, correct_option_index, explanation | Options JSONB đúng bốn phần tử; index trong 0..3 |
 | app.quiz_question_sources | id, question_id, document_id, page_number, đoạn trích | Căn cứ câu hỏi và điều hướng câu sai |
@@ -107,39 +107,39 @@ Quan hệ chân quạ thể hiện bội số; PK là khóa chính, FK là khóa
 | app.system_settings | key, giá trị cấu hình theo schema | Cấu hình vận hành; không làm kho chứa API key |
 | ai.index_jobs | id, request_id, idempotency_key, operation, document/version/pipeline, status, attempt, safe error | Job idempotent; xóa signed URL tạm sau trạng thái kết thúc |
 | ai.document_indexes | document/version/pipeline, embedding model/dimensions, status | Quản lý phiên bản chỉ mục; không đồng nhất với document version |
-| ai.document_chunks | id, document/version/owner/source, page/slide, chunk_index, content, vector(1024) | Filter scope trước cosine; unique document/version/chunk_index |
+| ai.document_chunks | id, document/version/owner/source, page_number, chunk_index, content, vector(1024) | Filter scope trước cosine; unique document/version/chunk_index |
 
 ### 3.3.3. Index, transaction và dữ liệu tổng hợp
 
 B-tree hỗ trợ các truy vấn owner/status, enrollment và scope; HNSW cosine phục vụ tìm kiếm vector. Điều kiện owner/document/version/source phải nằm trong truy vấn retrieval, không tìm toàn bộ rồi chỉ lọc phía ứng dụng.
 
-Java chấm và lưu attempt/answers trong transaction, bảo đảm một lượt nộp chỉ ghi một `QUIZ_COMPLETED`. Hoàn tất task cũng phải chống event trùng. `VIEW_SLIDE` khử trùng theo Student, slide và ngày; các quan hệ unique được nêu trong database plan.
+Java chấm và lưu attempt/answers trong transaction, bảo đảm một lượt nộp chỉ ghi một `QUIZ_COMPLETED`. Hoàn tất task cũng phải chống event trùng. `VIEW_PAGE` khử trùng theo Student, document/page và ngày; các quan hệ unique được nêu trong database plan.
 
-Daily Goal giới hạn target: slide 0..100, câu Quiz 0..200, task 0..50 và tổng target > 0. Java tính actual/phần trăm theo ngày, không cho client cập nhật số đạt được. Streak chỉ cần ngày có ít nhất một `VIEW_SLIDE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; không bắt buộc hoàn thành Daily Goal.
+Daily Goal giới hạn target: page 0..100, câu Quiz 0..200, task 0..50 và tổng target > 0. Java tính actual/phần trăm theo ngày. Streak chỉ cần ngày có ít nhất một `VIEW_PAGE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; không bắt buộc hoàn thành Daily Goal.
 
 ## 3.4. Thiết kế lớp chi tiết cho chức năng đã chọn
 
 Các lớp dưới đây là thiết kế trách nhiệm đề xuất, không khẳng định tất cả tên lớp đã có trong source. Đường liền là liên hệ sử dụng; đường đứt là dependency. HTTP adapter thể hiện ranh giới service, không phải kế thừa hoặc composition giữa Java và Python.
 
-### 3.4.1. Personal RAG — AI-F01
+### 3.4.1. Personal Document Assistant — AI-F01
 
 Hình 3.4 phân chia việc lấy snapshot hội thoại ở Java với retrieval và grounding ở Python.
 
 ![Lớp Personal RAG](../diagrams/chuong-3/class-04-personal-rag.svg)
 
-*Hình 3.4. Biểu đồ lớp xử lý Personal RAG.*
+*Hình 3.4. Biểu đồ lớp xử lý Personal Document Assistant và RAG tools.*
 
-Controller chỉ nhận message; application service tải snapshot thuộc owner và dựng InternalRagRequest. ScopedRetriever bắt buộc nhận AuthorizedScope thay vì một danh sách documentId không có version/owner. GroundingValidator kiểm tra câu trả lời trên EvidenceSet được truy xuất; AnswerResponse là DTO trả về, không mang raw provider payload.
+Controller nhận message cùng danh sách Personal PDF đã chọn; application service tải conversation snapshot thuộc owner và dựng `InternalAssistantRequest`. Single Agent chỉ chọn một trong ba tool được allowlist: hỏi đáp, tóm tắt hoặc tạo Quiz. Mỗi tool bắt buộc nhận `AuthorizedScope`; `AssistantResponse` trả capability, trạng thái, nội dung/Quiz draft và citation có cấu trúc, không mang raw provider payload.
 
-### 3.4.2. Slide Tutor — AI-F02
+### 3.4.2. Course Material PDF Tutor — AI-F02
 
 Hình 3.5 bổ sung MaterialAccessPolicy để thể hiện điều kiện truy cập đặc thù của học liệu lớp.
 
-![Lớp Slide Tutor](../diagrams/chuong-3/class-05-slide-tutor.svg)
+![Lớp Course Material PDF Tutor](../diagrams/chuong-3/class-05-slide-tutor.svg)
 
-*Hình 3.5. Biểu đồ lớp xử lý Slide Tutor.*
+*Hình 3.5. Biểu đồ lớp xử lý Course Material PDF Tutor.*
 
-Java xác định documentVersion và allowedSlideNumbers từ quyền hiện tại. Client không được tự gửi một danh sách slide rộng hơn để mở scope. Sau lời gọi AI, Java kiểm tra lại quyền nhằm xử lý trường hợp publication bị thu hồi trong lúc chờ kết quả; citation hợp lệ phải trỏ về slide nằm trong scope.
+Java xác định documentVersion và allowedPageNumbers từ quyền hiện tại. Client không được tự mở rộng page scope. Sau lời gọi AI, Java kiểm tra lại quyền nhằm xử lý publication bị thu hồi trong lúc chờ; citation phải trỏ về page trong scope.
 
 ### 3.4.3. Sinh Quiz AI — AI-F03
 
@@ -155,9 +155,9 @@ QuizGenerationJob của Java nhận quiz/run identity, gọi Python và xử lý
 
 | Boundary / input | Output và side effect | Lỗi và cách caller xử lý |
 |---|---|---|
-| MessageRequest: message bắt buộc 1–2.000 ký tự; conversationId trên URL | AnswerResponse: ANSWERED/NO_EVIDENCE, câu trả lời và citation; Java lưu chat | Validation/access/version lỗi: dừng; provider lỗi: safe error + requestId |
-| SlideQuestion: question; documentId và số slide hợp lệ trên URL | AnswerResponse theo slide; không cập nhật viewing progress từ ASK_AI | Enrollment/publication/slide lỗi: từ chối; không mở rộng scope để thử lại |
-| QuizRequest: 1–10 ID duy nhất, prompt 1–2.000 ký tự | 202 AcceptedQuiz; tạo GENERATING và tác vụ có identity | Nguồn không hợp lệ: không tạo; generation lỗi: GENERATION_FAILED |
+| MessageRequest: message bắt buộc 1–2.000 ký tự; conversationId trên URL; 1–10 Personal PDF | AssistantResponse: ANSWERED/SUMMARIZED/QUIZ_CREATED/NEEDS_CLARIFICATION/NO_EVIDENCE; Java lưu chat hoặc Quiz REVIEW_REQUIRED | Validation/access/version lỗi: dừng; provider lỗi: safe error + requestId |
+| PageQuestion: question; documentId và page hợp lệ trên URL | AnswerResponse theo page; không cập nhật viewing progress từ ASK_AI | Enrollment/publication/page lỗi: từ chối; không mở rộng scope để thử lại |
+| QuizRequest: mode, authorized PDF/version/page scope, count/difficulty/topic | 202 AcceptedQuiz; tạo GENERATING và tác vụ có identity | Nguồn/owner không hợp lệ: không tạo; generation lỗi: GENERATION_FAILED |
 | Internal request: credential + headers + AuthorizedScope do Java dựng | Structured result; Python chỉ ghi schema ai trong pipeline cho phép | Sai credential/schema/scope: từ chối; timeout không retry mù mutation |
 | QuizGenerationJob: quizId, runId bắt buộc | JobResult; lưu toàn bộ draft hợp lệ hoặc ghi lỗi | Chạy lại không tạo câu hỏi trùng; kết quả run cũ không ghi đè run mới |
 
@@ -171,65 +171,65 @@ Sáu chức năng BE1-F01..03 và BE2-F01..03 chưa chốt ở Chương 2 nên c
 
 Activity làm rõ quyết định nghiệp vụ; Sequence làm rõ thứ tự thông điệp giữa các thành phần; State Diagram làm rõ chuyển trạng thái. Không dùng ba loại hình này thay thế lẫn nhau. Các nhánh lỗi hạ tầng được xử lý bằng error contract; không coi mọi lỗi là thiếu bằng chứng.
 
-### 3.5.1. Activity Personal RAG
+### 3.5.1. Activity Personal Document Assistant
 
 Hình 3.7 mô tả thứ tự kiểm quyền, retrieval, evidence gate và kiểm tra câu trả lời.
 
 ![Activity RAG](../diagrams/chuong-3/activity-07-personal-rag.svg)
 
-*Hình 3.7. Hoạt động hỏi đáp Personal RAG.*
+*Hình 3.7. Hoạt động Single Agent chọn tool hỏi đáp, tóm tắt hoặc tạo Quiz.*
 
 Nhánh thiếu bằng chứng kết thúc bằng NO_EVIDENCE trước bước sinh câu trả lời. Nhánh có bằng chứng vẫn phải qua grounding validation; rewrite bị giới hạn một lần và không được đổi nguồn. Quyền không hợp lệ làm luồng dừng trước retrieval. Các swimlane Student, Java Backend và Python AI chỉ rõ thành phần chịu trách nhiệm ở từng bước.
 
-### 3.5.2. Activity Slide Tutor
+### 3.5.2. Activity Course Material PDF Tutor
 
-Hình 3.8 thể hiện Tutor trong phạm vi PPTX đã công bố cho Student được duyệt.
+Hình 3.8 thể hiện Tutor trong phạm vi Course Material PDF đã công bố cho Student được duyệt.
 
 ![Activity Tutor](../diagrams/chuong-3/activity-08-slide-tutor.svg)
 
-*Hình 3.8. Hoạt động hỏi đáp slide.*
+*Hình 3.8. Hoạt động hỏi đáp Course Material PDF theo trang.*
 
-Khác với Personal RAG kiểm owner, Tutor kiểm enrollment và publication. Slide hiện tại định hướng retrieval nhưng không thay thế allowed scope. Kết quả trả lại Viewer có citation theo slide; ASK_AI không được dùng làm sự kiện duy trì Streak.
+Khác với Personal Assistant kiểm owner, Tutor kiểm enrollment và publication. Page hiện tại định hướng retrieval nhưng không thay thế allowed scope. Kết quả trả Viewer có citation theo trang; ASK_AI không duy trì Streak.
 
 ### 3.5.3. Activity sinh Quiz
 
-Hình 3.9 mô tả tạo bản nháp, kiểm tra và bàn giao quyền quyết định cho Student.
+Hình 3.9 mô tả tạo bản nháp, kiểm tra và bàn giao quyền quyết định cho Student hoặc Teacher theo đúng chế độ sinh Quiz.
 
 ![Activity Quiz](../diagrams/chuong-3/activity-09-quiz-generation.svg)
 
 *Hình 3.9. Hoạt động sinh và review Quiz AI.*
 
-Java tạo GENERATING và trả 202 để giao diện không giữ request chờ sinh đề. Python kiểm tra schema và grounding; Java là lớp kiểm tra cuối trước REVIEW_REQUIRED. Student review rồi accept/reject, không có đường từ output LLM tới làm bài trực tiếp.
+Java tạo GENERATING và trả 202 để giao diện không giữ request chờ sinh đề. Python kiểm tra schema và grounding; Java là lớp kiểm tra cuối trước REVIEW_REQUIRED. Student review rồi accept/reject; Teacher có thể sửa rồi publish/reject. Không có đường từ output LLM tới làm bài trực tiếp.
 
-### 3.5.4. Sequence Personal RAG
+### 3.5.4. Sequence Personal Document Assistant
 
 Hình 3.10 xác định thứ tự message qua Web, Java, Python, pgvector và provider.
 
 ![Sequence RAG](../diagrams/chuong-3/sequence-10-personal-rag.svg)
 
-*Hình 3.10. Tương tác tuần tự khi hỏi đáp Personal PDF.*
+*Hình 3.10. Tương tác tuần tự của Personal Document Assistant.*
 
-Khung alt phân biệt sai quyền, thiếu evidence và có evidence. Query embedding xảy ra trước tìm kiếm; việc “không gọi LLM khi thiếu bằng chứng” nói về model sinh câu trả lời, không có nghĩa bỏ bước embedding. Java revalidate quyền và response trước khi lưu/trả nội dung.
+Khung alt phân biệt sai quyền, thiếu tool args, thiếu evidence và có evidence. Single Agent chọn tool, nhưng Java vẫn dựng scope và revalidate kết quả. Query embedding xảy ra trước tìm kiếm; khi thiếu bằng chứng, tool không được sinh answer/summary/Quiz không có nguồn.
 
-### 3.5.5. Sequence Slide Tutor
+### 3.5.5. Sequence Course Material PDF Tutor
 
-Hình 3.11 gắn tương tác hỏi slide với public endpoint hiện hành và scope do Java cấp.
+Hình 3.11 gắn tương tác hỏi PDF với public endpoint hiện hành và scope do Java cấp.
 
 ![Sequence Tutor](../diagrams/chuong-3/sequence-11-slide-tutor.svg)
 
-*Hình 3.11. Tương tác tuần tự của Slide Tutor.*
+*Hình 3.11. Tương tác tuần tự của Course Material PDF Tutor.*
 
-Public endpoint là `POST /api/v1/student/materials/{documentId}/slides/{number}/tutor`. Mỗi lần hỏi cần kiểm tra quyền hiện tại; dùng lại phiên đăng nhập hoặc conversation không cho phép bỏ kiểm tra publication. Citation phải dùng documentId và slideNumber, không dùng publicationId làm định danh nguồn.
+Public endpoint là `POST /api/v1/student/materials/{documentId}/pages/{number}/tutor`. Mỗi lần hỏi phải kiểm tra quyền hiện tại; conversation không cho phép bỏ kiểm tra publication. Citation dùng documentId và pageNumber.
 
-### 3.5.6. Sequence tạo và accept Quiz
+### 3.5.6. Sequence tạo và duyệt Quiz
 
 Hình 3.12 phân biệt response 202 ban đầu, tác vụ generation và thao tác accept sau đó.
 
 ![Sequence Quiz](../diagrams/chuong-3/sequence-12-quiz.svg)
 
-*Hình 3.12. Tương tác tạo bản nháp và accept Quiz.*
+*Hình 3.12. Tương tác tạo bản nháp và duyệt Quiz cho Student/Teacher.*
 
-FE chỉ poll Java. Idempotency/run identity ngăn việc retry hoặc timeout tạo nhiều bộ câu hỏi cho cùng tác vụ. Khi accept, Java xác minh destination PERSONAL hoặc enrollment APPROVED của lớp được chọn; nguồn Personal PDF không bị chuyển thành học liệu lớp.
+FE chỉ poll Java. Idempotency/run identity ngăn việc retry hoặc timeout tạo nhiều bộ câu hỏi cho cùng tác vụ. Student accept Quiz cá nhân sang `READY`; Teacher review/chỉnh sửa rồi publish Quiz lớp sang `PUBLISHED`. Nguồn Personal PDF không bị chuyển thành học liệu lớp.
 
 ### 3.5.7. Luồng chung: tham gia lớp học phần
 
@@ -243,13 +243,13 @@ Student không tự đặt APPROVED; Teacher owner quyết định yêu cầu. S
 
 ### 3.5.8. Luồng chung: xử lý tài liệu bất đồng bộ
 
-Hình 3.14 áp dụng cho Personal PDF và Teacher PPTX; Teacher PDF không đi qua indexing.
+Hình 3.14 áp dụng cho Personal PDF và Course Material PDF; cả hai được index theo trang với `sourceType` riêng.
 
 ![Sequence index](../diagrams/chuong-3/sequence-14-document-indexing.svg)
 
 *Hình 3.14. Tiếp nhận, lập chỉ mục và đồng bộ trạng thái tài liệu.*
 
-Python nhận job và trả 202 trước khi worker chạy. Java poll job để lấy trạng thái cùng artifact metadata, sau đó cập nhật document. Personal PDF giới hạn 20 MB; Teacher PPTX giới hạn 50 MB. PPTX READY chỉ cho phép Teacher công bố, không tự động mở cho Student. PDF mã hóa hoặc không có text layer chuyển lỗi tương ứng, không giả thành READY.
+Python nhận job và trả 202 trước khi worker chạy. Java poll job để lấy trạng thái, sau đó cập nhật document. Chỉ PDF text layer được nhận; document READY vẫn cần Teacher chủ động public. PDF mã hóa hoặc không có text layer chuyển lỗi tương ứng.
 
 ### 3.5.9. Luồng chung: vòng đời Quiz
 
@@ -259,7 +259,7 @@ Hình 3.15 biểu diễn trạng thái Quiz độc lập với các attempt làm
 
 *Hình 3.15. Trạng thái Quiz và điều kiện chuyển trạng thái.*
 
-GENERATING chỉ chuyển REVIEW_REQUIRED khi toàn bộ draft hợp lệ. READY đạt được sau accept; thao tác làm bài không đưa Quiz về GENERATING mà tạo attempt mới. Regenerate tạo một Quiz khác và giữ lịch sử. Java chấm Quiz và ghi event một lần, không dùng model AI để chấm.
+GENERATING chỉ chuyển REVIEW_REQUIRED khi toàn bộ draft hợp lệ. Student accept để chuyển `READY`; Teacher publish để chuyển `PUBLISHED`. Thao tác làm bài không đưa Quiz về GENERATING mà tạo attempt mới. Regenerate tạo một Quiz khác và giữ lịch sử. Java chấm Quiz và ghi event một lần, không dùng model AI để chấm.
 
 ### 3.5.10. Luồng chung: Kế hoạch & Lịch
 
@@ -288,15 +288,14 @@ Java chốt ngày theo timezone và khử trùng event trước khi tổng hợp
 | Tài nguyên | Student | Teacher | Admin | Python |
 |---|---|---|---|---|
 | Course Offering / enrollment | Gửi yêu cầu, xem lớp được phép | Tạo/quản lý lớp sở hữu; duyệt enrollment | Danh mục, giám sát/khóa theo policy | Không truy cập bảng app |
-| Teacher PPTX public | Viewer/Note/Tutor khi APPROVED; không tải gốc | Upload, quản lý, publish/revoke nguồn sở hữu | Giám sát metadata theo quyền vận hành | Xử lý/index đúng scope |
-| Teacher PDF public | Chỉ download khi được phép | Quản lý/publish/revoke nguồn sở hữu | Không biến thành pipeline AI | Không index |
+| Course Material PDF public | Viewer/Page Note/Tutor khi APPROVED | Upload, publish/revoke và dùng làm nguồn Teacher Quiz | Giám sát metadata | Xử lý/index đúng scope |
 | Personal PDF / chat | Chỉ owner | Không đọc mặc định | Không đọc mặc định | Chỉ scope Java cấp cho request/job |
-| Quiz / attempt / kết quả | Owner tạo/review/làm bài | Không có Teacher Quiz | Không quản lý Quiz cá nhân | Chỉ trả draft có nguồn |
+| Quiz / attempt / kết quả | Student tạo/review/làm Quiz cá nhân/lớp | Teacher tạo/review/publish Quiz lớp | Không quản lý Quiz cá nhân | Chỉ trả draft có nguồn; không chấm |
 | Dashboard / Note / Plan | Owner xem và thao tác được phép | Không quản lý học tập riêng | Không sửa progress cá nhân | Không tính điểm, progress, plan |
 
 ### 3.6.2. Kiểm soát dữ liệu và truy cập
 
-RBAC chỉ là lớp đầu; mọi thao tác cần kiểm tra ownership, enrollment, publication, version và trạng thái tài nguyên. Frontend route guard không thay thế kiểm tra ở Java. Các URL tải/slide có thời hạn ngắn và chỉ cấp sau kiểm quyền; không đặt TTL cố định chưa được cấu hình. Nếu đã phát hành signed URL, thu hồi publication không bảo đảm vô hiệu ngay URL chưa hết hạn; cần TTL phù hợp hoặc gateway kiểm quyền nếu yêu cầu thu hồi tức thời.
+RBAC chỉ là lớp đầu; mọi thao tác cần kiểm tra ownership, enrollment, publication, version và trạng thái tài nguyên. Frontend route guard không thay thế kiểm tra ở Java. Signed URL/preview PDF có thời hạn ngắn và chỉ cấp sau kiểm quyền; revoke có hiệu lực chắc chắn ở request kế tiếp.
 
 Tài liệu/prompt/output mô hình là dữ liệu không tin cậy. Pipeline phải giới hạn loại tệp/kích thước, kiểm schema, tách instruction khỏi evidence, chặn nguồn ngoài scope và không thực thi nội dung tài liệu như lệnh. HTTP error không chứa raw provider payload, object key, token hoặc nội dung riêng.
 
@@ -307,7 +306,7 @@ Credential, API key và database password không đưa vào source hoặc báo c
 | Nhóm | Kiểm tra tối thiểu | Minh chứng cần lưu khi chạy |
 |---|---|---|
 | Contract | Input hợp lệ/không hợp lệ/output schema; headers và scope | Kết quả contract test hai phía, phiên bản schema |
-| Isolation | Owner/document/version/allowed slides; revoke trong khi chờ AI | Test dữ liệu tổng hợp, safe requestId |
+| Isolation | Owner/document/version/allowed pages; revoke trong khi chờ AI | Test dữ liệu tổng hợp, safe requestId |
 | RAG/Tutor | Retrieval relevance, groundedness, citation, refusal, prompt injection | Dataset version, reference evidence, rubric và kết quả theo từng nhóm câu hỏi |
 | Quiz | Bốn options, một đáp án, nguồn đúng, repair giới hạn; accept/attempt/event | Test schema + nghiệp vụ và mẫu lỗi có kiểm soát |
 | Job | 202/poll, timeout, retry/idempotency; không chunk trùng | Trạng thái job và số bản ghi tổng hợp, không log content |

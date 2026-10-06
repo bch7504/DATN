@@ -1,17 +1,16 @@
 import { DocumentStatus } from "./api";
 
-export type DocumentType = "PPTX" | "PDF";
+export type DocumentType = "PDF";
 
 export interface TeacherDocument {
   id: string;
   title: string;
   fileName: string;
   fileType: DocumentType;
-  fileSize: number; // in bytes
+  fileSize: number;
   status: DocumentStatus;
-  totalSlides?: number; // for PPTX
-  totalPages?: number; // for PDF
-  downloadUrl?: string; // only for PDF
+  totalPages: number;
+  downloadUrl?: string;
   publishedOfferings: {
     offeringId: string;
     offeringCode: string;
@@ -21,8 +20,8 @@ export interface TeacherDocument {
   createdAt: string;
 }
 
-export interface Slide {
-  slideNumber: number;
+export interface MaterialPage {
+  pageNumber: number;
   title: string;
   bullets: string[];
   notes?: string;
@@ -30,24 +29,24 @@ export interface Slide {
   hasNote?: boolean;
 }
 
-export interface SlideNote {
+export interface PageNote {
   documentId: string;
-  slideNumber: number;
+  pageNumber: number;
   content: string;
   updatedAt: string;
 }
 
-export interface SlideCitation {
+export interface PageCitation {
   documentId: string;
   documentName?: string;
-  slideNumber: number;
+  pageNumber: number;
   excerpt: string;
 }
 
-export interface SlideTutorResponse {
+export interface CourseMaterialTutorResponse {
   status: "ANSWERED" | "NO_EVIDENCE";
   answer: string | null;
-  citations: SlideCitation[];
+  citations: PageCitation[];
   traceId?: string;
 }
 

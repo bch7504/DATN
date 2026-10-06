@@ -29,16 +29,22 @@ usecase "Tạo / quản lý\nCourse Offering" as course
 usecase "Quản lý join code" as code
 usecase "Duyệt / từ chối\nyêu cầu tham gia" as enrollment
 usecase "Quản lý thành viên lớp" as members
-usecase "Upload PDF / PPTX" as upload
-usecase "Theo dõi xử lý PPTX" as processing
+usecase "Upload Course Material PDF" as upload
+usecase "Theo dõi xử lý PDF" as processing
 usecase "Công bố học liệu" as publish
 usecase "Thu hồi công bố" as revoke
+usecase "Tạo Quiz AI từ PDF" as generate
+usecase "Review / chỉnh sửa Quiz" as review
+usecase "Publish Quiz cho lớp" as publishQuiz
 course -[hidden]down-> code
 code -[hidden]down-> enrollment
 enrollment -[hidden]down-> members
 upload -[hidden]down-> processing
 processing -[hidden]down-> publish
 publish -[hidden]down-> revoke
+revoke -[hidden]down-> generate
+generate -[hidden]down-> review
+review -[hidden]down-> publishQuiz
 members -[hidden]down-> upload
 }
 Teacher -right- course
@@ -49,9 +55,13 @@ Teacher -[norank]- upload
 Teacher -[norank]- processing
 Teacher -[norank]- publish
 Teacher -[norank]- revoke
+Teacher -[norank]- generate
+Teacher -[norank]- review
+Teacher -[norank]- publishQuiz
 note bottom of publish
 Chỉ quản lý lớp/học liệu thuộc Teacher.
-PPTX READY mới được công bố.
+PDF READY mới được công bố hoặc dùng tạo Quiz.
+Teacher không có chatbot hoặc AI Tutor.
 Upload, công bố và thu hồi là các mục tiêu độc lập.
 end note
 @enduml

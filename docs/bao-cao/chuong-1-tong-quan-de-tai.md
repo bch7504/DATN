@@ -2,7 +2,7 @@
 
 ## 1.1. Đặt vấn đề
 
-Sinh viên thường sử dụng nhiều công cụ rời rạc để xem học liệu, ghi chú, quản lý lịch học, ôn tập và hỏi đáp kiến thức. Tài liệu nằm ở nhiều định dạng và nguồn khác nhau khiến việc tìm lại nội dung, xác định trang hoặc slide liên quan và theo dõi quá trình tự học mất nhiều thời gian. Các mô hình ngôn ngữ có thể hỗ trợ giải thích và tạo câu hỏi, nhưng nếu không giới hạn nguồn và kiểm tra citation thì câu trả lời có nguy cơ thiếu căn cứ.
+Sinh viên thường sử dụng nhiều công cụ rời rạc để xem học liệu, ghi chú, quản lý lịch học, ôn tập và hỏi đáp kiến thức. Tài liệu nằm ở nhiều nguồn khác nhau khiến việc tìm lại nội dung, xác định trang liên quan và theo dõi quá trình tự học mất nhiều thời gian. Các mô hình ngôn ngữ có thể hỗ trợ giải thích và tạo câu hỏi, nhưng nếu không giới hạn nguồn và kiểm tra citation thì câu trả lời có nguy cơ thiếu căn cứ.
 
 Từ thực tế đó, đề tài xây dựng StudyFlow — nền tảng web thống nhất hoạt động học tập theo lớp học phần và tài liệu cá nhân, đồng thời tích hợp AI theo hướng có bằng chứng. Hệ thống không giao cho AI quyền quyết định kết quả học tập; các luật phân quyền, chấm điểm, tiến độ và kế hoạch vẫn do backend thực hiện bằng quy tắc có thể kiểm thử.
 
@@ -16,11 +16,11 @@ Hình 1.1 phân biệt hai nguồn học liệu và những hoạt động chín
 
 *Hình 1.1. Phạm vi chức năng và các nhánh học tập của StudyFlow.*
 
-Hình cho thấy học liệu lớp học phần và Personal PDF đi theo hai nhánh riêng. Slide Tutor chỉ hỗ trợ PPTX đã công bố; RAG cá nhân và tạo Quiz cùng dùng Personal PDF nhưng không bắt buộc nối tiếp nhau. Java ghi nhận sự kiện học tập và chấm Quiz, còn sinh viên chủ động quản lý Kế hoạch & Lịch. Đây là sơ đồ phạm vi nghiệp vụ, không phải trình tự API hoặc minh chứng implementation đã hoàn thành.
+Hình cho thấy Course Material PDF và Personal PDF đi theo hai nhánh quyền riêng. Student Tutor chỉ dùng PDF lớp đã công bố; Personal Document Assistant dùng một Agent cho hỏi đáp, tóm tắt và tạo Quiz. Java ghi nhận sự kiện học tập và chấm Quiz, còn sinh viên chủ động quản lý Kế hoạch & Lịch. Đây là sơ đồ phạm vi nghiệp vụ, không phải trình tự API hoặc minh chứng implementation đã hoàn thành.
 
-StudyFlow tổ chức môn học theo `Semester → Course Offering → Documents`. Teacher tự tạo Course Offering từ danh mục Subject và Semester, quản lý join code, duyệt Student và public học liệu. Student sử dụng PPTX của lớp, PDF tải xuống và Personal PDF cho chatbot hoặc Quiz. Admin quản lý danh mục, tài khoản và giám sát hệ thống.
+StudyFlow tổ chức môn học theo `Semester → Course Offering → Documents`. Teacher tự tạo Course Offering, quản lý join code, duyệt Student, public Course Material PDF và sinh Quiz AI. Student đọc PDF của lớp, ghi chú/hỏi Tutor theo trang và dùng Personal PDF trong Trợ lý tài liệu. Admin quản lý danh mục, tài khoản và giám sát hệ thống.
 
-Quy trình học tập và ôn luyện phân định rõ hai nhánh độc lập: học liệu chính thức do Giảng viên công bố cho lớp học phần và tài liệu cá nhân PDF do Sinh viên tự tải lên. Phân hệ hỏi đáp RAG cá nhân và phân hệ sinh Quiz AI cùng khai thác tài liệu cá nhân nhưng hoạt động độc lập, không bắt buộc sinh viên phải trò chuyện trước khi tạo câu hỏi ôn tập. Backend đóng vai trò kiểm soát quyền truy cập, chấm điểm tự động và ghi nhận các sự kiện học tập thực tế, giúp sinh viên chủ động lập kế hoạch và ôn luyện các phần kiến thức còn hổng.
+Quy trình học tập và ôn luyện phân định rõ hai nhánh: học liệu chính thức do Giảng viên công bố cho lớp học phần và tài liệu cá nhân PDF do Sinh viên tự tải lên. Trong Trợ lý tài liệu cá nhân, Sinh viên có thể hỏi đáp, yêu cầu tóm tắt hoặc tạo Quiz ngay bằng ngôn ngữ tự nhiên; Single Agent nhận diện ý định và gọi đúng tool, không bắt buộc phải hỏi đáp trước khi tạo Quiz. Backend kiểm soát quyền truy cập, vòng đời Quiz, chấm điểm và các sự kiện học tập thực tế, giúp sinh viên chủ động lập kế hoạch và ôn luyện phần kiến thức còn thiếu.
 
 ## 1.3. Mục tiêu đề tài
 
@@ -32,18 +32,18 @@ Xây dựng nền tảng web hỗ trợ sinh viên quản lý hoạt động t�
 
 - Quản lý tài khoản và phân quyền Student, Teacher, Admin.
 - Tổ chức Course Offering theo Subject và Semester, hỗ trợ join code và duyệt enrollment.
-- Quản lý học liệu PDF/PPTX của Teacher và Personal PDF của Student.
-- Xây dựng Personal RAG trả lời có citation theo trang và `NO_EVIDENCE` khi thiếu căn cứ.
-- Xây dựng Slide AI Tutor trong Slide Viewer, trả citation theo slide.
-- Sinh Quiz `MCQ_SINGLE` từ Personal Documents và prompt tự do; Student review trước khi làm.
+- Quản lý Course Material PDF của Teacher và Personal PDF của Student.
+- Xây dựng Personal Document Assistant bằng Single Agent cho hỏi đáp, tóm tắt và tạo Quiz có citation theo trang.
+- Xây dựng Course Material AI Tutor trong PDF Viewer cho Student, trả citation theo trang.
+- Sinh Quiz `MCQ_SINGLE` cho Student từ Personal PDF và cho Teacher từ Course Material PDF; người sở hữu review trước khi dùng hoặc public.
 - Chấm điểm bằng Java, lưu attempt, tổng hợp câu sai về nguồn cần ôn lại.
 - Dashboard hiển thị tiến độ, Study Streak và Daily Goal; Kế hoạch & Lịch hiển thị task/deadline theo lịch tuần riêng.
 - Đánh giá retrieval, groundedness, citation, refusal và tính hợp lệ của Quiz bằng dữ liệu tổng hợp.
 
 ## 1.4. Đối tượng sử dụng
 
-- **Student:** tham gia lớp, sử dụng học liệu, ghi chú slide, hỏi AI, quản lý Personal Documents, tạo/làm Quiz, xem Dashboard và lập kế hoạch.
-- **Teacher:** tạo Course Offering, quản lý join code/enrollment, upload và public PDF/PPTX của lớp.
+- **Student:** tham gia lớp, xem Course Material PDF, ghi chú và hỏi Tutor theo trang, quản lý Personal PDF, dùng Trợ lý tài liệu, tạo/làm Quiz, xem Dashboard và lập kế hoạch.
+- **Teacher:** tạo Course Offering, quản lý join code/enrollment, upload/public Course Material PDF và tạo/review/publish Quiz AI.
 - **Admin:** quản lý user, Subject, Semester, giám sát Course Offering, feedback, audit và cấu hình.
 
 ## 1.5. Phạm vi đề tài
@@ -51,17 +51,17 @@ Xây dựng nền tảng web hỗ trợ sinh viên quản lý hoạt động t�
 ### 1.5.1. Trong phạm vi MVP
 
 - Web responsive cho ba vai trò.
-- Teacher PPTX: xem web, Note cá nhân và Slide Tutor đối với Student được duyệt.
-- Teacher PDF: chỉ tải xuống; không Viewer, Note, Tutor hoặc AI indexing.
+- Course Material PDF: Student được duyệt xem web, lưu Note và dùng AI Tutor; Teacher không có Tutor.
+- Course Material PDF: được index theo trang; Student có enrollment `APPROVED` được Viewer, lưu Page Note và dùng Tutor sau khi Teacher public.
 - Personal Document: chỉ PDF có text layer.
-- Personal RAG, Slide Tutor và Quiz AI có citation trong authorized scope.
+- Personal Assistant, Course Material Tutor và Quiz AI có citation trang trong authorized scope.
 - Quiz đúng bốn phương án, một đáp án; Java quản lý lifecycle và chấm điểm.
 - Dashboard chứa toàn bộ tiến độ tổng quan và theo từng Course Offering.
 - Study Plan, Calendar, Study Streak và Daily Goal theo quy tắc xác định.
 
 ### 1.5.2. Ngoài phạm vi MVP
 
-DOCX, OCR cho PDF scan, Topic Mastery, Teacher Quiz, Exam/Mock Exam, recommendation tự động, AI điều phối kế hoạch, XP, badge, level, achievement, leaderboard và mô hình multi-agent tự điều phối không thuộc MVP.
+PPTX/DOCX, OCR cho PDF scan, Topic Mastery, Teacher chatbot/Tutor, Exam/Mock Exam, recommendation tự động, AI điều phối kế hoạch, XP, badge, level, achievement, leaderboard và mô hình multi-agent không thuộc MVP.
 
 ## 1.6. Phương pháp thực hiện
 
@@ -71,7 +71,7 @@ Kiến trúc tách trách nhiệm nhằm giảm phụ thuộc ngôn ngữ: Java 
 
 ## 1.7. Ý nghĩa của đề tài
 
-Về thực tiễn, hệ thống giảm việc chuyển đổi giữa nhiều công cụ và giúp sinh viên truy ngược câu trả lời/câu hỏi về đúng trang hoặc slide. Về kỹ thuật, đề tài minh họa cách tích hợp RAG và sinh nội dung có kiểm soát vào hệ thống nghiệp vụ, trong đó authorization, lifecycle, scoring và audit không phụ thuộc vào quyết định tự do của LLM.
+Về thực tiễn, hệ thống giảm việc chuyển đổi giữa nhiều công cụ và giúp sinh viên truy ngược câu trả lời/câu hỏi về đúng trang PDF. Về kỹ thuật, đề tài minh họa cách tích hợp RAG và sinh nội dung có kiểm soát vào hệ thống nghiệp vụ, trong đó authorization, lifecycle, scoring và audit không phụ thuộc vào quyết định tự do của LLM.
 
 ## 1.8. Bố cục báo cáo
 
@@ -82,4 +82,4 @@ Về thực tiễn, hệ thống giảm việc chuyển đổi giữa nhiều c�
 
 ## 1.9. Tổng kết chương
 
-Chương 1 đã xác định StudyFlow là nền tảng hỗ trợ tự học và ôn luyện có AI nhưng lấy backend và bằng chứng nguồn làm nền tảng kiểm soát. Phạm vi MVP tập trung vào Course Offering, học liệu, Personal RAG, Slide Tutor, Quiz, Dashboard và kế hoạch học; các chức năng suy luận năng lực hoặc gamification được để ngoài phạm vi.
+Chương 1 đã xác định StudyFlow là nền tảng hỗ trợ tự học và ôn luyện có AI nhưng lấy backend và bằng chứng nguồn làm nền tảng kiểm soát. Phạm vi MVP tập trung vào Course Offering, PDF, Personal Document Assistant, Course Material Tutor, Student/Teacher Quiz, Dashboard và kế hoạch học; các chức năng suy luận năng lực hoặc gamification được để ngoài phạm vi.

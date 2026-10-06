@@ -33,7 +33,6 @@ import {
   Play,
   Check,
   X,
-  Presentation,
   ShieldCheck,
   Award,
 } from "lucide-react";
@@ -180,7 +179,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
         </div>
 
         <Link
-          href="/quiz/create"
+          href="/chat"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition flex-shrink-0 cursor-pointer"
         >
           <Sparkles className="w-4 h-4" />
@@ -355,7 +354,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
               <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 flex items-start gap-2.5">
                 <AlertCircle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold">Cơ chế tổng hợp ôn tập chính xác:</span> Danh sách câu hỏi dưới đây được hệ thống tự động tổng hợp từ các phương án trả lời sai trong các lần làm bài Quiz của môn học này (tuyệt đối không dùng AI suy đoán điểm yếu). Bạn có thể bấm nút trực tiếp để nhảy đến Slide hoặc trang tài liệu đối chiếu.
+                  <span className="font-bold">Cơ chế tổng hợp ôn tập chính xác:</span> Danh sách dưới đây chỉ được tổng hợp từ các phương án trả lời sai trong các lần làm Quiz, không dùng AI suy đoán điểm yếu. Citation luôn trỏ tới đúng trang PDF nguồn.
                 </div>
               </div>
 
@@ -419,18 +418,17 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                           <FileText className="w-3.5 h-3.5 text-ptit-red" />
                           <span>
                             Nguồn: <b>{item.citation.documentName}</b>{" "}
-                            {item.citation.slideNumber ? `(Slide ${item.citation.slideNumber})` : ""}
                             {item.citation.pageNumber ? `(Trang ${item.citation.pageNumber})` : ""}
                           </span>
                         </div>
 
-                        {item.citation.slideNumber ? (
+                        {courseId !== "PERSONAL" ? (
                           <Link
                             href={`/materials/${item.citation.documentId}/viewer`}
                             className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50  text-ptit-red rounded-xl text-xs font-bold transition self-start sm:self-auto cursor-pointer"
                           >
-                            <Presentation className="w-3.5 h-3.5" />
-                            <span>Ôn lại ngay tại Slide {item.citation.slideNumber}</span>
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Mở PDF tại trang {item.citation.pageNumber}</span>
                           </Link>
                         ) : (
                           <Link

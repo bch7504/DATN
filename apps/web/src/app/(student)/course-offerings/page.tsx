@@ -19,8 +19,6 @@ import {
   ChevronRight,
   ShieldAlert,
   ArrowRight,
-  Download,
-  Presentation,
   FileText,
   Sparkles,
   ArrowLeft,
@@ -40,7 +38,7 @@ function CourseOfferingsContent() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"APPROVED" | "PENDING" | "ARCHIVED">("APPROVED");
 
-  // In-course materials & slide viewing state
+  // In-course Course Material PDF state
   const [selectedOfferingId, setSelectedOfferingId] = useState<string | null>(
     initialOfferingId
   );
@@ -134,7 +132,7 @@ function CourseOfferingsContent() {
             Lớp học phần của bạn
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Quản lý các lớp học phần đã tham gia, theo dõi học liệu bài giảng và slide trực tiếp trong từng lớp.
+            Quản lý các lớp học phần đã tham gia và theo dõi học liệu PDF trực tiếp trong từng lớp.
           </p>
         </div>
 
@@ -274,7 +272,7 @@ function CourseOfferingsContent() {
                   <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600 flex items-start gap-2.5">
                     <Info className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold text-slate-800">Quy định truy cập học liệu trong lớp:</span> Bài giảng slide PPTX được đọc trực tuyến có tích hợp AI Slide Tutor và ghi chú cá nhân (không tải file gốc). Tài liệu tham khảo PDF cho phép tải tệp trực tiếp về máy.
+                      <span className="font-bold text-slate-800">Quy định truy cập học liệu trong lớp:</span> toàn bộ Course Material dùng PDF có lớp văn bản. Student được đọc trực tuyến, ghi chú theo trang và dùng AI Tutor khi enrollment ở trạng thái APPROVED.
                     </div>
                   </div>
 
@@ -291,31 +289,15 @@ function CourseOfferingsContent() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {materials.map((doc) => {
-                        const isPPTX = doc.fileType === "PPTX";
-                        return (
+                      {materials.map((doc) => (
                           <div
                             key={doc.id}
                             className="p-5 rounded-2xl border border-slate-200 bg-white   transition flex flex-col justify-between"
                           >
                             <div>
                               <div className="flex items-center justify-between gap-2 mb-2">
-                                <span
-                                  className={`px-2.5 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1 ${
-                                    isPPTX
-                                      ? "bg-amber-100 text-amber-900 border border-amber-200"
-                                      : "bg-red-100 text-ptit-red border border-red-200"
-                                  }`}
-                                >
-                                  {isPPTX ? (
-                                    <>
-                                      <Presentation className="w-3.5 h-3.5" /> PPTX Bài giảng
-                                    </>
-                                  ) : (
-                                    <>
-                                      <FileText className="w-3.5 h-3.5" /> PDF Tài liệu
-                                    </>
-                                  )}
+                                <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1 bg-red-100 text-ptit-red border border-red-200">
+                                  <FileText className="w-3.5 h-3.5" /> PDF Học liệu
                                 </span>
                                 <span className="text-[11px] text-slate-400">
                                   {(doc.fileSize / (1024 * 1024)).toFixed(1)} MB
@@ -329,44 +311,23 @@ function CourseOfferingsContent() {
                                 Tên tệp: {doc.fileName}
                               </p>
 
-                              {isPPTX && (
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-800 text-[11px] font-semibold rounded-lg mb-4">
-                                  <Sparkles className="w-3 h-3 text-amber-600" />
-                                  <span>Tích hợp AI Slide Tutor & Ghi chú tự động</span>
-                                </div>
-                              )}
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-800 text-[11px] font-semibold rounded-lg mb-4">
+                                <Sparkles className="w-3 h-3 text-red-600" />
+                                <span>PDF Viewer · Ghi chú theo trang · AI Tutor</span>
+                              </div>
                             </div>
 
                             <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                              {isPPTX ? (
-                                <>
-                                  <span className="text-xs text-slate-500">Chỉ đọc web</span>
-                                  <Link
-                                    href={`/materials/${doc.id}/viewer`}
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition"
-                                  >
-                                    <Presentation className="w-4 h-4" /> Xem slide & Hỏi Tutor
-                                  </Link>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="text-xs text-slate-500">Tải về máy tính</span>
-                                  <a
-                                    href={`#download-${doc.id}`}
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      alert(`Đang bắt đầu tải tệp PDF: ${doc.fileName}`);
-                                    }}
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-800  text-white rounded-xl text-xs font-bold shadow-sm transition"
-                                  >
-                                    <Download className="w-4 h-4" /> Tải tệp PDF
-                                  </a>
-                                </>
-                              )}
+                              <span className="text-xs text-slate-500">{doc.totalPages} trang</span>
+                              <Link
+                                href={`/materials/${doc.id}/viewer`}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red text-white rounded-xl text-xs font-bold shadow-sm transition"
+                              >
+                                <BookOpen className="w-4 h-4" /> Xem PDF & Hỏi AI
+                              </Link>
                             </div>
                           </div>
-                        );
-                      })}
+                      ))}
                     </div>
                   )}
                 </div>
@@ -405,7 +366,7 @@ function CourseOfferingsContent() {
                           onClick={() => setSelectedOfferingId(offering.id)}
                           className="inline-flex items-center gap-1 text-xs font-bold text-ptit-red  bg-red-50  px-3.5 py-2 rounded-xl transition cursor-pointer"
                         >
-                          <BookOpen className="w-3.5 h-3.5" /> Xem học liệu & slide
+                          <BookOpen className="w-3.5 h-3.5" /> Xem học liệu PDF
                         </button>
                       </div>
                     </div>
@@ -428,7 +389,7 @@ function CourseOfferingsContent() {
                   <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
                     <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0" />
                     <span>
-                      Theo chính sách hệ thống: Sinh viên chưa được xem học liệu và slide khi yêu cầu chưa được Giảng viên phê duyệt.
+                      Theo chính sách hệ thống: Sinh viên chưa được xem học liệu PDF khi yêu cầu chưa được Giảng viên phê duyệt.
                     </span>
                   </div>
 

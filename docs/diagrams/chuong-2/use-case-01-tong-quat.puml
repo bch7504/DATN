@@ -30,9 +30,9 @@ Teacher -[hidden]down-> Admin
 rectangle "StudyFlow" #F8FAFC {
   rectangle "Phân hệ Student" #FFFFFF {
     usecase "Tham gia Course Offering\nbằng join code" as S1
-    usecase "Xem slide và lưu\nghi chú cá nhân" as S2
-    usecase "Hỏi đáp tài liệu cá nhân\nbằng RAG" as S3
-    usecase "Hỏi đáp slide\nbằng AI Tutor" as S4
+    usecase "Xem PDF và lưu\nghi chú theo trang" as S2
+    usecase "Dùng Trợ lý tài liệu\ncá nhân" as S3
+    usecase "Hỏi Course Material\nAI Tutor" as S4
     usecase "Tạo, review và\nlàm Quiz AI" as S5
     usecase "Xem Dashboard và\nnội dung cần ôn lại" as S6
     usecase "Quản lý Kế hoạch\n& Lịch ôn tập" as S7
@@ -47,11 +47,13 @@ rectangle "StudyFlow" #F8FAFC {
   rectangle "Phân hệ Teacher" #FFFFFF {
     usecase "Tạo và quản lý\nCourse Offering" as T1
     usecase "Quản lý join code\nvà enrollment" as T2
-    usecase "Upload PDF/PPTX và\ntheo dõi xử lý" as T3
+    usecase "Upload PDF và\ntheo dõi xử lý" as T3
     usecase "Công bố hoặc thu hồi\nhọc liệu" as T4
+    usecase "Tạo, review và\npublish Quiz AI" as T5
     T1 -[hidden]right-> T2
     T2 -[hidden]right-> T3
     T3 -[hidden]right-> T4
+    T4 -[hidden]right-> T5
   }
 
   rectangle "Phân hệ Admin" #FFFFFF {
@@ -80,6 +82,7 @@ Teacher -right- T1
 Teacher -right- T2
 Teacher -right- T3
 Teacher -right- T4
+Teacher -right- T5
 
 Admin -right- A1
 Admin -right- A2

@@ -148,7 +148,7 @@ test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
     function validateDailyGoalPayload(payload) {
       // Must only contain target values
       const keys = Object.keys(payload);
-      const allowedKeys = ["targetSlides", "targetQuizQuestions", "targetTasks"];
+      const allowedKeys = ["targetPages", "targetQuizQuestions", "targetTasks"];
       const hasOnlyTargets = keys.every((k) => allowedKeys.includes(k));
       const hasNoActuals = !keys.some((k) => k.toLowerCase().includes("actual"));
       const hasNoStreak = !keys.some((k) => k.toLowerCase().includes("streak"));
@@ -158,7 +158,7 @@ test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
 
     assert.equal(
       validateDailyGoalPayload({
-        targetSlides: 8,
+        targetPages: 8,
         targetQuizQuestions: 10,
         targetTasks: 2,
       }),
@@ -168,8 +168,8 @@ test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
     // Forbidden payload trying to send client-computed actuals or streak
     assert.equal(
       validateDailyGoalPayload({
-        targetSlides: 8,
-        actualSlides: 8,
+        targetPages: 8,
+        actualPages: 8,
       }),
       false
     );
