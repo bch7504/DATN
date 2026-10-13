@@ -281,6 +281,36 @@ Hình 3.17 phân biệt ghi nhận hoạt động với tính Streak, Daily Goal
 
 Java chốt ngày theo timezone và khử trùng event trước khi tổng hợp. Chỉ ba loại sự kiện học hợp lệ duy trì Streak; Note, đăng nhập và ASK_AI không được tính. Dashboard chứa toàn bộ tiến độ chung/từng lớp và hỗ trợ mở/thu các khối; không có trang tiến độ riêng.
 
+### 3.5.12. Sequence Đăng ký Lớp học phần bằng Join Code — BE1-F01
+
+Hình 3.18 mô tả tương tác tuần tự giữa Student, Teacher, Web, Java Backend và Database trong luồng ghi danh lớp học phần.
+
+![Sequence BE1-F01 Enrollment](../diagrams/chuong-3/sequence-be1-f01-enrollment.png)
+
+*Hình 3.18. Biểu đồ tuần tự luồng đăng ký lớp học phần và xét duyệt ghi danh (BE1-F01).*
+
+Biểu đồ thể hiện ba giai đoạn chính: **(1)** Student nhập Join Code — Java tra cứu theo `join_code_hash`, kiểm tra `join_enabled` và trạng thái lớp `ACTIVE`, sau đó kiểm tra ràng buộc unique `(course_offering_id, student_id)` để tạo `CourseEnrollment` với trạng thái `PENDING`. **(2)** Teacher xem danh sách `PENDING`, Java xác minh `teacher_id` là owner của Course Offering, sau đó chuyển trạng thái sang `APPROVED` hoặc `REJECTED` và ghi `system_logs`. **(3)** Mỗi lần Student truy cập học liệu, Java kiểm tra lại trạng thái Enrollment hiện tại — không tin vào session cũ, chỉ APPROVED mới được phép.
+
+### 3.5.13. Sequence Engine tính toán Study Streak và Daily Goal — BE1-F02
+
+Hình 3.19 thể hiện hai luồng song song: cấu hình Daily Goal của Student và tổng hợp Streak khi truy vấn Dashboard.
+
+![Sequence BE1-F02 Streak Goal](../diagrams/chuong-3/sequence-be1-f02-streak-goal.png)
+
+*Hình 3.19. Biểu đồ tuần tự tính toán Study Streak và Daily Goal theo múi giờ người dùng (BE1-F02).*
+
+Điểm kỹ thuật trọng tâm: Java chuyển timestamp ghi sự kiện sang múi giờ `users.time_zone` của Student bằng `ZonedDateTime` trước khi lưu `activity_date` — đảm bảo Student ở UTC+7 tạo sự kiện lúc 23:59 giờ địa phương được ghi đúng ngày. Cơ chế `idempotency_key` ngăn ghi trùng sự kiện khi retry. Các sự kiện `LOGIN`, `NOTE`, `ASK_AI` không được tính vào Streak hoặc Daily Goal theo quy tắc nghiệp vụ. Khi tổng hợp Dashboard, Java đọc `activity_date` đã chuẩn hóa để đếm chuỗi ngày liên tiếp và tính `actual` từ DB — client không được tự cung cấp giá trị này.
+
+### 3.5.14. Sequence Engine Làm bài Quiz, Chấm điểm và Tổng hợp Nguồn ôn tập — BE1-F03
+
+Hình 3.20 mô tả toàn bộ vòng đời một lần làm Quiz: từ khi Student bắt đầu đến khi nhận kết quả và danh sách nguồn cần ôn lại.
+
+![Sequence BE1-F03 Quiz Scoring](../diagrams/chuong-3/sequence-be1-f03-quiz-scoring.png)
+
+*Hình 3.20. Biểu đồ tuần tự luồng làm bài, chấm điểm tự động và trích dẫn nguồn ôn tập (BE1-F03).*
+
+Java tạo `QuizAttempt` và trả danh sách câu hỏi **không kèm** `correctOptionIndex` để tránh lộ đáp án. Khi Student nộp bài, Java mở một Transaction: so sánh từng `selectedOptionIndex` với `correctOptionIndex` lưu trong DB, ghi `QuizAnswer` kèm `is_correct`, tính tổng điểm và ghi sự kiện `QUIZ_COMPLETED` **đúng một lần** theo `idempotency_key = attemptId`. Khung `loop` thể hiện chấm từng câu hỏi trong vòng lặp; khung `alt` xử lý submit lặp idempotent. Sau chấm điểm, Java truy vấn ngược `quiz_question_sources` để lấy `documentId` và `pageNumber` cho các câu trả lời sai, tổng hợp thành danh sách `reviewItems` — hoàn toàn dựa trên dữ liệu nguồn đã lưu, không dùng AI suy luận. Mỗi lần "Làm lại" tạo `QuizAttempt` mới, lịch sử cũ được bảo toàn.
+
 ## 3.6. Thiết kế bảo mật và phân quyền
 
 ### 3.6.1. Ma trận quyền theo tài nguyên

@@ -18,11 +18,14 @@ skinparam PartitionBorderColor #222222
 skinparam NoteBackgroundColor #FFF9D9
 skinparam NoteBorderColor #555555
 skinparam roundcorner 16
-|Student|
+|Teacher|
 start
-:Nhập join code;
+:Tạo Lớp học phần (Course Offering);
+:Hệ thống cấp Join Code và kích hoạt lớp;
+|Student|
+:Nhập Join Code;
 |Java Backend|
-:Kiểm code, trạng thái lớp và yêu cầu trùng;
+:Kiểm tra tính hợp lệ của mã và trạng thái lớp;
 if (Hợp lệ?) then (Có)
   :Lưu enrollment PENDING;
   |Teacher|

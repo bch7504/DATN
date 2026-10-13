@@ -148,54 +148,56 @@ Theo quy định phân công đồ án tốt nghiệp trong nhóm 3 thành viên
 
 ---
 
-### 2.3.2. Form chức năng của Thành viên 2 (Java Backend 1 — Đang hoàn thiện, để form chờ chốt)
+### 2.3.2. Ba chức năng trọng tâm của Thành viên 2 (Java Backend 1)
 
-*(Phần này chuẩn bị sẵn form mẫu theo quy chuẩn 10 trường thông tin để Thành viên 2 điền chi tiết sau khi nhóm thống nhất chốt danh mục 3 chức năng)*
+#### BE1-F01 — Quản lý vòng đời Đăng ký Lớp học phần bằng Join Code & Máy trạng thái Ghi danh
 
-#### BE1-F01 — [Chức năng 1 của Thành viên 2 - Đang cập nhật]
-
-| Trường thông tin | Nội dung (Chờ Thành viên 2 cập nhật) |
+| Trường thông tin | Nội dung |
 |---|---|
-| **Mã và tên chức năng** | **BE1-F01: [Tên chức năng 1 của Thành viên 2]** |
-| **Thành viên/phạm vi phụ trách** | Thành viên 2 - Java Backend 1 |
-| **Mục tiêu** | *[Mục tiêu giải quyết của chức năng]* |
-| **Tác nhân** | *[Các tác nhân tham gia]* |
-| **Tiền điều kiện** | *[Điều kiện bắt buộc trước khi thực hiện]* |
-| **Đầu vào** | *[Dữ liệu và tham số đầu vào]* |
-| **Luồng xử lý chính** | *[Các bước xử lý chính theo đúng ranh giới kiến trúc]* |
-| **Đầu ra** | *[Kết quả trả về và thay đổi trạng thái]* |
-| **Ngoại lệ và quy tắc** | *[Xử lý lỗi và ràng buộc nghiệp vụ]* |
-| **Tiêu chí nghiệm thu** | *[Điều kiện xác nhận hoàn thành]* |
+| **Mã và tên chức năng** | **BE1-F01: Quản lý vòng đời Đăng ký Lớp học phần bằng Join Code và Máy trạng thái Ghi danh (Course Enrollment Lifecycle)** |
+| **Thành viên/phạm vi phụ trách** | Thành viên 2 — Java Backend 1; Java Spring Boot Backend; phân hệ Course Offering, Course Enrollment, Join Code, xác thực phân quyền RBAC và kiểm soát truy cập học liệu |
+| **Mục tiêu** | Quản lý an toàn toàn bộ vòng đời ghi danh lớp học phần: từ khi Student nhập mã Join Code để gửi yêu cầu tham gia, Teacher phê duyệt hoặc từ chối, đến khi Student được cấp đúng phạm vi quyền truy cập học liệu. Chức năng đảm bảo chỉ Student có trạng thái `APPROVED` mới được truy cập slide PPTX, tạo ghi chú cá nhân và sử dụng Slide AI Tutor của lớp |
+| **Tác nhân** | Student (chính — gửi yêu cầu tham gia), Teacher (chính — phê duyệt/từ chối), Admin (hỗ trợ — giám sát và khóa lớp); Java Backend là thành phần thực thi |
+| **Tiền điều kiện** | Student và Teacher đã đăng nhập thành công với JWT hợp lệ; Course Offering đang ở trạng thái `ACTIVE`; Join Code đang được bật (`join_enabled = true`); Student chưa có bản ghi Enrollment với lớp đó |
+| **Đầu vào** | Gửi yêu cầu tham gia: `{ "joinCode": "string(6)" }` qua `POST /api/v1/student/course-enrollments/join`. Phê duyệt/Từ chối: `enrollmentId` trên URL qua `POST /api/v1/teacher/enrollments/{enrollmentId}/approve` hoặc `/reject`. Tái tạo Join Code: `POST /api/v1/teacher/course-offerings/{id}/join-code/regenerate` |
+| **Luồng xử lý chính** | 1. Student gửi `joinCode`; Java tra cứu Course Offering theo `join_code_hash` và kiểm tra `join_enabled`, trạng thái `ACTIVE`.<br>2. Java kiểm tra ràng buộc unique `(course_offering_id, student_id)` để tránh ghi danh trùng; tạo bản ghi `CourseEnrollment` với `status = PENDING`.<br>3. Java trả `201` kèm thông tin lớp học phần và trạng thái `PENDING`.<br>4. Teacher truy vấn danh sách `PENDING` qua `GET /api/v1/teacher/course-offerings/{id}/enrollments`; Java kiểm tra `teacher_id` khớp với Course Offering owner.<br>5. Teacher phê duyệt: Java chuyển trạng thái sang `APPROVED`, ghi `decided_by = teacherId` và `approved_at`; từ thời điểm này, Student được truy cập học liệu công bố của lớp.<br>6. Teacher từ chối: Java chuyển trạng thái sang `REJECTED`; Student không được truy cập.<br>7. Mỗi lần Student truy cập học liệu, Java kiểm tra lại trạng thái Enrollment hiện tại (không tin vào token cũ) |
+| **Đầu ra** | Bản ghi `CourseEnrollment` mới với `status = PENDING`; sau khi Teacher phê duyệt, status chuyển `APPROVED` và Student được cấp quyền truy cập học liệu. Mọi thay đổi trạng thái được ghi vào `system_logs` |
+| **Ngoại lệ và quy tắc** | Join Code không tồn tại hoặc `join_enabled = false`: trả `404 NOT_FOUND` hoặc `409 JOIN_DISABLED`, không tiết lộ lý do chi tiết. Ghi danh trùng (đã có bất kỳ trạng thái nào): trả `409 DUPLICATE_ENROLLMENT`. Teacher không phải owner của Course Offering thì không được phê duyệt (`403 FORBIDDEN`). Hết hạn học kỳ: lớp chuyển `ARCHIVED`, Join Code tự tắt, nhưng lịch sử Enrollment được giữ nguyên |
+| **Tiêu chí nghiệm thu** | Student nhập sai Join Code nhận `404`; ghi danh trùng nhận `409`; Teacher sai lớp nhận `403`. Sau `APPROVED`, Student truy cập được học liệu; sau `REJECTED` hoặc `REMOVED`, Student bị từ chối với `403`. 50 Student nhập mã cùng lúc không tạo bản ghi trùng (kiểm tra unique constraint DB). Lịch sử Enrollment không bị xóa khi lớp `ARCHIVED` |
 
-#### BE1-F02 — [Chức năng 2 của Thành viên 2 - Đang cập nhật]
+---
 
-| Trường thông tin | Nội dung (Chờ Thành viên 2 cập nhật) |
+#### BE1-F02 — Engine tính toán Chuỗi ngày học (Study Streak) và Mục tiêu học tập hằng ngày (Daily Goal) theo Múi giờ
+
+| Trường thông tin | Nội dung |
 |---|---|
-| **Mã và tên chức năng** | **BE1-F02: [Tên chức năng 2 của Thành viên 2]** |
-| **Thành viên/phạm vi phụ trách** | Thành viên 2 - Java Backend 1 |
-| **Mục tiêu** | *[Mục tiêu giải quyết của chức năng]* |
-| **Tác nhân** | *[Các tác nhân tham gia]* |
-| **Tiền điều kiện** | *[Điều kiện bắt buộc trước khi thực hiện]* |
-| **Đầu vào** | *[Dữ liệu và tham số đầu vào]* |
-| **Luồng xử lý chính** | *[Các bước xử lý chính]* |
-| **Đầu ra** | *[Kết quả trả về]* |
-| **Ngoại lệ và quy tắc** | *[Xử lý lỗi và ràng buộc nghiệp vụ]* |
-| **Tiêu chí nghiệm thu** | *[Điều kiện xác nhận hoàn thành]* |
+| **Mã và tên chức năng** | **BE1-F02: Engine tính toán Chuỗi ngày học (Study Streak) và Mục tiêu học tập hằng ngày (Daily Goal) theo Múi giờ người dùng** |
+| **Thành viên/phạm vi phụ trách** | Thành viên 2 — Java Backend 1; Java Spring Boot Backend; phân hệ Learning Events, Daily Goal, Study Streak, Dashboard tổng hợp tiến độ |
+| **Mục tiêu** | Định lượng chính xác nỗ lực học tập thực tế của Student theo từng ngày dựa trên múi giờ riêng của người dùng, không phụ thuộc giờ Server. Tự động tính chuỗi ngày học liên tục (Streak) và phần trăm hoàn thành mục tiêu ngày (Daily Goal) dựa trên các sự kiện học tập hợp lệ được ghi nhận |
+| **Tác nhân** | Student (chính — thiết lập Daily Goal và phát sinh sự kiện học); Java Backend (thực thi tính toán và tổng hợp) |
+| **Tiền điều kiện** | Student đã đăng nhập; bản ghi `users.time_zone` phải hợp lệ (mặc định `Asia/Ho_Chi_Minh` nếu chưa cấu hình); các sự kiện học tập phải có `idempotency_key` để chống ghi trùng |
+| **Đầu vào** | Cấu hình Daily Goal: `PUT /api/v1/student/daily-goal` với body `{ "slideTarget": int(0..100), "quizQuestionTarget": int(0..200), "taskTarget": int(0..50) }` với tổng target > 0. Truy vấn Dashboard: `GET /api/v1/student/dashboard`. Sự kiện học tập được phát sinh nội bộ khi Student xem Slide (`VIEW_SLIDE`), hoàn tất Task (`STUDY_TASK_COMPLETED`), hoặc nộp Quiz (`QUIZ_COMPLETED`) |
+| **Luồng xử lý chính** | 1. Khi Student phát sinh sự kiện học hợp lệ, Java Backend xác định `activity_date` bằng cách chuyển đổi timestamp hiện tại sang múi giờ `users.time_zone` của Student (dùng `ZonedDateTime` Java, không dùng giờ UTC thô).<br>2. Java kiểm tra `idempotency_key` trên bảng `learning_events` để đảm bảo cùng một sự kiện không được ghi hai lần trong ngày (ví dụ: `VIEW_SLIDE` chỉ tính một lần cho mỗi `studentId + documentId + slideNumber + ngày`).<br>3. Java ghi bản ghi `LearningEvent` với `activity_date` đã chuẩn hóa theo timezone.<br>4. Khi Student truy vấn Dashboard, Java tính Streak: đếm số ngày liên tiếp có ít nhất một trong ba sự kiện hợp lệ (`VIEW_SLIDE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`) tính từ hôm nay về quá khứ. Đứt ngày là kết thúc chuỗi.<br>5. Java tính Daily Goal: đọc bảng `daily_goals` của Student, đếm số lượng sự kiện thực tế trong ngày hôm nay theo timezone, tính phần trăm hoàn thành cho từng loại (slide, quiz, task). Client không được tự báo cáo số liệu hoàn thành |
+| **Đầu ra** | `GET /api/v1/student/study-streak` trả về `{ "currentStreak": int, "longestStreak": int, "activityDays": [date] }`. `GET /api/v1/student/daily-goal` trả về `{ "slideTarget": int, "slideActual": int, "quizTarget": int, "quizActual": int, "taskTarget": int, "taskActual": int, "completedPercent": float }`. Các giá trị `actual` do Java tính, không do Client gửi lên |
+| **Ngoại lệ và quy tắc** | Sự kiện `LOGIN`, `NOTE`, `ASK_AI` tuyệt đối không được tính vào Streak hoặc Daily Goal. Client không được tự gửi số liệu hoàn thành; mọi giá trị `actual` phải tính từ `learning_events`. Nếu `time_zone` không hợp lệ, Java dùng `Asia/Ho_Chi_Minh` làm fallback và ghi cảnh báo log. Daily Goal target phải thỏa mãn: `slideTarget` ∈ [0, 100], `quizQuestionTarget` ∈ [0, 200], `taskTarget` ∈ [0, 50] và tổng > 0. Hoàn thành Daily Goal không phải điều kiện duy trì Streak |
+| **Tiêu chí nghiệm thu** | Sinh viên ở múi giờ UTC+7 tạo sự kiện lúc 23:59 giờ địa phương được tính vào ngày hôm đó, không bị tính vào ngày hôm sau (lỗi UTC). `VIEW_SLIDE` gọi 5 lần cho cùng slide trong ngày chỉ tạo 1 bản ghi event. Dashboard trả về `currentStreak = 3` khi có hoạt động học đủ 3 ngày liên tiếp (kiểm tra bằng seed data). `LOGIN` và `ASK_AI` không làm tăng streak hoặc daily goal actual |
 
-#### BE1-F03 — [Chức năng 3 của Thành viên 2 - Đang cập nhật]
+---
 
-| Trường thông tin | Nội dung (Chờ Thành viên 2 cập nhật) |
+#### BE1-F03 — Engine Làm bài Quiz, Chấm điểm Tự động và Tổng hợp Trích dẫn Nguồn ôn tập
+
+| Trường thông tin | Nội dung |
 |---|---|
-| **Mã và tên chức năng** | **BE1-F03: [Tên chức năng 3 của Thành viên 2]** |
-| **Thành viên/phạm vi phụ trách** | Thành viên 2 - Java Backend 1 |
-| **Mục tiêu** | *[Mục tiêu giải quyết của chức năng]* |
-| **Tác nhân** | *[Các tác nhân tham gia]* |
-| **Tiền điều kiện** | *[Điều kiện bắt buộc trước khi thực hiện]* |
-| **Đầu vào** | *[Dữ liệu và tham số đầu vào]* |
-| **Luồng xử lý chính** | *[Các bước xử lý chính]* |
-| **Đầu ra** | *[Kết quả trả về]* |
-| **Ngoại lệ và quy tắc** | *[Xử lý lỗi và ràng buộc nghiệp vụ]* |
-| **Tiêu chí nghiệm thu** | *[Điều kiện xác nhận hoàn thành]* |
+| **Mã và tên chức năng** | **BE1-F03: Engine Làm bài Quiz, Chấm điểm Tự động và Tổng hợp Trích dẫn Nguồn ôn tập (Quiz Scoring & Citation Aggregator)** |
+| **Thành viên/phạm vi phụ trách** | Thành viên 2 — Java Backend 1; Java Spring Boot Backend; phân hệ Quiz lifecycle (trạng thái `READY` trở đi), Quiz Attempt, Quiz Answer, chấm điểm tự động và tổng hợp nguồn ôn tập |
+| **Mục tiêu** | Cho phép Student thực hiện bài làm trắc nghiệm trên bộ Quiz đã được chấp nhận (`READY`), Backend Java tự động chấm điểm chính xác tức thì (không dùng AI), lưu lịch sử bài làm độc lập qua mỗi lần làm lại, và trích xuất danh sách câu trả lời sai kèm liên kết trỏ đúng trang tài liệu cần ôn tập |
+| **Tác nhân** | Student (chính — làm bài và nộp bài); Java Backend (thực thi chấm điểm và tổng hợp) |
+| **Tiền điều kiện** | Student đã đăng nhập và là owner của Quiz; Quiz đang ở trạng thái `READY`; không có Attempt nào đang ở trạng thái chưa hoàn thành cho cùng Quiz (hoặc Student bắt đầu lại tạo Attempt mới) |
+| **Đầu vào** | Bắt đầu làm bài: `POST /api/v1/student/quizzes/{quizId}/attempts` — không cần body, Java tạo Attempt mới. Nộp bài: `POST /api/v1/student/quizzes/{quizId}/attempts/{attemptId}/submit` với body `{ "answers": [{ "questionId": "uuid", "selectedOptionIndex": int(0..3) }] }`. Frontend không được nhận đáp án đúng (`correctOptionIndex`) trong payload khi tải câu hỏi |
+| **Luồng xử lý chính** | 1. Student gọi API bắt đầu làm bài; Java kiểm tra quyền owner và trạng thái `READY`, tạo bản ghi `QuizAttempt` mới với `started_at = now()` và trả danh sách câu hỏi (không có `correctOptionIndex`).<br>2. Student lần lượt chọn đáp án và gọi API nộp bài với danh sách `answers`.<br>3. Java mở một Transaction: với mỗi câu hỏi, truy vấn `correctOptionIndex` từ `app.quiz_questions`, so sánh với `selectedOptionIndex` của Student, ghi bản ghi `QuizAnswer` với `is_correct` tương ứng.<br>4. Java tính tổng điểm (số câu đúng / tổng câu × 100), ghi `score` và `completed_at` vào `QuizAttempt`, ghi sự kiện `QUIZ_COMPLETED` vào `learning_events` với `idempotency_key = attemptId` (chống ghi trùng khi retry).<br>5. Java truy vấn ngược: lọc các `QuizAnswer` có `is_correct = false`, join với `quiz_question_sources` để lấy `documentId`, `pageNumber` và `excerpt` của từng câu sai.<br>6. Trả kết quả đầy đủ bao gồm điểm số, chi tiết đúng/sai từng câu và danh sách "Nội dung cần ôn lại" |
+| **Đầu ra** | Kết quả `QuizAttempt` gồm: `{ "score": float, "correctCount": int, "totalCount": int, "completedAt": datetime, "answers": [{ "questionId", "selectedOptionIndex", "correctOptionIndex", "isCorrect", "explanation" }], "reviewItems": [{ "questionId", "documentId", "pageNumber", "excerpt" }] }`. Sự kiện `QUIZ_COMPLETED` được ghi vào `learning_events` để cập nhật Streak và Daily Goal |
+| **Ngoại lệ và quy tắc** | Frontend tuyệt đối không được nhận `correctOptionIndex` trong API lấy danh sách câu hỏi; Java chỉ trả đáp án đúng sau khi Attempt đã `completed`. Submit lặp cùng `attemptId`: Java trả lại kết quả đã ghi, không tính thêm điểm hoặc ghi thêm event. Mỗi lần "Làm lại" tạo `QuizAttempt` mới — không ghi đè lịch sử. "Nội dung cần ôn lại" chỉ tổng hợp từ câu sai và nguồn của câu hỏi, không dùng AI để suy luận mức độ yếu/mạnh. Java ghi nhận `QUIZ_COMPLETED` đúng một lần cho mỗi Attempt |
+| **Tiêu chí nghiệm thu** | Student làm 5 câu đúng 4: `score = 80`, `correctCount = 4`. Submit lại cùng `attemptId` trả kết quả cũ, `QUIZ_COMPLETED` không bị ghi thêm lần hai. Làm lại Quiz tạo `AttemptId` mới và lịch sử cũ vẫn tồn tại. Câu sai trả `reviewItems` với `documentId` và `pageNumber` hợp lệ. `correctOptionIndex` không xuất hiện trong response API lấy câu hỏi khi Attempt chưa `completed` |
 
 ---
 

@@ -1,0 +1,97 @@
+@startuml
+' Palette: sequence; based on the Visual Paradigm guide samples (see README).
+' Interaction: BE1-F03 — Làm bài Quiz, Chấm điểm & Tổng hợp Nguồn ôn tập
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+skinparam ParticipantBackgroundColor #7ACFF5
+skinparam ParticipantBorderColor #222222
+skinparam LifeLineBackgroundColor #7ACFF5
+skinparam LifeLineBorderColor #222222
+skinparam SequenceGroupBackgroundColor white
+skinparam SequenceGroupBodyBackgroundColor white
+skinparam SequenceGroupBorderColor #222222
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+hide footbox
+autonumber
+autoactivate on
+
+actor Student
+participant ":Web" as Web
+participant ":Java Backend" as Java
+participant ":app (DB)" as DB
+
+== Bắt đầu làm bài ==
+Student -> Web : Bấm "Bắt đầu làm bài" trên Quiz READY
+Web -> Java : POST /api/v1/student/quizzes/{quizId}/attempts
+Java -> DB : Kiểm owner (student_id) và status = READY
+alt Quiz không thuộc Student hoặc chưa READY
+  Java --> Web : 403 / 409
+  Web --> Student : Thông báo lỗi
+else Hợp lệ
+  Java -> DB : INSERT quiz_attempts\n{quiz_id, student_id, started_at}
+  DB --> Java : {attemptId}
+  Java -> DB : SELECT questions FROM quiz_questions\nWHERE quiz_id (KHÔNG có correctOptionIndex)
+  DB --> Java : [{questionId, questionText, options[4]}]
+  note right of Java : correctOptionIndex bị ẩn\nkhỏi response khi làm bài
+  Java --> Web : {attemptId, questions}
+  Web --> Student : Hiển thị giao diện trắc nghiệm
+end
+
+== Nộp bài và Chấm điểm ==
+Student -> Web : Chọn đáp án và bấm "Nộp bài"
+Web -> Java : POST /api/v1/student/quizzes/{quizId}/attempts/{attemptId}/submit\n{answers: [{questionId, selectedOptionIndex}]}
+
+alt Submit lặp cùng attemptId đã completed
+  Java -> DB : SELECT completed_at FROM quiz_attempts
+  DB --> Java : completed_at != null
+  Java --> Web : Trả lại kết quả đã ghi (idempotent)
+else Attempt hợp lệ, chưa completed
+  Java -> Java : Mở Transaction
+
+  loop Mỗi câu hỏi trong answers
+    Java -> DB : SELECT correct_option_index\nFROM quiz_questions WHERE id = questionId
+    DB --> Java : correctOptionIndex
+    Java -> Java : So sánh selectedOptionIndex\nvới correctOptionIndex\n→ is_correct = true/false
+    Java -> DB : INSERT quiz_answers\n{attempt_id, question_id,\nselected_option_index, is_correct}
+  end
+
+  Java -> Java : Tính score = (đúng / tổng) × 100
+  Java -> DB : UPDATE quiz_attempts SET\nscore, completed_at = now()
+  Java -> DB : INSERT learning_events\n{QUIZ_COMPLETED, idempotency_key = attemptId}
+  note right of Java : Ghi QUIZ_COMPLETED đúng 1 lần\ncho mỗi attempt (idempotent)
+  Java -> Java : Commit Transaction
+
+  == Tổng hợp nguồn ôn tập ==
+  Java -> DB : SELECT qa.question_id FROM quiz_answers qa\nWHERE attempt_id AND is_correct = false
+  DB --> Java : Danh sách questionId làm sai
+
+  Java -> DB : SELECT qqs.document_id, qqs.page_number, qqs.excerpt\nFROM quiz_question_sources qqs\nWHERE question_id IN (danh sách câu sai)
+  DB --> Java : [{questionId, documentId, pageNumber, excerpt}]
+  note right of Java : "Nội dung cần ôn lại" chỉ từ\ncâu sai + nguồn câu hỏi\nKhông dùng AI suy luận
+
+  Java --> Web : {\nscore, correctCount, totalCount,\nanswers: [{questionId, isCorrect,\ncorrectOptionIndex, explanation}],\nreviewItems: [{questionId, documentId,\npageNumber, excerpt}]\n}
+  Web --> Student : Kết quả + "Nội dung cần ôn lại"
+end
+
+opt Student muốn làm lại
+  Student -> Web : Bấm "Làm lại bài Quiz"
+  note over Web : Tạo QuizAttempt MỚI\nLịch sử cũ được giữ nguyên\nKhông ghi đè
+  Web -> Java : POST /api/v1/student/quizzes/{quizId}/attempts
+end
+return Hoàn tất tương tác
+@enduml

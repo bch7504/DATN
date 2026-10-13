@@ -28,6 +28,7 @@ export interface CourseOffering {
   teacherId: string;
   teacherName: string;
   joinCode: string;
+  joinCodeHint?: string;
   joinCodeEnabled: boolean;
   status: CourseOfferingStatus;
   enrolledCount: number;

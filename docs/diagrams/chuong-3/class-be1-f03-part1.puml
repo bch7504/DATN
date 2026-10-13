@@ -1,0 +1,74 @@
+@startuml
+' Class Diagram BE1-F03 Part 1: Quiz Structure
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+hide circle
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+
+class Quiz <<entity>> {
+  +id: UUID
+  +studentId: UUID
+  +status: QuizStatus
+  +courseOfferingId: UUID
+  +assertReady(): void
+}
+
+enum QuizStatus <<enumeration>> {
+  GENERATING
+  REVIEW_REQUIRED
+  READY
+  GENERATION_FAILED
+}
+
+class QuizQuestion <<entity>> {
+  +id: UUID
+  +quizId: UUID
+  +questionText: String
+  +options: String[4]
+  +correctOptionIndex: int
+  +explanation: String
+}
+
+class QuizQuestionSource <<entity>> {
+  +id: UUID
+  +questionId: UUID
+  +documentId: UUID
+  +pageNumber: int
+  +excerpt: String
+}
+
+interface QuizQuestionRepository <<repository>> {
+  +findByQuizId(quizId: UUID): List<QuizQuestion>
+  +findById(id: UUID): Optional<QuizQuestion>
+}
+
+interface QuizQuestionSourceRepository <<repository>> {
+  +findByQuestionIdIn(ids: List<UUID>): List<QuizQuestionSource>
+}
+
+QuizQuestion "1" --o "1" QuizQuestionSource : sourced from
+Quiz "1" --o "many" QuizQuestion : contains
+Quiz --> QuizStatus
+QuizQuestionRepository ..> QuizQuestion
+QuizQuestionSourceRepository ..> QuizQuestionSource
+
+note left of QuizQuestion
+  correctOptionIndex
+  tuyệt đối được giấu
+  trước khi nộp bài.
+end note
+@enduml

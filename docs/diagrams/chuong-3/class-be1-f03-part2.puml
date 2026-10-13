@@ -1,0 +1,78 @@
+@startuml
+' Class Diagram BE1-F03 Part 2: Quiz Scoring & Attempt
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+hide circle
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+
+class QuizAttemptController <<Java boundary>> {
+  +start(studentId: UUID, quizId: UUID): ResponseEntity<AttemptStartDTO>
+  +submit(studentId: UUID, attemptId: UUID, req: SubmitRequest): ResponseEntity<AttemptResultDTO>
+}
+
+class QuizScoringService <<Java control>> {
+  -attemptRepo: QuizAttemptRepository
+  -answerRepo: QuizAnswerRepository
+  -questionRepo: QuizQuestionRepository
+  -sourceRepo: QuizQuestionSourceRepository
+  -eventService: LearningEventService
+  +startAttempt(studentId: UUID, quizId: UUID): AttemptStartDTO
+  +submitAndScore(studentId: UUID, attemptId: UUID, answers: List<AnswerInput>): AttemptResultDTO
+  -scoreAnswers(attempt: QuizAttempt, answers: List<AnswerInput>): List<QuizAnswer>
+  -aggregateReviewItems(wrongAnswers: List<QuizAnswer>): List<ReviewItemDTO>
+}
+
+class QuizAttempt <<entity>> {
+  +id: UUID
+  +quizId: UUID
+  +studentId: UUID
+  +startedAt: Instant
+  +completedAt: Instant
+  +score: Double
+  +isCompleted(): Boolean
+}
+
+class QuizAnswer <<entity>> {
+  +id: UUID
+  +attemptId: UUID
+  +questionId: UUID
+  +selectedOptionIndex: int
+  +isCorrect: Boolean
+}
+
+interface QuizAttemptRepository <<repository>> {
+  +save(attempt: QuizAttempt): QuizAttempt
+  +findById(id: UUID): Optional<QuizAttempt>
+}
+
+interface QuizAnswerRepository <<repository>> {
+  +saveAll(answers: List<QuizAnswer>): List<QuizAnswer>
+  +findWrongByAttemptId(attemptId: UUID): List<QuizAnswer>
+}
+
+QuizAttemptController --> QuizScoringService : delegates
+QuizScoringService --> QuizAttemptRepository : uses
+QuizScoringService --> QuizAnswerRepository : uses
+QuizScoringService ..> QuizAttempt : creates/updates
+QuizScoringService ..> QuizAnswer : creates
+QuizAttempt "1" --o "many" QuizAnswer : has
+
+note right of QuizAttempt
+  isCompleted() check
+  để Idempotent nộp bài.
+end note
+@enduml

@@ -1,0 +1,136 @@
+@startuml
+' Class Diagram BE1-F03: Quiz Scoring & Citation Aggregator
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+hide circle
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+
+class QuizAttemptController <<Java boundary>> {
+  +start(studentId: UUID, quizId: UUID): ResponseEntity<AttemptStartDTO>
+  +submit(studentId: UUID, quizId: UUID, attemptId: UUID, req: SubmitRequest): ResponseEntity<AttemptResultDTO>
+}
+
+class QuizScoringService <<Java control>> {
+  -attemptRepo: QuizAttemptRepository
+  -answerRepo: QuizAnswerRepository
+  -questionRepo: QuizQuestionRepository
+  -sourceRepo: QuizQuestionSourceRepository
+  -eventService: LearningEventService
+  +startAttempt(studentId: UUID, quizId: UUID): AttemptStartDTO
+  +submitAndScore(studentId: UUID, attemptId: UUID, answers: List<AnswerInput>): AttemptResultDTO
+  -scoreAnswers(attempt: QuizAttempt, answers: List<AnswerInput>): List<QuizAnswer>
+  -aggregateReviewItems(wrongAnswers: List<QuizAnswer>): List<ReviewItemDTO>
+  -assertOwner(studentId: UUID, quiz: Quiz): void
+}
+
+class Quiz <<entity>> {
+  +id: UUID
+  +studentId: UUID
+  +status: QuizStatus
+  +courseOfferingId: UUID
+  +assertReady(): void
+}
+
+enum QuizStatus <<enumeration>> {
+  GENERATING
+  REVIEW_REQUIRED
+  READY
+  GENERATION_FAILED
+}
+
+class QuizQuestion <<entity>> {
+  +id: UUID
+  +quizId: UUID
+  +questionText: String
+  +options: String[4]
+  +correctOptionIndex: int
+  +explanation: String
+}
+
+class QuizQuestionSource <<entity>> {
+  +id: UUID
+  +questionId: UUID
+  +documentId: UUID
+  +pageNumber: int
+  +excerpt: String
+}
+
+class QuizAttempt <<entity>> {
+  +id: UUID
+  +quizId: UUID
+  +studentId: UUID
+  +startedAt: Instant
+  +completedAt: Instant
+  +score: Double
+  +isCompleted(): Boolean
+}
+
+class QuizAnswer <<entity>> {
+  +id: UUID
+  +attemptId: UUID
+  +questionId: UUID
+  +selectedOptionIndex: int
+  +isCorrect: Boolean
+}
+
+interface QuizAttemptRepository <<repository>> {
+  +save(attempt: QuizAttempt): QuizAttempt
+  +findById(id: UUID): Optional<QuizAttempt>
+}
+
+interface QuizAnswerRepository <<repository>> {
+  +saveAll(answers: List<QuizAnswer>): List<QuizAnswer>
+  +findByAttemptId(attemptId: UUID): List<QuizAnswer>
+  +findWrongByAttemptId(attemptId: UUID): List<QuizAnswer>
+}
+
+interface QuizQuestionRepository <<repository>> {
+  +findByQuizId(quizId: UUID): List<QuizQuestion>
+  +findById(id: UUID): Optional<QuizQuestion>
+}
+
+interface QuizQuestionSourceRepository <<repository>> {
+  +findByQuestionIdIn(ids: List<UUID>): List<QuizQuestionSource>
+}
+
+QuizAttemptController --> QuizScoringService : delegates
+QuizScoringService --> QuizAttemptRepository : uses
+QuizScoringService --> QuizAnswerRepository : uses
+QuizScoringService --> QuizQuestionRepository : uses
+QuizScoringService --> QuizQuestionSourceRepository : uses
+QuizScoringService --> LearningEventService : records QUIZ_COMPLETED
+QuizAttempt "1" --o "many" QuizAnswer : has
+QuizQuestion "1" --o "1" QuizQuestionSource : sourced from
+QuizAnswer --> QuizQuestion : references
+Quiz "1" --o "many" QuizQuestion : contains
+Quiz "1" --o "many" QuizAttempt : has attempts
+Quiz --> QuizStatus
+
+note bottom of QuizScoringService
+  correctOptionIndex chỉ được đọc
+  nội bộ khi chấm điểm.
+  Frontend KHÔNG nhận field này
+  khi Attempt chưa completed.
+end note
+
+note right of QuizAttempt
+  Submit lặp cùng attemptId:
+  trả kết quả cũ (idempotent).
+  Làm lại → tạo Attempt mới,
+  không ghi đè lịch sử.
+end note
+@enduml
