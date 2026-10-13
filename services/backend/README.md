@@ -1,6 +1,15 @@
 # StudyFlow Spring Boot Backend
 
-Java backend là system of record và public API duy nhất cho Web. Backend chưa được scaffold dependency; thư mục hiện tại chỉ đánh dấu boundary cho giai đoạn triển khai sau.
+Java backend là system of record và public API duy nhất cho Web. Module dùng Spring Boot 3, Maven và Java 17 trở lên.
+
+## Chạy local
+
+1. Chuẩn bị PostgreSQL và cấu hình `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`.
+2. Cấu hình `JWT_SECRET` tối thiểu 32 byte.
+3. Cấu hình SMTP qua `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` để gửi OTP đăng ký.
+4. Chạy `./mvnw spring-boot:run` (Windows: `mvnw.cmd spring-boot:run`); Flyway sẽ tạo schema `app` và các bảng xác thực.
+
+Đăng ký công khai chỉ nhận email có miền chính xác `ptit.edu.vn`. Tài khoản `STUDENT` chỉ được tạo sau khi xác minh OTP sáu chữ số.
 
 ## Module đích
 
@@ -19,6 +28,13 @@ Java backend là system of record và public API duy nhất cho Web. Backend ch�
 | `integration.ai`, `integration.storage` | Outbound adapters; không chứa business rule |
 
 Mỗi business module triển khai theo `api → application → domain → infrastructure`. DTO/JPA entity không đi xuyên boundary; public/application method phải có typed contract và Javadoc theo `AGENTS.md`.
+
+## Phần đã triển khai
+
+- Auth/profile: đăng ký email PTIT qua OTP, đăng nhập, refresh/logout, RBAC và hồ sơ cá nhân.
+- Study Plan/Calendar: CRUD mềm kế hoạch và nhiệm vụ cá nhân, lịch tuần, kiểm tra trùng giờ, owner scope và learning event idempotent khi hoàn thành task.
+
+Study Plan hoạt động độc lập khi module Course Offering chưa sẵn sàng. Liên kết item với lớp học phần chỉ được bổ sung sau khi có access policy production; không dùng adapter giả để bỏ qua kiểm tra quyền.
 
 ## Quy tắc
 

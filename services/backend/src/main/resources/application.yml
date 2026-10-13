@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: studyflow-backend
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/studyflow?currentSchema=app}
+    username: ${DATABASE_USERNAME:studyflow}
+    password: ${DATABASE_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: app
+  flyway:
+    enabled: true
+    create-schemas: true
+    default-schema: app
+    schemas: app
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+server:
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor: INFO
+    org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: INFO
+
+studyflow:
+  auth:
+    allowed-email-domain: ${STUDYFLOW_ALLOWED_EMAIL_DOMAIN:ptit.edu.vn}
+    otp-ttl: ${STUDYFLOW_OTP_TTL:10m}
+    resend-cooldown: ${STUDYFLOW_OTP_RESEND_COOLDOWN:60s}
+    max-verification-attempts: ${STUDYFLOW_OTP_MAX_ATTEMPTS:5}
+    access-token-ttl: ${STUDYFLOW_ACCESS_TOKEN_TTL:15m}
+    refresh-token-ttl: ${STUDYFLOW_REFRESH_TOKEN_TTL:30d}
+    jwt-issuer: ${STUDYFLOW_JWT_ISSUER:studyflow}
+    jwt-secret: ${JWT_SECRET}
+    cookie-secure: ${STUDYFLOW_COOKIE_SECURE:true}
+    mail-from: ${MAIL_FROM}

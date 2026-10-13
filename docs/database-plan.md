@@ -17,12 +17,20 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 ### `users`
 
-`id`, `email`, `username`, `password_hash`, `full_name`, `time_zone`, `role (STUDENT|TEACHER|ADMIN)`, `status (ACTIVE|LOCKED)`, timestamps.
+`id`, `email`, `username`, `password_hash`, `full_name`, `time_zone`, `role (STUDENT|TEACHER|ADMIN)`, `status (ACTIVE|LOCKED)`, `email_verified_at`, timestamps.
 
 - Unique `email`, `username`.
 - Public registration luôn tạo `STUDENT`.
 - `time_zone` là IANA zone hợp lệ, mặc định `Asia/Ho_Chi_Minh`; Java dùng để chốt local date cho Streak/Daily Goal.
 - Đổi/khóa role Teacher phải kiểm Course Offering đang active và thu hồi session theo policy.
+
+### `email_verification_challenges`
+
+`id`, `email`, `display_name`, `password_hash`, `code_hash`, `expires_at`, `resend_available_at`, `attempts_remaining`, `consumed_at`, timestamps.
+
+- Chỉ lưu hash của mật khẩu và OTP trong thời gian chờ xác minh; không tạo `users` trước khi OTP hợp lệ.
+- Unique email không phân biệt chữ hoa/thường; mỗi email chỉ có một yêu cầu đang được quản lý.
+- OTP hết hạn hoặc đã dùng không được chấp nhận; gửi lại thay thế mã cũ và đặt lại số lần thử.
 
 ### `refresh_tokens`
 
@@ -185,13 +193,16 @@ Chỉ `VIEW_PAGE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED` được dùng để
 
 Các bảng phần này phục vụ task, deadline và projection lịch tuần theo khung giờ. Daily Goal, Study Streak và viewing progress được tổng hợp riêng cho Dashboard.
 
-`study_plans`: owner, title, description, start/end, status, timestamps.
+`study_plans`: `id`, `student_id`, title, description, `start_date`, `end_date`, status `ACTIVE|COMPLETED|ARCHIVED`, timestamps. Kế hoạch được archive mềm để giữ lịch sử.
 
-`study_plan_items`: plan, title, schedule/deadline/duration, status, optional `course_offering_id`, timestamps.
+`study_plan_items`: `id`, `plan_id`, title, description, type `STUDY_SESSION|TASK|QUIZ`, `scheduled_start`, `scheduled_end`, `due_at`, status `TODO|COMPLETED|CANCELLED`, `completed_at`, timestamps. Item phải có lịch đầy đủ hoặc deadline; trạng thái hoàn thành và thời điểm hoàn thành phải nhất quán.
+
+`learning_events`: event học idempotent do Java sở hữu, gồm Student, loại event, nguồn, idempotency key, `occurred_at` và `activity_date`. Với `STUDY_TASK_COMPLETED`, mỗi item chỉ tạo tối đa một event để retry/đánh dấu lại không làm tăng sai Daily Goal hoặc Streak.
 
 - Calendar là projection của plan items, không tạo bảng calendar trùng.
 - Java validate time range và xung đột của cùng Student.
-- Index theo owner/scheduled start thông qua plan.
+- Index theo owner/khoảng ngày của plan, plan/thời gian item và learning event theo Student/activity date.
+- Bản triển khai độc lập đầu tiên chưa nhận `course_offering_id`; cột/FK và access policy được thêm bằng migration tiến khi module Course Offering production sẵn sàng.
 
 ## 8. Quiz
 

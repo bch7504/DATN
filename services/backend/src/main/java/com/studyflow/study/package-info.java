@@ -1,2 +1,4 @@
-/** Study Plan, task and calendar use cases. */
+/**
+ * Personal Study Plan, calendar projection and task-completion learning events.
+ */
 package com.studyflow.study;
