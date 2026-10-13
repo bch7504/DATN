@@ -195,7 +195,9 @@ Các bảng phần này phục vụ task, deadline và projection lịch tuần 
 
 `study_plans`: `id`, `student_id`, title, description, `start_date`, `end_date`, status `ACTIVE|COMPLETED|ARCHIVED`, timestamps. Kế hoạch được archive mềm để giữ lịch sử.
 
-`study_plan_items`: `id`, `plan_id`, title, description, type `STUDY_SESSION|TASK|QUIZ`, `scheduled_start`, `scheduled_end`, `due_at`, status `TODO|COMPLETED|CANCELLED`, `completed_at`, timestamps. Item phải có lịch đầy đủ hoặc deadline; trạng thái hoàn thành và thời điểm hoàn thành phải nhất quán.
+`study_plan_items`: `id`, `plan_id`, title, description, type `STUDY_SESSION|TASK|QUIZ`, `scheduled_start`, `scheduled_end`, `due_at`, `reminder_at`, `reminder_sent_at`, status `TODO|COMPLETED|CANCELLED`, `completed_at`, timestamps. Item phải có lịch đầy đủ hoặc deadline; reminder chỉ tồn tại khi có deadline và không được sau deadline; trạng thái hoàn thành và thời điểm hoàn thành phải nhất quán.
+
+`notifications`: thông báo trong ứng dụng gồm owner, type, title/message an toàn, source type/id, optional deadline, `read_at` và `created_at`. Unique `(user_id,type,source_type,source_id)` đảm bảo job nhắc deadline retry không tạo trùng.
 
 `learning_events`: event học idempotent do Java sở hữu, gồm Student, loại event, nguồn, idempotency key, `occurred_at` và `activity_date`. Với `STUDY_TASK_COMPLETED`, mỗi item chỉ tạo tối đa một event để retry/đánh dấu lại không làm tăng sai Daily Goal hoặc Streak.
 

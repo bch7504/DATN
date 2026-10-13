@@ -112,6 +112,7 @@ class StudyPlanServiceTest {
                 "Đọc tài liệu", null, StudyPlanItemType.STUDY_SESSION,
                 Instant.parse("2026-10-14T01:00:00Z"),
                 Instant.parse("2026-10-14T02:00:00Z"),
+                null,
                 null
         );
 
@@ -120,6 +121,26 @@ class StudyPlanServiceTest {
                     assertThat(error.status().value()).isEqualTo(409);
                     assertThat(error.code()).isEqualTo("STUDY_SCHEDULE_CONFLICT");
                 });
+    }
+
+    @Test
+    void createDeadlineItemDefaultsReminderToTwentyFourHoursBeforeDueTime() {
+        when(plans.findOwned(PLAN_ID, STUDENT_ID)).thenReturn(Optional.of(plan));
+        when(items.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        Instant dueAt = Instant.parse("2026-10-15T12:00:00Z");
+
+        StudyPlanItem result = service.createItem(
+                STUDENT_ID,
+                PLAN_ID,
+                new SaveStudyPlanItemCommand(
+                        "Làm đề ôn tập", null, StudyPlanItemType.TASK,
+                        null, null, dueAt, null
+                )
+        );
+
+        assertThat(result.dueAt()).isEqualTo(dueAt);
+        assertThat(result.reminderAt()).isEqualTo(Instant.parse("2026-10-14T12:00:00Z"));
+        assertThat(result.reminderSentAt()).isNull();
     }
 
     @Test
@@ -186,6 +207,7 @@ class StudyPlanServiceTest {
         return new StudyPlanItem(
                 ITEM_ID, PLAN_ID, "Đọc chương 1", null, StudyPlanItemType.TASK,
                 null, null, Instant.parse("2026-10-15T12:00:00Z"),
+                Instant.parse("2026-10-14T12:00:00Z"), null,
                 StudyPlanItemStatus.TODO, null, NOW.minusSeconds(100), NOW.minusSeconds(100)
         );
     }

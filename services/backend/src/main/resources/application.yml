@@ -44,6 +44,8 @@ logging:
     org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: INFO
 
 studyflow:
+  notifications:
+    reminder-scan-delay: ${STUDYFLOW_REMINDER_SCAN_DELAY:60000}
   auth:
     allowed-email-domain: ${STUDYFLOW_ALLOWED_EMAIL_DOMAIN:ptit.edu.vn}
     otp-ttl: ${STUDYFLOW_OTP_TTL:10m}

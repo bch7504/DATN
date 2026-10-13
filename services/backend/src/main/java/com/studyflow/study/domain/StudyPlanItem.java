@@ -12,6 +12,8 @@ public record StudyPlanItem(
         Instant scheduledStart,
         Instant scheduledEnd,
         Instant dueAt,
+        Instant reminderAt,
+        Instant reminderSentAt,
         StudyPlanItemStatus status,
         Instant completedAt,
         Instant createdAt,
@@ -27,6 +29,7 @@ public record StudyPlanItem(
      * @param scheduledStart optional UTC schedule start, paired with scheduledEnd
      * @param scheduledEnd optional UTC schedule end, later than scheduledStart
      * @param dueAt optional UTC deadline; at least schedule or deadline is required
+     * @param reminderAt optional reminder time not after dueAt
      * @param now creation time
      * @return new TODO item with a generated identifier
      */
@@ -38,11 +41,12 @@ public record StudyPlanItem(
             Instant scheduledStart,
             Instant scheduledEnd,
             Instant dueAt,
+            Instant reminderAt,
             Instant now
     ) {
         return new StudyPlanItem(
                 UUID.randomUUID(), planId, title, description, type,
-                scheduledStart, scheduledEnd, dueAt, StudyPlanItemStatus.TODO,
+                scheduledStart, scheduledEnd, dueAt, reminderAt, null, StudyPlanItemStatus.TODO,
                 null, now, now
         );
     }
@@ -56,6 +60,7 @@ public record StudyPlanItem(
      * @param newScheduledStart optional schedule start
      * @param newScheduledEnd optional schedule end
      * @param newDueAt optional deadline
+     * @param newReminderAt optional reminder time recalculated from the deadline
      * @param now update time
      * @return updated immutable item
      */
@@ -66,11 +71,12 @@ public record StudyPlanItem(
             Instant newScheduledStart,
             Instant newScheduledEnd,
             Instant newDueAt,
+            Instant newReminderAt,
             Instant now
     ) {
         return new StudyPlanItem(
                 id, planId, newTitle, newDescription, newType,
-                newScheduledStart, newScheduledEnd, newDueAt, status,
+                newScheduledStart, newScheduledEnd, newDueAt, newReminderAt, null, status,
                 completedAt, createdAt, now
         );
     }
@@ -86,6 +92,7 @@ public record StudyPlanItem(
         Instant newCompletedAt = newStatus == StudyPlanItemStatus.COMPLETED ? now : null;
         return new StudyPlanItem(
                 id, planId, title, description, type, scheduledStart, scheduledEnd, dueAt,
+                reminderAt, reminderSentAt,
                 newStatus, newCompletedAt, createdAt, now
         );
     }
@@ -101,7 +108,8 @@ public record StudyPlanItem(
                 ? this
                 : new StudyPlanItem(
                         id, planId, title, description, type, scheduledStart, scheduledEnd,
-                        dueAt, StudyPlanItemStatus.CANCELLED, null, createdAt, now
+                        dueAt, reminderAt, reminderSentAt, StudyPlanItemStatus.CANCELLED,
+                        null, createdAt, now
                 );
     }
 }

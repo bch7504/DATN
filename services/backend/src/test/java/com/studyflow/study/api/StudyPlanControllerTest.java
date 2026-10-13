@@ -112,6 +112,7 @@ class StudyPlanControllerTest {
         StudyPlanItem completed = new StudyPlanItem(
                 ITEM_ID, PLAN_ID, "Đọc chương 1", null, StudyPlanItemType.TASK,
                 null, null, Instant.parse("2026-10-15T12:00:00Z"),
+                Instant.parse("2026-10-14T12:00:00Z"), NOW,
                 StudyPlanItemStatus.COMPLETED, NOW, NOW.minusSeconds(100), NOW
         );
         when(service.changeItemStatus(

@@ -279,7 +279,7 @@ Frontend thể hiện nhóm này dưới tên **Kế hoạch & Lịch** theo `fr
 - `GET /api/v1/study-plans/{planId}` trả kế hoạch thuộc Student hiện tại; kế hoạch của người khác cũng trả `404 STUDY_PLAN_NOT_FOUND` để không lộ dữ liệu.
 - `PUT /api/v1/study-plans/{planId}` nhận đầy đủ `{title,description?,startDate,endDate,status}` và trả kế hoạch đã cập nhật.
 - `DELETE /api/v1/study-plans/{planId}` chuyển kế hoạch sang `ARCHIVED`, không xóa lịch sử; trả `204` và lặp lại an toàn.
-- `POST /api/v1/study-plans/{planId}/items` nhận `{title,description?,type,scheduledStart?,scheduledEnd?,dueAt?}` và trả `201`.
+- `POST /api/v1/study-plans/{planId}/items` nhận `{title,description?,type,scheduledStart?,scheduledEnd?,dueAt?,reminderMinutesBefore?}` và trả `201`. Khi có `dueAt`, hệ thống mặc định nhắc trước 1440 phút; cho phép cấu hình `0..10080` phút.
 - `GET /api/v1/study-plans/{planId}/items?page=0&size=50` trả page item thuộc kế hoạch theo thời gian tăng dần, `size <= 100`.
 - `PUT /api/v1/study-plans/{planId}/items/{itemId}` thay đầy đủ nội dung/lịch của item chưa bị hủy.
 - `DELETE /api/v1/study-plans/{planId}/items/{itemId}` chuyển item sang `CANCELLED`, không xóa lịch sử; trả `204`.
@@ -288,7 +288,14 @@ Frontend thể hiện nhóm này dưới tên **Kế hoạch & Lịch** theo `fr
 
 Kiểu item là `STUDY_SESSION|TASK|QUIZ`. Item phải có ít nhất một trong `scheduledStart` hoặc `dueAt`; nếu có lịch thì `scheduledStart` và `scheduledEnd` phải cùng tồn tại, `scheduledEnd > scheduledStart`. Mọi thời điểm phải nằm trong khoảng ngày của kế hoạch theo múi giờ IANA của Student; các lịch chưa hủy của cùng Student không được chồng nhau. Bản triển khai độc lập ban đầu chỉ tạo item cá nhân; `courseOfferingId` sẽ được bổ sung sau khi module Course Offering có access policy production.
 
-Response kế hoạch: `{id,title,description,startDate,endDate,status,createdAt,updatedAt}`. Response item/lịch: `{id,planId,title,description,type,scheduledStart,scheduledEnd,dueAt,status,completedAt,createdAt,updatedAt}`. Các endpoint chỉ cho `ROLE_STUDENT`; lỗi dùng envelope chung với `401 UNAUTHENTICATED`, `403 ACCOUNT_UNAVAILABLE`, `404 STUDY_PLAN_NOT_FOUND|STUDY_PLAN_ITEM_NOT_FOUND`, `409 STUDY_PLAN_ARCHIVED|STUDY_SCHEDULE_CONFLICT`, `422 VALIDATION_FAILED|INVALID_STUDY_PLAN_RANGE|INVALID_STUDY_PLAN_ITEM_TIME|IDEMPOTENCY_KEY_REQUIRED`.
+Response kế hoạch: `{id,title,description,startDate,endDate,status,createdAt,updatedAt}`. Response item/lịch: `{id,planId,title,description,type,scheduledStart,scheduledEnd,dueAt,reminderAt,status,completedAt,createdAt,updatedAt}`. Các endpoint chỉ cho `ROLE_STUDENT`; lỗi dùng envelope chung với `401 UNAUTHENTICATED`, `403 ACCOUNT_UNAVAILABLE`, `404 STUDY_PLAN_NOT_FOUND|STUDY_PLAN_ITEM_NOT_FOUND`, `409 STUDY_PLAN_ARCHIVED|STUDY_SCHEDULE_CONFLICT`, `422 VALIDATION_FAILED|INVALID_STUDY_PLAN_RANGE|INVALID_STUDY_PLAN_ITEM_TIME|INVALID_REMINDER|IDEMPOTENCY_KEY_REQUIRED`.
+
+#### Thông báo hạn nhiệm vụ
+
+- Background job mỗi phút lấy tối đa 200 item `TODO` thuộc kế hoạch chưa archive, có `reminderAt <= now < dueAt` và chưa gửi nhắc; job retry an toàn vì database chỉ cho một thông báo `STUDY_PLAN_DEADLINE` trên mỗi item.
+- `GET /api/v1/student/notifications?unreadOnly=false&page=0&size=20` trả page thông báo của Student hiện tại; `size <= 100`.
+- `PATCH /api/v1/student/notifications/{notificationId}/read` không nhận body, đánh dấu đã đọc idempotent và trả thông báo cập nhật; thông báo của người khác trả `404 NOTIFICATION_NOT_FOUND`.
+- Response thông báo: `{id,type,title,message,sourceId,dueAt,readAt,createdAt}`. Đây là thông báo trong ứng dụng; không gửi email/push trong MVP.
 - `/api/v1/review/quizzes/*` và `/api/v1/review/attempts/*`; submit/scoring thành công phát `QUIZ_COMPLETED` một lần.
 
 #### Quiz review và workspace ôn tập

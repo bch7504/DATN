@@ -17,6 +17,7 @@ import {
   demoDailyGoalConfig,
   demoDailyGoalProgress,
   demoStudyStreak,
+  demoNotifications,
 } from "./demo-data";
 import { User, LoginRequest, RegisterRequest } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
@@ -54,6 +55,7 @@ import {
   DailyGoalConfig,
   StudyStreak,
 } from "@/types/review";
+import { StudentNotification } from "@/types/notification";
 
 /**
  * Standard typed API client error encapsulating the Java backend error envelope.
@@ -1563,6 +1565,73 @@ export const reviewApi = {
       return await apiFetch<StudyStreak>("/student/streak");
     } catch (err) {
       if (isDemoMode()) return demoStudyStreak;
+      throw err;
+    }
+  },
+};
+
+export const notificationApi = {
+  /**
+   * Lists the signed-in Student's in-app notifications.
+   *
+   * @param unreadOnly when true, requests only unread notifications
+   * @param page zero-based page index, default 0
+   * @param size page size from 1 to 100, default 20
+   * @returns standard paginated notification contract from Java
+   * @throws ApiClientError when Java rejects the session or request outside explicit demo mode
+   */
+  async list(
+    unreadOnly = false,
+    page = 0,
+    size = 20
+  ): Promise<PaginatedList<StudentNotification>> {
+    try {
+      const query = new URLSearchParams({
+        unreadOnly: String(unreadOnly),
+        page: String(page),
+        size: String(size),
+      });
+      return await apiFetch<PaginatedList<StudentNotification>>(
+        `/student/notifications?${query.toString()}`
+      );
+    } catch (err) {
+      if (isDemoMode()) {
+        const filtered = unreadOnly
+          ? demoNotifications.filter((item) => item.readAt === null)
+          : demoNotifications;
+        const start = page * size;
+        return {
+          items: filtered.slice(start, start + size),
+          page,
+          size,
+          totalItems: filtered.length,
+          totalPages: Math.ceil(filtered.length / size),
+        };
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Marks one owner-scoped notification as read.
+   *
+   * @param notificationId required opaque notification identifier
+   * @returns updated notification with readAt
+   * @throws ApiClientError for invalid session, forbidden access or owner-safe 404
+   */
+  async markRead(notificationId: string): Promise<StudentNotification> {
+    try {
+      return await apiFetch<StudentNotification>(
+        `/student/notifications/${encodeURIComponent(notificationId)}/read`,
+        { method: "PATCH" }
+      );
+    } catch (err) {
+      if (isDemoMode()) {
+        const notification = demoNotifications.find((item) => item.id === notificationId);
+        if (!notification) throw err;
+        notification.readAt ??= new Date().toISOString();
+        return { ...notification };
+      }
       throw err;
     }
   },

@@ -15,6 +15,7 @@ public record StudyPlanItemResponse(
         Instant scheduledStart,
         Instant scheduledEnd,
         Instant dueAt,
+        Instant reminderAt,
         StudyPlanItemStatus status,
         Instant completedAt,
         Instant createdAt,
@@ -29,7 +30,7 @@ public record StudyPlanItemResponse(
     public static StudyPlanItemResponse from(StudyPlanItem item) {
         return new StudyPlanItemResponse(
                 item.id(), item.planId(), item.title(), item.description(), item.type(),
-                item.scheduledStart(), item.scheduledEnd(), item.dueAt(), item.status(),
+                item.scheduledStart(), item.scheduledEnd(), item.dueAt(), item.reminderAt(), item.status(),
                 item.completedAt(), item.createdAt(), item.updatedAt()
         );
     }

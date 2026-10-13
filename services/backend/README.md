@@ -33,6 +33,7 @@ Mỗi business module triển khai theo `api → application → domain → infr
 
 - Auth/profile: đăng ký email PTIT qua OTP, đăng nhập, refresh/logout, RBAC và hồ sơ cá nhân.
 - Study Plan/Calendar: CRUD mềm kế hoạch và nhiệm vụ cá nhân, lịch tuần, kiểm tra trùng giờ, owner scope và learning event idempotent khi hoàn thành task.
+- Deadline reminder: job mặc định quét mỗi 60 giây, tạo một thông báo trong ứng dụng trước hạn 24 giờ và cung cấp API danh sách/đánh dấu đã đọc. Có thể đổi chu kỳ bằng `STUDYFLOW_REMINDER_SCAN_DELAY` sau khi khai báo mapping cấu hình triển khai; không gửi email/push trong MVP.
 
 Study Plan hoạt động độc lập khi module Course Offering chưa sẵn sàng. Liên kết item với lớp học phần chỉ được bổ sung sau khi có access policy production; không dùng adapter giả để bỏ qua kiểm tra quyền.
 

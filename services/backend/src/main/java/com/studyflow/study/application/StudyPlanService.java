@@ -27,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class StudyPlanService {
 
     private static final Duration MAX_CALENDAR_WINDOW = Duration.ofDays(31);
+    private static final int DEFAULT_REMINDER_MINUTES = 1440;
+    private static final int MAX_REMINDER_MINUTES = 10080;
 
     private final StudyPlanStore plans;
     private final StudyPlanItemStore items;
@@ -171,7 +173,8 @@ public class StudyPlanService {
         Instant now = clock.instant();
         return items.save(StudyPlanItem.create(
                 planId, validated.title(), validated.description(), command.type(),
-                command.scheduledStart(), command.scheduledEnd(), command.dueAt(), now
+                command.scheduledStart(), command.scheduledEnd(), command.dueAt(),
+                validated.reminderAt(), now
         ));
     }
 
@@ -218,7 +221,8 @@ public class StudyPlanService {
         ValidatedItem validated = validateItem(command, plan, ZoneId.of(student.timeZone()), itemId);
         return items.save(current.updateDetails(
                 validated.title(), validated.description(), command.type(),
-                command.scheduledStart(), command.scheduledEnd(), command.dueAt(), clock.instant()
+                command.scheduledStart(), command.scheduledEnd(), command.dueAt(),
+                validated.reminderAt(), clock.instant()
         ));
     }
 
@@ -368,9 +372,12 @@ public class StudyPlanService {
         if (hasStart && !command.scheduledStart().isBefore(command.scheduledEnd())) {
             throw invalidItemTime("Thời gian kết thúc phải sau thời gian bắt đầu");
         }
+        Instant reminderAt = resolveReminderAt(
+                command.dueAt(), command.reminderMinutesBefore(), clock.instant()
+        );
         StudyPlanItem candidate = StudyPlanItem.create(
                 plan.id(), title, description, command.type(), command.scheduledStart(),
-                command.scheduledEnd(), command.dueAt(), clock.instant()
+                command.scheduledEnd(), command.dueAt(), reminderAt, clock.instant()
         );
         validateItemInsideRange(candidate, plan.startDate(), plan.endDate(), zoneId);
         if (hasStart && items.hasScheduleConflict(
@@ -382,7 +389,7 @@ public class StudyPlanService {
                     "Khung giờ này trùng với lịch học cá nhân khác"
             );
         }
-        return new ValidatedItem(title, description);
+        return new ValidatedItem(title, description, reminderAt);
     }
 
     private static void validateItemInsideRange(
@@ -457,6 +464,24 @@ public class StudyPlanService {
         return value != null && value.strip().length() >= 8 && value.strip().length() <= 100;
     }
 
+    private static Instant resolveReminderAt(Instant dueAt, Integer requestedMinutes, Instant now) {
+        if (dueAt == null) {
+            if (requestedMinutes != null) {
+                throw invalidReminder("Chỉ được đặt nhắc hạn khi nhiệm vụ có deadline");
+            }
+            return null;
+        }
+        if (!dueAt.isAfter(now)) {
+            throw invalidReminder("Deadline mới phải ở tương lai");
+        }
+        int minutes = requestedMinutes == null ? DEFAULT_REMINDER_MINUTES : requestedMinutes;
+        if (minutes < 0 || minutes > MAX_REMINDER_MINUTES) {
+            throw invalidReminder("Thời gian nhắc phải từ 0 đến 10080 phút trước deadline");
+        }
+        Instant requestedReminder = dueAt.minus(Duration.ofMinutes(minutes));
+        return requestedReminder.isBefore(now) ? now : requestedReminder;
+    }
+
     private static ApiException planNotFound() {
         return new ApiException(HttpStatus.NOT_FOUND, "STUDY_PLAN_NOT_FOUND", "Không tìm thấy kế hoạch");
     }
@@ -477,6 +502,10 @@ public class StudyPlanService {
         return new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "INVALID_STUDY_PLAN_ITEM_TIME", message);
     }
 
-    private record ValidatedItem(String title, String description) {
+    private static ApiException invalidReminder(String message) {
+        return new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "INVALID_REMINDER", message);
+    }
+
+    private record ValidatedItem(String title, String description, Instant reminderAt) {
     }
 }

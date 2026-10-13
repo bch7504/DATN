@@ -265,7 +265,7 @@ public class StudyPlanController {
     private static SaveStudyPlanItemCommand itemCommand(SaveStudyPlanItemRequest request) {
         return new SaveStudyPlanItemCommand(
                 request.title(), request.description(), request.type(), request.scheduledStart(),
-                request.scheduledEnd(), request.dueAt()
+                request.scheduledEnd(), request.dueAt(), request.reminderMinutesBefore()
         );
     }
 

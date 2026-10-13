@@ -41,6 +41,12 @@ class StudyPlanItemJpaEntity {
     @Column(name = "due_at")
     private Instant dueAt;
 
+    @Column(name = "reminder_at")
+    private Instant reminderAt;
+
+    @Column(name = "reminder_sent_at")
+    private Instant reminderSentAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private StudyPlanItemStatus status;
@@ -67,6 +73,8 @@ class StudyPlanItemJpaEntity {
         entity.scheduledStart = item.scheduledStart();
         entity.scheduledEnd = item.scheduledEnd();
         entity.dueAt = item.dueAt();
+        entity.reminderAt = item.reminderAt();
+        entity.reminderSentAt = item.reminderSentAt();
         entity.status = item.status();
         entity.completedAt = item.completedAt();
         entity.createdAt = item.createdAt();
@@ -77,7 +85,7 @@ class StudyPlanItemJpaEntity {
     StudyPlanItem toDomain() {
         return new StudyPlanItem(
                 id, planId, title, description, type, scheduledStart, scheduledEnd,
-                dueAt, status, completedAt, createdAt, updatedAt
+                dueAt, reminderAt, reminderSentAt, status, completedAt, createdAt, updatedAt
         );
     }
 }

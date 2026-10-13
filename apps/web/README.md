@@ -35,6 +35,7 @@ apps/web/
   - **Level 2:** Quiz `READY`, attempt history không ghi đè và nội dung cần ôn từ câu sai kèm link nguồn.
   - Viewing progress chỉ xuất hiện trên Dashboard, không lặp lại trong Ôn tập.
 - **Kế hoạch & Lịch:** lịch tuần theo khung giờ giống mock, hỗ trợ chuyển tuần, thêm lịch bằng nút hoặc ô trống, thêm task và đánh dấu hoàn thành. Daily Goal/Streak vẫn ở Dashboard.
+- **Thông báo học tập:** route `/notifications` lấy nhắc hạn từ Java, lọc chưa đọc và đánh dấu đã đọc; không tự tính deadline ở trình duyệt.
 
 ## Boundary bắt buộc
 

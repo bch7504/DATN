@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 
 interface SpringDataStudyPlanItemRepository extends JpaRepository<StudyPlanItemJpaEntity, UUID> {
@@ -103,4 +104,34 @@ interface SpringDataStudyPlanItemRepository extends JpaRepository<StudyPlanItemJ
             @Param("end") Instant end,
             @Param("excludedItemId") UUID excludedItemId
     );
+
+    @Query("""
+            select item.id as itemId,
+                   plan.studentId as studentId,
+                   item.title as itemTitle,
+                   item.dueAt as dueAt
+            from StudyPlanItemJpaEntity item, StudyPlanJpaEntity plan
+            where item.planId = plan.id
+              and item.status = com.studyflow.study.domain.StudyPlanItemStatus.TODO
+              and plan.status <> com.studyflow.study.domain.StudyPlanStatus.ARCHIVED
+              and item.reminderAt is not null
+              and item.reminderAt <= :now
+              and item.reminderSentAt is null
+              and item.dueAt > :now
+            order by item.reminderAt asc
+            """)
+    List<StudyReminderProjection> findDueReminderCandidates(
+            @Param("now") Instant now,
+            Pageable pageable
+    );
+
+    @Modifying
+    @Query("""
+            update StudyPlanItemJpaEntity item
+            set item.reminderSentAt = :sentAt,
+                item.updatedAt = :sentAt
+            where item.id = :itemId
+              and item.reminderSentAt is null
+            """)
+    int markReminderSent(@Param("itemId") UUID itemId, @Param("sentAt") Instant sentAt);
 }

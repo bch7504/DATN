@@ -9,6 +9,7 @@ public record SaveStudyPlanItemCommand(
         StudyPlanItemType type,
         Instant scheduledStart,
         Instant scheduledEnd,
-        Instant dueAt
+        Instant dueAt,
+        Integer reminderMinutesBefore
 ) {
 }

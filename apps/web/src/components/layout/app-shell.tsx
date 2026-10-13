@@ -27,6 +27,7 @@ import {
   ListChecks,
   PanelLeftClose,
   PanelLeftOpen,
+  Bell,
 } from "lucide-react";
 import { UserRole } from "@/types/auth";
 
@@ -42,6 +43,7 @@ const STUDENT_NAV: NavItem[] = [
   { label: "Lớp học phần", href: "/course-offerings", icon: GraduationCap },
   { label: "Tài liệu cá nhân", href: "/personal-documents", icon: FileText },
   { label: "Kế hoạch & Lịch", href: "/plan", icon: CalendarCheck },
+  { label: "Thông báo", href: "/notifications", icon: Bell },
   { label: "Ôn tập", href: "/review", icon: RotateCcw },
 ];
 
@@ -265,6 +267,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                     crumbs.push("Ôn tập");
                   } else if (pathname?.startsWith("/plan")) {
                     crumbs.push("Kế hoạch & Lịch");
+                  } else if (pathname?.startsWith("/notifications")) {
+                    crumbs.push("Thông báo học tập");
                   } else if (pathname === "/teacher/dashboard") {
                     crumbs.push("Bảng điều khiển");
                   } else if (pathname?.startsWith("/teacher/course-offerings")) {

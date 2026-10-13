@@ -2,6 +2,7 @@ package com.studyflow.study.infrastructure.persistence;
 
 import com.studyflow.study.application.port.StudyPlanItemStore;
 import com.studyflow.study.application.PageResult;
+import com.studyflow.study.application.StudyReminderCandidate;
 import com.studyflow.study.domain.StudyPlanItem;
 import java.time.Instant;
 import java.util.List;
@@ -67,5 +68,20 @@ public class StudyPlanItemJpaStore implements StudyPlanItemStore {
     @Override
     public boolean hasScheduleConflict(UUID studentId, Instant start, Instant end, UUID excludedItemId) {
         return repository.countScheduleConflicts(studentId, start, end, excludedItemId) > 0;
+    }
+
+    @Override
+    public List<StudyReminderCandidate> findDueReminderCandidates(Instant now, int limit) {
+        return repository.findDueReminderCandidates(now, PageRequest.of(0, limit)).stream()
+                .map(candidate -> new StudyReminderCandidate(
+                        candidate.getItemId(), candidate.getStudentId(),
+                        candidate.getItemTitle(), candidate.getDueAt()
+                ))
+                .toList();
+    }
+
+    @Override
+    public boolean markReminderSent(UUID itemId, Instant sentAt) {
+        return repository.markReminderSent(itemId, sentAt) == 1;
     }
 }
