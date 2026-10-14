@@ -37,6 +37,14 @@ export default function TeacherCourseOfferingsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
+  // Success reveal modal for Join Code (only exposed once upon create / regen)
+  const [revealedJoinCode, setRevealedJoinCode] = useState<{
+    offeringName: string;
+    offeringCode: string;
+    joinCode: string;
+    actionType: "CREATE" | "REGENERATE";
+  } | null>(null);
+
   const loadData = async () => {
     try {
       const [offeringsData, subjectsData, semestersData] = await Promise.all([
@@ -73,7 +81,7 @@ export default function TeacherCourseOfferingsPage() {
     setErrorMsg(null);
 
     try {
-      await teacherApi.createOffering({
+      const newOffering = await teacherApi.createOffering({
         subjectId: selectedSubjectId,
         semesterId: selectedSemesterId,
         code: customCode.trim() || undefined,
@@ -82,6 +90,14 @@ export default function TeacherCourseOfferingsPage() {
       setIsModalOpen(false);
       setCustomCode("");
       setCustomName("");
+      if (newOffering.joinCode) {
+        setRevealedJoinCode({
+          offeringName: newOffering.name,
+          offeringCode: newOffering.code,
+          joinCode: newOffering.joinCode,
+          actionType: "CREATE",
+        });
+      }
       await loadData();
     } catch (err: unknown) {
       setErrorMsg(
@@ -98,12 +114,20 @@ export default function TeacherCourseOfferingsPage() {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  const handleRegenerateCode = async (offeringId: string) => {
-    if (!confirm("Bạn có chắc chắn muốn sinh lại mã tham gia? Mã cũ sẽ bị vô hiệu.")) {
+  const handleRegenerateCode = async (offering: CourseOffering) => {
+    if (!confirm(`Bạn có chắc chắn muốn sinh lại mã tham gia cho lớp "${offering.name}"? Mã cũ sẽ bị vô hiệu.`)) {
       return;
     }
     try {
-      await teacherApi.regenerateJoinCode(offeringId);
+      const newCode = await teacherApi.regenerateJoinCode(offering.id);
+      if (newCode) {
+        setRevealedJoinCode({
+          offeringName: offering.name,
+          offeringCode: offering.code,
+          joinCode: newCode,
+          actionType: "REGENERATE",
+        });
+      }
       await loadData();
     } catch (err: unknown) {
       alert("Không thể sinh lại mã tham gia: " + (err instanceof Error ? err.message : ""));
@@ -226,14 +250,20 @@ export default function TeacherCourseOfferingsPage() {
 
                 <div className="flex items-center justify-between gap-2 pt-1">
                   <span className="font-mono text-base font-extrabold tracking-wider text-slate-900 bg-white px-3 py-1.5 rounded-lg border border-slate-200 select-all">
-                    {offering.joinCode}
+                    {offering.joinCode || (offering.joinCodeHint ? `••••-${offering.joinCodeHint}` : "CHƯA CÓ")}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => handleCopyCode(offering.joinCode)}
+                      onClick={() => {
+                        if (offering.joinCode) {
+                          handleCopyCode(offering.joinCode);
+                        } else {
+                          alert("Mã tham gia đầy đủ đã được ẩn vì bảo mật. Vui lòng bấm vào nút Sinh lại mã bên cạnh (biểu tượng xoay vòng) để nhận mã mới.");
+                        }
+                      }}
                       className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200  text-xs font-semibold text-slate-700 flex items-center gap-1 shadow-sm transition"
-                      title="Sao chép mã"
+                      title={offering.joinCode ? "Sao chép mã" : "Mã đã ẩn, bấm sinh lại để lấy mã mới"}
                     >
                       {copiedCode === offering.joinCode ? (
                         <>
@@ -249,7 +279,7 @@ export default function TeacherCourseOfferingsPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleRegenerateCode(offering.id)}
+                      onClick={() => handleRegenerateCode(offering)}
                       className="p-2 rounded-lg bg-white border border-slate-200  text-slate-500  shadow-sm transition"
                       title="Tạo lại mã tham gia mới"
                     >
@@ -398,6 +428,64 @@ export default function TeacherCourseOfferingsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Join Code Success Modal */}
+      {revealedJoinCode && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 space-y-5">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-xs">
+                <Check className="w-6 h-6 stroke-[3]" />
+              </div>
+              <h3 className="font-extrabold text-slate-900 text-lg">
+                {revealedJoinCode.actionType === "CREATE"
+                  ? "Mở Lớp học phần thành công!"
+                  : "Đã sinh lại Mã tham gia mới!"}
+              </h3>
+              <p className="text-xs text-slate-500">
+                Lớp: <span className="font-semibold text-slate-700">{revealedJoinCode.offeringCode} - {revealedJoinCode.offeringName}</span>
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-center">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Mã tham gia lớp (Join Code)
+              </span>
+              <div className="font-mono text-2xl font-black tracking-widest text-red-600 bg-white py-2.5 px-4 rounded-xl border border-slate-200 shadow-xs select-all">
+                {revealedJoinCode.joinCode}
+              </div>
+              <p className="text-[11px] text-amber-700 bg-amber-50 rounded-lg p-2 leading-relaxed">
+                ⚠️ <b>Lưu ý quan trọng:</b> Theo chính sách bảo mật của hệ thống, mã tham gia đầy đủ chỉ hiển thị một lần. Hãy sao chép ngay để gửi cho sinh viên.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleCopyCode(revealedJoinCode.joinCode)}
+                className="flex-1 py-2.5 bg-red-600  text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
+              >
+                {copiedCode === revealedJoinCode.joinCode ? (
+                  <>
+                    <Check className="w-4 h-4" /> Đã sao chép!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" /> Sao chép mã
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRevealedJoinCode(null)}
+                className="px-4 py-2.5 bg-slate-100  text-slate-700 rounded-xl text-xs font-bold transition"
+              >
+                Đóng
+              </button>
+            </div>
           </div>
         </div>
       )}

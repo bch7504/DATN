@@ -1,0 +1,74 @@
+@startuml
+' Class Diagram BE1-F02 Part 2: Dashboard & Daily Goal
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+hide circle
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+
+class DailyGoalController <<Java boundary>> {
+  +configure(studentId: UUID, req: DailyGoalRequest): ResponseEntity<DailyGoalDTO>
+  +get(studentId: UUID): ResponseEntity<DailyGoalDTO>
+}
+
+class DashboardController <<Java boundary>> {
+  +getDashboard(studentId: UUID): ResponseEntity<DashboardDTO>
+  +getStreak(studentId: UUID): ResponseEntity<StreakDTO>
+}
+
+class StudyMetricsService <<Java control>> {
+  -eventRepo: LearningEventRepository
+  -goalRepo: DailyGoalRepository
+  +getCurrentStreak(studentId: UUID): StreakDTO
+  +getDailyGoalProgress(studentId: UUID): DailyGoalDTO
+  +computeStreak(activityDates: List<LocalDate>, today: LocalDate): int
+}
+
+class DailyGoalService <<Java control>> {
+  -goalRepo: DailyGoalRepository
+  +configure(studentId: UUID, req: DailyGoalRequest): DailyGoalDTO
+  +get(studentId: UUID): DailyGoalDTO
+  -validate(req: DailyGoalRequest): void
+}
+
+class DailyGoal <<entity>> {
+  +id: UUID
+  +studentId: UUID
+  +pageTarget: int
+  +quizQuestionTarget: int
+  +taskTarget: int
+  +updatedAt: Instant
+  +totalTarget(): int
+}
+
+interface DailyGoalRepository <<repository>> {
+  +findByStudentId(studentId: UUID): Optional<DailyGoal>
+  +save(goal: DailyGoal): DailyGoal
+}
+
+interface LearningEventRepository <<repository>> {
+  +findByStudentAndDateRange(studentId: UUID, from: LocalDate, to: LocalDate): List<LearningEvent>
+  +countByStudentAndTypeAndDate(studentId: UUID, type: EventType, date: LocalDate): int
+}
+
+DailyGoalController --> DailyGoalService : delegates
+DashboardController --> StudyMetricsService : delegates
+StudyMetricsService --> LearningEventRepository : queries events
+StudyMetricsService --> DailyGoalRepository : reads goal
+DailyGoalService --> DailyGoalRepository : saves goal
+DailyGoalRepository ..> DailyGoal : manages
+
+@enduml

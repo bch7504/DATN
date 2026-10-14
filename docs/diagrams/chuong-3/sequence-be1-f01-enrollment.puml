@@ -1,0 +1,95 @@
+@startuml
+' Palette: sequence; based on the Visual Paradigm guide samples (see README).
+' Interaction: BE1-F01 — Đăng ký Lớp học phần bằng Join Code & Máy trạng thái Ghi danh
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+skinparam ParticipantBackgroundColor #7ACFF5
+skinparam ParticipantBorderColor #222222
+skinparam LifeLineBackgroundColor #7ACFF5
+skinparam LifeLineBorderColor #222222
+skinparam SequenceGroupBackgroundColor white
+skinparam SequenceGroupBodyBackgroundColor white
+skinparam SequenceGroupBorderColor #222222
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+hide footbox
+autonumber
+autoactivate on
+
+actor Student
+actor Teacher
+participant ":Web" as Web
+participant ":Java Backend" as Java
+participant ":app (DB)" as DB
+
+== Sinh viên gửi yêu cầu tham gia ==
+Student -> Web : Nhập Join Code (6 ký tự)
+Web -> Java : POST /api/v1/student/course-enrollments/join\n{joinCode}
+Java -> DB : Tra cứu course_offering theo join_code_hash
+DB --> Java : CourseOffering {id, status, join_enabled}
+
+alt Join Code không hợp lệ hoặc join_enabled = false
+  Java --> Web : 404 / 409 JOIN_DISABLED
+  Web --> Student : Thông báo lỗi
+else Join Code hợp lệ và lớp ACTIVE
+  Java -> DB : Kiểm unique (course_offering_id, student_id)
+  alt Đã có enrollment bất kỳ trạng thái
+    Java --> Web : 409 DUPLICATE_ENROLLMENT
+    Web --> Student : "Bạn đã gửi yêu cầu hoặc đã trong lớp này"
+  else Chưa có enrollment
+    Java -> DB : INSERT course_enrollments\n{status = PENDING, requested_at}
+    Java -> DB : Ghi system_logs (action = ENROLLMENT_REQUESTED)
+    Java --> Web : 201 {enrollmentId, status = PENDING, courseInfo}
+    Web --> Student : Hiển thị trạng thái "Chờ duyệt"
+  end
+end
+
+== Giảng viên xét duyệt ghi danh ==
+Teacher -> Web : Mở danh sách yêu cầu PENDING của lớp
+Web -> Java : GET /api/v1/teacher/course-offerings/{id}/enrollments\n?status=PENDING
+Java -> DB : Kiểm teacher_id = owner của CourseOffering
+DB --> Java : Danh sách enrollments PENDING
+Java --> Web : [{enrollmentId, studentInfo, requestedAt}]
+Web --> Teacher : Hiển thị danh sách chờ duyệt
+
+alt Teacher phê duyệt
+  Teacher -> Web : Bấm "Duyệt"
+  Web -> Java : POST /api/v1/teacher/enrollments/{id}/approve
+  Java -> DB : Kiểm teacher là owner của CourseOffering
+  Java -> DB : UPDATE status = APPROVED\ndecided_by, approved_at
+  Java -> DB : Ghi system_logs (action = ENROLLMENT_APPROVED)
+  Java --> Web : 200 {status = APPROVED}
+  note right of Java : Student ngay lập tức\nđược truy cập học liệu\ncủa lớp khi reload
+else Teacher từ chối
+  Teacher -> Web : Bấm "Từ chối"
+  Web -> Java : POST /api/v1/teacher/enrollments/{id}/reject
+  Java -> DB : UPDATE status = REJECTED\ndecided_by
+  Java --> Web : 200 {status = REJECTED}
+end
+
+== Kiểm tra quyền mỗi lần truy cập học liệu ==
+Student -> Web : Mở tài liệu / slide của lớp
+Web -> Java : GET /api/v1/student/materials/{documentId}/slides
+Java -> DB : SELECT status FROM course_enrollments\nWHERE student_id AND course_offering_id
+alt status != APPROVED
+  Java --> Web : 403 FORBIDDEN
+else status = APPROVED và publication PUBLISHED
+  Java --> Web : 200 Danh sách slide được phép
+  Web --> Student : Hiển thị Slide Viewer
+end
+return Hoàn tất tương tác
+@enduml

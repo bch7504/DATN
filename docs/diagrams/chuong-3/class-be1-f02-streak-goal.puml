@@ -1,0 +1,121 @@
+@startuml
+' Class Diagram BE1-F02: Study Streak & Daily Goal Engine
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+hide circle
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+
+class DailyGoalController <<Java boundary>> {
+  +configure(studentId: UUID, req: DailyGoalRequest): ResponseEntity<DailyGoalDTO>
+  +get(studentId: UUID): ResponseEntity<DailyGoalDTO>
+}
+
+class DashboardController <<Java boundary>> {
+  +getDashboard(studentId: UUID): ResponseEntity<DashboardDTO>
+  +getStreak(studentId: UUID): ResponseEntity<StreakDTO>
+}
+
+class LearningEventService <<Java control>> {
+  -eventRepo: LearningEventRepository
+  -userRepo: UserRepository
+  +recordEvent(studentId: UUID, eventType: EventType, quantity: int, idempotencyKey: String): void
+  -resolveActivityDate(studentId: UUID, timestamp: Instant): LocalDate
+  -isDuplicate(idempotencyKey: String): Boolean
+}
+
+class StudyMetricsService <<Java control>> {
+  -eventRepo: LearningEventRepository
+  -goalRepo: DailyGoalRepository
+  -userRepo: UserRepository
+  +getCurrentStreak(studentId: UUID): StreakDTO
+  +getDailyGoalProgress(studentId: UUID): DailyGoalDTO
+  +computeStreak(activityDates: List<LocalDate>, today: LocalDate): int
+}
+
+class DailyGoalService <<Java control>> {
+  -goalRepo: DailyGoalRepository
+  +configure(studentId: UUID, req: DailyGoalRequest): DailyGoalDTO
+  +get(studentId: UUID): DailyGoalDTO
+  -validate(req: DailyGoalRequest): void
+}
+
+class LearningEvent <<entity>> {
+  +id: UUID
+  +studentId: UUID
+  +eventType: EventType
+  +activityDate: LocalDate
+  +quantity: int
+  +idempotencyKey: String
+  +recordedAt: Instant
+}
+
+enum EventType <<enumeration>> {
+  VIEW_PAGE
+  STUDY_TASK_COMPLETED
+  QUIZ_COMPLETED
+}
+
+class DailyGoal <<entity>> {
+  +id: UUID
+  +studentId: UUID
+  +pageTarget: int
+  +quizQuestionTarget: int
+  +taskTarget: int
+  +updatedAt: Instant
+  +totalTarget(): int
+}
+
+class User <<entity>> {
+  +id: UUID
+  +timeZone: String
+  +toZone(): ZoneId
+}
+
+interface LearningEventRepository <<repository>> {
+  +existsByIdempotencyKey(key: String): Boolean
+  +findByStudentAndDateRange(studentId: UUID, from: LocalDate, to: LocalDate): List<LearningEvent>
+  +countByStudentAndTypeAndDate(studentId: UUID, type: EventType, date: LocalDate): int
+  +save(event: LearningEvent): LearningEvent
+}
+
+interface DailyGoalRepository <<repository>> {
+  +findByStudentId(studentId: UUID): Optional<DailyGoal>
+  +save(goal: DailyGoal): DailyGoal
+}
+
+DailyGoalController --> DailyGoalService : delegates
+DashboardController --> StudyMetricsService : delegates
+LearningEventService --> LearningEventRepository : uses
+LearningEventService --> UserRepository : lookup timezone
+StudyMetricsService --> LearningEventRepository : queries
+StudyMetricsService --> DailyGoalRepository : reads
+DailyGoalService --> DailyGoalRepository : uses
+LearningEvent --> EventType
+DailyGoal ..> DailyGoalRepository
+User ..> LearningEventService : provides ZoneId
+
+note bottom of LearningEventService
+  activity_date = now()
+  chuyển sang users.time_zone
+  bằng ZonedDateTime (không dùng UTC thô)
+end note
+
+note right of EventType
+  LOGIN / NOTE / ASK_AI
+  KHÔNG được ghi nhận
+end note
+@enduml

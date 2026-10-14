@@ -67,12 +67,127 @@ export class ApiClientError extends Error {
   public readonly traceId?: string;
 
   constructor(status: number, envelope: ApiErrorEnvelope) {
-    super(envelope.message || `Lỗi API mã ${status}`);
+    super(envelope.message || `Lá»—i API mÃ£ ${status}`);
     this.name = "ApiClientError";
     this.code = envelope.code || "UNKNOWN_ERROR";
     this.status = status;
     this.details = envelope.details;
     this.traceId = envelope.traceId;
+  }
+}
+
+type BackendTeacherCourseOffering = {
+  id: string;
+  code: string;
+  name: string;
+  subjectId: string;
+  subjectCode?: string;
+  subjectName?: string;
+  semesterId: string;
+  semesterName?: string;
+  teacherId: string;
+  teacherName?: string;
+  status: CourseOffering["status"];
+  rawJoinCode?: string | null;
+  joinCode?: string;
+  joinCodeHint?: string;
+  joinCodeActive?: boolean;
+  joinCodeEnabled?: boolean;
+  enrolledCount?: number;
+  pendingCount?: number;
+  materialsCount?: number;
+  createdAt: string;
+};
+
+function mapTeacherCourseOffering(
+  offering: BackendTeacherCourseOffering
+): CourseOffering {
+  return {
+    id: offering.id,
+    code: offering.code,
+    name: offering.name,
+    subjectId: offering.subjectId,
+    subjectCode: offering.subjectCode || "",
+    subjectName: offering.subjectName || "",
+    semesterId: offering.semesterId,
+    semesterName: offering.semesterName || "",
+    teacherId: offering.teacherId,
+    teacherName: offering.teacherName || "",
+    joinCode: offering.rawJoinCode || offering.joinCode || "",
+    joinCodeHint: offering.joinCodeHint,
+    joinCodeEnabled:
+      offering.joinCodeActive ?? offering.joinCodeEnabled ?? false,
+    status: offering.status,
+    enrolledCount: offering.enrolledCount ?? 0,
+    pendingCount: offering.pendingCount ?? 0,
+    materialsCount: offering.materialsCount ?? 0,
+    createdAt: offering.createdAt,
+  };
+}
+
+function mapEnrollment(item: any): CourseEnrollment {
+  return {
+    id: item.id,
+    offeringId: item.courseOfferingId || item.offeringId || "",
+    offeringCode: item.courseOfferingCode || item.offeringCode || "",
+    offeringName: item.courseOfferingName || item.offeringName || "",
+    subjectName: item.subjectName || "",
+    semesterName: item.semesterName || "",
+    teacherName: item.teacherName || "",
+    studentId: item.studentId || "",
+    studentName: item.studentName || "",
+    studentEmail: item.studentEmail || "",
+    status: item.status,
+    requestedAt: item.requestedAt,
+    approvedAt: item.approvedAt,
+    rejectedReason: item.decisionReason || item.rejectedReason,
+  };
+}
+
+function mapStudentCourseOffering(item: any): CourseOffering {
+  return {
+    id: item.id,
+    code: item.code,
+    name: item.name,
+    subjectId: item.subjectId,
+    subjectCode: item.subjectCode || "",
+    subjectName: item.subjectName || "",
+    semesterId: item.semesterId,
+    semesterName: item.semesterName || "",
+    teacherId: item.teacherId || "",
+    teacherName: item.teacherName || "",
+    joinCode: "",
+    joinCodeEnabled: false,
+    status: item.status,
+    enrolledCount: item.enrolledCount ?? 0,
+    pendingCount: 0,
+    materialsCount: item.materialsCount ?? 0,
+    createdAt: item.createdAt || new Date().toISOString(),
+  };
+}
+
+// In-memory token storage (persists in session memory without using localStorage)
+let inMemoryAccessToken: string | null = null;
+if (typeof window !== "undefined") {
+  try {
+    inMemoryAccessToken = window.sessionStorage?.getItem("sf_access_token") || null;
+  } catch {
+    // sessionStorage not available
+  }
+}
+
+function setInMemoryToken(token: string | null): void {
+  inMemoryAccessToken = token;
+  if (typeof window !== "undefined") {
+    try {
+      if (token) {
+        window.sessionStorage?.setItem("sf_access_token", token);
+      } else {
+        window.sessionStorage?.removeItem("sf_access_token");
+      }
+    } catch {
+      // sessionStorage not available
+    }
   }
 }
 
@@ -92,6 +207,9 @@ export async function apiFetch<T>(
   const headers = new Headers(options.headers || {});
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
+  }
+  if (inMemoryAccessToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${inMemoryAccessToken}`);
   }
 
   const response = await fetch(url, {
@@ -136,10 +254,24 @@ export async function apiFetch<T>(
 export const authApi = {
   async login(credentials: LoginRequest): Promise<User> {
     try {
-      await apiFetch<void>("/auth/login", {
+      const res = await apiFetch<{
+        accessToken?: string;
+        token?: string;
+        user?: User;
+      }>("/auth/login", {
         method: "POST",
         body: JSON.stringify(credentials),
       });
+
+      if (res?.accessToken) {
+        setInMemoryToken(res.accessToken);
+      } else if (res?.token) {
+        setInMemoryToken(res.token);
+      }
+
+      if (res?.user) {
+        return res.user;
+      }
       return await this.getMe();
     } catch (err) {
       if (isDemoMode()) {
@@ -172,6 +304,7 @@ export const authApi = {
   },
 
   async logout(): Promise<void> {
+    setInMemoryToken(null);
     try {
       await apiFetch<void>("/auth/logout", {
         method: "POST",
@@ -207,8 +340,10 @@ export const authApi = {
 export const catalogApi = {
   async getSubjects(): Promise<Subject[]> {
     try {
-      const res = await apiFetch<PaginatedList<Subject>>("/catalog/subjects?status=ACTIVE");
-      return res.items;
+      const res = await apiFetch<PaginatedList<Subject> | Subject[]>(
+        "/catalog/subjects?status=ACTIVE"
+      );
+      return Array.isArray(res) ? res : res.items;
     } catch (err) {
       if (isDemoMode()) return DEMO_SUBJECTS;
       throw err;
@@ -217,8 +352,10 @@ export const catalogApi = {
 
   async getSemesters(): Promise<Semester[]> {
     try {
-      const res = await apiFetch<PaginatedList<Semester>>("/catalog/semesters");
-      return res.items;
+      const res = await apiFetch<PaginatedList<Semester> | Semester[]>(
+        "/catalog/semesters"
+      );
+      return Array.isArray(res) ? res : res.items;
     } catch (err) {
       if (isDemoMode()) return DEMO_SEMESTERS;
       throw err;
@@ -240,10 +377,11 @@ export const studentApi = {
     }
 
     try {
-      return await apiFetch<CourseEnrollment>("/student/course-enrollments/join", {
+      const res = await apiFetch<any>("/student/course-enrollments/join", {
         method: "POST",
         body: JSON.stringify({ joinCode: cleanCode }),
       });
+      return mapEnrollment(res);
     } catch (err) {
       if (isDemoMode()) {
         const offering = demoOfferings.find(
@@ -300,10 +438,11 @@ export const studentApi = {
 
   async getEnrollments(): Promise<CourseEnrollment[]> {
     try {
-      const res = await apiFetch<PaginatedList<CourseEnrollment>>(
+      const res = await apiFetch<PaginatedList<any> | any[]>(
         "/student/course-enrollments"
       );
-      return res.items;
+      const items = Array.isArray(res) ? res : (res?.items || []);
+      return items.map(mapEnrollment);
     } catch (err) {
       if (isDemoMode()) {
         return demoEnrollments.filter((e) => e.studentId === currentDemoUser.id);
@@ -314,10 +453,11 @@ export const studentApi = {
 
   async getOfferings(): Promise<CourseOffering[]> {
     try {
-      const res = await apiFetch<PaginatedList<CourseOffering>>(
+      const res = await apiFetch<PaginatedList<any> | any[]>(
         "/student/course-offerings"
       );
-      return res.items;
+      const items = Array.isArray(res) ? res : (res?.items || []);
+      return items.map(mapStudentCourseOffering);
     } catch (err) {
       if (isDemoMode()) {
         const approvedOfferingIds = demoEnrollments
@@ -333,9 +473,10 @@ export const studentApi = {
 
   async getOfferingDetail(offeringId: string): Promise<CourseOffering> {
     try {
-      return await apiFetch<CourseOffering>(
+      const res = await apiFetch<any>(
         `/student/course-offerings/${offeringId}`
       );
+      return mapStudentCourseOffering(res);
     } catch (err) {
       if (isDemoMode()) {
         const found = demoOfferings.find((o) => o.id === offeringId);
@@ -383,7 +524,7 @@ export const materialApi = {
       if (!doc) {
         throw new ApiClientError(404, {
           code: "DOCUMENT_NOT_FOUND",
-          message: "Không tìm thấy tài liệu bài giảng.",
+          message: "KhÃ´ng tÃ¬m tháº¥y tÃ i liá»‡u bÃ i giáº£ng.",
         });
       }
       return doc;
@@ -462,10 +603,10 @@ export const materialApi = {
 
         // Off-topic or question lacking evidence in the authorized PDF scope
         if (
-          cleanQ.includes("thời tiết") ||
-          cleanQ.includes("bóng đá") ||
-          cleanQ.includes("chính trị") ||
-          cleanQ.includes("tổng thống")
+          cleanQ.includes("thá»i tiáº¿t") ||
+          cleanQ.includes("bÃ³ng Ä‘Ã¡") ||
+          cleanQ.includes("chÃ­nh trá»‹") ||
+          cleanQ.includes("tá»•ng thá»‘ng")
         ) {
           return {
             status: "NO_EVIDENCE",
@@ -475,16 +616,15 @@ export const materialApi = {
           };
         }
 
-        const excerpt = page ? page.bullets[0] : "Nội dung trang tài liệu.";
+        const excerpt = page ? page.bullets[0] : "Ná»™i dung trang tÃ i liá»‡u.";
         return {
           status: "ANSWERED",
-          answer: `Dựa trên nội dung của trang ${pageNumber} (${page?.title || ""}): ${
-            page?.bullets.join(" ") || "Khái niệm chính được trình bày trong tài liệu."
-          }`,
+          answer: `Dá»±a trÃªn ná»™i dung cá»§a trang ${pageNumber} (${page?.title || ""}): ${page?.bullets.join(" ") || "KhÃ¡i niá»‡m chÃ­nh Ä‘Æ°á»£c trÃ¬nh bÃ y trong tÃ i liá»‡u."
+            }`,
           citations: [
             {
               documentId,
-              documentName: "Bài giảng AI - Chương 1",
+              documentName: "BÃ i giáº£ng AI - ChÆ°Æ¡ng 1",
               pageNumber,
               excerpt,
             },
@@ -537,14 +677,14 @@ export const personalDocApi = {
     if (!file.name.toLowerCase().endsWith(".pdf")) {
       throw new ApiClientError(415, {
         code: "UNSUPPORTED_MEDIA_TYPE",
-        message: "Chỉ chấp nhận tệp định dạng PDF có lớp văn bản (text layer). Không nhận DOCX/PPTX trong MVP.",
+        message: "Chá»‰ cháº¥p nháº­n tá»‡p Ä‘á»‹nh dáº¡ng PDF cÃ³ lá»›p vÄƒn báº£n (text layer). KhÃ´ng nháº­n DOCX/PPTX trong MVP.",
       });
     }
 
     if (file.size > 20 * 1024 * 1024) {
       throw new ApiClientError(413, {
         code: "FILE_TOO_LARGE",
-        message: "Kích thước tệp vượt quá giới hạn cho phép (tối đa 20 MB).",
+        message: "KÃ­ch thÆ°á»›c tá»‡p vÆ°á»£t quÃ¡ giá»›i háº¡n cho phÃ©p (tá»‘i Ä‘a 20 MB).",
       });
     }
 
@@ -596,10 +736,13 @@ export const personalDocApi = {
 export const teacherApi = {
   async getOfferings(): Promise<CourseOffering[]> {
     try {
-      const res = await apiFetch<PaginatedList<CourseOffering>>(
+      const res = await apiFetch<
+        PaginatedList<BackendTeacherCourseOffering> | BackendTeacherCourseOffering[]
+      >(
         "/teacher/course-offerings"
       );
-      return res.items;
+      const items = Array.isArray(res) ? res : res.items;
+      return items.map(mapTeacherCourseOffering);
     } catch (err) {
       if (isDemoMode()) {
         return demoOfferings.filter((o) => o.teacherId === currentDemoUser.id);
@@ -610,10 +753,14 @@ export const teacherApi = {
 
   async createOffering(data: CreateOfferingRequest): Promise<CourseOffering> {
     try {
-      return await apiFetch<CourseOffering>("/teacher/course-offerings", {
+      const response = await apiFetch<BackendTeacherCourseOffering>(
+        "/teacher/course-offerings",
+        {
         method: "POST",
         body: JSON.stringify(data),
-      });
+        }
+      );
+      return mapTeacherCourseOffering(response);
     } catch (err) {
       if (isDemoMode()) {
         const subject = DEMO_SUBJECTS.find((s) => s.id === data.subjectId);
@@ -621,7 +768,7 @@ export const teacherApi = {
         if (!subject || !semester) {
           throw new ApiClientError(422, {
             code: "INVALID_SUBJECT_OR_SEMESTER",
-            message: "Môn học hoặc Học kỳ không hợp lệ.",
+            message: "MÃ´n há»c hoáº·c Há»c ká»³ khÃ´ng há»£p lá»‡.",
           });
         }
         const randomCode = `${subject.code.slice(0, 3)}-${Math.floor(10 + Math.random() * 90)}`;
@@ -655,11 +802,11 @@ export const teacherApi = {
 
   async regenerateJoinCode(offeringId: string): Promise<string> {
     try {
-      const res = await apiFetch<{ joinCode: string }>(
+      const res = await apiFetch<BackendTeacherCourseOffering>(
         `/teacher/course-offerings/${offeringId}/join-code/regenerate`,
         { method: "POST" }
       );
-      return res.joinCode;
+      return res.rawJoinCode || res.joinCode || "";
     } catch (err) {
       if (isDemoMode()) {
         const offering = demoOfferings.find((o) => o.id === offeringId);
@@ -709,14 +856,50 @@ export const teacherApi = {
 
   async getEnrollments(offeringId?: string): Promise<CourseEnrollment[]> {
     try {
-      const endpoint = offeringId
-        ? `/teacher/course-offerings/${offeringId}/enrollments`
-        : "/teacher/enrollments";
-      const res = await apiFetch<PaginatedList<CourseEnrollment>>(endpoint);
-      return res.items;
+      const offerings = await this.getOfferings();
+      const offeringMap = new Map(offerings.map((o) => [o.id, o]));
+
+      if (offeringId && offeringId !== "ALL") {
+        const res = await apiFetch<PaginatedList<any> | any[]>(
+          `/teacher/course-offerings/${offeringId}/enrollments`
+        );
+        const items = Array.isArray(res) ? res : (res?.items || []);
+        const off = offeringMap.get(offeringId);
+        return items.map((item) => {
+          const mapped = mapEnrollment(item);
+          if (off) {
+            mapped.offeringCode = off.code;
+            mapped.offeringName = off.name;
+            mapped.subjectName = off.subjectName;
+            mapped.semesterName = off.semesterName;
+          }
+          return mapped;
+        });
+      }
+
+      const enrollmentPromises = offerings.map(async (off) => {
+        try {
+          const res = await apiFetch<PaginatedList<any> | any[]>(
+            `/teacher/course-offerings/${off.id}/enrollments`
+          );
+          const items = Array.isArray(res) ? res : (res?.items || []);
+          return items.map((item) => {
+            const mapped = mapEnrollment(item);
+            mapped.offeringCode = off.code;
+            mapped.offeringName = off.name;
+            mapped.subjectName = off.subjectName;
+            mapped.semesterName = off.semesterName;
+            return mapped;
+          });
+        } catch {
+          return [];
+        }
+      });
+      const results = await Promise.all(enrollmentPromises);
+      return results.flat();
     } catch (err) {
       if (isDemoMode()) {
-        if (offeringId) {
+        if (offeringId && offeringId !== "ALL") {
           return demoEnrollments.filter((e) => e.offeringId === offeringId);
         }
         return demoEnrollments;
@@ -763,7 +946,7 @@ export const teacherApi = {
         const enr = demoEnrollments.find((e) => e.id === enrollmentId);
         if (enr) {
           enr.status = "REJECTED";
-          enr.rejectedReason = reason || "Không thuộc danh sách lớp";
+          enr.rejectedReason = reason || "KhÃ´ng thuá»™c danh sÃ¡ch lá»›p";
           const offering = demoOfferings.find((o) => o.id === enr.offeringId);
           if (offering) {
             offering.pendingCount = Math.max(0, offering.pendingCount - 1);
@@ -795,7 +978,7 @@ export const teacherApi = {
     if (!isPdf) {
       throw new ApiClientError(415, {
         code: "UNSUPPORTED_MEDIA_TYPE",
-        message: "Giảng viên chỉ tải lên Course Material dạng PDF có lớp văn bản.",
+        message: "Giáº£ng viÃªn chá»‰ táº£i lÃªn Course Material dáº¡ng PDF cÃ³ lá»›p vÄƒn báº£n.",
       });
     }
 
@@ -934,7 +1117,7 @@ export const adminApi = {
 };
 
 export const teacherDocApi = teacherApi;
- 
+
 /**
  * Personal RAG Chat API (docs/api-plan.md Section 4.5)
  */
@@ -958,7 +1141,7 @@ export const chatApi = {
         if (!conv) {
           throw new ApiClientError(404, {
             code: "CONVERSATION_NOT_FOUND",
-            message: "Không tìm thấy phiên trò chuyện yêu cầu.",
+            message: "KhÃ´ng tÃ¬m tháº¥y phiÃªn trÃ² chuyá»‡n yÃªu cáº§u.",
           });
         }
         return conv;
@@ -971,13 +1154,13 @@ export const chatApi = {
     if (!req.selectedDocumentIds || req.selectedDocumentIds.length === 0) {
       throw new ApiClientError(422, {
         code: "INVALID_DOCUMENT_SELECTION",
-        message: "Phải chọn ít nhất 1 tài liệu nguồn (tối đa 10 tài liệu).",
+        message: "Pháº£i chá»n Ã­t nháº¥t 1 tÃ i liá»‡u nguá»“n (tá»‘i Ä‘a 10 tÃ i liá»‡u).",
       });
     }
     if (req.selectedDocumentIds.length > 10) {
       throw new ApiClientError(422, {
         code: "TOO_MANY_DOCUMENTS",
-        message: "Chỉ được chọn tối đa 10 tài liệu làm nguồn đối chiếu.",
+        message: "Chá»‰ Ä‘Æ°á»£c chá»n tá»‘i Ä‘a 10 tÃ i liá»‡u lÃ m nguá»“n Ä‘á»‘i chiáº¿u.",
       });
     }
 
@@ -990,7 +1173,7 @@ export const chatApi = {
       if (isDemoMode()) {
         const newConv: ChatConversation = {
           id: `conv_${Date.now()}`,
-          title: req.title || "Phiên thảo luận mới",
+          title: req.title || "PhiÃªn tháº£o luáº­n má»›i",
           selectedDocumentIds: [...req.selectedDocumentIds],
           messages: [],
           createdAt: new Date().toISOString(),
@@ -1008,13 +1191,13 @@ export const chatApi = {
     if (!text || text.length === 0) {
       throw new ApiClientError(422, {
         code: "EMPTY_MESSAGE",
-        message: "Nội dung câu hỏi không được để trống.",
+        message: "Ná»™i dung cÃ¢u há»i khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng.",
       });
     }
     if (text.length > 2000) {
       throw new ApiClientError(422, {
         code: "MESSAGE_TOO_LONG",
-        message: "Nội dung câu hỏi vượt quá giới hạn cho phép (tối đa 2000 ký tự).",
+        message: "Ná»™i dung cÃ¢u há»i vÆ°á»£t quÃ¡ giá»›i háº¡n cho phÃ©p (tá»‘i Ä‘a 2000 kÃ½ tá»±).",
       });
     }
 
@@ -1029,7 +1212,7 @@ export const chatApi = {
         if (!conv) {
           throw new ApiClientError(404, {
             code: "CONVERSATION_NOT_FOUND",
-            message: "Không tìm thấy phiên trò chuyện.",
+            message: "KhÃ´ng tÃ¬m tháº¥y phiÃªn trÃ² chuyá»‡n.",
           });
         }
 
@@ -1043,14 +1226,14 @@ export const chatApi = {
 
         const lowerQuery = text.toLowerCase();
         const isOffTopic =
-          lowerQuery.includes("thời tiết") ||
-          lowerQuery.includes("chứng khoán") ||
-          lowerQuery.includes("nấu ăn") ||
-          lowerQuery.includes("bóng đá") ||
+          lowerQuery.includes("thá»i tiáº¿t") ||
+          lowerQuery.includes("chá»©ng khoÃ¡n") ||
+          lowerQuery.includes("náº¥u Äƒn") ||
+          lowerQuery.includes("bÃ³ng Ä‘Ã¡") ||
           lowerQuery.includes("bitcoin");
-        const wantsSummary = /tóm tắt|ý chính|dàn ý/.test(lowerQuery);
-        const wantsQuiz = /tạo.*(quiz|câu hỏi|trắc nghiệm)|sinh.*(quiz|câu hỏi)/.test(lowerQuery);
-        const questionCountMatch = lowerQuery.match(/\b(\d{1,2})\s*câu\b/);
+        const wantsSummary = /tÃ³m táº¯t|Ã½ chÃ­nh|dÃ n Ã½/.test(lowerQuery);
+        const wantsQuiz = /táº¡o.*(quiz|cÃ¢u há»i|tráº¯c nghiá»‡m)|sinh.*(quiz|cÃ¢u há»i)/.test(lowerQuery);
+        const questionCountMatch = lowerQuery.match(/\b(\d{1,2})\s*cÃ¢u\b/);
 
         let assistantMsg: ChatMessage;
 
@@ -1059,7 +1242,7 @@ export const chatApi = {
             id: `msg_a_${Date.now()}`,
             role: "assistant",
             content:
-              "Không tìm thấy bằng chứng phù hợp trong các tài liệu đã chọn để trả lời câu hỏi này (NO_EVIDENCE). Vui lòng đặt câu hỏi liên quan đến nội dung tài liệu.",
+              "KhÃ´ng tÃ¬m tháº¥y báº±ng chá»©ng phÃ¹ há»£p trong cÃ¡c tÃ i liá»‡u Ä‘Ã£ chá»n Ä‘á»ƒ tráº£ lá»i cÃ¢u há»i nÃ y (NO_EVIDENCE). Vui lÃ²ng Ä‘áº·t cÃ¢u há»i liÃªn quan Ä‘áº¿n ná»™i dung tÃ i liá»‡u.",
             status: "NO_EVIDENCE",
             capability: "ASK_DOCUMENT",
             citations: [],
@@ -1069,7 +1252,7 @@ export const chatApi = {
           assistantMsg = {
             id: `msg_a_${Date.now()}`,
             role: "assistant",
-            content: "Tôi đã nhận diện yêu cầu tạo Quiz. Bạn muốn tạo bao nhiêu câu hỏi?",
+            content: "TÃ´i Ä‘Ã£ nháº­n diá»‡n yÃªu cáº§u táº¡o Quiz. Báº¡n muá»‘n táº¡o bao nhiÃªu cÃ¢u há»i?",
             status: "NEEDS_CLARIFICATION",
             capability: "NEEDS_CLARIFICATION",
             missingFields: ["questionCount"],
@@ -1082,9 +1265,9 @@ export const chatApi = {
 
           const citation = {
             documentId: matchingDoc?.id || "pdoc_01",
-            documentName: matchingDoc?.title || "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+            documentName: matchingDoc?.title || "Ghi chÃº Ã´n táº­p CÆ¡ sá»Ÿ dá»¯ liá»‡u.pdf",
             pageNumber: 3,
-            excerpt: `Trích đoạn đối chiếu từ ${matchingDoc?.title || "tài liệu"}: "Định nghĩa và các nguyên tắc cốt lõi áp dụng trực tiếp cho yêu cầu của người dùng."`,
+            excerpt: `TrÃ­ch Ä‘oáº¡n Ä‘á»‘i chiáº¿u tá»« ${matchingDoc?.title || "tÃ i liá»‡u"}: "Äá»‹nh nghÄ©a vÃ  cÃ¡c nguyÃªn táº¯c cá»‘t lÃµi Ã¡p dá»¥ng trá»±c tiáº¿p cho yÃªu cáº§u cá»§a ngÆ°á»i dÃ¹ng."`,
             sha256:
               matchingDoc?.sha256 ||
               "a3b91c89f4e2d8109867cbaef19034871239abcef19034871239abcef1903487",
@@ -1095,14 +1278,14 @@ export const chatApi = {
             assistantMsg = {
               id: `msg_a_${Date.now()}`,
               role: "assistant",
-              content: `Đã tạo bản nháp Quiz gồm ${questionCount} câu từ tài liệu đã chọn. Hãy mở bản nháp để kiểm tra trước khi chấp nhận.`,
+              content: `ÄÃ£ táº¡o báº£n nhÃ¡p Quiz gá»“m ${questionCount} cÃ¢u tá»« tÃ i liá»‡u Ä‘Ã£ chá»n. HÃ£y má»Ÿ báº£n nhÃ¡p Ä‘á»ƒ kiá»ƒm tra trÆ°á»›c khi cháº¥p nháº­n.`,
               status: "QUIZ_CREATED",
               capability: "CREATE_QUIZ",
               citations: [citation],
               quizDraft: {
                 quizId: `quiz_draft_${Date.now()}`,
                 questionCount,
-                difficulty: lowerQuery.includes("khó") ? "HARD" : "MIXED",
+                difficulty: lowerQuery.includes("khÃ³") ? "HARD" : "MIXED",
                 status: "REVIEW_REQUIRED",
               },
               createdAt: new Date().toISOString(),
@@ -1111,7 +1294,7 @@ export const chatApi = {
             assistantMsg = {
               id: `msg_a_${Date.now()}`,
               role: "assistant",
-              content: `Tóm tắt từ '${matchingDoc?.title || "Tài liệu cá nhân"}':\n\n• Khái niệm và định nghĩa trọng tâm được hệ thống hóa theo từng phần.\n• Các nguyên tắc chính được liên kết với ví dụ trong tài liệu.\n• Những nội dung cần ôn tập được giữ nguyên phạm vi nguồn đã chọn.`,
+              content: `TÃ³m táº¯t tá»« '${matchingDoc?.title || "TÃ i liá»‡u cÃ¡ nhÃ¢n"}':\n\nâ€¢ KhÃ¡i niá»‡m vÃ  Ä‘á»‹nh nghÄ©a trá»ng tÃ¢m Ä‘Æ°á»£c há»‡ thá»‘ng hÃ³a theo tá»«ng pháº§n.\nâ€¢ CÃ¡c nguyÃªn táº¯c chÃ­nh Ä‘Æ°á»£c liÃªn káº¿t vá»›i vÃ­ dá»¥ trong tÃ i liá»‡u.\nâ€¢ Nhá»¯ng ná»™i dung cáº§n Ã´n táº­p Ä‘Æ°á»£c giá»¯ nguyÃªn pháº¡m vi nguá»“n Ä‘Ã£ chá»n.`,
               status: "SUMMARIZED",
               capability: "SUMMARIZE_DOCUMENT",
               citations: [citation],
@@ -1121,7 +1304,7 @@ export const chatApi = {
             assistantMsg = {
               id: `msg_a_${Date.now()}`,
               role: "assistant",
-              content: `Dựa trên tài liệu '${matchingDoc?.title || "Tài liệu cá nhân"}' (Trang 3):\n\nCâu trả lời cho "${text}" đã được đối chiếu với nội dung PDF trong phạm vi bạn chọn.`,
+              content: `Dá»±a trÃªn tÃ i liá»‡u '${matchingDoc?.title || "TÃ i liá»‡u cÃ¡ nhÃ¢n"}' (Trang 3):\n\nCÃ¢u tráº£ lá»i cho "${text}" Ä‘Ã£ Ä‘Æ°á»£c Ä‘á»‘i chiáº¿u vá»›i ná»™i dung PDF trong pháº¡m vi báº¡n chá»n.`,
               status: "ANSWERED",
               capability: "ASK_DOCUMENT",
               citations: [citation],
@@ -1132,7 +1315,7 @@ export const chatApi = {
 
         conv.messages.push(assistantMsg);
         conv.updatedAt = new Date().toISOString();
-        if (conv.title === "Phiên thảo luận mới" || !conv.title) {
+        if (conv.title === "PhiÃªn tháº£o luáº­n má»›i" || !conv.title) {
           conv.title = text.length > 30 ? text.substring(0, 30) + "..." : text;
         }
 
@@ -1170,16 +1353,16 @@ export const quizApi = {
     return apiFetch<QuizDraft>(`/review/quizzes/${encodeURIComponent(draftId)}`);
   },
 
-  /** Required 1–10 unique document IDs and 1–500-char prompt; creates a draft/job, never a chat. Validation/API errors reject. */
+  /** Required 1â€“10 unique document IDs and 1â€“500-char prompt; creates a draft/job, never a chat. Validation/API errors reject. */
   async createDraft(req: CreateQuizDraftRequest): Promise<QuizDraft> {
     if (!req.sourceDocumentIds || req.sourceDocumentIds.length === 0 || req.sourceDocumentIds.length > 10 || new Set(req.sourceDocumentIds).size !== req.sourceDocumentIds.length) {
       throw new ApiClientError(422, {
         code: "INVALID_DOCUMENT_SELECTION",
-        message: "Phải chọn ít nhất 1 tài liệu nguồn (tối đa 10 tài liệu).",
+        message: "Pháº£i chá»n Ã­t nháº¥t 1 tÃ i liá»‡u nguá»“n (tá»‘i Ä‘a 10 tÃ i liá»‡u).",
       });
     }
     if (!req.prompt.trim() || req.prompt.trim().length > 500) {
-      throw new ApiClientError(422, { code: "INVALID_QUIZ_PROMPT", message: "Yêu cầu sinh đề phải có từ 1 đến 500 ký tự." });
+      throw new ApiClientError(422, { code: "INVALID_QUIZ_PROMPT", message: "YÃªu cáº§u sinh Ä‘á» pháº£i cÃ³ tá»« 1 Ä‘áº¿n 500 kÃ½ tá»±." });
     }
 
     try {
@@ -1196,46 +1379,46 @@ export const quizApi = {
       if (isDemoMode()) {
         const newDraft: QuizDraft = {
           id: `draft_${Date.now()}`,
-          prompt: req.prompt || "Tạo câu hỏi trắc nghiệm ôn tập",
+          prompt: req.prompt || "Táº¡o cÃ¢u há»i tráº¯c nghiá»‡m Ã´n táº­p",
           sourceDocumentIds: [...req.sourceDocumentIds],
           status: "REVIEW_REQUIRED",
           questions: [
             {
               id: `q_draft_${Date.now()}_1`,
               type: "MCQ_SINGLE",
-              questionText: "Khái niệm 'Khóa chính' (Primary Key) trong mô hình cơ sở dữ liệu quan hệ có đặc điểm nào?",
+              questionText: "KhÃ¡i niá»‡m 'KhÃ³a chÃ­nh' (Primary Key) trong mÃ´ hÃ¬nh cÆ¡ sá»Ÿ dá»¯ liá»‡u quan há»‡ cÃ³ Ä‘áº·c Ä‘iá»ƒm nÃ o?",
               options: [
-                { id: "A", text: "Có thể nhận giá trị NULL đối với một số bản ghi đặc biệt" },
-                { id: "B", text: "Giá trị là duy nhất và không được phép mang giá trị NULL (Entity Integrity)" },
-                { id: "C", text: "Phải bao gồm tất cả các thuộc tính của bảng quan hệ" },
-                { id: "D", text: "Chỉ được phép đặt trên trường có kiểu dữ liệu là số nguyên" },
+                { id: "A", text: "CÃ³ thá»ƒ nháº­n giÃ¡ trá»‹ NULL Ä‘á»‘i vá»›i má»™t sá»‘ báº£n ghi Ä‘áº·c biá»‡t" },
+                { id: "B", text: "GiÃ¡ trá»‹ lÃ  duy nháº¥t vÃ  khÃ´ng Ä‘Æ°á»£c phÃ©p mang giÃ¡ trá»‹ NULL (Entity Integrity)" },
+                { id: "C", text: "Pháº£i bao gá»“m táº¥t cáº£ cÃ¡c thuá»™c tÃ­nh cá»§a báº£ng quan há»‡" },
+                { id: "D", text: "Chá»‰ Ä‘Æ°á»£c phÃ©p Ä‘áº·t trÃªn trÆ°á»ng cÃ³ kiá»ƒu dá»¯ liá»‡u lÃ  sá»‘ nguyÃªn" },
               ],
               correctOptionId: "B",
-              explanation: "Ràng buộc toàn vẹn thực thể (Entity Integrity) quy định khóa chính không bao giờ được phép mang giá trị NULL và phải duy nhất xác định mỗi bộ dữ liệu.",
+              explanation: "RÃ ng buá»™c toÃ n váº¹n thá»±c thá»ƒ (Entity Integrity) quy Ä‘á»‹nh khÃ³a chÃ­nh khÃ´ng bao giá» Ä‘Æ°á»£c phÃ©p mang giÃ¡ trá»‹ NULL vÃ  pháº£i duy nháº¥t xÃ¡c Ä‘á»‹nh má»—i bá»™ dá»¯ liá»‡u.",
               citation: {
                 documentId: req.sourceDocumentIds[0],
-                documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+                documentName: "Ghi chÃº Ã´n táº­p CÆ¡ sá»Ÿ dá»¯ liá»‡u.pdf",
                 pageNumber: 3,
-                excerpt: "Khóa chính: Tập thuộc tính tối thiểu xác định duy nhất mỗi bộ, không chấp nhận giá trị NULL.",
+                excerpt: "KhÃ³a chÃ­nh: Táº­p thuá»™c tÃ­nh tá»‘i thiá»ƒu xÃ¡c Ä‘á»‹nh duy nháº¥t má»—i bá»™, khÃ´ng cháº¥p nháº­n giÃ¡ trá»‹ NULL.",
               },
             },
             {
               id: `q_draft_${Date.now()}_2`,
               type: "MCQ_SINGLE",
-              questionText: "Phụ thuộc hàm X -> Y được gọi là 'phụ thuộc hàm đầy đủ' khi nào?",
+              questionText: "Phá»¥ thuá»™c hÃ m X -> Y Ä‘Æ°á»£c gá»i lÃ  'phá»¥ thuá»™c hÃ m Ä‘áº§y Ä‘á»§' khi nÃ o?",
               options: [
-                { id: "A", text: "Khi loại bỏ bất kỳ thuộc tính nào khỏi X thì phụ thuộc hàm không còn đúng" },
-                { id: "B", text: "Khi X chỉ chứa duy nhất một thuộc tính nguyên tố" },
-                { id: "C", text: "Khi Y là một tập con của X (tầm thường)" },
-                { id: "D", text: "Khi X phụ thuộc bắc cầu vào Y qua một tập trung gian Z" },
+                { id: "A", text: "Khi loáº¡i bá» báº¥t ká»³ thuá»™c tÃ­nh nÃ o khá»i X thÃ¬ phá»¥ thuá»™c hÃ m khÃ´ng cÃ²n Ä‘Ãºng" },
+                { id: "B", text: "Khi X chá»‰ chá»©a duy nháº¥t má»™t thuá»™c tÃ­nh nguyÃªn tá»‘" },
+                { id: "C", text: "Khi Y lÃ  má»™t táº­p con cá»§a X (táº§m thÆ°á»ng)" },
+                { id: "D", text: "Khi X phá»¥ thuá»™c báº¯c cáº§u vÃ o Y qua má»™t táº­p trung gian Z" },
               ],
               correctOptionId: "A",
-              explanation: "X -> Y là phụ thuộc hàm đầy đủ nếu không tồn tại bất kỳ tập con thực sự nào của X có thể xác định được Y.",
+              explanation: "X -> Y lÃ  phá»¥ thuá»™c hÃ m Ä‘áº§y Ä‘á»§ náº¿u khÃ´ng tá»“n táº¡i báº¥t ká»³ táº­p con thá»±c sá»± nÃ o cá»§a X cÃ³ thá»ƒ xÃ¡c Ä‘á»‹nh Ä‘Æ°á»£c Y.",
               citation: {
                 documentId: req.sourceDocumentIds[0],
-                documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+                documentName: "Ghi chÃº Ã´n táº­p CÆ¡ sá»Ÿ dá»¯ liá»‡u.pdf",
                 pageNumber: 6,
-                excerpt: "Phụ thuộc hàm đầy đủ: Loại bỏ bất kỳ thuộc tính nào của vế trái sẽ làm mất phụ thuộc.",
+                excerpt: "Phá»¥ thuá»™c hÃ m Ä‘áº§y Ä‘á»§: Loáº¡i bá» báº¥t ká»³ thuá»™c tÃ­nh nÃ o cá»§a váº¿ trÃ¡i sáº½ lÃ m máº¥t phá»¥ thuá»™c.",
               },
             },
           ],
@@ -1260,27 +1443,27 @@ export const quizApi = {
       if (isDemoMode()) {
         const regenerated: QuizDraft = {
           id: `draft_${crypto.randomUUID()}`,
-          prompt: "Tạo lại bộ câu hỏi với độ khó tương đương",
+          prompt: "Táº¡o láº¡i bá»™ cÃ¢u há»i vá»›i Ä‘á»™ khÃ³ tÆ°Æ¡ng Ä‘Æ°Æ¡ng",
           sourceDocumentIds: ["pdoc_01"],
           status: "REVIEW_REQUIRED",
           questions: [
             {
               id: `q_regen_${Date.now()}_1`,
               type: "MCQ_SINGLE",
-              questionText: "Chuẩn BCNF (Boyce-Codd) nghiêm ngặt hơn chuẩn 3NF ở điều kiện nào?",
+              questionText: "Chuáº©n BCNF (Boyce-Codd) nghiÃªm ngáº·t hÆ¡n chuáº©n 3NF á»Ÿ Ä‘iá»u kiá»‡n nÃ o?",
               options: [
-                { id: "A", text: "Không cho phép thuộc tính khóa phụ thuộc vào thuộc tính không khóa" },
-                { id: "B", text: "Mọi phụ thuộc hàm X -> A không tầm thường thì X đều phải là một siêu khóa (Superkey)" },
-                { id: "C", text: "Chỉ áp dụng cho các bảng có từ 5 cột trở lên" },
-                { id: "D", text: "Yêu cầu tất cả các khóa ngoại phải tham chiếu đến cùng một bảng" },
+                { id: "A", text: "KhÃ´ng cho phÃ©p thuá»™c tÃ­nh khÃ³a phá»¥ thuá»™c vÃ o thuá»™c tÃ­nh khÃ´ng khÃ³a" },
+                { id: "B", text: "Má»i phá»¥ thuá»™c hÃ m X -> A khÃ´ng táº§m thÆ°á»ng thÃ¬ X Ä‘á»u pháº£i lÃ  má»™t siÃªu khÃ³a (Superkey)" },
+                { id: "C", text: "Chá»‰ Ã¡p dá»¥ng cho cÃ¡c báº£ng cÃ³ tá»« 5 cá»™t trá»Ÿ lÃªn" },
+                { id: "D", text: "YÃªu cáº§u táº¥t cáº£ cÃ¡c khÃ³a ngoáº¡i pháº£i tham chiáº¿u Ä‘áº¿n cÃ¹ng má»™t báº£ng" },
               ],
               correctOptionId: "B",
-              explanation: "BCNF loại bỏ trường hợp ngoại lệ của 3NF: Trong BCNF, vế trái X bắt buộc phải là siêu khóa mà không cần quan tâm A có phải thuộc tính nguyên tố hay không.",
+              explanation: "BCNF loáº¡i bá» trÆ°á»ng há»£p ngoáº¡i lá»‡ cá»§a 3NF: Trong BCNF, váº¿ trÃ¡i X báº¯t buá»™c pháº£i lÃ  siÃªu khÃ³a mÃ  khÃ´ng cáº§n quan tÃ¢m A cÃ³ pháº£i thuá»™c tÃ­nh nguyÃªn tá»‘ hay khÃ´ng.",
               citation: {
                 documentId: "pdoc_01",
-                documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+                documentName: "Ghi chÃº Ã´n táº­p CÆ¡ sá»Ÿ dá»¯ liá»‡u.pdf",
                 pageNumber: 10,
-                excerpt: "BCNF: Mọi phụ thuộc hàm không tầm thường X -> A thì X phải là siêu khóa.",
+                excerpt: "BCNF: Má»i phá»¥ thuá»™c hÃ m khÃ´ng táº§m thÆ°á»ng X -> A thÃ¬ X pháº£i lÃ  siÃªu khÃ³a.",
               },
             },
           ],
@@ -1307,7 +1490,7 @@ export const quizApi = {
 
         const newQuiz: Quiz = {
           id: `quiz_${Date.now()}`,
-          title: "Bộ câu hỏi ôn tập mới",
+          title: "Bá»™ cÃ¢u há»i Ã´n táº­p má»›i",
           courseOfferingId: isPersonal ? undefined : req.courseOfferingId,
           courseOfferingCode: targetOffering?.code,
           isPersonal,
@@ -1316,39 +1499,39 @@ export const quizApi = {
             {
               id: `q_acc_${Date.now()}_1`,
               type: "MCQ_SINGLE",
-              questionText: "Khái niệm 'Khóa chính' (Primary Key) trong mô hình cơ sở dữ liệu quan hệ có đặc điểm nào?",
+              questionText: "KhÃ¡i niá»‡m 'KhÃ³a chÃ­nh' (Primary Key) trong mÃ´ hÃ¬nh cÆ¡ sá»Ÿ dá»¯ liá»‡u quan há»‡ cÃ³ Ä‘áº·c Ä‘iá»ƒm nÃ o?",
               options: [
-                { id: "A", text: "Có thể nhận giá trị NULL đối với một số bản ghi đặc biệt" },
-                { id: "B", text: "Giá trị là duy nhất và không được phép mang giá trị NULL (Entity Integrity)" },
-                { id: "C", text: "Phải bao gồm tất cả các thuộc tính của bảng quan hệ" },
-                { id: "D", text: "Chỉ được phép đặt trên trường có kiểu dữ liệu là số nguyên" },
+                { id: "A", text: "CÃ³ thá»ƒ nháº­n giÃ¡ trá»‹ NULL Ä‘á»‘i vá»›i má»™t sá»‘ báº£n ghi Ä‘áº·c biá»‡t" },
+                { id: "B", text: "GiÃ¡ trá»‹ lÃ  duy nháº¥t vÃ  khÃ´ng Ä‘Æ°á»£c phÃ©p mang giÃ¡ trá»‹ NULL (Entity Integrity)" },
+                { id: "C", text: "Pháº£i bao gá»“m táº¥t cáº£ cÃ¡c thuá»™c tÃ­nh cá»§a báº£ng quan há»‡" },
+                { id: "D", text: "Chá»‰ Ä‘Æ°á»£c phÃ©p Ä‘áº·t trÃªn trÆ°á»ng cÃ³ kiá»ƒu dá»¯ liá»‡u lÃ  sá»‘ nguyÃªn" },
               ],
               correctOptionId: "B",
-              explanation: "Ràng buộc toàn vẹn thực thể (Entity Integrity) quy định khóa chính không bao giờ được phép mang giá trị NULL.",
+              explanation: "RÃ ng buá»™c toÃ n váº¹n thá»±c thá»ƒ (Entity Integrity) quy Ä‘á»‹nh khÃ³a chÃ­nh khÃ´ng bao giá» Ä‘Æ°á»£c phÃ©p mang giÃ¡ trá»‹ NULL.",
               citation: {
                 documentId: "pdoc_01",
-                documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+                documentName: "Ghi chÃº Ã´n táº­p CÆ¡ sá»Ÿ dá»¯ liá»‡u.pdf",
                 pageNumber: 3,
-                excerpt: "Khóa chính: Không chấp nhận giá trị NULL.",
+                excerpt: "KhÃ³a chÃ­nh: KhÃ´ng cháº¥p nháº­n giÃ¡ trá»‹ NULL.",
               },
             },
             {
               id: `q_acc_${Date.now()}_2`,
               type: "MCQ_SINGLE",
-              questionText: "Phụ thuộc hàm X -> Y được gọi là 'phụ thuộc hàm đầy đủ' khi nào?",
+              questionText: "Phá»¥ thuá»™c hÃ m X -> Y Ä‘Æ°á»£c gá»i lÃ  'phá»¥ thuá»™c hÃ m Ä‘áº§y Ä‘á»§' khi nÃ o?",
               options: [
-                { id: "A", text: "Khi loại bỏ bất kỳ thuộc tính nào khỏi X thì phụ thuộc hàm không còn đúng" },
-                { id: "B", text: "Khi X chỉ chứa duy nhất một thuộc tính nguyên tố" },
-                { id: "C", text: "Khi Y là một tập con của X (tầm thường)" },
-                { id: "D", text: "Khi X phụ thuộc bắc cầu vào Y qua một tập trung gian Z" },
+                { id: "A", text: "Khi loáº¡i bá» báº¥t ká»³ thuá»™c tÃ­nh nÃ o khá»i X thÃ¬ phá»¥ thuá»™c hÃ m khÃ´ng cÃ²n Ä‘Ãºng" },
+                { id: "B", text: "Khi X chá»‰ chá»©a duy nháº¥t má»™t thuá»™c tÃ­nh nguyÃªn tá»‘" },
+                { id: "C", text: "Khi Y lÃ  má»™t táº­p con cá»§a X (táº§m thÆ°á»ng)" },
+                { id: "D", text: "Khi X phá»¥ thuá»™c báº¯c cáº§u vÃ o Y qua má»™t táº­p trung gian Z" },
               ],
               correctOptionId: "A",
-              explanation: "X -> Y là phụ thuộc hàm đầy đủ nếu không tồn tại bất kỳ tập con thực sự nào của X có thể xác định được Y.",
+              explanation: "X -> Y lÃ  phá»¥ thuá»™c hÃ m Ä‘áº§y Ä‘á»§ náº¿u khÃ´ng tá»“n táº¡i báº¥t ká»³ táº­p con thá»±c sá»± nÃ o cá»§a X cÃ³ thá»ƒ xÃ¡c Ä‘á»‹nh Ä‘Æ°á»£c Y.",
               citation: {
                 documentId: "pdoc_01",
-                documentName: "Ghi chú ôn tập Cơ sở dữ liệu.pdf",
+                documentName: "Ghi chÃº Ã´n táº­p CÆ¡ sá»Ÿ dá»¯ liá»‡u.pdf",
                 pageNumber: 6,
-                excerpt: "Phụ thuộc hàm đầy đủ: Loại bỏ bất kỳ thuộc tính nào của vế trái sẽ làm mất phụ thuộc.",
+                excerpt: "Phá»¥ thuá»™c hÃ m Ä‘áº§y Ä‘á»§: Loáº¡i bá» báº¥t ká»³ thuá»™c tÃ­nh nÃ o cá»§a váº¿ trÃ¡i sáº½ lÃ m máº¥t phá»¥ thuá»™c.",
               },
             },
           ],
@@ -1375,7 +1558,7 @@ export const quizApi = {
         if (!quiz) {
           throw new ApiClientError(404, {
             code: "QUIZ_NOT_FOUND",
-            message: "Không tìm thấy bài Quiz để nộp bài.",
+            message: "KhÃ´ng tÃ¬m tháº¥y bÃ i Quiz Ä‘á»ƒ ná»™p bÃ i.",
           });
         }
 
@@ -1427,7 +1610,7 @@ export const quizApi = {
                 quizTitle: quiz.title,
                 questionId: question.id,
                 questionText: question.questionText,
-                wrongOptionText: `${ans.selectedOptionId}: ${wrongOpt?.text || "Chưa chọn"}`,
+                wrongOptionText: `${ans.selectedOptionId}: ${wrongOpt?.text || "ChÆ°a chá»n"}`,
                 correctOptionText: `${question.correctOptionId}: ${correctOpt?.text || ""}`,
                 explanation: question.explanation,
                 citation: question.citation,
@@ -1461,8 +1644,8 @@ export const reviewApi = {
           {
             courseOfferingId: "offering_01",
             courseCode: "INT1340_01",
-            courseName: "Trí tuệ nhân tạo",
-            teacherName: "TS. Trần Thị Giảng Viên",
+            courseName: "TrÃ­ tuá»‡ nhÃ¢n táº¡o",
+            teacherName: "TS. Tráº§n Thá»‹ Giáº£ng ViÃªn",
             isPersonal: false,
             totalQuizzes: 1,
             totalAttempts: 2,
@@ -1473,8 +1656,8 @@ export const reviewApi = {
           {
             courseOfferingId: "offering_02",
             courseCode: "DBI202_K21",
-            courseName: "Cơ sở dữ liệu",
-            teacherName: "TS. Nguyễn Văn B",
+            courseName: "CÆ¡ sá»Ÿ dá»¯ liá»‡u",
+            teacherName: "TS. Nguyá»…n VÄƒn B",
             isPersonal: false,
             totalQuizzes: 1,
             totalAttempts: 1,
@@ -1485,7 +1668,7 @@ export const reviewApi = {
           {
             courseOfferingId: "PERSONAL",
             courseCode: "PERSONAL",
-            courseName: "Kho Quiz & Ôn tập cá nhân",
+            courseName: "Kho Quiz & Ã”n táº­p cÃ¡ nhÃ¢n",
             isPersonal: true,
             totalQuizzes: demoQuizzes.filter((q) => q.isPersonal).length,
             totalAttempts: 0,

@@ -1,0 +1,85 @@
+@startuml
+' Palette: sequence; based on the Visual Paradigm guide samples (see README).
+' Interaction: BE1-F02 — Study Streak & Daily Goal theo Múi giờ
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam RectangleBackgroundColor white
+skinparam RectangleBorderColor #222222
+skinparam ParticipantBackgroundColor #7ACFF5
+skinparam ParticipantBorderColor #222222
+skinparam LifeLineBackgroundColor #7ACFF5
+skinparam LifeLineBorderColor #222222
+skinparam SequenceGroupBackgroundColor white
+skinparam SequenceGroupBodyBackgroundColor white
+skinparam SequenceGroupBorderColor #222222
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+hide footbox
+autonumber
+autoactivate on
+
+actor Student
+participant ":Web" as Web
+participant ":Java Backend" as Java
+participant ":app (DB)" as DB
+
+== Cấu hình Daily Goal ==
+Student -> Web : Chọn mục tiêu học tập hằng ngày
+Web -> Java : PUT /api/v1/student/daily-goal\n{pageTarget, quizQuestionTarget, taskTarget}
+Java -> Java : Validate: tổng target > 0;\npage 0..100, quiz 0..200, task 0..50
+alt Giá trị không hợp lệ
+  Java --> Web : 400 INVALID_TARGET
+  Web --> Student : Thông báo lỗi ràng buộc
+else Hợp lệ
+  Java -> DB : UPSERT daily_goals\n{student_id, page_target, quiz_target, task_target}
+  Java --> Web : 200 {dailyGoal updated}
+  Web --> Student : Hiển thị mục tiêu mới
+end
+
+== Ghi nhận sự kiện học tập (nội bộ) ==
+note over Java : Sự kiện phát sinh khi Student\nxem Page / nộp Quiz / hoàn tất Task
+Java -> Java : Chuyển timestamp hiện tại\nsang users.time_zone của Student\n(ZonedDateTime → activity_date)
+Java -> DB : SELECT idempotency_key FROM learning_events\nWHERE student_id AND key = hash(event)
+alt Sự kiện đã ghi trùng trong ngày
+  Java -> Java : Bỏ qua, không ghi thêm
+  note right : LOGIN / NOTE / ASK_AI\ntuyệt đối không ghi event
+else Sự kiện mới hợp lệ
+  Java -> DB : INSERT learning_events\n{student_id, event_type, activity_date,\nquantity, idempotency_key}
+end
+
+== Truy vấn Dashboard (Streak & Daily Goal) ==
+Student -> Web : Mở Dashboard
+Web -> Java : GET /api/v1/student/dashboard
+Java -> DB : SELECT time_zone FROM users WHERE id = student_id
+DB --> Java : time_zone (vd: Asia/Ho_Chi_Minh)
+Java -> Java : Tính today = now() theo time_zone của Student
+
+Java -> DB : SELECT activity_date FROM learning_events\nWHERE student_id AND event_type IN\n(VIEW_PAGE, STUDY_TASK_COMPLETED, QUIZ_COMPLETED)\nORDER BY activity_date DESC
+DB --> Java : Danh sách ngày có sự kiện hợp lệ
+
+Java -> Java : Đếm ngày liên tiếp từ today về quá khứ\n→ currentStreak\nTìm chuỗi dài nhất → longestStreak
+
+Java -> DB : SELECT * FROM daily_goals WHERE student_id
+DB --> Java : {page_target, quiz_target, task_target}
+
+Java -> DB : COUNT events theo từng loại trong today\n(theo activity_date đã chuẩn hóa timezone)
+DB --> Java : {pageActual, quizActual, taskActual}
+
+Java -> Java : Tính completedPercent = actual / target\nClient KHÔNG được tự báo cáo actual
+
+Java --> Web : {\ncurrentStreak, longestStreak, activityDays,\npageTarget, pageActual,\nquizTarget, quizActual,\ntaskTarget, taskActual, completedPercent\n}
+Web --> Student : Hiển thị Streak, Daily Goal progress bar
+return Hoàn tất tương tác
+@enduml

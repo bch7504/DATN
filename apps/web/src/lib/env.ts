@@ -8,7 +8,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_API_URL: z
     .string()
     .url("NEXT_PUBLIC_API_URL phải là một URL hợp lệ")
-    .default("http://localhost:8080/api/v1"),
+    .default("http://localhost:8088/api/v1"),
   NEXT_PUBLIC_DEMO_MODE: z
     .enum(["true", "false", "1", "0"])
     .default("true")
@@ -40,7 +40,7 @@ export function getEnv(): EnvConfig {
 
   const rawEnv = {
     NEXT_PUBLIC_API_URL:
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1",
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088/api/v1",
     NEXT_PUBLIC_DEMO_MODE: process.env.NEXT_PUBLIC_DEMO_MODE ?? "true",
   };
 
@@ -52,7 +52,7 @@ export function getEnv(): EnvConfig {
       parsed.error.format()
     );
     cachedEnv = {
-      NEXT_PUBLIC_API_URL: "http://localhost:8080/api/v1",
+      NEXT_PUBLIC_API_URL: "http://localhost:8088/api/v1",
       NEXT_PUBLIC_DEMO_MODE: true,
     };
     return cachedEnv;
@@ -97,6 +97,6 @@ export function getApiUrl(): string {
     const url = getEnv().NEXT_PUBLIC_API_URL;
     return url.endsWith("/") ? url.slice(0, -1) : url;
   } catch {
-    return "http://localhost:8080/api/v1";
+    return "http://localhost:8088/api/v1";
   }
 }

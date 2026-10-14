@@ -1,0 +1,122 @@
+@startuml
+' Class Diagram BE1-F01: Course Enrollment Lifecycle
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+hide circle
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+
+class CourseEnrollmentController <<Java boundary>> {
+  +joinCourse(studentId: UUID, joinCode: String): ResponseEntity<EnrollmentDTO>
+  +getEnrollments(teacherId: UUID, offeringId: UUID, status: EnrollmentStatus): ResponseEntity<List<EnrollmentDTO>>
+  +approve(teacherId: UUID, enrollmentId: UUID): ResponseEntity<EnrollmentDTO>
+  +reject(teacherId: UUID, enrollmentId: UUID): ResponseEntity<EnrollmentDTO>
+}
+
+class JoinCodeController <<Java boundary>> {
+  +regenerate(teacherId: UUID, offeringId: UUID): ResponseEntity<JoinCodeDTO>
+}
+
+class CourseOfferingController <<Java boundary>> {
+  +createOffering(teacherId: UUID, req: CreateOfferingDTO): ResponseEntity<CourseOfferingDTO>
+  +archiveOffering(teacherId: UUID, offeringId: UUID): ResponseEntity<Void>
+}
+
+class CourseOfferingService <<Java control>> {
+  -offeringRepo: CourseOfferingRepository
+  +createCourse(teacherId: UUID, req: CreateOfferingDTO): CourseOfferingDTO
+  +archive(teacherId: UUID, offeringId: UUID): void
+}
+
+class CourseEnrollmentService <<Java control>> {
+  -enrollmentRepo: CourseEnrollmentRepository
+  -offeringRepo: CourseOfferingRepository
+  -logRepo: SystemLogRepository
+  +joinByCourse(studentId: UUID, joinCode: String): EnrollmentDTO
+  +listPending(teacherId: UUID, offeringId: UUID): List<EnrollmentDTO>
+  +approve(teacherId: UUID, enrollmentId: UUID): EnrollmentDTO
+  +reject(teacherId: UUID, enrollmentId: UUID): EnrollmentDTO
+  -assertOwner(teacherId: UUID, offering: CourseOffering): void
+  -assertUniqueEnrollment(studentId: UUID, offeringId: UUID): void
+}
+
+class CourseOffering <<entity>> {
+  +id: UUID
+  +subjectId: UUID
+  +semesterId: UUID
+  +teacherId: UUID
+  +joinCodeHash: String
+  +joinEnabled: Boolean
+  +status: OfferingStatus
+}
+
+enum OfferingStatus <<enumeration>> {
+  ACTIVE
+  ARCHIVED
+}
+
+class CourseEnrollment <<entity>> {
+  +id: UUID
+  +courseOfferingId: UUID
+  +studentId: UUID
+  +status: EnrollmentStatus
+  +requestedAt: Instant
+  +decidedBy: UUID
+  +approvedAt: Instant
+  +transition(next: EnrollmentStatus): void
+  +assertCanAccess(): void
+}
+
+enum EnrollmentStatus <<enumeration>> {
+  PENDING
+  APPROVED
+  REJECTED
+  REMOVED
+}
+
+interface CourseEnrollmentRepository <<repository>> {
+  +findByOfferingAndStatus(offeringId: UUID, status: EnrollmentStatus): List<CourseEnrollment>
+  +findByStudentAndOffering(studentId: UUID, offeringId: UUID): Optional<CourseEnrollment>
+  +save(enrollment: CourseEnrollment): CourseEnrollment
+}
+
+interface CourseOfferingRepository <<repository>> {
+  +findByJoinCodeHash(hash: String): Optional<CourseOffering>
+  +findById(id: UUID): Optional<CourseOffering>
+}
+
+CourseEnrollmentController --> CourseEnrollmentService : delegates
+JoinCodeController --> CourseEnrollmentService : delegates
+CourseOfferingController --> CourseOfferingService : delegates
+
+CourseEnrollmentService --> CourseEnrollmentRepository : uses
+CourseEnrollmentService --> CourseOfferingRepository : uses
+CourseOfferingService --> CourseOfferingRepository : uses
+
+CourseEnrollmentService ..> CourseEnrollment : creates/updates
+CourseOfferingService ..> CourseOffering : creates/updates
+
+CourseEnrollment --> EnrollmentStatus
+CourseOffering --> OfferingStatus
+CourseEnrollment "many" --o "1" CourseOffering : belongs to
+
+note bottom of CourseEnrollment
+  Máy trạng thái:
+  PENDING → APPROVED | REJECTED
+  APPROVED → REMOVED
+  Không đảo ngược
+end note
+@enduml

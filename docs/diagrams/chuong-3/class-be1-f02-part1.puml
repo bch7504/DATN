@@ -1,0 +1,72 @@
+@startuml
+' Class Diagram BE1-F02 Part 1: Learning Event & Timezone
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+hide circle
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam roundcorner 10
+skinparam nodesep 30
+skinparam ranksep 40
+top to bottom direction
+
+class LearningEventService <<Java control>> {
+  -eventRepo: LearningEventRepository
+  -userRepo: UserRepository
+  +recordEvent(studentId: UUID, eventType: EventType, quantity: int, idempotencyKey: String): void
+  -resolveActivityDate(studentId: UUID, timestamp: Instant): LocalDate
+  -isDuplicate(idempotencyKey: String): Boolean
+}
+
+class LearningEvent <<entity>> {
+  +id: UUID
+  +studentId: UUID
+  +eventType: EventType
+  +activityDate: LocalDate
+  +quantity: int
+  +idempotencyKey: String
+  +recordedAt: Instant
+}
+
+enum EventType <<enumeration>> {
+  VIEW_PAGE
+  STUDY_TASK_COMPLETED
+  QUIZ_COMPLETED
+}
+
+class User <<entity>> {
+  +id: UUID
+  +timeZone: String
+  +toZone(): ZoneId
+}
+
+interface LearningEventRepository <<repository>> {
+  +existsByIdempotencyKey(key: String): Boolean
+  +save(event: LearningEvent): LearningEvent
+}
+
+LearningEventService --> LearningEventRepository : uses
+LearningEventService ..> User : lookup timezone
+LearningEvent --> EventType
+LearningEventRepository ..> LearningEvent : manages
+
+note bottom of LearningEventService
+  activity_date = now()
+  chuyển sang users.time_zone
+  bằng ZonedDateTime.
+end note
+
+note right of EventType
+  LOGIN / NOTE / ASK_AI
+  KHÔNG được ghi nhận
+end note
+@enduml
