@@ -14,14 +14,12 @@ import com.studyflow.enrollment.domain.EnrollmentStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Application service managing student join requests and teacher enrollment approvals.
- */
 @Service
 public class CourseEnrollmentService {
 
@@ -34,20 +32,8 @@ public class CourseEnrollmentService {
         this.offeringRepository = offeringRepository;
     }
 
-    /**
-     * Student joins a Course Offering using the raw Join Code.
-     *
-     * Contract:
-     * - args: studentId (String, required), rawJoinCode (String, required)
-     * - input: Student is authenticated. Code is normalized and hashed with SHA-256.
-     * - output: CourseEnrollment entity in PENDING status.
-     * - errors:
-     *     - ValidationException: INVALID_JOIN_CODE
-     *     - ResourceNotFoundException: JOIN_CODE_NOT_FOUND
-     *     - ConflictException: JOIN_DISABLED, COURSE_NOT_JOINABLE, ENROLLMENT_ALREADY_APPROVED
-     */
     @Transactional
-    public CourseEnrollment joinByCode(String studentId, String rawJoinCode) {
+    public CourseEnrollment joinByCode(UUID studentId, String rawJoinCode) {
         String cleanCode = JoinCodeUtils.normalize(rawJoinCode);
         if (cleanCode.isBlank()) {
             throw new ValidationException("INVALID_JOIN_CODE", "Mã tham gia lớp không được để trống.");
@@ -65,7 +51,6 @@ public class CourseEnrollmentService {
             throw new ConflictException("JOIN_DISABLED", "Mã tham gia lớp này đã bị vô hiệu hóa bởi giảng viên.");
         }
 
-        // Check if student already applied
         Optional<CourseEnrollment> existingOpt = enrollmentRepository
                 .findByCourseOfferingIdAndStudentId(offering.getId(), studentId);
 
@@ -75,7 +60,7 @@ public class CourseEnrollmentService {
                 throw new ConflictException("ENROLLMENT_ALREADY_APPROVED", "Bạn đã được duyệt vào lớp học phần này từ trước.");
             }
             if (existing.getStatus() == EnrollmentStatus.PENDING) {
-                return existing; // Idempotent return
+                return existing;
             }
             if (existing.getStatus() == EnrollmentStatus.REJECTED || existing.getStatus() == EnrollmentStatus.REMOVED) {
                 existing.reapply();
@@ -83,24 +68,12 @@ public class CourseEnrollmentService {
             }
         }
 
-        String enrollmentId = "enr_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-        CourseEnrollment newEnrollment = new CourseEnrollment(enrollmentId, offering.getId(), studentId);
+        CourseEnrollment newEnrollment = new CourseEnrollment(UUID.randomUUID(), offering.getId(), studentId);
         return enrollmentRepository.save(newEnrollment);
     }
 
-    /**
-     * Teacher approves a pending enrollment request.
-     *
-     * Contract:
-     * - args: teacherId (String, required), enrollmentId (String, required)
-     * - input: Teacher is the owner of the offering.
-     * - output: CourseEnrollment entity in APPROVED status.
-     * - errors:
-     *     - ResourceNotFoundException: ENROLLMENT_NOT_FOUND, COURSE_NOT_FOUND
-     *     - ForbiddenException: FORBIDDEN
-     */
     @Transactional
-    public CourseEnrollment approveEnrollment(String teacherId, String enrollmentId) {
+    public CourseEnrollment approveEnrollment(UUID teacherId, UUID enrollmentId) {
         CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("ENROLLMENT_NOT_FOUND", "Không tìm thấy yêu cầu ghi danh."));
 
@@ -112,18 +85,15 @@ public class CourseEnrollmentService {
         }
 
         if (enrollment.getStatus() == EnrollmentStatus.APPROVED) {
-            return enrollment; // Idempotent
+            return enrollment;
         }
 
         enrollment.approve(teacherId);
         return enrollmentRepository.save(enrollment);
     }
 
-    /**
-     * Teacher approves multiple pending enrollment requests at once (all-or-nothing).
-     */
     @Transactional
-    public List<CourseEnrollment> approveBatch(String teacherId, String offeringId, List<String> enrollmentIds) {
+    public List<CourseEnrollment> approveBatch(UUID teacherId, UUID offeringId, List<UUID> enrollmentIds) {
         if (enrollmentIds == null || enrollmentIds.isEmpty()) {
             throw new ValidationException("INVALID_ENROLLMENT_BATCH",
                     "Danh sách yêu cầu ghi danh không được rỗng.");
@@ -136,7 +106,7 @@ public class CourseEnrollmentService {
             throw new ForbiddenException("FORBIDDEN", "Chỉ giảng viên chủ nhiệm mới có quyền duyệt sinh viên vào lớp này.");
         }
 
-        List<String> distinctIds = enrollmentIds.stream().distinct().collect(Collectors.toList());
+        List<UUID> distinctIds = enrollmentIds.stream().distinct().collect(Collectors.toList());
         List<CourseEnrollment> enrollments = enrollmentRepository.findAllById(distinctIds);
         if (enrollments.size() != distinctIds.size()) {
             throw new ValidationException("INVALID_ENROLLMENT_BATCH",
@@ -157,11 +127,8 @@ public class CourseEnrollmentService {
         return enrollmentRepository.saveAll(enrollments);
     }
 
-    /**
-     * Teacher rejects a pending enrollment request.
-     */
     @Transactional
-    public CourseEnrollment rejectEnrollment(String teacherId, String enrollmentId, String reason) {
+    public CourseEnrollment rejectEnrollment(UUID teacherId, UUID enrollmentId, String reason) {
         CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("ENROLLMENT_NOT_FOUND", "Không tìm thấy yêu cầu ghi danh."));
 
@@ -176,11 +143,8 @@ public class CourseEnrollmentService {
         return enrollmentRepository.save(enrollment);
     }
 
-    /**
-     * Teacher removes an enrolled student from the offering.
-     */
     @Transactional
-    public CourseEnrollment removeStudent(String teacherId, String enrollmentId, String reason) {
+    public CourseEnrollment removeStudent(UUID teacherId, UUID enrollmentId, String reason) {
         CourseEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("ENROLLMENT_NOT_FOUND", "Không tìm thấy yêu cầu ghi danh."));
 
@@ -195,11 +159,8 @@ public class CourseEnrollmentService {
         return enrollmentRepository.save(enrollment);
     }
 
-    /**
-     * Retrieves enrollments for a teacher's offering with optional status filter.
-     */
     @Transactional(readOnly = true)
-    public List<CourseEnrollment> getTeacherEnrollments(String teacherId, String offeringId, EnrollmentStatus status) {
+    public List<CourseEnrollment> getTeacherEnrollments(UUID teacherId, UUID offeringId, EnrollmentStatus status) {
         CourseOffering offering = offeringRepository.findById(offeringId)
                 .orElseThrow(() -> new ResourceNotFoundException("COURSE_NOT_FOUND", "Không tìm thấy Lớp học phần."));
 
@@ -213,34 +174,22 @@ public class CourseEnrollmentService {
         return enrollmentRepository.findByCourseOfferingId(offeringId);
     }
 
-    /**
-     * Retrieves student's enrollments with optional status filter.
-     */
     @Transactional(readOnly = true)
-    public List<CourseEnrollment> getStudentEnrollments(String studentId, EnrollmentStatus status) {
+    public List<CourseEnrollment> getStudentEnrollments(UUID studentId, EnrollmentStatus status) {
         if (status != null) {
             return enrollmentRepository.findByStudentIdAndStatus(studentId, status);
         }
         return enrollmentRepository.findByStudentId(studentId);
     }
 
-    /**
-     * Retrieves a student's enrollment requests with optional semester and status filters.
-     *
-     * Contract:
-     * - args: studentId required; semesterId and status optional.
-     * - input: studentId comes from the authenticated principal, never from the client.
-     * - output: only enrollments owned by the student and matching both filters.
-     * - errors: none for an unknown semester; it returns an empty list.
-     */
     @Transactional(readOnly = true)
-    public List<CourseEnrollment> getStudentEnrollments(String studentId, String semesterId,
+    public List<CourseEnrollment> getStudentEnrollments(UUID studentId, UUID semesterId,
                                                          EnrollmentStatus status) {
-        if (semesterId == null || semesterId.isBlank()) {
+        if (semesterId == null) {
             return getStudentEnrollments(studentId, status);
         }
 
-        List<String> offeringIds = offeringRepository.findBySemesterId(semesterId).stream()
+        List<UUID> offeringIds = offeringRepository.findBySemesterId(semesterId).stream()
                 .map(CourseOffering::getId)
                 .collect(Collectors.toList());
         if (offeringIds.isEmpty()) {
@@ -253,26 +202,20 @@ public class CourseEnrollmentService {
         return enrollmentRepository.findByStudentIdAndCourseOfferingIdIn(studentId, offeringIds);
     }
 
-    /**
-     * Retrieves all offerings where the student has been APPROVED.
-     */
     @Transactional(readOnly = true)
-    public List<CourseOffering> getStudentApprovedOfferings(String studentId) {
+    public List<CourseOffering> getStudentApprovedOfferings(UUID studentId) {
         List<CourseEnrollment> approvedEnrollments = enrollmentRepository
                 .findByStudentIdAndStatus(studentId, EnrollmentStatus.APPROVED);
 
-        List<String> offeringIds = approvedEnrollments.stream()
+        List<UUID> offeringIds = approvedEnrollments.stream()
                 .map(CourseEnrollment::getCourseOfferingId)
                 .collect(Collectors.toList());
 
         return offeringRepository.findAllById(offeringIds);
     }
 
-    /**
-     * Fast policy check: verifies if student has APPROVED enrollment in offering.
-     */
     @Transactional(readOnly = true)
-    public boolean isStudentApproved(String studentId, String offeringId) {
+    public boolean isStudentApproved(UUID studentId, UUID offeringId) {
         return enrollmentRepository.findByCourseOfferingIdAndStudentId(offeringId, studentId)
                 .map(CourseEnrollment::isApproved)
                 .orElse(false);

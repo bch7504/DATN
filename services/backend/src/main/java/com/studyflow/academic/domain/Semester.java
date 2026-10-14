@@ -4,26 +4,15 @@ import jakarta.persistence.*;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.UUID;
 
-/**
- * Domain entity representing an academic semester (học kỳ).
- *
- * Contract:
- * - id: unique semester identifier (e.g. sem_2026_1)
- * - code: semester code (e.g. 2026_1)
- * - name: semester display name (e.g. Học kỳ 1 · 2026 - 2027)
- * - academicYear: school year (e.g. 2026-2027)
- * - startDate / endDate: calendar dates (endDate >= startDate)
- * - status: UPCOMING, ACTIVE, CLOSED
- * - offeringCreationEnabled: boolean flag permitting course offering creation
- */
 @Entity
 @Table(name = "semesters", schema = "app")
 public class Semester {
 
     @Id
-    @Column(name = "id", length = 36, nullable = false)
-    private String id;
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
     @Column(name = "code", length = 50, nullable = false, unique = true)
     private String code;
@@ -56,9 +45,10 @@ public class Semester {
     public Semester() {
     }
 
-    public Semester(String id, String code, String name, String academicYear,
-                    LocalDate startDate, LocalDate endDate, SemesterStatus status, boolean offeringCreationEnabled) {
-        this.id = id;
+    public Semester(UUID id, String code, String name, String academicYear,
+                    LocalDate startDate, LocalDate endDate,
+                    SemesterStatus status, boolean offeringCreationEnabled) {
+        this.id = id != null ? id : UUID.randomUUID();
         this.code = code;
         this.name = name;
         this.academicYear = academicYear;
@@ -74,11 +64,11 @@ public class Semester {
         return this.status == SemesterStatus.ACTIVE && this.offeringCreationEnabled;
     }
 
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

@@ -4,8 +4,8 @@ import com.studyflow.academic.domain.Semester;
 import com.studyflow.academic.domain.SemesterRepository;
 import com.studyflow.academic.domain.Subject;
 import com.studyflow.academic.domain.SubjectRepository;
+import com.studyflow.common.exception.ApiException;
 import com.studyflow.common.exception.ForbiddenException;
-import com.studyflow.common.security.SecurityUtils;
 import com.studyflow.courseoffering.application.CourseOfferingService;
 import com.studyflow.courseoffering.application.CreateCourseOfferingCommand;
 import com.studyflow.courseoffering.application.CreatedCourseOfferingResult;
@@ -20,10 +20,13 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -43,10 +46,22 @@ public class TeacherCourseOfferingController {
         this.semesterRepository = semesterRepository;
     }
 
+    private static UUID userId(Jwt jwt) {
+        if (jwt == null || jwt.getSubject() == null) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_SESSION", "Phiên đăng nhập không hợp lệ");
+        }
+        try {
+            return UUID.fromString(jwt.getSubject());
+        } catch (IllegalArgumentException exception) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_SESSION", "Phiên đăng nhập không hợp lệ");
+        }
+    }
+
     @PostMapping
     public ResponseEntity<TeacherCourseOfferingResponse> createCourseOffering(
+            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CreateCourseOfferingRequest req) {
-        String teacherId = SecurityUtils.getCurrentUserId();
+        UUID teacherId = userId(jwt);
 
         CreateCourseOfferingCommand cmd = new CreateCourseOfferingCommand(
                 req.getSubjectId(),
@@ -56,14 +71,14 @@ public class TeacherCourseOfferingController {
         );
 
         CreatedCourseOfferingResult result = offeringService.createCourseOffering(teacherId, cmd);
-        Subject subject = subjectRepository.findById(result.getOffering().getSubjectId()).orElse(null);
-        Semester semester = semesterRepository.findById(result.getOffering().getSemesterId()).orElse(null);
+        Subject subject = subjectRepository.findById(result.offering().getSubjectId()).orElse(null);
+        Semester semester = semesterRepository.findById(result.offering().getSemesterId()).orElse(null);
 
         TeacherCourseOfferingResponse response = TeacherCourseOfferingResponse.fromEntity(
-                result.getOffering(),
+                result.offering(),
                 subject,
                 semester,
-                result.getRawJoinCode()
+                result.rawJoinCode()
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -71,22 +86,23 @@ public class TeacherCourseOfferingController {
 
     @GetMapping
     public ResponseEntity<List<TeacherCourseOfferingResponse>> getTeacherOfferings(
-            @RequestParam(value = "semesterId", required = false) String semesterId,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(value = "semesterId", required = false) UUID semesterId,
             @RequestParam(value = "status", required = false) CourseOfferingStatus status) {
-        String teacherId = SecurityUtils.getCurrentUserId();
+        UUID teacherId = userId(jwt);
         List<CourseOffering> offerings = offeringService.getTeacherOfferings(teacherId, semesterId, status);
 
-        List<String> subjectIds = offerings.stream()
+        List<UUID> subjectIds = offerings.stream()
                 .map(CourseOffering::getSubjectId)
                 .distinct()
                 .collect(Collectors.toList());
-        List<String> semesterIds = offerings.stream()
+        List<UUID> semesterIds = offerings.stream()
                 .map(CourseOffering::getSemesterId)
                 .distinct()
                 .collect(Collectors.toList());
-        Map<String, Subject> subjectMap = subjectRepository.findAllById(subjectIds).stream()
+        Map<UUID, Subject> subjectMap = subjectRepository.findAllById(subjectIds).stream()
                 .collect(Collectors.toMap(Subject::getId, s -> s, (s1, s2) -> s1));
-        Map<String, Semester> semesterMap = semesterRepository.findAllById(semesterIds).stream()
+        Map<UUID, Semester> semesterMap = semesterRepository.findAllById(semesterIds).stream()
                 .collect(Collectors.toMap(Semester::getId, s -> s, (s1, s2) -> s1));
 
         List<TeacherCourseOfferingResponse> responseList = offerings.stream()
@@ -94,7 +110,7 @@ public class TeacherCourseOfferingController {
                         o,
                         subjectMap.get(o.getSubjectId()),
                         semesterMap.get(o.getSemesterId()),
-                        null // raw code is not returned in listing
+                        null
                 ))
                 .collect(Collectors.toList());
 
@@ -102,8 +118,10 @@ public class TeacherCourseOfferingController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TeacherCourseOfferingResponse> getOfferingById(@PathVariable("id") String id) {
-        String teacherId = SecurityUtils.getCurrentUserId();
+    public ResponseEntity<TeacherCourseOfferingResponse> getOfferingById(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID id) {
+        UUID teacherId = userId(jwt);
         CourseOffering offering = offeringService.getOfferingById(id);
 
         if (!offering.isOwnedBy(teacherId)) {
@@ -119,21 +137,12 @@ public class TeacherCourseOfferingController {
         return ResponseEntity.ok(res);
     }
 
-    /**
-     * Updates code and/or display name of an ACTIVE offering owned by the teacher.
-     *
-     * Contract:
-     * - args: id is the offering identifier; request contains optional code/name.
-     * - input: authenticated TEACHER must own the offering; at least one field is non-blank.
-     * - output: HTTP 200 with the updated offering; rawJoinCode is absent.
-     * - errors: 404 not found, 403 not owner, 409 locked/duplicate code,
-     *   422 invalid or empty patch.
-     */
     @PatchMapping("/{id}")
     public ResponseEntity<TeacherCourseOfferingResponse> updateOffering(
-            @PathVariable("id") String id,
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody UpdateCourseOfferingRequest req) {
-        String teacherId = SecurityUtils.getCurrentUserId();
+        UUID teacherId = userId(jwt);
         CourseOffering updated = offeringService.updateCourseOffering(
                 teacherId,
                 id,
@@ -148,8 +157,10 @@ public class TeacherCourseOfferingController {
     }
 
     @PostMapping("/{id}/archive")
-    public ResponseEntity<TeacherCourseOfferingResponse> archiveOffering(@PathVariable("id") String id) {
-        String teacherId = SecurityUtils.getCurrentUserId();
+    public ResponseEntity<TeacherCourseOfferingResponse> archiveOffering(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID id) {
+        UUID teacherId = userId(jwt);
         CourseOffering archived = offeringService.archiveOffering(teacherId, id);
 
         Subject subject = subjectRepository.findById(archived.getSubjectId()).orElse(null);
@@ -159,8 +170,10 @@ public class TeacherCourseOfferingController {
     }
 
     @PostMapping("/{id}/join-code/regenerate")
-    public ResponseEntity<TeacherCourseOfferingResponse> regenerateJoinCode(@PathVariable("id") String id) {
-        String teacherId = SecurityUtils.getCurrentUserId();
+    public ResponseEntity<TeacherCourseOfferingResponse> regenerateJoinCode(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID id) {
+        UUID teacherId = userId(jwt);
         String newRawCode = offeringService.regenerateJoinCode(teacherId, id);
 
         CourseOffering updated = offeringService.getOfferingById(id);
@@ -170,12 +183,13 @@ public class TeacherCourseOfferingController {
         return ResponseEntity.ok(TeacherCourseOfferingResponse.fromEntity(updated, subject, semester, newRawCode));
     }
 
-    @PatchMapping("/{id}/join-code")
+    @PatchMapping("/{id}/join-code/toggle")
     public ResponseEntity<TeacherCourseOfferingResponse> toggleJoinCode(
-            @PathVariable("id") String id,
-            @Valid @RequestBody ToggleJoinCodeRequest req) {
-        String teacherId = SecurityUtils.getCurrentUserId();
-        CourseOffering updated = offeringService.toggleJoinCode(teacherId, id, req.getEnabled());
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID id,
+            @RequestBody ToggleJoinCodeRequest req) {
+        UUID teacherId = userId(jwt);
+        CourseOffering updated = offeringService.toggleJoinCode(teacherId, id, req.isEnabled());
 
         Subject subject = subjectRepository.findById(updated.getSubjectId()).orElse(null);
         Semester semester = semesterRepository.findById(updated.getSemesterId()).orElse(null);

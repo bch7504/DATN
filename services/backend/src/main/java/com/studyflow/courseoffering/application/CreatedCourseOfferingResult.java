@@ -2,9 +2,6 @@ package com.studyflow.courseoffering.application;
 
 import com.studyflow.courseoffering.domain.CourseOffering;
 
-/**
- * Result DTO containing the persisted CourseOffering and raw Join Code.
- */
 public class CreatedCourseOfferingResult {
 
     private final CourseOffering offering;
@@ -20,6 +17,14 @@ public class CreatedCourseOfferingResult {
     }
 
     public String getRawJoinCode() {
+        return rawJoinCode;
+    }
+
+    public CourseOffering offering() {
+        return offering;
+    }
+
+    public String rawJoinCode() {
         return rawJoinCode;
     }
 }
