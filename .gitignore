@@ -30,6 +30,10 @@ dist/
 logs/
 uploads/
 qdrant_storage/
+services/backend/data/
+*.db
+*.mv.db
+*.trace.db
 
 # OS
 .DS_Store
