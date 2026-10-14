@@ -1,6 +1,8 @@
 package com.studyflow.auth.application.port;
 
 import com.studyflow.user.domain.UserAccount;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -12,6 +14,8 @@ public interface UserAccountStore {
     Optional<UserAccount> findById(UUID id);
 
     Optional<UserAccount> findByIdForUpdate(UUID id);
+
+    List<UserAccount> findAllByIdIn(Collection<UUID> ids);
 
     UserAccount save(UserAccount account);
 }

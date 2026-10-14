@@ -18,9 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Application service managing Teacher Course Offerings, lifecycle transitions, and Join Code security.
- */
 @Service
 public class CourseOfferingService {
 
@@ -36,31 +33,19 @@ public class CourseOfferingService {
         this.semesterRepository = semesterRepository;
     }
 
-    /**
-     * Creates a new Course Offering for the authenticated Teacher.
-     *
-     * Contract:
-     * - args: teacherId (String, required), cmd (CreateCourseOfferingCommand, required)
-     * - input: Teacher is authenticated. Subject and Semester must be valid and ACTIVE.
-     * - output: CreatedCourseOfferingResult containing persisted entity and plain join code.
-     * - errors:
-     *     - ResourceNotFoundException: SUBJECT_NOT_FOUND, SEMESTER_NOT_FOUND
-     *     - ConflictException: SEMESTER_NOT_ACTIVE, COURSE_CODE_EXISTS
-     */
     @Transactional
-    public CreatedCourseOfferingResult createCourseOffering(String teacherId, CreateCourseOfferingCommand cmd) {
-        Subject subject = subjectRepository.findById(cmd.getSubjectId())
+    public CreatedCourseOfferingResult createCourseOffering(UUID teacherId, CreateCourseOfferingCommand cmd) {
+        Subject subject = subjectRepository.findById(cmd.subjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("SUBJECT_NOT_FOUND", "Không tìm thấy Môn học được chỉ định."));
 
-        Semester semester = semesterRepository.findById(cmd.getSemesterId())
+        Semester semester = semesterRepository.findById(cmd.semesterId())
                 .orElseThrow(() -> new ResourceNotFoundException("SEMESTER_NOT_FOUND", "Không tìm thấy Học kỳ được chỉ định."));
 
         if (!semester.canCreateCourseOffering()) {
             throw new ConflictException("SEMESTER_NOT_ACTIVE", "Học kỳ này hiện không mở cho phép tạo Lớp học phần mới.");
         }
 
-        // Determine offering code
-        String offeringCode = cmd.getCode();
+        String offeringCode = cmd.code();
         if (offeringCode == null || offeringCode.isBlank()) {
             long existingCount = offeringRepository.countBySubjectIdAndSemesterId(
                     subject.getId(), semester.getId());
@@ -75,22 +60,19 @@ public class CourseOfferingService {
             }
         }
 
-        String offeringName = cmd.getName();
+        String offeringName = cmd.name();
         if (offeringName == null || offeringName.isBlank()) {
             offeringName = subject.getName() + " (" + offeringCode + ")";
         } else {
             offeringName = offeringName.trim();
         }
 
-        // Generate Join Code and SHA-256 hash
         String rawJoinCode = JoinCodeUtils.generateRandomCode(subject.getCode(), 6);
         String joinCodeHash = JoinCodeUtils.sha256Hex(rawJoinCode);
         String joinCodeHint = JoinCodeUtils.extractHint(rawJoinCode);
 
-        String offeringId = "offering_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-
         CourseOffering offering = new CourseOffering(
-                offeringId,
+                UUID.randomUUID(),
                 subject.getId(),
                 semester.getId(),
                 teacherId,
@@ -104,19 +86,8 @@ public class CourseOfferingService {
         return new CreatedCourseOfferingResult(saved, rawJoinCode);
     }
 
-    /**
-     * Updates metadata of an ACTIVE offering owned by the authenticated teacher.
-     *
-     * Contract:
-     * - args: teacherId (required), offeringId (required), command (required).
-     * - input: command supplies code and/or name; null fields remain unchanged.
-     * - output: updated CourseOffering, persisted in the current transaction.
-     * - errors: ResourceNotFoundException COURSE_NOT_FOUND; ForbiddenException
-     *   FORBIDDEN; ValidationException NO_FIELDS_TO_UPDATE; ConflictException
-     *   COURSE_LOCKED or COURSE_CODE_EXISTS.
-     */
     @Transactional
-    public CourseOffering updateCourseOffering(String teacherId, String offeringId,
+    public CourseOffering updateCourseOffering(UUID teacherId, UUID offeringId,
                                                UpdateCourseOfferingCommand command) {
         if (command == null || ((command.code() == null || command.code().isBlank())
                 && (command.name() == null || command.name().isBlank()))) {
@@ -154,20 +125,8 @@ public class CourseOfferingService {
         return offeringRepository.save(offering);
     }
 
-    /**
-     * Regenerates a new Join Code for an existing Course Offering owned by the teacher.
-     *
-     * Contract:
-     * - args: teacherId (String, required), offeringId (String, required)
-     * - input: Teacher owns the offering. Offering is ACTIVE.
-     * - output: String new raw Join Code
-     * - errors:
-     *     - ResourceNotFoundException: COURSE_NOT_FOUND
-     *     - ForbiddenException: FORBIDDEN
-     *     - ConflictException: COURSE_LOCKED
-     */
     @Transactional
-    public String regenerateJoinCode(String teacherId, String offeringId) {
+    public String regenerateJoinCode(UUID teacherId, UUID offeringId) {
         CourseOffering offering = offeringRepository.findById(offeringId)
                 .orElseThrow(() -> new ResourceNotFoundException("COURSE_NOT_FOUND", "Không tìm thấy Lớp học phần."));
 
@@ -189,11 +148,8 @@ public class CourseOfferingService {
         return rawCode;
     }
 
-    /**
-     * Toggles whether the offering accepts new join requests.
-     */
     @Transactional
-    public CourseOffering toggleJoinCode(String teacherId, String offeringId, boolean enabled) {
+    public CourseOffering toggleJoinCode(UUID teacherId, UUID offeringId, boolean enabled) {
         CourseOffering offering = offeringRepository.findById(offeringId)
                 .orElseThrow(() -> new ResourceNotFoundException("COURSE_NOT_FOUND", "Không tìm thấy Lớp học phần."));
 
@@ -210,11 +166,8 @@ public class CourseOfferingService {
         return offeringRepository.save(offering);
     }
 
-    /**
-     * Archives a Course Offering when semester concludes.
-     */
     @Transactional
-    public CourseOffering archiveOffering(String teacherId, String offeringId) {
+    public CourseOffering archiveOffering(UUID teacherId, UUID offeringId) {
         CourseOffering offering = offeringRepository.findById(offeringId)
                 .orElseThrow(() -> new ResourceNotFoundException("COURSE_NOT_FOUND", "Không tìm thấy Lớp học phần."));
 
@@ -231,12 +184,9 @@ public class CourseOfferingService {
         return offeringRepository.save(offering);
     }
 
-    /**
-     * Retrieves all offerings belonging to a Teacher with optional filters.
-     */
     @Transactional(readOnly = true)
-    public List<CourseOffering> getTeacherOfferings(String teacherId, String semesterId, CourseOfferingStatus status) {
-        if (semesterId != null && !semesterId.isBlank()) {
+    public List<CourseOffering> getTeacherOfferings(UUID teacherId, UUID semesterId, CourseOfferingStatus status) {
+        if (semesterId != null) {
             return offeringRepository.findByTeacherIdAndSemesterId(teacherId, semesterId);
         }
         if (status != null) {
@@ -245,11 +195,8 @@ public class CourseOfferingService {
         return offeringRepository.findByTeacherId(teacherId);
     }
 
-    /**
-     * Retrieves a single offering by ID.
-     */
     @Transactional(readOnly = true)
-    public CourseOffering getOfferingById(String offeringId) {
+    public CourseOffering getOfferingById(UUID offeringId) {
         return offeringRepository.findById(offeringId)
                 .orElseThrow(() -> new ResourceNotFoundException("COURSE_NOT_FOUND", "Không tìm thấy Lớp học phần."));
     }

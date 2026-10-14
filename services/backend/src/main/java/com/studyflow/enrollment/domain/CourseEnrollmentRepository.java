@@ -3,26 +3,28 @@ package com.studyflow.enrollment.domain;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface CourseEnrollmentRepository extends JpaRepository<CourseEnrollment, String> {
+public interface CourseEnrollmentRepository extends JpaRepository<CourseEnrollment, UUID> {
 
-    Optional<CourseEnrollment> findByCourseOfferingIdAndStudentId(String courseOfferingId, String studentId);
+    Optional<CourseEnrollment> findByCourseOfferingIdAndStudentId(UUID courseOfferingId, UUID studentId);
 
-    List<CourseEnrollment> findByCourseOfferingIdAndStatus(String courseOfferingId, EnrollmentStatus status);
+    List<CourseEnrollment> findByCourseOfferingIdAndStatus(UUID courseOfferingId, EnrollmentStatus status);
 
-    List<CourseEnrollment> findByCourseOfferingId(String courseOfferingId);
+    List<CourseEnrollment> findByCourseOfferingId(UUID courseOfferingId);
 
-    List<CourseEnrollment> findByStudentIdAndStatus(String studentId, EnrollmentStatus status);
+    List<CourseEnrollment> findByStudentIdAndStatus(UUID studentId, EnrollmentStatus status);
 
-    List<CourseEnrollment> findByStudentIdAndCourseOfferingIdIn(String studentId, List<String> courseOfferingIds);
+    List<CourseEnrollment> findByStudentIdAndCourseOfferingIdIn(UUID studentId, Collection<UUID> courseOfferingIds);
 
     List<CourseEnrollment> findByStudentIdAndStatusAndCourseOfferingIdIn(
-            String studentId, EnrollmentStatus status, List<String> courseOfferingIds);
+            UUID studentId, EnrollmentStatus status, Collection<UUID> courseOfferingIds);
 
-    List<CourseEnrollment> findByStudentId(String studentId);
+    List<CourseEnrollment> findByStudentId(UUID studentId);
 
-    long countByCourseOfferingIdAndStatus(String courseOfferingId, EnrollmentStatus status);
+    long countByCourseOfferingIdAndStatus(UUID courseOfferingId, EnrollmentStatus status);
 }

@@ -4,21 +4,25 @@ import com.studyflow.academic.domain.Semester;
 import com.studyflow.academic.domain.SemesterRepository;
 import com.studyflow.academic.domain.Subject;
 import com.studyflow.academic.domain.SubjectRepository;
+import com.studyflow.auth.application.port.UserAccountStore;
+import com.studyflow.common.exception.ApiException;
 import com.studyflow.common.exception.ForbiddenException;
-import com.studyflow.common.security.SecurityUtils;
 import com.studyflow.courseoffering.application.CourseOfferingService;
 import com.studyflow.courseoffering.domain.CourseOffering;
 import com.studyflow.courseoffering.domain.CourseOfferingStatus;
 import com.studyflow.courseoffering.dto.StudentCourseOfferingResponse;
 import com.studyflow.enrollment.application.CourseEnrollmentService;
-import com.studyflow.user.domain.User;
-import com.studyflow.user.domain.UserRepository;
+import com.studyflow.user.domain.UserAccount;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -30,74 +34,100 @@ public class StudentCourseOfferingController {
     private final CourseOfferingService offeringService;
     private final SubjectRepository subjectRepository;
     private final SemesterRepository semesterRepository;
-    private final UserRepository userRepository;
+    private final UserAccountStore userAccountStore;
 
     public StudentCourseOfferingController(CourseEnrollmentService enrollmentService,
                                            CourseOfferingService offeringService,
                                            SubjectRepository subjectRepository,
                                            SemesterRepository semesterRepository,
-                                           UserRepository userRepository) {
+                                           UserAccountStore userAccountStore) {
         this.enrollmentService = enrollmentService;
         this.offeringService = offeringService;
         this.subjectRepository = subjectRepository;
         this.semesterRepository = semesterRepository;
-        this.userRepository = userRepository;
+        this.userAccountStore = userAccountStore;
+    }
+
+    private static UUID userId(Jwt jwt) {
+        if (jwt == null || jwt.getSubject() == null) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_SESSION", "Phiên đăng nhập không hợp lệ");
+        }
+        try {
+            return UUID.fromString(jwt.getSubject());
+        } catch (IllegalArgumentException exception) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_SESSION", "Phiên đăng nhập không hợp lệ");
+        }
     }
 
     @GetMapping
     public ResponseEntity<List<StudentCourseOfferingResponse>> getApprovedOfferings(
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(value = "status", required = false) CourseOfferingStatus status) {
-        String studentId = SecurityUtils.getCurrentUserId();
+        UUID studentId = userId(jwt);
         List<CourseOffering> offerings = enrollmentService.getStudentApprovedOfferings(studentId);
 
         if (status != null) {
             offerings = offerings.stream().filter(o -> o.getStatus() == status).collect(Collectors.toList());
         }
 
-        List<String> subjectIds = offerings.stream()
+        List<UUID> subjectIds = offerings.stream()
                 .map(CourseOffering::getSubjectId)
                 .distinct()
                 .collect(Collectors.toList());
-        List<String> semesterIds = offerings.stream()
+        List<UUID> semesterIds = offerings.stream()
                 .map(CourseOffering::getSemesterId)
                 .distinct()
                 .collect(Collectors.toList());
-        List<String> teacherIds = offerings.stream()
+        List<UUID> teacherIds = offerings.stream()
                 .map(CourseOffering::getTeacherId)
                 .distinct()
                 .collect(Collectors.toList());
 
-        Map<String, Subject> subjectMap = subjectRepository.findAllById(subjectIds).stream()
+        Map<UUID, Subject> subjectMap = subjectRepository.findAllById(subjectIds).stream()
                 .collect(Collectors.toMap(Subject::getId, s -> s, (s1, s2) -> s1));
-        Map<String, Semester> semesterMap = semesterRepository.findAllById(semesterIds).stream()
+        Map<UUID, Semester> semesterMap = semesterRepository.findAllById(semesterIds).stream()
                 .collect(Collectors.toMap(Semester::getId, s -> s, (s1, s2) -> s1));
-        Map<String, User> userMap = userRepository.findAllById(teacherIds).stream()
-                .collect(Collectors.toMap(User::getId, u -> u, (u1, u2) -> u1));
+        Map<UUID, UserAccount> teacherMap = userAccountStore.findAllByIdIn(teacherIds).stream()
+                .collect(Collectors.toMap(UserAccount::id, u -> u, (u1, u2) -> u1));
 
         List<StudentCourseOfferingResponse> responseList = offerings.stream()
-                .map(o -> StudentCourseOfferingResponse.from(
-                        o,
-                        subjectMap.get(o.getSubjectId()),
-                        semesterMap.get(o.getSemesterId()),
-                        userMap.get(o.getTeacherId())
-                ))
+                .map(o -> {
+                    UserAccount teacher = teacherMap.get(o.getTeacherId());
+                    return StudentCourseOfferingResponse.fromEntity(
+                            o,
+                            subjectMap.get(o.getSubjectId()),
+                            semesterMap.get(o.getSemesterId()),
+                            teacher != null ? teacher.fullName() : null,
+                            teacher != null ? teacher.email() : null
+                    );
+                })
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(responseList);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<StudentCourseOfferingResponse> getOfferingDetail(@PathVariable("id") String offeringId) {
-        String studentId = SecurityUtils.getCurrentUserId();
-        if (!enrollmentService.isStudentApproved(studentId, offeringId)) {
-            throw new ForbiddenException("ENROLLMENT_REQUIRED", "Bạn chưa được duyệt vào lớp học phần này.");
+    public ResponseEntity<StudentCourseOfferingResponse> getOfferingDetail(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID id) {
+        UUID studentId = userId(jwt);
+        if (!enrollmentService.isStudentApproved(studentId, id)) {
+            throw new ForbiddenException("FORBIDDEN", "Bạn chưa được duyệt tham gia lớp học phần này.");
         }
 
-        CourseOffering offering = offeringService.getOfferingById(offeringId);
+        CourseOffering offering = offeringService.getOfferingById(id);
         Subject subject = subjectRepository.findById(offering.getSubjectId()).orElse(null);
         Semester semester = semesterRepository.findById(offering.getSemesterId()).orElse(null);
-        User teacher = userRepository.findById(offering.getTeacherId()).orElse(null);
+        UserAccount teacher = userAccountStore.findById(offering.getTeacherId()).orElse(null);
 
-        return ResponseEntity.ok(StudentCourseOfferingResponse.from(offering, subject, semester, teacher));
+        StudentCourseOfferingResponse response = StudentCourseOfferingResponse.fromEntity(
+                offering,
+                subject,
+                semester,
+                teacher != null ? teacher.fullName() : null,
+                teacher != null ? teacher.email() : null
+        );
+
+        return ResponseEntity.ok(response);
     }
 }

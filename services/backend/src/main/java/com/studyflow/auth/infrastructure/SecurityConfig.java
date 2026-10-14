@@ -21,6 +21,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -40,6 +41,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/v1/auth/**", "/actuator/health").permitAll()
+                        .requestMatchers("/api/v1/catalog/**").permitAll()
                         .requestMatchers("/api/v1/student/**").hasRole("STUDENT")
                         .requestMatchers(
                                 "/api/v1/study-plans/**",
@@ -103,12 +105,19 @@ public class SecurityConfig {
 
     @Bean
     BearerTokenResolver bearerTokenResolver() {
-        return request -> request.getCookies() == null
-                ? null
-                : Arrays.stream(request.getCookies())
-                        .filter(cookie -> "SF_ACCESS".equals(cookie.getName()))
-                        .map(Cookie::getValue)
-                        .findFirst()
-                        .orElse(null);
+        DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
+        return request -> {
+            String token = defaultResolver.resolve(request);
+            if (token != null) {
+                return token;
+            }
+            return request.getCookies() == null
+                    ? null
+                    : Arrays.stream(request.getCookies())
+                            .filter(cookie -> "SF_ACCESS".equals(cookie.getName()))
+                            .map(Cookie::getValue)
+                            .findFirst()
+                            .orElse(null);
+        };
     }
 }

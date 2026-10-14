@@ -6,8 +6,6 @@ import com.studyflow.academic.domain.SemesterRepository;
 import com.studyflow.academic.domain.SemesterStatus;
 import com.studyflow.academic.domain.Subject;
 import com.studyflow.academic.domain.SubjectRepository;
-import com.studyflow.common.security.UserPrincipal;
-import com.studyflow.common.security.UserRole;
 import com.studyflow.courseoffering.application.CourseOfferingService;
 import com.studyflow.courseoffering.application.CreateCourseOfferingCommand;
 import com.studyflow.courseoffering.application.CreatedCourseOfferingResult;
@@ -16,22 +14,27 @@ import com.studyflow.courseoffering.domain.CourseOffering;
 import com.studyflow.courseoffering.dto.CreateCourseOfferingRequest;
 import com.studyflow.courseoffering.dto.ToggleJoinCodeRequest;
 import com.studyflow.courseoffering.dto.UpdateCourseOfferingRequest;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.support.WebDataBinderFactory;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.method.support.ModelAndViewContainer;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -42,6 +45,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ExtendWith(MockitoExtension.class)
 class TeacherCourseOfferingControllerTest {
+
+    private static final UUID TEACHER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final UUID SUBJECT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private static final UUID SEMESTER_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    private static final UUID OFFERING_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
 
     private MockMvc mockMvc;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -55,127 +63,127 @@ class TeacherCourseOfferingControllerTest {
     @Mock
     private SemesterRepository semesterRepository;
 
-    private UserPrincipal teacherPrincipal;
+    private Jwt mockJwt;
 
     @BeforeEach
     void setUp() {
         TeacherCourseOfferingController controller = new TeacherCourseOfferingController(
                 offeringService, subjectRepository, semesterRepository
         );
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
 
-        teacherPrincipal = UserPrincipal.builder()
-                .id("usr_teacher_01")
-                .email("teacher@ptit.edu.vn")
-                .displayName("Giảng viên PTIT")
-                .role(UserRole.TEACHER)
+        mockJwt = Jwt.withTokenValue("mock-jwt-token")
+                .header("alg", "none")
+                .subject(TEACHER_ID.toString())
+                .claim("role", "TEACHER")
                 .build();
 
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(teacherPrincipal, "password", teacherPrincipal.getAuthorities())
-        );
-    }
+        HandlerMethodArgumentResolver jwtResolver = new HandlerMethodArgumentResolver() {
+            @Override
+            public boolean supportsParameter(MethodParameter parameter) {
+                return parameter.hasParameterAnnotation(AuthenticationPrincipal.class)
+                        && parameter.getParameterType().isAssignableFrom(Jwt.class);
+            }
 
-    @AfterEach
-    void tearDown() {
-        SecurityContextHolder.clearContext();
+            @Override
+            public Object resolveArgument(MethodParameter parameter,
+                                          ModelAndViewContainer mavContainer,
+                                          NativeWebRequest webRequest,
+                                          WebDataBinderFactory binderFactory) {
+                return mockJwt;
+            }
+        };
+
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setCustomArgumentResolvers(jwtResolver)
+                .build();
     }
 
     @Test
     @DisplayName("Teacher creates course offering and receives 201 Created with raw join code")
     void teacherCanCreateOffering() throws Exception {
         CourseOffering offering = new CourseOffering(
-                "off_01", "subj_dbi", "sem_2026_1", "usr_teacher_01",
+                OFFERING_ID, SUBJECT_ID, SEMESTER_ID, TEACHER_ID,
                 "DBI-01", "Cơ sở dữ liệu", "hash123", "CD12"
         );
         CreatedCourseOfferingResult result = new CreatedCourseOfferingResult(offering, "INT1340-ABCD12");
 
-        Subject subject = new Subject("subj_dbi", "INT1340", "Cơ sở dữ liệu", 3, "CSDL", "ACTIVE");
-        Semester semester = new Semester("sem_2026_1", "2026_1", "Học kỳ 1", "2026-2027",
+        Subject subject = new Subject(SUBJECT_ID, "INT1340", "Cơ sở dữ liệu", 3, "CSDL", "ACTIVE");
+        Semester semester = new Semester(SEMESTER_ID, "2026_1", "Học kỳ 1", "2026-2027",
                 LocalDate.of(2026, 9, 1), LocalDate.of(2027, 1, 15), SemesterStatus.ACTIVE, true);
 
-        when(offeringService.createCourseOffering(eq("usr_teacher_01"), any(CreateCourseOfferingCommand.class)))
+        when(offeringService.createCourseOffering(eq(TEACHER_ID), any(CreateCourseOfferingCommand.class)))
                 .thenReturn(result);
-        when(subjectRepository.findById("subj_dbi")).thenReturn(Optional.of(subject));
-        when(semesterRepository.findById("sem_2026_1")).thenReturn(Optional.of(semester));
+        when(subjectRepository.findById(SUBJECT_ID)).thenReturn(Optional.of(subject));
+        when(semesterRepository.findById(SEMESTER_ID)).thenReturn(Optional.of(semester));
 
         CreateCourseOfferingRequest req = new CreateCourseOfferingRequest(
-                "subj_dbi", "sem_2026_1", "DBI-01", "Cơ sở dữ liệu"
+                SUBJECT_ID, SEMESTER_ID, "DBI-01", "Cơ sở dữ liệu"
         );
 
         mockMvc.perform(post("/api/v1/teacher/course-offerings")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value("off_01"))
                 .andExpect(jsonPath("$.code").value("DBI-01"))
                 .andExpect(jsonPath("$.rawJoinCode").value("INT1340-ABCD12"))
-                .andExpect(jsonPath("$.status").value("ACTIVE"));
+                .andExpect(jsonPath("$.joinCodeHint").value("CD12"));
     }
 
     @Test
-    @DisplayName("Teacher lists course offerings and receives 200 OK")
+    @DisplayName("Teacher lists course offerings with status filter")
     void teacherCanListOfferings() throws Exception {
         CourseOffering offering = new CourseOffering(
-                "off_01", "subj_dbi", "sem_2026_1", "usr_teacher_01",
+                OFFERING_ID, SUBJECT_ID, SEMESTER_ID, TEACHER_ID,
                 "DBI-01", "Cơ sở dữ liệu", "hash123", "CD12"
         );
-        Subject subject = new Subject("subj_dbi", "INT1340", "Cơ sở dữ liệu", 3, "CSDL", "ACTIVE");
-        Semester semester = new Semester("sem_2026_1", "2026_1", "Học kỳ 1", "2026-2027",
+        Subject subject = new Subject(SUBJECT_ID, "INT1340", "Cơ sở dữ liệu", 3, "CSDL", "ACTIVE");
+        Semester semester = new Semester(SEMESTER_ID, "2026_1", "Học kỳ 1", "2026-2027",
                 LocalDate.of(2026, 9, 1), LocalDate.of(2027, 1, 15), SemesterStatus.ACTIVE, true);
 
-        when(offeringService.getTeacherOfferings(eq("usr_teacher_01"), any(), any()))
+        when(offeringService.getTeacherOfferings(TEACHER_ID, null, null))
                 .thenReturn(List.of(offering));
-        when(subjectRepository.findAllById(List.of("subj_dbi"))).thenReturn(List.of(subject));
-        when(semesterRepository.findAllById(List.of("sem_2026_1"))).thenReturn(List.of(semester));
+        when(subjectRepository.findAllById(List.of(SUBJECT_ID))).thenReturn(List.of(subject));
+        when(semesterRepository.findAllById(List.of(SEMESTER_ID))).thenReturn(List.of(semester));
 
         mockMvc.perform(get("/api/v1/teacher/course-offerings"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("off_01"))
-                .andExpect(jsonPath("$[0].code").value("DBI-01"));
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].code").value("DBI-01"))
+                .andExpect(jsonPath("$[0].rawJoinCode").doesNotExist());
     }
 
     @Test
-    @DisplayName("Teacher toggles join code availability and receives 200 OK")
-    void teacherCanToggleJoinCode() throws Exception {
-        CourseOffering offering = new CourseOffering(
-                "off_01", "subj_dbi", "sem_2026_1", "usr_teacher_01",
-                "DBI-01", "Cơ sở dữ liệu", "hash123", "CD12"
+    @DisplayName("Teacher regenerates join code successfully")
+    void teacherCanRegenerateJoinCode() throws Exception {
+        CourseOffering updated = new CourseOffering(
+                OFFERING_ID, SUBJECT_ID, SEMESTER_ID, TEACHER_ID,
+                "DBI-01", "Cơ sở dữ liệu", "new_hash", "EF34"
         );
-        offering.toggleJoinCode(false);
+        when(offeringService.regenerateJoinCode(TEACHER_ID, OFFERING_ID)).thenReturn("INT1340-WXYZ34");
+        when(offeringService.getOfferingById(OFFERING_ID)).thenReturn(updated);
 
-        when(offeringService.toggleJoinCode("usr_teacher_01", "off_01", false))
-                .thenReturn(offering);
-        when(subjectRepository.findById("subj_dbi")).thenReturn(Optional.empty());
-        when(semesterRepository.findById("sem_2026_1")).thenReturn(Optional.empty());
-
-        ToggleJoinCodeRequest req = new ToggleJoinCodeRequest(false);
-
-        mockMvc.perform(patch("/api/v1/teacher/course-offerings/off_01/join-code")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+        mockMvc.perform(post("/api/v1/teacher/course-offerings/" + OFFERING_ID + "/join-code/regenerate"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.joinCodeActive").value(false));
+                .andExpect(jsonPath("$.rawJoinCode").value("INT1340-WXYZ34"))
+                .andExpect(jsonPath("$.joinCodeHint").value("EF34"));
     }
 
     @Test
     @DisplayName("Teacher updates offering metadata with PATCH")
     void teacherCanUpdateOfferingMetadata() throws Exception {
         CourseOffering offering = new CourseOffering(
-                "off_01", "subj_dbi", "sem_2026_1", "usr_teacher_01",
+                OFFERING_ID, SUBJECT_ID, SEMESTER_ID, TEACHER_ID,
                 "DBI-02", "CSDL mới", "hash123", "CD12"
         );
         when(offeringService.updateCourseOffering(
-                eq("usr_teacher_01"), eq("off_01"), any(UpdateCourseOfferingCommand.class)
+                eq(TEACHER_ID), eq(OFFERING_ID), any(UpdateCourseOfferingCommand.class)
         )).thenReturn(offering);
-        when(subjectRepository.findById("subj_dbi")).thenReturn(Optional.empty());
-        when(semesterRepository.findById("sem_2026_1")).thenReturn(Optional.empty());
+        when(subjectRepository.findById(SUBJECT_ID)).thenReturn(Optional.empty());
+        when(semesterRepository.findById(SEMESTER_ID)).thenReturn(Optional.empty());
 
-        UpdateCourseOfferingRequest req = new UpdateCourseOfferingRequest();
-        req.setCode("DBI-02");
-        req.setName("CSDL mới");
+        UpdateCourseOfferingRequest req = new UpdateCourseOfferingRequest("DBI-02", "CSDL mới");
 
-        mockMvc.perform(patch("/api/v1/teacher/course-offerings/off_01")
+        mockMvc.perform(patch("/api/v1/teacher/course-offerings/" + OFFERING_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())

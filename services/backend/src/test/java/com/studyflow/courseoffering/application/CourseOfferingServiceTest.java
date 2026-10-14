@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -27,6 +28,12 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CourseOfferingServiceTest {
+
+    private static final UUID TEACHER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final UUID OTHER_TEACHER_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private static final UUID SUBJECT_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    private static final UUID SEMESTER_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
+    private static final UUID OFFERING_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
 
     @Mock
     private CourseOfferingRepository offeringRepository;
@@ -46,8 +53,8 @@ class CourseOfferingServiceTest {
     void setUp() {
         offeringService = new CourseOfferingService(offeringRepository, subjectRepository, semesterRepository);
 
-        mockSubject = new Subject("subj_dbi", "INT1340", "Cơ sở dữ liệu", 3, "Mô tả CSDL", "ACTIVE");
-        mockSemester = new Semester("sem_2026_1", "2026_1", "Học kỳ 1 2026-2027", "2026-2027",
+        mockSubject = new Subject(SUBJECT_ID, "INT1340", "Cơ sở dữ liệu", 3, "Mô tả CSDL", "ACTIVE");
+        mockSemester = new Semester(SEMESTER_ID, "2026_1", "Học kỳ 1 2026-2027", "2026-2027",
                 LocalDate.of(2026, 9, 1), LocalDate.of(2027, 1, 15),
                 SemesterStatus.ACTIVE, true);
     }
@@ -55,22 +62,22 @@ class CourseOfferingServiceTest {
     @Test
     @DisplayName("Should successfully create Course Offering and return plain join code")
     void shouldCreateCourseOfferingSuccessfully() {
-        when(subjectRepository.findById("subj_dbi")).thenReturn(Optional.of(mockSubject));
-        when(semesterRepository.findById("sem_2026_1")).thenReturn(Optional.of(mockSemester));
-        when(offeringRepository.existsBySemesterIdAndCode("sem_2026_1", "DBI-01")).thenReturn(false);
+        when(subjectRepository.findById(SUBJECT_ID)).thenReturn(Optional.of(mockSubject));
+        when(semesterRepository.findById(SEMESTER_ID)).thenReturn(Optional.of(mockSemester));
+        when(offeringRepository.existsBySemesterIdAndCode(SEMESTER_ID, "DBI-01")).thenReturn(false);
         when(offeringRepository.save(any(CourseOffering.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CreateCourseOfferingCommand cmd = new CreateCourseOfferingCommand(
-                "subj_dbi", "sem_2026_1", "DBI-01", "Cơ sở dữ liệu - Lớp 01"
+                SUBJECT_ID, SEMESTER_ID, "DBI-01", "Cơ sở dữ liệu - Lớp 01"
         );
 
-        CreatedCourseOfferingResult result = offeringService.createCourseOffering("teacher_01", cmd);
+        CreatedCourseOfferingResult result = offeringService.createCourseOffering(TEACHER_ID, cmd);
 
         assertNotNull(result);
         assertNotNull(result.getRawJoinCode());
         assertTrue(result.getRawJoinCode().startsWith("INT1340-"));
         assertEquals("DBI-01", result.getOffering().getCode());
-        assertEquals("teacher_01", result.getOffering().getTeacherId());
+        assertEquals(TEACHER_ID, result.getOffering().getTeacherId());
         assertEquals(CourseOfferingStatus.ACTIVE, result.getOffering().getStatus());
         assertTrue(result.getOffering().isJoinEnabled());
 
@@ -81,15 +88,15 @@ class CourseOfferingServiceTest {
     @DisplayName("Should reject creating offering when semester is CLOSED")
     void shouldRejectWhenSemesterNotActive() {
         mockSemester.setStatus(SemesterStatus.CLOSED);
-        when(subjectRepository.findById("subj_dbi")).thenReturn(Optional.of(mockSubject));
-        when(semesterRepository.findById("sem_2026_1")).thenReturn(Optional.of(mockSemester));
+        when(subjectRepository.findById(SUBJECT_ID)).thenReturn(Optional.of(mockSubject));
+        when(semesterRepository.findById(SEMESTER_ID)).thenReturn(Optional.of(mockSemester));
 
         CreateCourseOfferingCommand cmd = new CreateCourseOfferingCommand(
-                "subj_dbi", "sem_2026_1", "DBI-01", "Lớp CSDL"
+                SUBJECT_ID, SEMESTER_ID, "DBI-01", "Lớp CSDL"
         );
 
         ConflictException ex = assertThrows(ConflictException.class, () ->
-                offeringService.createCourseOffering("teacher_01", cmd)
+                offeringService.createCourseOffering(TEACHER_ID, cmd)
         );
         assertEquals("SEMESTER_NOT_ACTIVE", ex.getErrorCode());
         verify(offeringRepository, never()).save(any());
@@ -98,16 +105,16 @@ class CourseOfferingServiceTest {
     @Test
     @DisplayName("Should reject creating offering when code already exists in semester")
     void shouldRejectDuplicateOfferingCode() {
-        when(subjectRepository.findById("subj_dbi")).thenReturn(Optional.of(mockSubject));
-        when(semesterRepository.findById("sem_2026_1")).thenReturn(Optional.of(mockSemester));
-        when(offeringRepository.existsBySemesterIdAndCode("sem_2026_1", "DBI-01")).thenReturn(true);
+        when(subjectRepository.findById(SUBJECT_ID)).thenReturn(Optional.of(mockSubject));
+        when(semesterRepository.findById(SEMESTER_ID)).thenReturn(Optional.of(mockSemester));
+        when(offeringRepository.existsBySemesterIdAndCode(SEMESTER_ID, "DBI-01")).thenReturn(true);
 
         CreateCourseOfferingCommand cmd = new CreateCourseOfferingCommand(
-                "subj_dbi", "sem_2026_1", "DBI-01", "Lớp CSDL"
+                SUBJECT_ID, SEMESTER_ID, "DBI-01", "Lớp CSDL"
         );
 
         ConflictException ex = assertThrows(ConflictException.class, () ->
-                offeringService.createCourseOffering("teacher_01", cmd)
+                offeringService.createCourseOffering(TEACHER_ID, cmd)
         );
         assertEquals("COURSE_CODE_EXISTS", ex.getErrorCode());
     }
@@ -116,12 +123,12 @@ class CourseOfferingServiceTest {
     @DisplayName("Should regenerate Join Code when teacher owns the class")
     void shouldRegenerateJoinCode() {
         CourseOffering offering = new CourseOffering(
-                "off_01", "subj_dbi", "sem_2026_1", "teacher_01",
+                OFFERING_ID, SUBJECT_ID, SEMESTER_ID, TEACHER_ID,
                 "DBI-01", "CSDL", "old_hash", "OLD1"
         );
-        when(offeringRepository.findById("off_01")).thenReturn(Optional.of(offering));
+        when(offeringRepository.findById(OFFERING_ID)).thenReturn(Optional.of(offering));
 
-        String newRawCode = offeringService.regenerateJoinCode("teacher_01", "off_01");
+        String newRawCode = offeringService.regenerateJoinCode(TEACHER_ID, OFFERING_ID);
 
         assertNotNull(newRawCode);
         assertNotEquals("old_hash", offering.getJoinCodeHash());
@@ -132,13 +139,13 @@ class CourseOfferingServiceTest {
     @DisplayName("Should forbid other teacher from regenerating join code")
     void shouldForbidNonOwnerRegeneratingJoinCode() {
         CourseOffering offering = new CourseOffering(
-                "off_01", "subj_dbi", "sem_2026_1", "teacher_01",
+                OFFERING_ID, SUBJECT_ID, SEMESTER_ID, TEACHER_ID,
                 "DBI-01", "CSDL", "old_hash", "OLD1"
         );
-        when(offeringRepository.findById("off_01")).thenReturn(Optional.of(offering));
+        when(offeringRepository.findById(OFFERING_ID)).thenReturn(Optional.of(offering));
 
         assertThrows(ForbiddenException.class, () ->
-                offeringService.regenerateJoinCode("intruder_teacher", "off_01")
+                offeringService.regenerateJoinCode(OTHER_TEACHER_ID, OFFERING_ID)
         );
         verify(offeringRepository, never()).save(any());
     }
@@ -147,13 +154,13 @@ class CourseOfferingServiceTest {
     @DisplayName("Should toggle join enabled flag")
     void shouldToggleJoinCode() {
         CourseOffering offering = new CourseOffering(
-                "off_01", "subj_dbi", "sem_2026_1", "teacher_01",
+                OFFERING_ID, SUBJECT_ID, SEMESTER_ID, TEACHER_ID,
                 "DBI-01", "CSDL", "hash", "HINT"
         );
-        when(offeringRepository.findById("off_01")).thenReturn(Optional.of(offering));
+        when(offeringRepository.findById(OFFERING_ID)).thenReturn(Optional.of(offering));
         when(offeringRepository.save(any(CourseOffering.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        CourseOffering result = offeringService.toggleJoinCode("teacher_01", "off_01", false);
+        CourseOffering result = offeringService.toggleJoinCode(TEACHER_ID, OFFERING_ID, false);
         assertFalse(result.isJoinEnabled());
 
         verify(offeringRepository, times(1)).save(offering);
@@ -162,37 +169,37 @@ class CourseOfferingServiceTest {
     @Test
     @DisplayName("Should generate the first code per subject and semester")
     void shouldGenerateCodePerSubjectAndSemester() {
-        when(subjectRepository.findById("subj_dbi")).thenReturn(Optional.of(mockSubject));
-        when(semesterRepository.findById("sem_2026_1")).thenReturn(Optional.of(mockSemester));
-        when(offeringRepository.countBySubjectIdAndSemesterId("subj_dbi", "sem_2026_1"))
+        when(subjectRepository.findById(SUBJECT_ID)).thenReturn(Optional.of(mockSubject));
+        when(semesterRepository.findById(SEMESTER_ID)).thenReturn(Optional.of(mockSemester));
+        when(offeringRepository.countBySubjectIdAndSemesterId(SUBJECT_ID, SEMESTER_ID))
                 .thenReturn(0L);
-        when(offeringRepository.existsBySemesterIdAndCode("sem_2026_1", "INT1340_01"))
+        when(offeringRepository.existsBySemesterIdAndCode(SEMESTER_ID, "INT1340_01"))
                 .thenReturn(false);
         when(offeringRepository.save(any(CourseOffering.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CreatedCourseOfferingResult result = offeringService.createCourseOffering(
-                "teacher_01",
-                new CreateCourseOfferingCommand("subj_dbi", "sem_2026_1", null, null)
+                TEACHER_ID,
+                new CreateCourseOfferingCommand(SUBJECT_ID, SEMESTER_ID, null, null)
         );
 
         assertEquals("INT1340_01", result.getOffering().getCode());
-        verify(offeringRepository).countBySubjectIdAndSemesterId("subj_dbi", "sem_2026_1");
+        verify(offeringRepository).countBySubjectIdAndSemesterId(SUBJECT_ID, SEMESTER_ID);
     }
 
     @Test
     @DisplayName("Should update metadata for the owner")
     void shouldUpdateMetadataForOwner() {
         CourseOffering offering = new CourseOffering(
-                "off_01", "subj_dbi", "sem_2026_1", "teacher_01",
+                OFFERING_ID, SUBJECT_ID, SEMESTER_ID, TEACHER_ID,
                 "DBI-01", "CSDL", "hash", "HINT"
         );
-        when(offeringRepository.findById("off_01")).thenReturn(Optional.of(offering));
-        when(offeringRepository.existsBySemesterIdAndCodeAndIdNot("sem_2026_1", "DBI-02", "off_01"))
+        when(offeringRepository.findById(OFFERING_ID)).thenReturn(Optional.of(offering));
+        when(offeringRepository.existsBySemesterIdAndCodeAndIdNot(SEMESTER_ID, "DBI-02", OFFERING_ID))
                 .thenReturn(false);
         when(offeringRepository.save(offering)).thenReturn(offering);
 
         CourseOffering result = offeringService.updateCourseOffering(
-                "teacher_01", "off_01", new UpdateCourseOfferingCommand("dbi-02", " CSDL mới ")
+                TEACHER_ID, OFFERING_ID, new UpdateCourseOfferingCommand("DBI-02", "CSDL mới")
         );
 
         assertSame(offering, result);
@@ -205,7 +212,7 @@ class CourseOfferingServiceTest {
     void shouldRejectEmptyMetadataPatch() {
         ValidationException ex = assertThrows(ValidationException.class, () ->
                 offeringService.updateCourseOffering(
-                        "teacher_01", "off_01", new UpdateCourseOfferingCommand(" ", null)
+                        TEACHER_ID, OFFERING_ID, new UpdateCourseOfferingCommand(" ", null)
                 )
         );
 

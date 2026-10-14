@@ -1,61 +1,36 @@
 package com.studyflow.courseoffering.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-public class CreateCourseOfferingRequest {
+import java.util.UUID;
 
-    @NotBlank(message = "Mã môn học không được để trống")
-    private String subjectId;
+public record CreateCourseOfferingRequest(
+        @NotNull(message = "ID môn học không được để trống")
+        UUID subjectId,
 
-    @NotBlank(message = "Mã học kỳ không được để trống")
-    private String semesterId;
+        @NotNull(message = "ID học kỳ không được để trống")
+        UUID semesterId,
 
-    @Size(max = 50, message = "Mã lớp tối đa 50 ký tự")
-    private String code;
+        @NotBlank(message = "Mã lớp không được để trống")
+        @Size(max = 50, message = "Mã lớp không vượt quá 50 ký tự")
+        String code,
 
-    @Size(max = 255, message = "Tên lớp tối đa 255 ký tự")
-    private String name;
-
-    public CreateCourseOfferingRequest() {
-    }
-
-    public CreateCourseOfferingRequest(String subjectId, String semesterId, String code, String name) {
-        this.subjectId = subjectId;
-        this.semesterId = semesterId;
-        this.code = code;
-        this.name = name;
-    }
-
-    public String getSubjectId() {
+        @NotBlank(message = "Tên lớp không được để trống")
+        @Size(max = 255, message = "Tên lớp không vượt quá 255 ký tự")
+        String name
+) {
+    public UUID getSubjectId() {
         return subjectId;
     }
-
-    public void setSubjectId(String subjectId) {
-        this.subjectId = subjectId;
-    }
-
-    public String getSemesterId() {
+    public UUID getSemesterId() {
         return semesterId;
     }
-
-    public void setSemesterId(String semesterId) {
-        this.semesterId = semesterId;
-    }
-
     public String getCode() {
         return code;
     }
-
-    public void setCode(String code) {
-        this.code = code;
-    }
-
     public String getName() {
         return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 }

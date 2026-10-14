@@ -6,37 +6,32 @@ import java.util.Map;
 
 /**
  * Base typed exception encapsulating error code, HTTP status, and details.
+ * Inherits from ApiException so that common/api/GlobalExceptionHandler handles it uniformly.
  */
-public class AppException extends RuntimeException {
+public class AppException extends ApiException {
 
-    private final String code;
-    private final HttpStatus status;
     private final Map<String, Object> details;
 
     public AppException(String code, String message, HttpStatus status) {
-        super(message);
-        this.code = code;
-        this.status = status;
+        super(status, code, message);
         this.details = null;
     }
 
     public AppException(String code, String message, HttpStatus status, Map<String, Object> details) {
-        super(message);
-        this.code = code;
-        this.status = status;
+        super(status, code, message);
         this.details = details;
     }
 
     public String getCode() {
-        return code;
+        return code();
     }
 
     public String getErrorCode() {
-        return code;
+        return code();
     }
 
     public HttpStatus getStatus() {
-        return status;
+        return status();
     }
 
     public Map<String, Object> getDetails() {

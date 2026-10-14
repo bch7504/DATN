@@ -3,38 +3,24 @@ package com.studyflow.courseoffering.domain;
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.util.UUID;
 
-/**
- * Domain entity representing a Course Offering (Lớp học phần) owned by a Teacher.
- *
- * Contract:
- * - id: String UUID
- * - subjectId: String referencing Subject
- * - semesterId: String referencing Semester
- * - teacherId: String referencing User with role TEACHER
- * - code: String course section code (e.g. DBI-01)
- * - name: String course display name (e.g. Cơ sở dữ liệu - Nhóm 01)
- * - joinCodeHash: String SHA-256 hex digest for lookup
- * - joinCodeHint: String last 3-4 characters of the raw join code
- * - joinEnabled: boolean flag controlling join requests
- * - status: ACTIVE, LOCKED, ARCHIVED
- */
 @Entity
 @Table(name = "course_offerings", schema = "app")
 public class CourseOffering {
 
     @Id
-    @Column(name = "id", length = 36, nullable = false)
-    private String id;
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
-    @Column(name = "subject_id", length = 36, nullable = false)
-    private String subjectId;
+    @Column(name = "subject_id", nullable = false)
+    private UUID subjectId;
 
-    @Column(name = "semester_id", length = 36, nullable = false)
-    private String semesterId;
+    @Column(name = "semester_id", nullable = false)
+    private UUID semesterId;
 
-    @Column(name = "teacher_id", length = 36, nullable = false)
-    private String teacherId;
+    @Column(name = "teacher_id", nullable = false)
+    private UUID teacherId;
 
     @Column(name = "code", length = 50, nullable = false)
     private String code;
@@ -70,9 +56,9 @@ public class CourseOffering {
     public CourseOffering() {
     }
 
-    public CourseOffering(String id, String subjectId, String semesterId, String teacherId,
+    public CourseOffering(UUID id, UUID subjectId, UUID semesterId, UUID teacherId,
                           String code, String name, String joinCodeHash, String joinCodeHint) {
-        this.id = id;
+        this.id = id != null ? id : UUID.randomUUID();
         this.subjectId = subjectId;
         this.semesterId = semesterId;
         this.teacherId = teacherId;
@@ -86,12 +72,10 @@ public class CourseOffering {
         this.updatedAt = Instant.now();
     }
 
-    /**
-     * Domain method to update Join Code hash and hint.
-     *
-     * @param hash SHA-256 hex string
-     * @param hint Last 4 characters of raw code
-     */
+    public boolean isOwnedBy(UUID teacherId) {
+        return this.teacherId != null && this.teacherId.equals(teacherId);
+    }
+
     public void updateJoinCode(String hash, String hint) {
         ensureActive("đổi mã tham gia");
         this.joinCodeHash = hash;
@@ -99,20 +83,12 @@ public class CourseOffering {
         this.updatedAt = Instant.now();
     }
 
-    /**
-     * Domain method to toggle join availability.
-     *
-     * @param enabled boolean state
-     */
     public void toggleJoinCode(boolean enabled) {
         ensureActive("bật/tắt mã tham gia");
         this.joinEnabled = enabled;
         this.updatedAt = Instant.now();
     }
 
-    /**
-     * Domain method to archive the offering.
-     */
     public void archive() {
         ensureActive("lưu trữ lớp");
         this.status = CourseOfferingStatus.ARCHIVED;
@@ -121,9 +97,6 @@ public class CourseOffering {
         this.updatedAt = Instant.now();
     }
 
-    /**
-     * Domain method to lock the offering.
-     */
     public void lock() {
         ensureActive("khóa lớp");
         this.status = CourseOfferingStatus.LOCKED;
@@ -132,14 +105,6 @@ public class CourseOffering {
         this.updatedAt = Instant.now();
     }
 
-    /**
-     * Updates mutable teacher-facing metadata while the offering is ACTIVE.
-     *
-     * @param code normalized non-blank course section code
-     * @param name trimmed non-blank display name
-     * @throws IllegalStateException if the offering is not ACTIVE
-     * @throws IllegalArgumentException if either value is blank
-     */
     public void updateMetadata(String code, String name) {
         ensureActive("cập nhật thông tin lớp");
         if (code == null || code.isBlank()) {
@@ -160,54 +125,35 @@ public class CourseOffering {
         }
     }
 
-    /**
-     * Checks if this offering allows student join requests.
-     *
-     * @return true if status is ACTIVE and joinEnabled is true
-     */
-    public boolean isJoinable() {
-        return this.status == CourseOfferingStatus.ACTIVE && this.joinEnabled;
-    }
-
-    /**
-     * Checks if the given teacher is the owner of this offering.
-     *
-     * @param teacherId teacher ID
-     * @return true if owned by teacher
-     */
-    public boolean isOwnedBy(String teacherId) {
-        return this.teacherId != null && this.teacherId.equals(teacherId);
-    }
-
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
-    public String getSubjectId() {
+    public UUID getSubjectId() {
         return subjectId;
     }
 
-    public void setSubjectId(String subjectId) {
+    public void setSubjectId(UUID subjectId) {
         this.subjectId = subjectId;
     }
 
-    public String getSemesterId() {
+    public UUID getSemesterId() {
         return semesterId;
     }
 
-    public void setSemesterId(String semesterId) {
+    public void setSemesterId(UUID semesterId) {
         this.semesterId = semesterId;
     }
 
-    public String getTeacherId() {
+    public UUID getTeacherId() {
         return teacherId;
     }
 
-    public void setTeacherId(String teacherId) {
+    public void setTeacherId(UUID teacherId) {
         this.teacherId = teacherId;
     }
 

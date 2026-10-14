@@ -2,7 +2,7 @@ package com.studyflow.common.exception;
 
 import org.springframework.http.HttpStatus;
 
-public final class ApiException extends RuntimeException {
+public class ApiException extends RuntimeException {
 
     private final HttpStatus status;
     private final String code;

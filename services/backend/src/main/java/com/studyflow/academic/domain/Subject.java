@@ -6,24 +6,15 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.util.UUID;
 
-/**
- * Domain entity representing an academic subject (môn học).
- *
- * Contract:
- * - id: unique subject identifier (e.g. subj_dbi)
- * - code: course catalog code (e.g. INT1340)
- * - name: course display name (e.g. Cơ sở dữ liệu)
- * - credits: number of credits (credits > 0)
- * - status: ACTIVE or INACTIVE
- */
 @Entity
 @Table(name = "subjects", schema = "app")
 public class Subject {
 
     @Id
-    @Column(name = "id", length = 36, nullable = false)
-    private String id;
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
     @Column(name = "code", length = 50, nullable = false, unique = true)
     private String code;
@@ -49,8 +40,8 @@ public class Subject {
     public Subject() {
     }
 
-    public Subject(String id, String code, String name, int credits, String description, String status) {
-        this.id = id;
+    public Subject(UUID id, String code, String name, int credits, String description, String status) {
+        this.id = id != null ? id : UUID.randomUUID();
         this.code = code;
         this.name = name;
         this.credits = credits;
@@ -60,11 +51,11 @@ public class Subject {
         this.updatedAt = Instant.now();
     }
 
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

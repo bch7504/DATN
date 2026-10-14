@@ -3,34 +3,21 @@ package com.studyflow.enrollment.domain;
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.util.UUID;
 
-/**
- * Domain entity representing a student's enrollment request or approval in a Course Offering.
- *
- * Contract:
- * - id: String UUID
- * - courseOfferingId: String referencing CourseOffering
- * - studentId: String referencing User with role STUDENT
- * - status: PENDING, APPROVED, REJECTED, REMOVED
- * - requestedAt: Instant when student initiated the join request
- * - decidedAt: Instant when teacher approved/rejected
- * - decidedBy: String teacher ID who made the decision
- * - removedAt: Instant when student was removed from class (if applicable)
- * - decisionNote: Optional explanation for rejection or removal
- */
 @Entity
 @Table(name = "course_enrollments", schema = "app")
 public class CourseEnrollment {
 
     @Id
-    @Column(name = "id", length = 36, nullable = false)
-    private String id;
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
-    @Column(name = "course_offering_id", length = 36, nullable = false)
-    private String courseOfferingId;
+    @Column(name = "course_offering_id", nullable = false)
+    private UUID courseOfferingId;
 
-    @Column(name = "student_id", length = 36, nullable = false)
-    private String studentId;
+    @Column(name = "student_id", nullable = false)
+    private UUID studentId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20, nullable = false)
@@ -42,8 +29,8 @@ public class CourseEnrollment {
     @Column(name = "decided_at")
     private Instant decidedAt;
 
-    @Column(name = "decided_by", length = 36)
-    private String decidedBy;
+    @Column(name = "decided_by")
+    private UUID decidedBy;
 
     @Column(name = "removed_at")
     private Instant removedAt;
@@ -60,8 +47,8 @@ public class CourseEnrollment {
     public CourseEnrollment() {
     }
 
-    public CourseEnrollment(String id, String courseOfferingId, String studentId) {
-        this.id = id;
+    public CourseEnrollment(UUID id, UUID courseOfferingId, UUID studentId) {
+        this.id = id != null ? id : UUID.randomUUID();
         this.courseOfferingId = courseOfferingId;
         this.studentId = studentId;
         this.status = EnrollmentStatus.PENDING;
@@ -70,38 +57,28 @@ public class CourseEnrollment {
         this.updatedAt = Instant.now();
     }
 
-    /**
-     * Approves this enrollment request.
-     * Only valid from PENDING status.
-     *
-     * @param teacherId ID of the approving teacher
-     * @throws IllegalStateException if current status is not PENDING
-     */
-    public void approve(String teacherId) {
-        if (this.status != EnrollmentStatus.PENDING) {
-            throw new IllegalStateException(
-                    "Chỉ có thể duyệt đơn ở trạng thái PENDING, trạng thái hiện tại: " + this.status);
-        }
-        this.status = EnrollmentStatus.APPROVED;
-        this.decidedAt = Instant.now();
-        this.decidedBy = teacherId;
+    public boolean isApproved() {
+        return this.status == EnrollmentStatus.APPROVED;
+    }
+
+    public void reapply() {
+        this.status = EnrollmentStatus.PENDING;
+        this.requestedAt = Instant.now();
+        this.decidedAt = null;
+        this.decidedBy = null;
+        this.removedAt = null;
         this.decisionNote = null;
         this.updatedAt = Instant.now();
     }
 
-    /**
-     * Rejects this enrollment request.
-     * Only valid from PENDING status.
-     *
-     * @param teacherId ID of the rejecting teacher
-     * @param reason Optional rejection reason
-     * @throws IllegalStateException if current status is not PENDING
-     */
-    public void reject(String teacherId, String reason) {
-        if (this.status != EnrollmentStatus.PENDING) {
-            throw new IllegalStateException(
-                    "Chỉ có thể từ chối đơn ở trạng thái PENDING, trạng thái hiện tại: " + this.status);
-        }
+    public void approve(UUID teacherId) {
+        this.status = EnrollmentStatus.APPROVED;
+        this.decidedAt = Instant.now();
+        this.decidedBy = teacherId;
+        this.updatedAt = Instant.now();
+    }
+
+    public void reject(UUID teacherId, String reason) {
         this.status = EnrollmentStatus.REJECTED;
         this.decidedAt = Instant.now();
         this.decidedBy = teacherId;
@@ -109,19 +86,7 @@ public class CourseEnrollment {
         this.updatedAt = Instant.now();
     }
 
-    /**
-     * Removes an approved student from the offering.
-     * Only valid from APPROVED status.
-     *
-     * @param teacherId ID of the teacher performing removal
-     * @param reason Optional removal note
-     * @throws IllegalStateException if current status is not APPROVED
-     */
-    public void remove(String teacherId, String reason) {
-        if (this.status != EnrollmentStatus.APPROVED) {
-            throw new IllegalStateException(
-                    "Chỉ có thể xóa sinh viên ở trạng thái APPROVED, trạng thái hiện tại: " + this.status);
-        }
+    public void remove(UUID teacherId, String reason) {
         this.status = EnrollmentStatus.REMOVED;
         this.removedAt = Instant.now();
         this.decidedBy = teacherId;
@@ -129,54 +94,27 @@ public class CourseEnrollment {
         this.updatedAt = Instant.now();
     }
 
-    /**
-     * Allows student to re-apply after rejection or removal.
-     *
-     * @throws IllegalStateException if the enrollment is not REJECTED or REMOVED
-     */
-    public void reapply() {
-        if (this.status != EnrollmentStatus.REJECTED && this.status != EnrollmentStatus.REMOVED) {
-            throw new IllegalStateException(
-                    "Chỉ có thể gửi lại yêu cầu khi trạng thái hiện tại là REJECTED hoặc REMOVED.");
-        }
-        this.status = EnrollmentStatus.PENDING;
-        this.requestedAt = Instant.now();
-        this.decidedAt = null;
-        this.decidedBy = null;
-        this.decisionNote = null;
-        this.removedAt = null;
-        this.updatedAt = Instant.now();
-    }
-
-    public boolean isApproved() {
-        return this.status == EnrollmentStatus.APPROVED;
-    }
-
-    public boolean isPending() {
-        return this.status == EnrollmentStatus.PENDING;
-    }
-
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
-    public String getCourseOfferingId() {
+    public UUID getCourseOfferingId() {
         return courseOfferingId;
     }
 
-    public void setCourseOfferingId(String courseOfferingId) {
+    public void setCourseOfferingId(UUID courseOfferingId) {
         this.courseOfferingId = courseOfferingId;
     }
 
-    public String getStudentId() {
+    public UUID getStudentId() {
         return studentId;
     }
 
-    public void setStudentId(String studentId) {
+    public void setStudentId(UUID studentId) {
         this.studentId = studentId;
     }
 
@@ -204,11 +142,11 @@ public class CourseEnrollment {
         this.decidedAt = decidedAt;
     }
 
-    public String getDecidedBy() {
+    public UUID getDecidedBy() {
         return decidedBy;
     }
 
-    public void setDecidedBy(String decidedBy) {
+    public void setDecidedBy(UUID decidedBy) {
         this.decidedBy = decidedBy;
     }
 

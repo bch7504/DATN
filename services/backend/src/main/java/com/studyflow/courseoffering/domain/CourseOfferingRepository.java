@@ -5,23 +5,24 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface CourseOfferingRepository extends JpaRepository<CourseOffering, String> {
+public interface CourseOfferingRepository extends JpaRepository<CourseOffering, UUID> {
 
     Optional<CourseOffering> findByJoinCodeHash(String joinCodeHash);
 
-    List<CourseOffering> findByTeacherId(String teacherId);
+    List<CourseOffering> findByTeacherId(UUID teacherId);
 
-    List<CourseOffering> findByTeacherIdAndSemesterId(String teacherId, String semesterId);
+    List<CourseOffering> findByTeacherIdAndSemesterId(UUID teacherId, UUID semesterId);
 
-    List<CourseOffering> findByTeacherIdAndStatus(String teacherId, CourseOfferingStatus status);
+    List<CourseOffering> findByTeacherIdAndStatus(UUID teacherId, CourseOfferingStatus status);
 
-    List<CourseOffering> findBySemesterId(String semesterId);
+    List<CourseOffering> findBySemesterId(UUID semesterId);
 
-    long countBySubjectIdAndSemesterId(String subjectId, String semesterId);
+    long countBySubjectIdAndSemesterId(UUID subjectId, UUID semesterId);
 
-    boolean existsBySemesterIdAndCode(String semesterId, String code);
+    boolean existsBySemesterIdAndCode(UUID semesterId, String code);
 
-    boolean existsBySemesterIdAndCodeAndIdNot(String semesterId, String code, String id);
+    boolean existsBySemesterIdAndCodeAndIdNot(UUID semesterId, String code, UUID id);
 }
