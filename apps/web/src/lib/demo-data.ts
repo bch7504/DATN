@@ -19,6 +19,7 @@ import {
   DailyGoalConfig,
   StudyStreak,
 } from "@/types/review";
+import { StudentNotification } from "@/types/notification";
 
 export const DEMO_USERS: Record<UserRole, User> = {
   STUDENT: {
@@ -735,4 +736,28 @@ export let demoStudyStreak: StudyStreak = {
     { day: "T3", date: "2026-09-29", active: true, count: 8 },
   ],
 };
+
+// Explicit synthetic fixtures used only when NEXT_PUBLIC_DEMO_MODE is enabled.
+export const demoNotifications: StudentNotification[] = [
+  {
+    id: "notification_demo_01",
+    type: "STUDY_PLAN_DEADLINE",
+    title: "Nhiệm vụ sắp đến hạn",
+    message: "Nhiệm vụ “Ôn tập câu hỏi sai về Khóa chính” sắp đến hạn. Hãy kiểm tra Kế hoạch & Lịch.",
+    sourceId: "task_03",
+    dueAt: "2026-10-14T11:00:00Z",
+    readAt: null,
+    createdAt: "2026-10-13T11:00:00Z",
+  },
+  {
+    id: "notification_demo_02",
+    type: "STUDY_PLAN_DEADLINE",
+    title: "Nhiệm vụ sắp đến hạn",
+    message: "Nhiệm vụ “Đọc tài liệu PDF thực hành SQL” sắp đến hạn. Hãy kiểm tra Kế hoạch & Lịch.",
+    sourceId: "task_04",
+    dueAt: "2026-10-16T13:00:00Z",
+    readAt: "2026-10-13T08:30:00Z",
+    createdAt: "2026-10-13T08:00:00Z",
+  },
+];
 

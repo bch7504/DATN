@@ -133,6 +133,7 @@ Cả hai luồng dùng `MCQ_SINGLE`, mỗi câu đúng 4 lựa chọn, một đ�
 - Daily Goal lưu target Page/câu Quiz/Study Task; actual do Java tính.
 - “Nội dung cần ôn lại” chỉ tổng hợp từ answer sai và citation của câu hỏi.
 - Student tự quản lý Kế hoạch & Lịch; AI recommendation tự động ngoài MVP.
+- Java tự quét deadline của Study Plan và tạo thông báo trong ứng dụng idempotent; Web chỉ đọc/đánh dấu đã đọc, không tự tính nhắc hạn.
 
 ## 10. Bảo mật, quan sát và triển khai
 

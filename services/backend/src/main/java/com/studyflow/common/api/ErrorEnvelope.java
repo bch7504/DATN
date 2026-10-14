@@ -1,27 +1,27 @@
 package com.studyflow.common.api;
 
-import java.util.Map;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import java.util.List;
 
-/**
- * Standard API error envelope conforming to docs/api-plan.md Section 1.
- *
- * Contract:
- * - code: String error code (e.g. JOIN_CODE_NOT_FOUND, INVALID_JOIN_CODE)
- * - message: Human-readable error description in Vietnamese
- * - details: Optional field-level error details or validation violations
- * - traceId: Unique request/error tracing identifier
- */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ErrorEnvelope {
 
     private String code;
     private String message;
-    private Map<String, Object> details;
+    private Object details;
     private String traceId;
 
     public ErrorEnvelope() {
     }
 
-    public ErrorEnvelope(String code, String message, Map<String, Object> details, String traceId) {
+    public ErrorEnvelope(String code, String message, List<FieldViolation> details, String traceId) {
+        this.code = code;
+        this.message = message;
+        this.details = details;
+        this.traceId = traceId;
+    }
+
+    public ErrorEnvelope(String code, String message, Object details, String traceId) {
         this.code = code;
         this.message = message;
         this.details = details;
@@ -32,7 +32,7 @@ public class ErrorEnvelope {
         return new ErrorEnvelope(code, message, null, traceId);
     }
 
-    public static ErrorEnvelope of(String code, String message, Map<String, Object> details, String traceId) {
+    public static ErrorEnvelope of(String code, String message, Object details, String traceId) {
         return new ErrorEnvelope(code, message, details, traceId);
     }
 
@@ -44,6 +44,10 @@ public class ErrorEnvelope {
         return code;
     }
 
+    public String code() {
+        return code;
+    }
+
     public void setCode(String code) {
         this.code = code;
     }
@@ -52,19 +56,31 @@ public class ErrorEnvelope {
         return message;
     }
 
+    public String message() {
+        return message;
+    }
+
     public void setMessage(String message) {
         this.message = message;
     }
 
-    public Map<String, Object> getDetails() {
+    public Object getDetails() {
         return details;
     }
 
-    public void setDetails(Map<String, Object> details) {
+    public Object details() {
+        return details;
+    }
+
+    public void setDetails(Object details) {
         this.details = details;
     }
 
     public String getTraceId() {
+        return traceId;
+    }
+
+    public String traceId() {
         return traceId;
     }
 
@@ -75,7 +91,7 @@ public class ErrorEnvelope {
     public static class Builder {
         private String code;
         private String message;
-        private Map<String, Object> details;
+        private Object details;
         private String traceId;
 
         public Builder code(String code) {
@@ -88,7 +104,7 @@ public class ErrorEnvelope {
             return this;
         }
 
-        public Builder details(Map<String, Object> details) {
+        public Builder details(Object details) {
             this.details = details;
             return this;
         }

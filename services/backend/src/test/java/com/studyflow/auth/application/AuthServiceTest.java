@@ -1,113 +1,226 @@
 package com.studyflow.auth.application;
 
-import com.studyflow.auth.dto.AuthResponse;
-import com.studyflow.auth.dto.LoginRequest;
-import com.studyflow.auth.dto.RegisterRequest;
-import com.studyflow.common.exception.ConflictException;
-import com.studyflow.common.exception.ValidationException;
-import com.studyflow.common.security.JwtTokenProvider;
-import com.studyflow.common.security.UserRole;
-import com.studyflow.user.domain.User;
-import com.studyflow.user.domain.UserRepository;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.studyflow.auth.application.port.RefreshSessionStore;
+import com.studyflow.auth.application.port.RegistrationChallengeStore;
+import com.studyflow.auth.application.port.SecretHasher;
+import com.studyflow.auth.application.port.SessionTokenIssuer;
+import com.studyflow.auth.application.port.UserAccountStore;
+import com.studyflow.auth.application.port.VerificationCodeSender;
+import com.studyflow.auth.domain.RegistrationChallenge;
+import com.studyflow.auth.infrastructure.AuthProperties;
+import com.studyflow.auth.infrastructure.VerificationCodeGenerator;
+import com.studyflow.common.exception.ApiException;
+import com.studyflow.user.domain.UserAccount;
+import com.studyflow.user.domain.UserRole;
+import com.studyflow.user.domain.UserStatus;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
+    private static final Instant NOW = Instant.parse("2026-10-13T08:00:00Z");
 
     @Mock
-    private PasswordEncoder passwordEncoder;
-
+    private UserAccountStore users;
     @Mock
-    private JwtTokenProvider jwtTokenProvider;
+    private RegistrationChallengeStore challenges;
+    @Mock
+    private RefreshSessionStore refreshSessions;
+    @Mock
+    private VerificationCodeSender codeSender;
+    @Mock
+    private SecretHasher hasher;
+    @Mock
+    private SessionTokenIssuer tokenIssuer;
+    @Mock
+    private VerificationCodeGenerator codeGenerator;
 
-    private AuthService authService;
-
-    private User mockUser;
+    private AuthService service;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, passwordEncoder, jwtTokenProvider);
-
-        mockUser = new User(
-                "usr_01", "student@ptit.edu.vn", "student_ptit",
-                "encoded_pass", "Nguyễn Văn Sinh Viên", "Asia/Ho_Chi_Minh",
-                UserRole.STUDENT, "ACTIVE"
+        AuthProperties properties = new AuthProperties(
+                "ptit.edu.vn",
+                Duration.ofMinutes(10),
+                Duration.ofSeconds(60),
+                5,
+                Duration.ofMinutes(15),
+                Duration.ofDays(30),
+                "studyflow",
+                "01234567890123456789012345678901",
+                true,
+                "no-reply@ptit.edu.vn"
+        );
+        service = new AuthService(
+                users,
+                challenges,
+                refreshSessions,
+                codeSender,
+                hasher,
+                tokenIssuer,
+                codeGenerator,
+                properties,
+                Clock.fixed(NOW, ZoneOffset.UTC)
         );
     }
 
     @Test
-    @DisplayName("Should successfully login with valid email credentials")
-    void shouldLoginSuccessfullyWithEmail() {
-        LoginRequest req = new LoginRequest("student@ptit.edu.vn", "ptit@demo123");
+    void startRegistrationStoresOnlyHashesAndSendsOtp() {
+        when(users.existsByEmail("b22dccn001@ptit.edu.vn")).thenReturn(false);
+        when(challenges.findByEmailForUpdate("b22dccn001@ptit.edu.vn")).thenReturn(Optional.empty());
+        when(codeGenerator.generate()).thenReturn("123456");
+        when(hasher.hash("StrongPass1")).thenReturn("password-hash");
+        when(hasher.hash("123456")).thenReturn("code-hash");
+        when(challenges.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        when(userRepository.findByEmail("student@ptit.edu.vn")).thenReturn(Optional.of(mockUser));
-        when(passwordEncoder.matches("ptit@demo123", "encoded_pass")).thenReturn(true);
-        when(jwtTokenProvider.generateToken(any(), any(), any(), any())).thenReturn("mock_jwt_token");
+        RegistrationStatus result = service.startRegistration(new StartRegistrationCommand(
+                "Nguyễn Văn A",
+                "B22DCCN001@PTIT.EDU.VN",
+                "StrongPass1"
+        ));
 
-        AuthResponse res = authService.login(req);
-
-        assertNotNull(res);
-        assertEquals("mock_jwt_token", res.getAccessToken());
-        assertEquals("usr_01", res.getUser().getId());
-        assertEquals("student@ptit.edu.vn", res.getUser().getEmail());
-        assertEquals(UserRole.STUDENT, res.getUser().getRole());
+        ArgumentCaptor<RegistrationChallenge> challenge = ArgumentCaptor.forClass(RegistrationChallenge.class);
+        verify(challenges).save(challenge.capture());
+        assertThat(challenge.getValue().email()).isEqualTo("b22dccn001@ptit.edu.vn");
+        assertThat(challenge.getValue().passwordHash()).isEqualTo("password-hash");
+        assertThat(challenge.getValue().codeHash()).isEqualTo("code-hash");
+        assertThat(challenge.getValue().expiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(10)));
+        verify(codeSender).send(
+                "b22dccn001@ptit.edu.vn",
+                "Nguyễn Văn A",
+                "123456",
+                NOW.plus(Duration.ofMinutes(10))
+        );
+        assertThat(result.status()).isEqualTo("VERIFICATION_REQUIRED");
     }
 
     @Test
-    @DisplayName("Should reject login when password does not match")
-    void shouldRejectWhenPasswordWrong() {
-        LoginRequest req = new LoginRequest("student@ptit.edu.vn", "wrong_password");
+    void startRegistrationRejectsNonPtitAndSubdomainEmail() {
+        assertThatThrownBy(() -> service.startRegistration(
+                new StartRegistrationCommand("Student", "student@gmail.com", "StrongPass1")
+        )).isInstanceOfSatisfying(ApiException.class, error ->
+                assertThat(error.code()).isEqualTo("EMAIL_DOMAIN_NOT_ALLOWED"));
 
-        when(userRepository.findByEmail("student@ptit.edu.vn")).thenReturn(Optional.of(mockUser));
-        when(passwordEncoder.matches("wrong_password", "encoded_pass")).thenReturn(false);
+        assertThatThrownBy(() -> service.startRegistration(
+                new StartRegistrationCommand("Student", "student@mail.ptit.edu.vn", "StrongPass1")
+        )).isInstanceOfSatisfying(ApiException.class, error ->
+                assertThat(error.code()).isEqualTo("EMAIL_DOMAIN_NOT_ALLOWED"));
 
-        ValidationException ex = assertThrows(ValidationException.class, () -> authService.login(req));
-        assertEquals("INVALID_CREDENTIALS", ex.getErrorCode());
+        verify(challenges, never()).save(any());
+        verify(codeSender, never()).send(any(), any(), any(), any());
     }
 
     @Test
-    @DisplayName("Should successfully register a new student")
-    void shouldRegisterStudentSuccessfully() {
-        RegisterRequest req = new RegisterRequest("Trần Sinh Viên", "tran@ptit.edu.vn", "ptit@123456");
+    void verifyRegistrationCreatesActiveStudentAndConsumesChallenge() {
+        RegistrationChallenge challenge = RegistrationChallenge.issue(
+                "b22dccn001@ptit.edu.vn",
+                "Nguyễn Văn A",
+                "password-hash",
+                "code-hash",
+                NOW.minusSeconds(30),
+                Duration.ofMinutes(10),
+                Duration.ofSeconds(60),
+                5
+        );
+        when(challenges.findByEmailForUpdate(challenge.email())).thenReturn(Optional.of(challenge));
+        when(hasher.matches("123456", "code-hash")).thenReturn(true);
+        when(users.existsByEmail(challenge.email())).thenReturn(false);
+        when(users.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(challenges.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        when(userRepository.existsByEmail("tran@ptit.edu.vn")).thenReturn(false);
-        when(passwordEncoder.encode("ptit@123456")).thenReturn("hashed_pass");
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(jwtTokenProvider.generateToken(any(), any(), any(), any())).thenReturn("mock_token");
+        service.verifyRegistration(new VerifyRegistrationCommand(challenge.email(), "123456"));
 
-        AuthResponse res = authService.register(req);
+        ArgumentCaptor<UserAccount> account = ArgumentCaptor.forClass(UserAccount.class);
+        verify(users).save(account.capture());
+        assertThat(account.getValue().email()).isEqualTo(challenge.email());
+        assertThat(account.getValue().role().name()).isEqualTo("STUDENT");
+        assertThat(account.getValue().status().name()).isEqualTo("ACTIVE");
 
-        assertNotNull(res);
-        assertEquals("mock_token", res.getAccessToken());
-        assertEquals("tran@ptit.edu.vn", res.getUser().getEmail());
-        assertEquals(UserRole.STUDENT, res.getUser().getRole());
-
-        verify(userRepository, times(1)).save(any(User.class));
+        ArgumentCaptor<RegistrationChallenge> consumed = ArgumentCaptor.forClass(RegistrationChallenge.class);
+        verify(challenges).save(consumed.capture());
+        assertThat(consumed.getValue().consumedAt()).isEqualTo(NOW);
     }
 
     @Test
-    @DisplayName("Should reject registration when email already exists")
-    void shouldRejectDuplicateEmailRegistration() {
-        RegisterRequest req = new RegisterRequest("Trần Sinh Viên", "tran@ptit.edu.vn", "ptit@123456");
-        when(userRepository.existsByEmail("tran@ptit.edu.vn")).thenReturn(true);
+    void verifyRegistrationDecrementsAttemptsForWrongOtp() {
+        RegistrationChallenge challenge = RegistrationChallenge.issue(
+                "b22dccn001@ptit.edu.vn",
+                "Student",
+                "password-hash",
+                "code-hash",
+                NOW,
+                Duration.ofMinutes(10),
+                Duration.ofSeconds(60),
+                5
+        );
+        when(challenges.findByEmailForUpdate(challenge.email())).thenReturn(Optional.of(challenge));
+        when(hasher.matches("000000", "code-hash")).thenReturn(false);
+        when(challenges.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ConflictException ex = assertThrows(ConflictException.class, () -> authService.register(req));
-        assertEquals("EMAIL_ALREADY_EXISTS", ex.getErrorCode());
-        verify(userRepository, never()).save(any());
+        assertThatThrownBy(() -> service.verifyRegistration(
+                new VerifyRegistrationCommand(challenge.email(), "000000")
+        )).isInstanceOfSatisfying(ApiException.class, error ->
+                assertThat(error.code()).isEqualTo("VERIFICATION_INVALID"));
+
+        ArgumentCaptor<RegistrationChallenge> saved = ArgumentCaptor.forClass(RegistrationChallenge.class);
+        verify(challenges).save(saved.capture());
+        assertThat(saved.getValue().attemptsRemaining()).isEqualTo(4);
+        verify(users, never()).save(any());
+    }
+
+    @Test
+    void loginCreatesHashedRefreshSessionForActiveAccount() {
+        UserAccount account = new UserAccount(
+                java.util.UUID.randomUUID(),
+                "b22dccn001@ptit.edu.vn",
+                "b22dccn001",
+                "password-hash",
+                "Nguyễn Văn A",
+                "Asia/Ho_Chi_Minh",
+                UserRole.STUDENT,
+                UserStatus.ACTIVE,
+                NOW,
+                NOW,
+                NOW
+        );
+        SessionTokens issued = new SessionTokens(
+                "access-token",
+                NOW.plus(Duration.ofMinutes(15)),
+                "refresh-token",
+                NOW.plus(Duration.ofDays(30))
+        );
+        when(users.findByIdentifier("b22dccn001@ptit.edu.vn")).thenReturn(Optional.of(account));
+        when(hasher.matches("StrongPass1", "password-hash")).thenReturn(true);
+        when(tokenIssuer.issue(account, NOW)).thenReturn(issued);
+        when(tokenIssuer.hashRefreshToken("refresh-token")).thenReturn("refresh-hash");
+        when(refreshSessions.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SessionTokens result = service.login(new LoginCommand(
+                "B22DCCN001@PTIT.EDU.VN",
+                "StrongPass1"
+        ));
+
+        assertThat(result).isEqualTo(issued);
+        var session = ArgumentCaptor.forClass(com.studyflow.auth.domain.RefreshSession.class);
+        verify(refreshSessions).save(session.capture());
+        assertThat(session.getValue().userId()).isEqualTo(account.id());
+        assertThat(session.getValue().tokenHash()).isEqualTo("refresh-hash");
     }
 }

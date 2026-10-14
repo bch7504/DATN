@@ -22,6 +22,7 @@
 | Student | `/quiz/create` | Form sinh đề riêng từ Personal PDF + prompt; xem bản nháp và chọn nơi lưu khi accept, không chuyển sang chatbot |
 | Student | `/review` | Quiz theo lớp/cá nhân, attempt và nội dung cần ôn từ câu sai |
 | Student | `/plan` | Kế hoạch & Lịch tuần theo FE mock |
+| Student | `/notifications` | Nhắc hạn nhiệm vụ do Java tạo, lọc chưa đọc và đánh dấu đã đọc |
 | Teacher | `/teacher/course-offerings` | Tạo/quản lý lớp và join code |
 | Teacher | `/teacher/enrollments` | Approve/reject enrollment |
 | Teacher | `/teacher/documents` | Upload/public Course Material PDF và mở AI Quiz Studio |
@@ -60,6 +61,7 @@ Chỉ `/chat` giữ redirect tương thích tới `/personal-documents#personal-
 - Dashboard là nơi duy nhất hiển thị aggregate và progress từng Course Offering.
 - Study Streak chỉ phản ánh dữ liệu Java đã tính từ `VIEW_PAGE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`.
 - `/plan` giữ lịch tuần Thứ 2–Chủ nhật, thêm lịch/task, chuyển tuần và hoàn tất task như FE mock; không có AI recommendation tự động.
+- `/notifications` chỉ hiển thị notification Java đã tạo; client không tự suy ra nhiệm vụ sắp hết hạn và không gửi email/push trực tiếp.
 
 ## 4. Teacher UX
 

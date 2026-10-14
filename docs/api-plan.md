@@ -16,7 +16,7 @@ Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1
 {
   "code": "ENROLLMENT_REQUIRED",
   "message": "Bạn chưa được duyệt vào lớp học phần",
-  "details": {},
+  "details": [],
   "traceId": "req_..."
 }
 ```
@@ -25,13 +25,32 @@ Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1
 
 | Method | Endpoint | Contract |
 |---|---|---|
-| POST | `/api/v1/auth/register` | `{displayName,email,password}`; Java tạo `STUDENT`; `204`, `409`, `422` |
+| POST | `/api/v1/auth/register` | `{displayName,email,password}`; chỉ nhận đúng miền `@ptit.edu.vn`; gửi OTP và trả `{status,expiresAt,resendAvailableAt}`; `202`, `409`, `422`, `429` |
+| POST | `/api/v1/auth/verify-registration` | `{email,verificationCode}`; OTP gồm 6 chữ số; tạo tài khoản `STUDENT` sau khi xác minh; `204`, `409`, `410`, `422`, `429` |
+| POST | `/api/v1/auth/resend-verification` | `{email}`; thay OTP cũ sau thời gian chờ và trả thời hạn mới; `202`, `409`, `422`, `429` |
 | POST | `/api/v1/auth/login` | `{identifier,password}`; `204` + session cookie; `401|403` |
 | POST | `/api/v1/auth/refresh` | Rotate refresh token; `204|401` |
 | POST | `/api/v1/auth/logout` | Revoke idempotent; `204` |
-| GET/PATCH | `/api/v1/me` | `{id,displayName,email,role}`; PATCH không nhận role/status |
+| GET | `/api/v1/me` | Trả `{id,displayName,email,username,timeZone,role}` của tài khoản `ACTIVE`; `200`, `401`, `403` |
+| PATCH | `/api/v1/me` | Nhận `{displayName?,timeZone?}` và trả profile đã cập nhật; không nhận email/username/role/status; `200`, `401`, `403`, `422` |
 
-Frontend không lưu JWT/service credential trong local storage và không nhận role từ form đăng ký.
+Luồng đăng ký chưa tạo người dùng ngay. Hệ thống lưu tạm hash của mật khẩu và OTP; OTP có hiệu lực 10 phút, chỉ được yêu cầu gửi lại sau 60 giây và tối đa 5 lần nhập sai cho mỗi mã. So khớp miền email không phân biệt chữ hoa/thường nhưng phải là chính xác `ptit.edu.vn`, không chấp nhận miền con.
+
+Response `202` của register/resend:
+
+```json
+{
+  "status": "VERIFICATION_REQUIRED",
+  "expiresAt": "2026-10-13T08:10:00Z",
+  "resendAvailableAt": "2026-10-13T08:01:00Z"
+}
+```
+
+Các lỗi auth dùng error envelope chung: `VALIDATION_FAILED`, `EMAIL_DOMAIN_NOT_ALLOWED`, `ACCOUNT_ALREADY_EXISTS`, `REGISTRATION_NOT_PENDING`, `VERIFICATION_INVALID`, `VERIFICATION_EXPIRED`, `VERIFICATION_ALREADY_USED`, `VERIFICATION_RESEND_TOO_SOON`, `VERIFICATION_ATTEMPTS_EXHAUSTED`, `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `INVALID_SESSION`.
+
+Access token và refresh token được đặt trong cookie `HttpOnly`, `Secure`, `SameSite=Strict`; refresh token được xoay vòng và database chỉ lưu hash. Frontend không lưu JWT/service credential trong local storage và không nhận role từ form đăng ký.
+
+Java ánh xạ claim `role` đã ký trong access JWT thành authority `ROLE_STUDENT|ROLE_TEACHER|ROLE_ADMIN`. Các route `/api/v1/student/**`, `/api/v1/teacher/**`, `/api/v1/admin/**` yêu cầu đúng role tương ứng; thiếu phiên trả `401 UNAUTHENTICATED`, sai role trả `403 FORBIDDEN` theo error envelope chung. `PATCH /me` kiểm múi giờ theo IANA và trả `INVALID_TIME_ZONE`, `INVALID_DISPLAY_NAME`, `PROFILE_UPDATE_EMPTY` hoặc `UNKNOWN_FIELD` khi dữ liệu không hợp lệ.
 
 ## 3. Catalog dùng chung
 
@@ -255,9 +274,28 @@ Không có API/menu/màn Progress độc lập. Dashboard là endpoint duy nhấ
 
 Frontend thể hiện nhóm này dưới tên **Kế hoạch & Lịch** theo `frontend-implementation-plan.md`: lịch tuần Thứ 2–Chủ nhật, task, deadline và các khung giờ. Daily Goal/Streak/progress không thuộc response của màn lịch và chỉ hiển thị trên Dashboard.
 
-- CRUD `/api/v1/study-plans` và `/api/v1/study-plans/{planId}/items`.
-- `GET /api/v1/calendar?from=&to=`.
-- `PATCH /api/v1/study-plan-items/{id}/status` phát `STUDY_TASK_COMPLETED` idempotent khi chuyển sang completed.
+- `POST /api/v1/study-plans` nhận `{title,description?,startDate,endDate}` và trả `201` cùng kế hoạch `ACTIVE` mới.
+- `GET /api/v1/study-plans?status=ACTIVE|COMPLETED|ARCHIVED&page=0&size=20` trả page kế hoạch của chính Student; bỏ `status` để lấy tất cả, `size <= 100`.
+- `GET /api/v1/study-plans/{planId}` trả kế hoạch thuộc Student hiện tại; kế hoạch của người khác cũng trả `404 STUDY_PLAN_NOT_FOUND` để không lộ dữ liệu.
+- `PUT /api/v1/study-plans/{planId}` nhận đầy đủ `{title,description?,startDate,endDate,status}` và trả kế hoạch đã cập nhật.
+- `DELETE /api/v1/study-plans/{planId}` chuyển kế hoạch sang `ARCHIVED`, không xóa lịch sử; trả `204` và lặp lại an toàn.
+- `POST /api/v1/study-plans/{planId}/items` nhận `{title,description?,type,scheduledStart?,scheduledEnd?,dueAt?,reminderMinutesBefore?}` và trả `201`. Khi có `dueAt`, hệ thống mặc định nhắc trước 1440 phút; cho phép cấu hình `0..10080` phút.
+- `GET /api/v1/study-plans/{planId}/items?page=0&size=50` trả page item thuộc kế hoạch theo thời gian tăng dần, `size <= 100`.
+- `PUT /api/v1/study-plans/{planId}/items/{itemId}` thay đầy đủ nội dung/lịch của item chưa bị hủy.
+- `DELETE /api/v1/study-plans/{planId}/items/{itemId}` chuyển item sang `CANCELLED`, không xóa lịch sử; trả `204`.
+- `GET /api/v1/calendar?from=<UTC instant>&to=<UTC instant>` trả `{from,to,items}` gồm các item có lịch giao với khoảng hoặc có deadline nằm trong khoảng; `from < to`, cửa sổ tối đa 31 ngày.
+- `PATCH /api/v1/study-plan-items/{id}/status` nhận `{status:"TODO|COMPLETED"}`. Khi chuyển sang `COMPLETED`, header `Idempotency-Key` dài 8–100 ký tự là bắt buộc và Java chỉ phát một learning event `STUDY_TASK_COMPLETED` cho item đó.
+
+Kiểu item là `STUDY_SESSION|TASK|QUIZ`. Item phải có ít nhất một trong `scheduledStart` hoặc `dueAt`; nếu có lịch thì `scheduledStart` và `scheduledEnd` phải cùng tồn tại, `scheduledEnd > scheduledStart`. Mọi thời điểm phải nằm trong khoảng ngày của kế hoạch theo múi giờ IANA của Student; các lịch chưa hủy của cùng Student không được chồng nhau. Bản triển khai độc lập ban đầu chỉ tạo item cá nhân; `courseOfferingId` sẽ được bổ sung sau khi module Course Offering có access policy production.
+
+Response kế hoạch: `{id,title,description,startDate,endDate,status,createdAt,updatedAt}`. Response item/lịch: `{id,planId,title,description,type,scheduledStart,scheduledEnd,dueAt,reminderAt,status,completedAt,createdAt,updatedAt}`. Các endpoint chỉ cho `ROLE_STUDENT`; lỗi dùng envelope chung với `401 UNAUTHENTICATED`, `403 ACCOUNT_UNAVAILABLE`, `404 STUDY_PLAN_NOT_FOUND|STUDY_PLAN_ITEM_NOT_FOUND`, `409 STUDY_PLAN_ARCHIVED|STUDY_SCHEDULE_CONFLICT`, `422 VALIDATION_FAILED|INVALID_STUDY_PLAN_RANGE|INVALID_STUDY_PLAN_ITEM_TIME|INVALID_REMINDER|IDEMPOTENCY_KEY_REQUIRED`.
+
+#### Thông báo hạn nhiệm vụ
+
+- Background job mỗi phút lấy tối đa 200 item `TODO` thuộc kế hoạch chưa archive, có `reminderAt <= now < dueAt` và chưa gửi nhắc; job retry an toàn vì database chỉ cho một thông báo `STUDY_PLAN_DEADLINE` trên mỗi item.
+- `GET /api/v1/student/notifications?unreadOnly=false&page=0&size=20` trả page thông báo của Student hiện tại; `size <= 100`.
+- `PATCH /api/v1/student/notifications/{notificationId}/read` không nhận body, đánh dấu đã đọc idempotent và trả thông báo cập nhật; thông báo của người khác trả `404 NOTIFICATION_NOT_FOUND`.
+- Response thông báo: `{id,type,title,message,sourceId,dueAt,readAt,createdAt}`. Đây là thông báo trong ứng dụng; không gửi email/push trong MVP.
 - `/api/v1/review/quizzes/*` và `/api/v1/review/attempts/*`; submit/scoring thành công phát `QUIZ_COMPLETED` một lần.
 
 #### Quiz review và workspace ôn tập
