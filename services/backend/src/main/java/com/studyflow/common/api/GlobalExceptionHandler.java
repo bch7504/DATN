@@ -15,9 +15,22 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public final class GlobalExceptionHandler {
+
+    /**
+     * Args: framework missing-route exception and HTTP context, both required.
+     * Input: an authenticated request for an unmapped resource. Output: 404 standard error envelope.
+     * Errors/side effects: none; does not disclose internal paths or exception messages.
+     */
+    @ExceptionHandler({org.springframework.web.servlet.resource.NoResourceFoundException.class,
+            org.springframework.web.servlet.NoHandlerFoundException.class})
+    ResponseEntity<ErrorEnvelope> handleRouteNotFound(Exception exception, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorEnvelope(
+                "NOT_FOUND", "Không tìm thấy đường dẫn yêu cầu", List.of(), requestId(request)));
+    }
 
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ErrorEnvelope> handleApiException(ApiException exception, HttpServletRequest request) {
@@ -108,6 +121,24 @@ public final class GlobalExceptionHandler {
                 "VALIDATION_FAILED",
                 "Tham số yêu cầu không hợp lệ",
                 List.of(new FieldViolation(exception.getName(), "Giá trị hoặc định dạng không hợp lệ")),
+                requestId(request)
+        ));
+    }
+
+    /**
+     * Maps container-level multipart size rejection to the public error schema.
+     * Args: framework size exception and request context. Input: upload rejected before controller execution.
+     * Output: HTTP 413 with error envelope. Errors: none; no file is stored.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ErrorEnvelope> handleUploadTooLarge(
+            MaxUploadSizeExceededException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(new ErrorEnvelope(
+                "ATTACHMENT_REQUEST_TOO_LARGE",
+                "Tổng dung lượng yêu cầu tải tệp vượt quá 26 MB.",
+                List.of(),
                 requestId(request)
         ));
     }

@@ -21,6 +21,14 @@ public interface NotificationStore {
             Instant createdAt
     );
 
+    /** Inserts an idempotent reminder for a published class assignment. */
+    boolean createAssignmentDeadlineReminderIfAbsent(
+            UUID studentId, UUID assignmentId, String assignmentTitle, Instant dueAt, Instant createdAt);
+
+    /** Inserts an idempotent notice when the Teacher publishes an assignment to a class. */
+    boolean createAssignmentPublishedIfAbsent(
+            UUID studentId, UUID assignmentId, String assignmentTitle, Instant dueAt, Instant createdAt);
+
     /**
      * Returns an owner-scoped page, optionally restricted to unread rows.
      *

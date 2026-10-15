@@ -39,6 +39,22 @@ public class NotificationJpaStore implements NotificationStore {
     }
 
     @Override
+    public boolean createAssignmentDeadlineReminderIfAbsent(
+            UUID studentId, UUID assignmentId, String assignmentTitle, Instant dueAt, Instant createdAt) {
+        String safeTitle = assignmentTitle == null ? "Bài tập" : assignmentTitle;
+        return repository.insertAssignmentReminderIfAbsent(UUID.randomUUID(), studentId, assignmentId,
+                "Bài tập \"" + safeTitle + "\" sắp đến hạn nộp.", dueAt, createdAt) == 1;
+    }
+
+    @Override
+    public boolean createAssignmentPublishedIfAbsent(
+            UUID studentId, UUID assignmentId, String assignmentTitle, Instant dueAt, Instant createdAt) {
+        String safeTitle = assignmentTitle == null ? "Bài tập" : assignmentTitle;
+        return repository.insertAssignmentPublishedIfAbsent(UUID.randomUUID(), studentId, assignmentId,
+                "Bạn có bài tập mới: \"" + safeTitle + "\".", dueAt, createdAt) == 1;
+    }
+
+    @Override
     public PageResult<StudentNotification> findOwned(
             UUID userId,
             boolean unreadOnly,

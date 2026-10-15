@@ -28,6 +28,10 @@ spring:
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 26MB
 
 server:
   forward-headers-strategy: framework
@@ -44,6 +48,15 @@ logging:
     org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: INFO
 
 studyflow:
+  cors:
+    allowed-origins: ${STUDYFLOW_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  storage:
+    enabled: ${STORAGE_ENABLED:false}
+    endpoint: ${STORAGE_ENDPOINT:}
+    region: ${STORAGE_REGION:us-east-1}
+    bucket: ${STORAGE_BUCKET:documents}
+    access-key: ${STORAGE_ACCESS_KEY:}
+    secret-key: ${STORAGE_SECRET_KEY:}
   notifications:
     reminder-scan-delay: ${STUDYFLOW_REMINDER_SCAN_DELAY:60000}
   auth:

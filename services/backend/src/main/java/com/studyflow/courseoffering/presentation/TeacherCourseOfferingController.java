@@ -183,7 +183,12 @@ public class TeacherCourseOfferingController {
         return ResponseEntity.ok(TeacherCourseOfferingResponse.fromEntity(updated, subject, semester, newRawCode));
     }
 
-    @PatchMapping("/{id}/join-code/toggle")
+    /**
+     * Args: authenticated Teacher JWT, offering UUID and required enabled flag.
+     * Input: owned ACTIVE class. Output: 200 updated class; updates join-code availability only.
+     * Errors: 401/403/404/409/422. Keeps the legacy /toggle URL alongside the documented path.
+     */
+    @PatchMapping({"/{id}/join-code", "/{id}/join-code/toggle"})
     public ResponseEntity<TeacherCourseOfferingResponse> toggleJoinCode(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("id") UUID id,
