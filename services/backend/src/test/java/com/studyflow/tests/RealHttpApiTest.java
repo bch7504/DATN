@@ -82,6 +82,33 @@ class RealHttpApiTest {
     private String teacher, student, admin, otherTeacher, otherStudent;
     private UUID studentId, subjectId, semesterId;
 
+    /** No args. Input: isolated synthetic accounts, PDF and approved class passed to Node through stdin.
+     * Output: void; runs the actual frontend API client against this Java HTTP server.
+     * Opt-in: -Dstudyflow.web.contract=true; requires Node and installed frontend test dependencies.
+     * Errors: child timeout/nonzero exit fails test; cookies stay in memory and are never printed.
+     */
+    @Test
+    @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "studyflow.web.contract", matches = "true")
+    void actualFrontendClientAgainstJavaHttp() throws Exception {
+        String offeringId = approvedCourse();
+        Process process = new ProcessBuilder("node", "tests/java-integration.cjs")
+                .directory(Path.of("../../apps/web").toFile()).redirectErrorStream(true).start();
+        try {
+            try (OutputStream input = process.getOutputStream()) {
+                json.writeValue(input, Map.of("baseUrl", "http://127.0.0.1:" + port + "/api/v1",
+                        "teacher", teacher, "student", student, "studentId", studentId,
+                        "offeringId", offeringId, "pdfBase64", Base64.getEncoder().encodeToString(syntheticPdf())));
+            }
+            assertThat(process.waitFor(60, java.util.concurrent.TimeUnit.SECONDS)).as("Frontend client timeout").isTrue();
+            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            output.lines().filter(line -> line.startsWith("WEB_JAVA_")).forEach(System.out::println);
+            assertThat(process.exitValue()).as("Actual frontend client integration (see WEB_JAVA status)").isZero();
+            assertThat(output.lines().filter(line -> line.startsWith("WEB_JAVA_PASS")).count()).isEqualTo(3);
+        } finally {
+            if (process.isAlive()) process.destroyForcibly();
+        }
+    }
+
     /** No args; seeds isolated accounts/catalog and external adapter doubles. Output void; errors abort setup. */
     @BeforeAll
     void prepareIsolatedFixtures() throws Exception {

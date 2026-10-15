@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, FileText, Filter, Info, Sparkles } from "lucide-react";
+import { BookOpen, FileText, Filter, Info } from "lucide-react";
 import { materialApi, studentApi } from "@/lib/api-client";
 import { TeacherDocument } from "@/types/material";
 import { CourseOffering } from "@/types/course-offering";
@@ -52,7 +52,7 @@ export default function StudentMaterialsPage() {
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-600">Course Material</p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Học liệu PDF</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Đọc tài liệu giảng viên công bố, ghi chú theo trang và hỏi AI trong đúng phạm vi tài liệu.
+            Xem và tải tài liệu mà giảng viên đã công bố cho các lớp bạn được duyệt.
           </p>
         </div>
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -76,7 +76,7 @@ export default function StudentMaterialsPage() {
       <div className="flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-slate-700">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
         <p>
-          <strong className="text-slate-900">Chính sách mới:</strong> toàn bộ học liệu lớp được chuẩn hóa thành PDF có lớp văn bản. Student được xem trực tuyến, lưu ghi chú và dùng Course Material AI Tutor với citation theo số trang. Chỉ tài liệu đã công bố và enrollment <code>APPROVED</code> mới được truy cập.
+          <strong className="text-slate-900">Quyền truy cập:</strong> chỉ tài liệu PDF được công bố cho lớp có enrollment <code>APPROVED</code> mới hiển thị và mở được.
         </p>
       </div>
 
@@ -111,10 +111,6 @@ export default function StudentMaterialsPage() {
                     <div className="mt-1 font-bold text-slate-900">{(document.fileSize / 1024 / 1024).toFixed(1)} MB</div>
                   </div>
                 </div>
-                <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-                  <Sparkles className="h-3.5 w-3.5 text-red-600" />
-                  Viewer · Ghi chú theo trang · AI Tutor
-                </div>
               </div>
               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                 <span className="text-[11px] text-slate-400">
@@ -124,7 +120,7 @@ export default function StudentMaterialsPage() {
                   href={`/materials/${document.id}/viewer`}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
                 >
-                  <BookOpen className="h-4 w-4" /> Xem PDF & Hỏi AI
+                  <BookOpen className="h-4 w-4" /> Mở tài liệu
                 </Link>
               </div>
             </article>

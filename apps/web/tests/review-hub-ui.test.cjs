@@ -197,15 +197,15 @@ test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
     assert.equal(source.includes("Mở rộng thanh điều hướng"), true);
   });
 
-  await t.test("Plan route follows the weekly calendar mock and keeps Daily Goal on Dashboard", () => {
+  await t.test("Plan route loads persisted weekly calendar data and keeps Daily Goal on Dashboard", () => {
     const planPath = path.join(process.cwd(), "src/app/(student)/plan/page.tsx");
     const source = fs.readFileSync(planPath, "utf8");
 
-    assert.equal(source.includes("Kế hoạch &amp; Lịch ôn tập"), true);
-    assert.equal(source.includes("Thêm task ôn tập"), true);
+    assert.equal(source.includes("Kế hoạch &amp; Lịch học cá nhân"), true);
+    assert.equal(source.includes("Thêm nhiệm vụ"), true);
     assert.equal(source.includes("Thêm lịch học"), true);
-    assert.equal(source.includes("Bấm vào ô trống trên bảng"), true);
-    assert.equal(source.includes("Daily Goal"), true);
+    assert.equal(source.includes("studyPlanApi.getCalendar"), true);
+    assert.equal(source.includes("studyPlanApi.changeItemStatus"), true);
     assert.equal(source.includes("getDailyGoalProgress"), false);
   });
 

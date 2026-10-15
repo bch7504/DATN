@@ -130,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const switchDemoRole = useCallback((targetRole: UserRole): void => {
+    if (targetRole === "TEACHER") return;
     const targetUser = DEMO_USERS[targetRole];
     if (targetUser) {
       authApi.setDemoUser(targetUser);
@@ -146,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: user?.role ?? null,
     isAuthenticated: !!user,
     isLoading,
-    isDemo,
+    isDemo: isDemo && user?.role !== "TEACHER",
     error,
     login,
     register,

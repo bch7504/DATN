@@ -1,14 +1,10 @@
 import { getApiUrl, isDemoMode } from "./env";
 import {
   DEMO_USERS,
-  findDemoUser,
   DEMO_SUBJECTS,
   DEMO_SEMESTERS,
   demoOfferings,
   demoEnrollments,
-  demoTeacherDocs,
-  DEMO_MATERIAL_PAGES,
-  demoPageNotes,
   demoPersonalDocs,
   demoConversations,
   demoQuizzes,
@@ -17,7 +13,6 @@ import {
   demoDailyGoalConfig,
   demoDailyGoalProgress,
   demoStudyStreak,
-  demoNotifications,
 } from "./demo-data";
 import { User, LoginRequest, RegisterRequest } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
@@ -30,8 +25,6 @@ import {
 } from "@/types/course-offering";
 import {
   TeacherDocument,
-  MaterialPage,
-  CourseMaterialTutorResponse,
   PersonalDocument,
 } from "@/types/material";
 import {
@@ -56,6 +49,47 @@ import {
   StudyStreak,
 } from "@/types/review";
 import { StudentNotification } from "@/types/notification";
+
+export type StudyPlanStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED";
+export type StudyPlanItemType = "STUDY_SESSION" | "TASK" | "QUIZ";
+export type StudyPlanItemStatus = "TODO" | "COMPLETED" | "CANCELLED";
+
+export interface StudyPlanRecord {
+  id: string;
+  title: string;
+  description: string | null;
+  startDate: string;
+  endDate: string;
+  status: StudyPlanStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudyPlanItemRecord {
+  id: string;
+  planId: string;
+  title: string;
+  description: string | null;
+  type: StudyPlanItemType;
+  scheduledStart: string | null;
+  scheduledEnd: string | null;
+  dueAt: string | null;
+  reminderAt: string | null;
+  status: StudyPlanItemStatus;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaveStudyPlanItemInput {
+  title: string;
+  description?: string;
+  type: StudyPlanItemType;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  dueAt?: string;
+  reminderMinutesBefore?: number;
+}
 
 /**
  * Standard typed API client error encapsulating the Java backend error envelope.
@@ -196,6 +230,9 @@ let currentDemoUser: User = DEMO_USERS.STUDENT;
 
 /**
  * Generic HTTP request helper calling Java backend at /api/v1 with HttpOnly cookie credentials.
+ * Args: required relative API endpoint, optional RequestInit. Input: authenticated browser session.
+ * Output: parsed T or null for an empty response. Errors: ApiClientError for HTTP/network errors;
+ * JSON parse failures propagate. Mutations are never automatically retried.
  */
 export async function apiFetch<T>(
   endpoint: string,
@@ -212,7 +249,7 @@ export async function apiFetch<T>(
     headers.set("Authorization", `Bearer ${inMemoryAccessToken}`);
   }
 
-  const response = await fetch(url, {
+  const response = await requestJava(url, {
     ...options,
     headers,
     credentials: "include", // Required for HttpOnly session cookie
@@ -248,59 +285,141 @@ export async function apiFetch<T>(
   return response.json();
 }
 
+/** Args: Java URL and request options. Output: raw response. Errors: translates network failures without logging data;
+ * AbortError propagates unchanged. No retry, no demo fallback, no extra side effects beyond the HTTP call.
+ */
+async function requestJava(url: string, options: RequestInit): Promise<Response> {
+  try { return await fetch(url, options); }
+  catch (error: unknown) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiClientError(0, { code: "NETWORK_UNAVAILABLE", message: "Không kết nối được máy chủ. Kiểm tra backend đang chạy, địa chỉ API và kết nối mạng rồi thử lại." });
+  }
+}
+
+/** Fetches an owner-authorized file through Java and returns it as a browser Blob.
+ * @param endpoint Java API download path
+ * @returns downloaded file contents
+ * @throws ApiClientError when the API rejects the request
+ */
+export async function apiDownload(endpoint: string): Promise<Blob> {
+  const response = await requestJava(`${getApiUrl()}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`, {
+    credentials: "include",
+    headers: inMemoryAccessToken ? { Authorization: `Bearer ${inMemoryAccessToken}` } : undefined,
+  });
+  if (!response.ok) {
+    throw new ApiClientError(response.status, {
+      code: "DOWNLOAD_FAILED",
+      message: "Không thể tải tệp đính kèm.",
+    });
+  }
+  return response.blob();
+}
+
+/** Args: list endpoint without pagination. Input: authenticated session; Java page or legacy array.
+ * Output: every page in order. Errors: API failures propagate; malformed/repeated page metadata is rejected.
+ */
+async function fetchAllPages<T>(endpoint: string): Promise<T[]> {
+  const items: T[] = [];
+  for (let page = 0; ; page++) {
+    const separator = endpoint.includes("?") ? "&" : "?";
+    const result = await apiFetch<PaginatedList<T> | T[]>(`${endpoint}${separator}page=${page}&size=100`);
+    if (Array.isArray(result)) return result;
+    if (!Array.isArray(result.items) || result.page !== page || !Number.isInteger(result.totalPages) || result.totalPages < 0) {
+      throw new ApiClientError(502, { code: "INVALID_API_RESPONSE", message: "Dữ liệu phân trang không hợp lệ. Vui lòng tải lại." });
+    }
+    items.push(...result.items);
+    if (page + 1 >= result.totalPages) return items;
+    if (result.items.length === 0) throw new ApiClientError(502, { code: "INVALID_API_RESPONSE", message: "Danh sách bị gián đoạn. Vui lòng tải lại." });
+  }
+}
+
+export type AssignmentAttachment = { id: string; fileName: string; contentType: string; sizeBytes: number };
+export type AssignmentSubmission = {
+  id: string; answerText: string | null; submittedAt: string; status: "ON_TIME" | "LATE";
+  score: number | null; teacherFeedback: string | null; reviewedAt: string | null;
+  attachments: AssignmentAttachment[];
+};
+export type CourseAssignment = {
+  id: string; courseOfferingId: string; title: string; description: string; dueAt: string;
+  status: "DRAFT" | "PUBLISHED"; publishedAt: string | null; submission?: AssignmentSubmission | null;
+};
+export type AssignmentStudentResult = {
+  studentId: string; fullName: string; email: string; submissionState: "SUBMITTED" | "NOT_SUBMITTED";
+  submittedAt: string | null; status: "ON_TIME" | "LATE" | null; answerText: string | null;
+  score: number | null; teacherFeedback: string | null; reviewedAt: string | null; attachments: AssignmentAttachment[];
+};
+export type AssignmentStats = {
+  assignmentId: string; title: string; dueAt: string; approvedStudentCount: number;
+  submittedCount: number; notSubmittedCount: number; students: AssignmentStudentResult[];
+};
+
+/** Assignment API client: all file transfers are proxied by the permission-checking Java API. */
+export const assignmentApi = {
+  /** Lists assignments for an owned class. @param offeringId class ID @returns assignments @throws ApiClientError */
+  listForTeacher: (offeringId: string): Promise<CourseAssignment[]> => apiFetch(`/teacher/course-offerings/${encodeURIComponent(offeringId)}/assignments`),
+  /** Creates a draft. @param offeringId class ID @param input title, description, dueAt @returns draft @throws ApiClientError */
+  create: (offeringId: string, input: { title: string; description: string; dueAt: string }): Promise<CourseAssignment> => apiFetch(`/teacher/course-offerings/${encodeURIComponent(offeringId)}/assignments`, { method: "POST", body: JSON.stringify(input) }),
+  /** Args: owned draft ID, complete title/description/future dueAt. Output: saved draft. Errors: API validation/ownership/state failures. */
+  update: (assignmentId: string, input: { title: string; description: string; dueAt: string }): Promise<CourseAssignment> => apiFetch(`/teacher/assignments/${encodeURIComponent(assignmentId)}`, { method: "PUT", body: JSON.stringify(input) }),
+  /** Args: owned assignment ID, submitted student's ID, score 0..100 and optional feedback <=10000 chars.
+   * Input: authenticated Teacher. Output: saved review; errors: API validation/ownership/missing submission.
+   */
+  review: (assignmentId: string, studentId: string, input: { score: number; feedback?: string }): Promise<AssignmentSubmission> => apiFetch(`/teacher/assignments/${encodeURIComponent(assignmentId)}/submissions/${encodeURIComponent(studentId)}/review`, { method: "POST", body: JSON.stringify(input) }),
+  /** Publishes a draft. @param assignmentId assignment ID @returns published assignment @throws ApiClientError */
+  publish: (assignmentId: string): Promise<CourseAssignment> => apiFetch(`/teacher/assignments/${encodeURIComponent(assignmentId)}/publish`, { method: "POST" }),
+  /** Reads class submission status. @param assignmentId assignment ID @returns per-student report @throws ApiClientError */
+  stats: (assignmentId: string): Promise<AssignmentStats> => apiFetch(`/teacher/assignments/${encodeURIComponent(assignmentId)}/submissions`),
+  /** Lists published assignments in approved classes. @returns assignments and own submission @throws ApiClientError */
+  listForStudent: (): Promise<CourseAssignment[]> => apiFetch("/student/assignments"),
+  /** Uploads a text response and 1-5 attachments. @param assignmentId assignment ID @param answerText optional response @param files selected files @returns saved submission @throws ApiClientError */
+  submit: (assignmentId: string, answerText: string, files: File[]): Promise<AssignmentSubmission> => {
+    if (files.length === 0) {
+      return apiFetch(`/student/assignments/${encodeURIComponent(assignmentId)}/submissions`, {
+        method: "POST", body: JSON.stringify({ answerText: answerText.trim() }),
+      });
+    }
+    const body = new FormData();
+    if (answerText.trim()) body.append("answerText", answerText.trim());
+    files.forEach((file) => body.append("files", file));
+    return apiFetch(`/student/assignments/${encodeURIComponent(assignmentId)}/submissions/attachments`, { method: "POST", body });
+  },
+  /** Downloads a student-owned attachment through Java. @param assignmentId assignment ID @param attachmentId attachment ID @returns Blob @throws ApiClientError */
+  downloadForStudent: (assignmentId: string, attachmentId: string): Promise<Blob> => apiDownload(`/student/assignments/${encodeURIComponent(assignmentId)}/submissions/attachments/${encodeURIComponent(attachmentId)}/download`),
+  /** Downloads a student attachment as owning teacher. @param assignmentId assignment ID @param studentId student ID @param attachmentId attachment ID @returns Blob @throws ApiClientError */
+  downloadForTeacher: (assignmentId: string, studentId: string, attachmentId: string): Promise<Blob> => apiDownload(`/teacher/assignments/${encodeURIComponent(assignmentId)}/submissions/${encodeURIComponent(studentId)}/attachments/${encodeURIComponent(attachmentId)}/download`),
+};
+
 /**
  * Auth API client implementations
  */
 export const authApi = {
   async login(credentials: LoginRequest): Promise<User> {
-    try {
-      const res = await apiFetch<{
-        accessToken?: string;
-        token?: string;
-        user?: User;
-      }>("/auth/login", {
-        method: "POST",
-        body: JSON.stringify(credentials),
-      });
+    const res = await apiFetch<{
+      accessToken?: string;
+      token?: string;
+      user?: User;
+    }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    });
 
-      if (res?.accessToken) {
-        setInMemoryToken(res.accessToken);
-      } else if (res?.token) {
-        setInMemoryToken(res.token);
-      }
-
-      if (res?.user) {
-        return res.user;
-      }
-      return await this.getMe();
-    } catch (err) {
-      if (isDemoMode()) {
-        console.info(
-          "[Demo Mode] Đăng nhập tài khoản giả lập do backend không phản hồi hoặc đang ở chế độ demo."
-        );
-        const demoUser = findDemoUser(credentials.identifier);
-        if (demoUser) {
-          currentDemoUser = demoUser;
-          return demoUser;
-        }
-      }
-      throw err;
+    if (res?.accessToken) {
+      setInMemoryToken(res.accessToken);
+    } else if (res?.token) {
+      setInMemoryToken(res.token);
     }
+
+    if (res?.user) {
+      return res.user;
+    }
+    return await this.getMe();
   },
 
   async register(data: RegisterRequest): Promise<void> {
-    try {
-      await apiFetch<void>("/auth/register", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-    } catch (err) {
-      if (isDemoMode()) {
-        console.info("[Demo Mode] Giả lập đăng ký thành công cho:", data.email);
-        return;
-      }
-      throw err;
-    }
+    await apiFetch<void>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
   async logout(): Promise<void> {
@@ -310,23 +429,12 @@ export const authApi = {
         method: "POST",
       });
     } catch (err) {
-      if (!isDemoMode()) {
-        console.warn("Logout error:", err);
-      }
+      console.warn("Logout error:", err);
     }
   },
 
   async getMe(): Promise<User> {
-    try {
-      return await apiFetch<User>("/me", {
-        method: "GET",
-      });
-    } catch (err) {
-      if (isDemoMode()) {
-        return currentDemoUser;
-      }
-      throw err;
-    }
+    return apiFetch<User>("/me", { method: "GET" });
   },
 
   setDemoUser(user: User): void {
@@ -452,23 +560,8 @@ export const studentApi = {
   },
 
   async getOfferings(): Promise<CourseOffering[]> {
-    try {
-      const res = await apiFetch<PaginatedList<any> | any[]>(
-        "/student/course-offerings"
-      );
-      const items = Array.isArray(res) ? res : (res?.items || []);
-      return items.map(mapStudentCourseOffering);
-    } catch (err) {
-      if (isDemoMode()) {
-        const approvedOfferingIds = demoEnrollments
-          .filter(
-            (e) => e.studentId === currentDemoUser.id && e.status === "APPROVED"
-          )
-          .map((e) => e.offeringId);
-        return demoOfferings.filter((o) => approvedOfferingIds.includes(o.id));
-      }
-      throw err;
-    }
+    const items = await fetchAllPages<CourseOffering>("/student/course-offerings");
+    return items.map(mapStudentCourseOffering);
   },
 
   async getOfferingDetail(offeringId: string): Promise<CourseOffering> {
@@ -493,166 +586,19 @@ export const studentApi = {
   },
 };
 
-/**
- * Student Course Material PDF Viewer, Page Notes, and Tutor API.
- */
+/** Student Course Material PDF library, accessed only through the Java API. */
 export const materialApi = {
   async getMaterials(offeringId?: string): Promise<TeacherDocument[]> {
-    try {
-      const endpoint = offeringId
-        ? `/student/course-offerings/${offeringId}/materials`
-        : "/student/materials";
-      const res = await apiFetch<PaginatedList<TeacherDocument>>(endpoint);
-      return res.items;
-    } catch (err) {
-      if (isDemoMode()) {
-        let docs = demoTeacherDocs;
-        if (offeringId) {
-          docs = docs.filter((d) =>
-            d.publishedOfferings.some((p) => p.offeringId === offeringId)
-          );
-        }
-        return [...docs];
-      }
-      throw err;
-    }
+    const endpoint = offeringId
+      ? `/student/course-offerings/${offeringId}/materials`
+      : "/student/materials";
+    return fetchAllPages<TeacherDocument>(endpoint);
   },
 
-  async getDocument(documentId: string): Promise<TeacherDocument> {
-    if (isDemoMode()) {
-      const doc = demoTeacherDocs.find((d) => d.id === documentId);
-      if (!doc) {
-        throw new ApiClientError(404, {
-          code: "DOCUMENT_NOT_FOUND",
-          message: "KhÃ´ng tÃ¬m tháº¥y tÃ i liá»‡u bÃ i giáº£ng.",
-        });
-      }
-      return doc;
-    }
-    return apiFetch<TeacherDocument>(`/student/materials/${documentId}`);
-  },
-
-  async getPages(documentId: string): Promise<MaterialPage[]> {
-    try {
-      const res = await apiFetch<MaterialPage[]>(`/student/materials/${documentId}/pages`);
-      return res;
-    } catch (err) {
-      if (isDemoMode()) {
-        return DEMO_MATERIAL_PAGES.map((page) => ({
-          ...page,
-          hasNote: !!demoPageNotes[`${documentId}:${page.pageNumber}`],
-        }));
-      }
-      throw err;
-    }
-  },
-
-  async getPageNote(documentId: string, pageNumber: number): Promise<string> {
-    try {
-      const res = await apiFetch<{ content: string }>(
-        `/student/materials/${documentId}/pages/${pageNumber}/note`
-      );
-      return res.content;
-    } catch (err) {
-      if (isDemoMode()) {
-        return demoPageNotes[`${documentId}:${pageNumber}`] || "";
-      }
-      throw err;
-    }
-  },
-
-  async savePageNote(
-    documentId: string,
-    pageNumber: number,
-    content: string
-  ): Promise<void> {
-    try {
-      await apiFetch<void>(
-        `/student/materials/${documentId}/pages/${pageNumber}/note`,
-        {
-          method: "PUT",
-          body: JSON.stringify({ content }),
-        }
-      );
-    } catch (err) {
-      if (isDemoMode()) {
-        demoPageNotes[`${documentId}:${pageNumber}`] = content;
-        return;
-      }
-      throw err;
-    }
-  },
-
-  async askCourseMaterialTutor(
-    documentId: string,
-    pageNumber: number,
-    question: string
-  ): Promise<CourseMaterialTutorResponse> {
-    try {
-      return await apiFetch<CourseMaterialTutorResponse>(
-        `/student/materials/${documentId}/pages/${pageNumber}/tutor`,
-        {
-          method: "POST",
-          body: JSON.stringify({ question }),
-        }
-      );
-    } catch (err) {
-      if (isDemoMode()) {
-        const page = DEMO_MATERIAL_PAGES.find((item) => item.pageNumber === pageNumber);
-        const cleanQ = question.toLowerCase();
-
-        // Off-topic or question lacking evidence in the authorized PDF scope
-        if (
-          cleanQ.includes("thá»i tiáº¿t") ||
-          cleanQ.includes("bÃ³ng Ä‘Ã¡") ||
-          cleanQ.includes("chÃ­nh trá»‹") ||
-          cleanQ.includes("tá»•ng thá»‘ng")
-        ) {
-          return {
-            status: "NO_EVIDENCE",
-            answer: null,
-            citations: [],
-            traceId: `req_demo_${Date.now()}`,
-          };
-        }
-
-        const excerpt = page ? page.bullets[0] : "Ná»™i dung trang tÃ i liá»‡u.";
-        return {
-          status: "ANSWERED",
-          answer: `Dá»±a trÃªn ná»™i dung cá»§a trang ${pageNumber} (${page?.title || ""}): ${page?.bullets.join(" ") || "KhÃ¡i niá»‡m chÃ­nh Ä‘Æ°á»£c trÃ¬nh bÃ y trong tÃ i liá»‡u."
-            }`,
-          citations: [
-            {
-              documentId,
-              documentName: "BÃ i giáº£ng AI - ChÆ°Æ¡ng 1",
-              pageNumber,
-              excerpt,
-            },
-          ],
-          traceId: `req_demo_${Date.now()}`,
-        };
-      }
-      throw err;
-    }
-  },
-
-  async recordPageView(
-    documentId: string,
-    pageNumber: number
-  ): Promise<void> {
-    try {
-      await apiFetch<void>(
-        `/student/materials/${documentId}/pages/${pageNumber}/view-events`,
-        {
-          method: "POST",
-          headers: {
-            "Idempotency-Key": `view:${documentId}:${pageNumber}:${Date.now()}`,
-          },
-        }
-      );
-    } catch (err) {
-      // Ignore in demo mode
-    }
+  /** Returns the Java route that checks class enrollment before streaming the PDF. */
+  getDownloadUrl(documentId: string, asAttachment = false): string {
+    const query = asAttachment ? "?download=true" : "";
+    return `${getApiUrl()}/student/materials/${encodeURIComponent(documentId)}/download${query}`;
   },
 };
 
@@ -735,20 +681,8 @@ export const personalDocApi = {
  */
 export const teacherApi = {
   async getOfferings(): Promise<CourseOffering[]> {
-    try {
-      const res = await apiFetch<
-        PaginatedList<BackendTeacherCourseOffering> | BackendTeacherCourseOffering[]
-      >(
-        "/teacher/course-offerings"
-      );
-      const items = Array.isArray(res) ? res : res.items;
-      return items.map(mapTeacherCourseOffering);
-    } catch (err) {
-      if (isDemoMode()) {
-        return demoOfferings.filter((o) => o.teacherId === currentDemoUser.id);
-      }
-      throw err;
-    }
+    const items = await fetchAllPages<BackendTeacherCourseOffering>("/teacher/course-offerings");
+    return items.map(mapTeacherCourseOffering);
   },
 
   async createOffering(data: CreateOfferingRequest): Promise<CourseOffering> {
@@ -960,13 +894,12 @@ export const teacherApi = {
 
   // Teacher Documents & Publications (docs/api-plan.md Section 5.3)
   async getDocuments(): Promise<TeacherDocument[]> {
-    try {
-      const res = await apiFetch<PaginatedList<TeacherDocument>>("/teacher/documents");
-      return res.items;
-    } catch (err) {
-      if (isDemoMode()) return demoTeacherDocs;
-      throw err;
-    }
+    return fetchAllPages<TeacherDocument>("/teacher/documents");
+  },
+
+  /** Returns the Java route that checks Teacher ownership before streaming the PDF. */
+  getDocumentDownloadUrl(documentId: string): string {
+    return `${getApiUrl()}/teacher/documents/${encodeURIComponent(documentId)}/download`;
   },
 
   async uploadDocument(
@@ -982,90 +915,37 @@ export const teacherApi = {
       });
     }
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("title", title);
-      return await apiFetch<TeacherDocument>("/teacher/documents", {
-        method: "POST",
-        body: formData,
-      });
-    } catch (err) {
-      if (isDemoMode()) {
-        const newDoc: TeacherDocument = {
-          id: `doc_${Date.now()}`,
-          title: title || file.name,
-          fileName: file.name,
-          fileType: "PDF",
-          fileSize: file.size,
-          status: "READY",
-          totalPages: 10,
-          downloadUrl: `/api/v1/student/materials/doc_${Date.now()}/download`,
-          publishedOfferings: [],
-          createdAt: new Date().toISOString(),
-        };
-        demoTeacherDocs.unshift(newDoc);
-        return newDoc;
-      }
-      throw err;
+    if (file.size === 0 || file.size > 20 * 1024 * 1024) {
+      throw new ApiClientError(422, { code: "INVALID_FILE_SIZE", message: "Chọn tệp PDF không rỗng, tối đa 20 MB." });
     }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("title", title);
+    return apiFetch<TeacherDocument>("/teacher/documents", {
+      method: "POST",
+      body: formData,
+    });
   },
 
   async publishDocument(
     documentId: string,
     courseOfferingIds: string[]
   ): Promise<void> {
-    try {
-      await apiFetch<void>(`/teacher/documents/${documentId}/publications`, {
-        method: "POST",
-        body: JSON.stringify({ courseOfferingIds }),
-      });
-    } catch (err) {
-      if (isDemoMode()) {
-        const doc = demoTeacherDocs.find((d) => d.id === documentId);
-        if (doc) {
-          for (const offId of courseOfferingIds) {
-            const offering = demoOfferings.find((o) => o.id === offId);
-            if (
-              offering &&
-              !doc.publishedOfferings.some((p) => p.offeringId === offId)
-            ) {
-              doc.publishedOfferings.push({
-                offeringId: offering.id,
-                offeringCode: offering.code,
-                offeringName: offering.name,
-                publishedAt: new Date().toISOString(),
-              });
-            }
-          }
-        }
-        return;
-      }
-      throw err;
-    }
+    await apiFetch<void>(`/teacher/documents/${documentId}/publications`, {
+      method: "POST",
+      body: JSON.stringify({ courseOfferingIds }),
+    });
   },
 
   async revokePublication(
     documentId: string,
     offeringId: string
   ): Promise<void> {
-    try {
-      await apiFetch<void>(
-        `/teacher/documents/${documentId}/publications?offeringId=${offeringId}`,
-        { method: "DELETE" }
-      );
-    } catch (err) {
-      if (isDemoMode()) {
-        const doc = demoTeacherDocs.find((d) => d.id === documentId);
-        if (doc) {
-          doc.publishedOfferings = doc.publishedOfferings.filter(
-            (p) => p.offeringId !== offeringId
-          );
-        }
-        return;
-      }
-      throw err;
-    }
+    await apiFetch<void>(
+      `/teacher/documents/${documentId}/publications?offeringId=${offeringId}`,
+      { method: "DELETE" }
+    );
   },
 };
 
@@ -1761,38 +1641,15 @@ export const notificationApi = {
    * @param page zero-based page index, default 0
    * @param size page size from 1 to 100, default 20
    * @returns standard paginated notification contract from Java
-   * @throws ApiClientError when Java rejects the session or request outside explicit demo mode
+   * @throws ApiClientError when Java rejects the session or request; no fixture fallback
    */
   async list(
     unreadOnly = false,
     page = 0,
     size = 20
   ): Promise<PaginatedList<StudentNotification>> {
-    try {
-      const query = new URLSearchParams({
-        unreadOnly: String(unreadOnly),
-        page: String(page),
-        size: String(size),
-      });
-      return await apiFetch<PaginatedList<StudentNotification>>(
-        `/student/notifications?${query.toString()}`
-      );
-    } catch (err) {
-      if (isDemoMode()) {
-        const filtered = unreadOnly
-          ? demoNotifications.filter((item) => item.readAt === null)
-          : demoNotifications;
-        const start = page * size;
-        return {
-          items: filtered.slice(start, start + size),
-          page,
-          size,
-          totalItems: filtered.length,
-          totalPages: Math.ceil(filtered.length / size),
-        };
-      }
-      throw err;
-    }
+    const query = new URLSearchParams({ unreadOnly: String(unreadOnly), page: String(page), size: String(size) });
+    return apiFetch<PaginatedList<StudentNotification>>(`/student/notifications?${query.toString()}`);
   },
 
   /**
@@ -1803,19 +1660,118 @@ export const notificationApi = {
    * @throws ApiClientError for invalid session, forbidden access or owner-safe 404
    */
   async markRead(notificationId: string): Promise<StudentNotification> {
-    try {
-      return await apiFetch<StudentNotification>(
-        `/student/notifications/${encodeURIComponent(notificationId)}/read`,
-        { method: "PATCH" }
-      );
-    } catch (err) {
-      if (isDemoMode()) {
-        const notification = demoNotifications.find((item) => item.id === notificationId);
-        if (!notification) throw err;
-        notification.readAt ??= new Date().toISOString();
-        return { ...notification };
-      }
-      throw err;
-    }
+    return apiFetch<StudentNotification>(
+      `/student/notifications/${encodeURIComponent(notificationId)}/read`, { method: "PATCH" }
+    );
+  },
+};
+
+/**
+ * Personal plan and calendar API. All data is owned and validated by Java; this
+ * client deliberately has no fixture fallback so failures cannot look persisted.
+ */
+export const studyPlanApi = {
+  /**
+   * Args: optional StudyPlanStatus and page size 1..100. Input: current Student session.
+   * Output: page of plans owned by that Student. Errors: ApiClientError for auth/validation failures.
+   */
+  listPlans(status?: StudyPlanStatus, size = 100): Promise<PaginatedList<StudyPlanRecord>> {
+    const query = new URLSearchParams({ page: "0", size: String(size) });
+    if (status) query.set("status", status);
+    return apiFetch<PaginatedList<StudyPlanRecord>>(`/study-plans?${query.toString()}`);
+  },
+
+  /**
+   * Args: title, optional description, inclusive startDate/endDate. Input: current Student session.
+   * Output: newly persisted ACTIVE plan. Errors: ApiClientError for invalid range/content or auth.
+   */
+  createPlan(input: {
+    title: string;
+    description?: string;
+    startDate: string;
+    endDate: string;
+  }): Promise<StudyPlanRecord> {
+    return apiFetch<StudyPlanRecord>("/study-plans", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  /** Args: owned plan ID and full editable fields including status. Input: authenticated Student.
+   * Output: saved plan. Errors: Java validation, ownership, archived state or item outside changed dates.
+   */
+  updatePlan(planId: string, input: {
+    title: string; description?: string; startDate: string; endDate: string; status: StudyPlanStatus;
+  }): Promise<StudyPlanRecord> {
+    return apiFetch<StudyPlanRecord>(`/study-plans/${encodeURIComponent(planId)}`, {
+      method: "PUT", body: JSON.stringify(input),
+    });
+  },
+
+  /** Args: owned plan ID. Input: authenticated Student. Output: void, soft archived.
+   * Errors: Java auth/owner/state failures. Safe to call again for the same plan.
+   */
+  archivePlan(planId: string): Promise<void> {
+    return apiFetch<void>(`/study-plans/${encodeURIComponent(planId)}`, { method: "DELETE" });
+  },
+
+  /**
+   * Args: UTC instants `from` inclusive and `to` exclusive, maximum 31 days.
+   * Input: current Student session and bounded calendar range. Output: owner-scoped calendar items.
+   * Errors: ApiClientError for auth or an invalid/oversized range.
+   */
+  getCalendar(from: string, to: string): Promise<{ from: string; to: string; items: StudyPlanItemRecord[] }> {
+    const query = new URLSearchParams({ from, to });
+    return apiFetch<{ from: string; to: string; items: StudyPlanItemRecord[] }>(`/calendar?${query.toString()}`);
+  },
+
+  /**
+   * Args: planId and complete new item fields. Input: current Student session and an owned active plan.
+   * Output: persisted TODO plan item. Errors: ApiClientError for ownership, validation or schedule conflicts.
+   */
+  createItem(planId: string, input: SaveStudyPlanItemInput): Promise<StudyPlanItemRecord> {
+    return apiFetch<StudyPlanItemRecord>(`/study-plans/${encodeURIComponent(planId)}/items`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  /** Args: owned plan/item IDs and complete replacement fields. Input: Student session.
+   * Output: persisted item. Errors: validation, ownership, archived plan or conflicting schedule from Java.
+   */
+  updateItem(planId: string, itemId: string, input: SaveStudyPlanItemInput): Promise<StudyPlanItemRecord> {
+    return apiFetch<StudyPlanItemRecord>(`/study-plans/${encodeURIComponent(planId)}/items/${encodeURIComponent(itemId)}`, {
+      method: "PUT", body: JSON.stringify(input),
+    });
+  },
+
+  /**
+   * Args: planId and itemId. Input: current Student session and an owned plan item.
+   * Output: void; side effect marks the item CANCELLED. Errors: ApiClientError for missing/foreign items.
+   */
+  cancelItem(planId: string, itemId: string): Promise<void> {
+    return apiFetch<void>(
+      `/study-plans/${encodeURIComponent(planId)}/items/${encodeURIComponent(itemId)}`,
+      { method: "DELETE" }
+    );
+  },
+
+  /**
+   * Args: itemId, target TODO|COMPLETED status and an idempotency key for a new completion.
+   * Input: current Student session and owner-scoped non-cancelled item. Output: updated item.
+   * Errors: ApiClientError for auth, invalid state or missing idempotency key. COMPLETED emits one learning event.
+   */
+  changeItemStatus(
+    itemId: string,
+    status: Exclude<StudyPlanItemStatus, "CANCELLED">,
+    idempotencyKey?: string
+  ): Promise<StudyPlanItemRecord> {
+    const headers = new Headers();
+    if (idempotencyKey) headers.set("Idempotency-Key", idempotencyKey);
+    return apiFetch<StudyPlanItemRecord>(`/study-plan-items/${encodeURIComponent(itemId)}/status`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ status }),
+    });
   },
 };
