@@ -8,7 +8,15 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import { User, UserRole, LoginRequest, RegisterRequest } from "@/types/auth";
+import {
+  User,
+  UserRole,
+  LoginRequest,
+  RegisterRequest,
+  RegistrationStatusResponse,
+  VerifyRegistrationRequest,
+  ResendVerificationRequest,
+} from "@/types/auth";
 import { authApi } from "@/lib/api-client";
 import { isDemoMode } from "@/lib/env";
 import { DEMO_USERS } from "@/lib/demo-data";
@@ -21,7 +29,9 @@ export interface AuthContextType {
   isDemo: boolean;
   error: string | null;
   login: (credentials: LoginRequest) => Promise<User>;
-  register: (data: RegisterRequest) => Promise<void>;
+  register: (data: RegisterRequest) => Promise<RegistrationStatusResponse>;
+  verifyRegistration: (data: VerifyRegistrationRequest) => Promise<void>;
+  resendVerification: (data: ResendVerificationRequest) => Promise<RegistrationStatusResponse>;
   logout: () => Promise<void>;
   switchDemoRole: (targetRole: UserRole) => void;
   clearError: () => void;
@@ -100,11 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (data: RegisterRequest): Promise<void> => {
+    async (data: RegisterRequest): Promise<RegistrationStatusResponse> => {
       setIsLoading(true);
       setError(null);
       try {
-        await authApi.register(data);
+        return await authApi.register(data);
       } catch (err: unknown) {
         const message =
           err instanceof Error
@@ -115,6 +125,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } finally {
         setIsLoading(false);
       }
+    },
+    []
+  );
+
+  /**
+   * Args: pending email and six-digit OTP. Input: Student registration challenge.
+   * Output: void after Java creates the account. Errors: API/validation errors propagate.
+   */
+  const verifyRegistration = useCallback(async (data: VerifyRegistrationRequest): Promise<void> => {
+    setError(null);
+    await authApi.verifyRegistration(data);
+  }, []);
+
+  /**
+   * Args: pending registration email. Input: explicit resend after server cooldown.
+   * Output: new OTP timing. Errors: API/validation errors propagate.
+   */
+  const resendVerification = useCallback(
+    async (data: ResendVerificationRequest): Promise<RegistrationStatusResponse> => {
+      setError(null);
+      return await authApi.resendVerification(data);
     },
     []
   );
@@ -151,6 +182,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error,
     login,
     register,
+    verifyRegistration,
+    resendVerification,
     logout,
     switchDemoRole,
     clearError,

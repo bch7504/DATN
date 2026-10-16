@@ -33,6 +33,24 @@ export interface RegisterRequest {
   password: string;
 }
 
+/** POST /auth/register and /auth/resend-verification: pending OTP timing. */
+export interface RegistrationStatusResponse {
+  status: "VERIFICATION_REQUIRED";
+  expiresAt: string;
+  resendAvailableAt: string;
+}
+
+/** POST /auth/verify-registration: the six-digit code sent to this email. */
+export interface VerifyRegistrationRequest {
+  email: string;
+  verificationCode: string;
+}
+
+/** POST /auth/resend-verification: pending registration email. */
+export interface ResendVerificationRequest {
+  email: string;
+}
+
 /**
  * Authentication context state
  */

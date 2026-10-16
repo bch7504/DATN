@@ -17,6 +17,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [registrationComplete, setRegistrationComplete] = useState(false);
+
+  useEffect(() => {
+    setRegistrationComplete(new URLSearchParams(window.location.search).get("verified") === "1");
+  }, []);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -79,6 +84,11 @@ export default function LoginPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
         <div className="bg-white py-8 px-6 sm:px-10 shadow-xl rounded-2xl border border-slate-200/80">
+          {registrationComplete && (
+            <p role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+              Email đã được xác nhận và tài khoản đã được tạo. Bạn có thể đăng nhập.
+            </p>
+          )}
           <form className="space-y-5" onSubmit={handleSubmit}>
             {loginError && (
               <ErrorAlert
