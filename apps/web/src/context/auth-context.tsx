@@ -13,8 +13,10 @@ import {
   UserRole,
   LoginRequest,
   RegisterRequest,
+  RegistrationStatusResponse,
   RegistrationStatus,
   VerifyRegistrationRequest,
+  ResendVerificationRequest,
 } from "@/types/auth";
 import { authApi } from "@/lib/api-client";
 import { isDemoMode } from "@/lib/env";
@@ -28,9 +30,11 @@ export interface AuthContextType {
   isDemo: boolean;
   error: string | null;
   login: (credentials: LoginRequest) => Promise<User>;
-  register: (data: RegisterRequest) => Promise<RegistrationStatus>;
+  register: (data: RegisterRequest) => Promise<RegistrationStatusResponse>;
   verifyRegistration: (data: VerifyRegistrationRequest) => Promise<void>;
-  resendVerification: (email: string) => Promise<RegistrationStatus>;
+  resendVerification: (
+    dataOrEmail: string | ResendVerificationRequest
+  ) => Promise<RegistrationStatusResponse>;
   logout: () => Promise<void>;
   switchDemoRole: (targetRole: UserRole) => void;
   clearError: () => void;
@@ -109,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (data: RegisterRequest): Promise<RegistrationStatus> => {
+    async (data: RegisterRequest): Promise<RegistrationStatusResponse> => {
       setIsLoading(true);
       setError(null);
       try {
@@ -128,38 +132,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  /**
+   * Args: pending email and six-digit OTP. Input: Student registration challenge.
+   * Output: void after Java creates the account. Errors: API/validation errors propagate.
+   */
   const verifyRegistration = useCallback(
     async (data: VerifyRegistrationRequest): Promise<void> => {
-      setIsLoading(true);
       setError(null);
-      try {
-        await authApi.verifyRegistration(data);
-      } catch (err: unknown) {
-        const message =
-          err instanceof Error ? err.message : "Mã xác minh không hợp lệ.";
-        setError(message);
-        throw err;
-      } finally {
-        setIsLoading(false);
-      }
+      await authApi.verifyRegistration(data);
     },
     []
   );
 
+  /**
+   * Args: pending registration email or request object. Input: explicit resend after server cooldown.
+   * Output: new OTP timing. Errors: API/validation errors propagate.
+   */
   const resendVerification = useCallback(
-    async (email: string): Promise<RegistrationStatus> => {
-      setIsLoading(true);
+    async (
+      dataOrEmail: string | ResendVerificationRequest
+    ): Promise<RegistrationStatusResponse> => {
       setError(null);
-      try {
-        return await authApi.resendVerification(email);
-      } catch (err: unknown) {
-        const message =
-          err instanceof Error ? err.message : "Chưa thể gửi lại mã xác minh.";
-        setError(message);
-        throw err;
-      } finally {
-        setIsLoading(false);
-      }
+      return await authApi.resendVerification(dataOrEmail);
     },
     []
   );

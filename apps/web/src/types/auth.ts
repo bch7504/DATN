@@ -33,17 +33,25 @@ export interface RegisterRequest {
   password: string;
 }
 
-/** Registration challenge returned before the Student account is created. */
-export interface RegistrationStatus {
+/** POST /auth/register and /auth/resend-verification: pending OTP timing. */
+export interface RegistrationStatusResponse {
   status: "VERIFICATION_REQUIRED";
   expiresAt: string;
   resendAvailableAt: string;
 }
 
-/** Request payload for POST /api/v1/auth/verify-registration. */
+/** Alias for backward compatibility */
+export type RegistrationStatus = RegistrationStatusResponse;
+
+/** POST /auth/verify-registration: the six-digit code sent to this email. */
 export interface VerifyRegistrationRequest {
   email: string;
   verificationCode: string;
+}
+
+/** POST /auth/resend-verification: pending registration email. */
+export interface ResendVerificationRequest {
+  email: string;
 }
 
 /**

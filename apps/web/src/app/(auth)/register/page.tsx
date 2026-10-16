@@ -1,112 +1,137 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { PtitLogo } from "@/components/ui/ptit-logo";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
-import { ArrowLeft, ArrowRight, Lock, Mail, ShieldCheck, User } from "lucide-react";
+import { User, Mail, Lock, ArrowRight } from "lucide-react";
+import { RegistrationStatusResponse } from "@/types/auth";
 
-export default function RegisterPage(): React.JSX.Element {
+export default function RegisterPage() {
   const { register, verifyRegistration, resendVerification } = useAuth();
   const router = useRouter();
-  const [step, setStep] = useState<"ACCOUNT" | "VERIFY">("ACCOUNT");
+
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [resendAvailableAt, setResendAvailableAt] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [registrationStatus, setRegistrationStatus] = useState<RegistrationStatusResponse | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
-  const validateAccount = (): string | null => {
-    if (!displayName.trim() || !email.trim() || !password) {
-      return "Vui lòng điền đầy đủ các thông tin bắt buộc.";
-    }
-    if (!email.trim().toLowerCase().endsWith("@ptit.edu.vn")) {
-      return "Đăng ký chỉ chấp nhận email có miền @ptit.edu.vn.";
-    }
-    if (password !== confirmPassword) return "Mật khẩu xác nhận không khớp.";
-    if (
-      password.length < 8 ||
-      !/[a-z]/.test(password) ||
-      !/[A-Z]/.test(password) ||
-      !/\d/.test(password)
-    ) {
-      return "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường và chữ số.";
-    }
-    return null;
-  };
+  useEffect(() => {
+    if (!registrationStatus) return;
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [registrationStatus]);
 
-  const handleRegister = async (event: React.FormEvent): Promise<void> => {
-    event.preventDefault();
-    const validationError = validateAccount();
-    if (validationError) {
-      setErrorMsg(validationError);
+  const resendSeconds = registrationStatus
+    ? Math.max(0, Math.ceil((Date.parse(registrationStatus.resendAvailableAt) - nowMs) / 1000))
+    : 0;
+  const expiresSeconds = registrationStatus
+    ? Math.max(0, Math.ceil((Date.parse(registrationStatus.expiresAt) - nowMs) / 1000))
+    : 0;
+
+  /**
+   * Args: registration form event. Input: Student name, institutional email and matching passwords.
+   * Output: void; shows the OTP form only after Java confirms delivery was requested.
+   * Errors: invalid form or API error is shown without claiming the account is created.
+   */
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault();
+    if (!displayName.trim() || !email.trim() || !password.trim()) {
+      setErrorMsg("Vui lòng điền đầy đủ các thông tin bắt buộc.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMsg("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg("Mật khẩu phải chứa ít nhất 6 ký tự.");
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^@\s]+@stu\.ptit\.edu\.vn$/.test(normalizedEmail)) {
+      setErrorMsg("Chỉ dùng email sinh viên có đuôi @stu.ptit.edu.vn.");
       return;
     }
 
     setSubmitting(true);
     setErrorMsg(null);
     setNotice(null);
+
     try {
-      const status = await register({
-        displayName: displayName.trim(),
-        email: email.trim().toLowerCase(),
-        password,
-      });
-      setResendAvailableAt(status.resendAvailableAt);
-      setStep("VERIFY");
-      setNotice("Mã xác minh 6 chữ số đã được gửi tới email của bạn.");
-    } catch (error: unknown) {
-      setErrorMsg(
-        error instanceof Error ? error.message : "Đăng ký không thành công."
-      );
+      const status = await register({ displayName: displayName.trim(), email: normalizedEmail, password });
+      setVerificationEmail(normalizedEmail);
+      setRegistrationStatus(status);
+      setNowMs(Date.now());
+      setPassword("");
+      setConfirmPassword("");
+      setNotice("Đã gửi mã xác nhận 6 chữ số. Vui lòng kiểm tra hộp thư và mục Spam.");
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Đăng ký không thành công. Vui lòng kiểm tra lại.";
+      setErrorMsg(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleVerify = async (event: React.FormEvent): Promise<void> => {
-    event.preventDefault();
+  /**
+   * Args: OTP form event. Input: six-digit code for the pending email.
+   * Output: void; Java creates the account, then the browser opens login.
+   * Errors: invalid/expired OTP or network error remains visible for correction.
+   */
+  const handleVerify = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault();
     if (!/^\d{6}$/.test(verificationCode)) {
-      setErrorMsg("Mã xác minh phải gồm đúng 6 chữ số.");
+      setErrorMsg("Vui lòng nhập đúng 6 chữ số trong email.");
       return;
     }
-
     setSubmitting(true);
     setErrorMsg(null);
+    setNotice(null);
     try {
-      await verifyRegistration({
-        email: email.trim().toLowerCase(),
-        verificationCode,
-      });
-      router.push("/login?registered=true");
-    } catch (error: unknown) {
-      setErrorMsg(
-        error instanceof Error ? error.message : "Xác minh không thành công."
-      );
+      await verifyRegistration({ email: verificationEmail, verificationCode });
+      router.replace("/login?verified=1");
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Không xác minh được mã. Vui lòng thử lại.");
     } finally {
       setSubmitting(false);
     }
   };
 
+  /**
+   * Args: none. Input: pending registration email after the server cooldown.
+   * Output: void; replaces the old code and refreshes expiry/cooldown display.
+   * Errors: server throttling or delivery errors are shown without changing the current status.
+   */
   const handleResend = async (): Promise<void> => {
+    if (submitting || resendSeconds > 0 || !verificationEmail) return;
     setSubmitting(true);
     setErrorMsg(null);
     setNotice(null);
     try {
-      const status = await resendVerification(email.trim().toLowerCase());
-      setResendAvailableAt(status.resendAvailableAt);
-      setNotice("Đã gửi một mã xác minh mới.");
-    } catch (error: unknown) {
-      setErrorMsg(
-        error instanceof Error ? error.message : "Chưa thể gửi lại mã."
-      );
+      const status = await resendVerification({ email: verificationEmail });
+      setRegistrationStatus(status);
+      setNowMs(Date.now());
+      setVerificationCode("");
+      setNotice("Đã gửi mã mới. Mã cũ không còn hiệu lực.");
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Chưa gửi lại được mã. Vui lòng thử sau.");
     } finally {
       setSubmitting(false);
     }
@@ -114,197 +139,216 @@ export default function RegisterPage(): React.JSX.Element {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-[#fff1f2]/30 to-amber-50/20 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="w-16 h-16 rounded-full border-2 border-[#d71920] bg-white flex items-center justify-center shadow-lg mb-4 mx-auto">
-          <PtitLogo size={36} />
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="flex flex-col items-center text-center">
+          <div className="w-16 h-16 rounded-full border-2 border-[#d71920] bg-white flex items-center justify-center shadow-lg mb-4  transition-transform">
+            <PtitLogo size={36} />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172033] tracking-tight">
+            {registrationStatus ? "Xác nhận email sinh viên" : "Đăng ký tài khoản Sinh viên"}
+          </h1>
+          <p className="mt-1 text-xs font-bold uppercase tracking-wider text-[#64748b]">
+            StudyFlow · Học viện Công nghệ Bưu chính Viễn thông
+          </p>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172033] tracking-tight">
-          {step === "ACCOUNT" ? "Đăng ký tài khoản Sinh viên" : "Xác minh email"}
-        </h1>
-        <p className="mt-1 text-xs font-bold uppercase tracking-wider text-[#64748b]">
-          StudyFlow · Học viện Công nghệ Bưu chính Viễn thông
-        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
         <div className="bg-white py-8 px-6 sm:px-10 shadow-xl rounded-2xl border border-slate-200/80">
           {errorMsg && (
-            <ErrorAlert message={errorMsg} onRetry={() => setErrorMsg(null)} />
+              <ErrorAlert
+                message={errorMsg}
+                onRetry={() => setErrorMsg(null)}
+              />
           )}
           {notice && (
-            <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
+            <p role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
               {notice}
-            </div>
+            </p>
           )}
 
-          {step === "ACCOUNT" ? (
-            <form className="space-y-4" onSubmit={handleRegister}>
-              <Field label="Họ và tên" icon={<User className="w-4 h-4" />}>
+          {registrationStatus ? (
+            <form className="space-y-4" onSubmit={handleVerify}>
+              <p className="text-sm text-slate-600">
+                Nhập mã đã gửi tới <strong className="text-slate-900">{verificationEmail}</strong> để hoàn tất đăng ký.
+              </p>
+              <div>
+                <label htmlFor="verificationCode" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Mã xác nhận
+                </label>
+                <input
+                  id="verificationCode"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  required
+                  autoFocus
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="Nhập 6 chữ số"
+                  className="block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-center text-lg tracking-[0.35em] focus:border-red-500 focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+              <p className="text-xs text-slate-500">
+                {expiresSeconds > 0
+                  ? `Mã còn hiệu lực khoảng ${Math.ceil(expiresSeconds / 60)} phút.`
+                  : "Mã đã hết hạn. Hãy yêu cầu gửi mã mới."}
+              </p>
+              <button
+                type="submit"
+                disabled={submitting || verificationCode.length !== 6 || expiresSeconds === 0}
+                className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-xl shadow-md text-sm font-bold text-white bg-[#d71920] disabled:opacity-60"
+              >
+                {submitting ? <LoadingSpinner size="sm" text="Đang xác minh..." /> : "Xác nhận và tạo tài khoản"}
+              </button>
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={submitting || resendSeconds > 0}
+                className="w-full text-sm font-semibold text-red-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+              >
+                {resendSeconds > 0 ? `Gửi lại mã sau ${resendSeconds} giây` : "Gửi lại mã"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRegistrationStatus(null);
+                  setVerificationCode("");
+                  setErrorMsg(null);
+                  setNotice(null);
+                }}
+                className="w-full text-xs text-slate-500 underline"
+              >
+                Đổi email hoặc thông tin đăng ký
+              </button>
+            </form>
+          ) : (
+          <form className="space-y-4" onSubmit={handleSubmit}>
+
+            <div>
+              <label
+                htmlFor="displayName"
+                className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1"
+              >
+                Họ và tên
+              </label>
+              <div className="relative rounded-xl shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <User className="w-4 h-4" />
+                </div>
                 <input
                   id="displayName"
+                  type="text"
                   required
                   value={displayName}
-                  onChange={(event) => setDisplayName(event.target.value)}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Nguyễn Văn An"
-                  className="block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
-              </Field>
-              <Field label="Email PTIT" icon={<Mail className="w-4 h-4" />}>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1"
+              >
+                Email sinh viên
+              </label>
+              <div className="relative rounded-xl shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <Mail className="w-4 h-4" />
+                </div>
                 <input
                   id="email"
                   type="email"
                   required
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="student@ptit.edu.vn"
-                  className="block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="an.nv@stu.ptit.edu.vn"
+                  className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
-              </Field>
-              <Field label="Mật khẩu" icon={<Lock className="w-4 h-4" />}>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1"
+              >
+                Mật khẩu
+              </label>
+              <div className="relative rounded-xl shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <Lock className="w-4 h-4" />
+                </div>
                 <input
                   id="password"
                   type="password"
                   required
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Ít nhất 8 ký tự"
-                  className="block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
-              </Field>
-              <Field
-                label="Xác nhận mật khẩu"
-                icon={<Lock className="w-4 h-4" />}
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="confirmPassword"
+                className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1"
               >
+                Xác nhận mật khẩu
+              </label>
+              <div className="relative rounded-xl shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <Lock className="w-4 h-4" />
+                </div>
                 <input
                   id="confirmPassword"
                   type="password"
                   required
                   value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  placeholder="Nhập lại mật khẩu"
-                  className="block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
-              </Field>
-              <PrimaryButton
-                submitting={submitting}
-                loadingText="Đang gửi mã..."
-                text="Gửi mã xác minh"
-              />
-            </form>
-          ) : (
-            <form className="space-y-5" onSubmit={handleVerify}>
-              <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-slate-700">
-                Nhập mã đã gửi tới <strong>{email}</strong>. Tài khoản chỉ được
-                tạo sau khi mã hợp lệ.
               </div>
-              <Field
-                label="Mã xác minh 6 chữ số"
-                icon={<ShieldCheck className="w-4 h-4" />}
-              >
-                <input
-                  id="verificationCode"
-                  inputMode="numeric"
-                  maxLength={6}
-                  required
-                  value={verificationCode}
-                  onChange={(event) =>
-                    setVerificationCode(event.target.value.replace(/\D/g, ""))
-                  }
-                  placeholder="000000"
-                  className="block w-full rounded-xl border border-slate-300 px-3 py-2.5 text-center font-mono text-sm tracking-[0.45em] focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-              </Field>
-              <PrimaryButton
-                submitting={submitting}
-                loadingText="Đang xác minh..."
-                text="Xác minh và tạo tài khoản"
-              />
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setStep("ACCOUNT")}
-                  className="inline-flex items-center gap-1 font-semibold text-slate-600"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Sửa thông tin
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={submitting}
-                  className="font-bold text-red-600 disabled:opacity-50"
-                  title={
-                    resendAvailableAt
-                      ? `Có thể gửi lại từ ${new Date(
-                          resendAvailableAt
-                        ).toLocaleTimeString("vi-VN")}`
-                      : undefined
-                  }
-                >
-                  Gửi lại mã
-                </button>
-              </div>
-            </form>
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full flex justify-center items-center gap-2 py-3 px-4 mt-2 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-[#d71920]  disabled:opacity-60 transition"
+            >
+              {submitting ? (
+                <LoadingSpinner size="sm" text="Đang gửi mã..." />
+              ) : (
+                <>
+                  <span>Gửi mã xác nhận</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
           )}
 
-          <p className="mt-6 text-center text-xs text-slate-500">
-            Đã có tài khoản?{" "}
-            <Link href="/login" className="font-semibold text-red-600 underline">
-              Đăng nhập ngay
-            </Link>
-          </p>
+          <div className="mt-6 text-center">
+            <p className="text-xs text-slate-500">
+              Đã có tài khoản?{" "}
+              <Link
+                href="/login"
+                className="font-semibold text-red-600  underline"
+              >
+                Đăng nhập ngay
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function Field({
-  label,
-  icon,
-  children,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <div>
-      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-        {label}
-      </label>
-      <div className="relative rounded-xl shadow-sm">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-          {icon}
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function PrimaryButton({
-  submitting,
-  loadingText,
-  text,
-}: {
-  submitting: boolean;
-  loadingText: string;
-  text: string;
-}): React.JSX.Element {
-  return (
-    <button
-      type="submit"
-      disabled={submitting}
-      className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-[#d71920] disabled:opacity-60"
-    >
-      {submitting ? (
-        <LoadingSpinner size="sm" text={loadingText} />
-      ) : (
-        <>
-          <span>{text}</span>
-          <ArrowRight className="w-4 h-4" />
-        </>
-      )}
-    </button>
   );
 }

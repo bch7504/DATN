@@ -23,8 +23,10 @@ import {
   User,
   LoginRequest,
   RegisterRequest,
+  RegistrationStatusResponse,
   RegistrationStatus,
   VerifyRegistrationRequest,
+  ResendVerificationRequest,
 } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
 import {
@@ -271,8 +273,34 @@ export async function apiFetch<T>(
 }
 
 /**
- * Auth API client implementations
+ * Args: untrusted JSON from register/resend endpoint. Input: Java OTP timing response.
+ * Output: validated pending status with ISO timestamps. Errors: ApiClientError 502 when
+ * the server response cannot drive a safe verification/cooldown UI; no side effects.
  */
+function parseRegistrationStatus(value: unknown): RegistrationStatusResponse {
+  if (value && typeof value === "object") {
+    const response = value as Record<string, unknown>;
+    if (
+      response.status === "VERIFICATION_REQUIRED" &&
+      typeof response.expiresAt === "string" &&
+      !Number.isNaN(Date.parse(response.expiresAt)) &&
+      typeof response.resendAvailableAt === "string" &&
+      !Number.isNaN(Date.parse(response.resendAvailableAt))
+    ) {
+      return {
+        status: "VERIFICATION_REQUIRED",
+        expiresAt: response.expiresAt,
+        resendAvailableAt: response.resendAvailableAt,
+      };
+    }
+  }
+  throw new ApiClientError(502, {
+    code: "INVALID_REGISTRATION_RESPONSE",
+    message: "Máy chủ trả dữ liệu xác minh không hợp lệ. Vui lòng thử lại sau.",
+  });
+}
+
+/** Auth API client implementations. */
 export const authApi = {
   async login(credentials: LoginRequest): Promise<User> {
     try {
@@ -310,12 +338,19 @@ export const authApi = {
     }
   },
 
-  async register(data: RegisterRequest): Promise<RegistrationStatus> {
+  /**
+   * Args: validated Student name, PTIT email and password.
+   * Input: public registration form; Java sends an OTP but does not create an account yet.
+   * Output: pending registration status and OTP/cooldown timestamps.
+   * Errors: API validation, duplicate account, throttling or network errors propagate.
+   */
+  async register(data: RegisterRequest): Promise<RegistrationStatusResponse> {
     try {
-      return await apiFetch<RegistrationStatus>("/auth/register", {
+      const response = await apiFetch<unknown>("/auth/register", {
         method: "POST",
         body: JSON.stringify(data),
       });
+      return parseRegistrationStatus(response);
     } catch (err) {
       if (isDemoMode()) {
         console.info("[Demo Mode] Giả lập đăng ký thành công cho:", data.email);
@@ -330,6 +365,12 @@ export const authApi = {
     }
   },
 
+  /**
+   * Args: pending email and six-digit verification code.
+   * Input: code received by the Student via email; Java validates the challenge.
+   * Output: void on HTTP 204; the Student account is created by Java.
+   * Errors: invalid, expired, exhausted or reused codes propagate as ApiClientError.
+   */
   async verifyRegistration(data: VerifyRegistrationRequest): Promise<void> {
     try {
       await apiFetch<void>("/auth/verify-registration", {
@@ -342,12 +383,23 @@ export const authApi = {
     }
   },
 
-  async resendVerification(email: string): Promise<RegistrationStatus> {
+  /**
+   * Args: email of an unverified registration (either string or { email }).
+   * Input: Student explicitly requests a new code after the server cooldown.
+   * Output: replacement OTP expiry and cooldown timestamps.
+   * Errors: missing registration, cooldown, duplicate account or network errors propagate.
+   */
+  async resendVerification(
+    dataOrEmail: string | ResendVerificationRequest
+  ): Promise<RegistrationStatusResponse> {
+    const data: ResendVerificationRequest =
+      typeof dataOrEmail === "string" ? { email: dataOrEmail } : dataOrEmail;
     try {
-      return await apiFetch<RegistrationStatus>("/auth/resend-verification", {
+      const response = await apiFetch<unknown>("/auth/resend-verification", {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(data),
       });
+      return parseRegistrationStatus(response);
     } catch (err) {
       if (isDemoMode()) {
         const now = Date.now();
