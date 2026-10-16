@@ -1,7 +1,37 @@
 # StudyFlow — Kế hoạch thay đổi và triển khai AI Service
 
-**Trạng thái:** Kế hoạch kiến trúc mới, chưa triển khai code hoặc thay đổi API production.
+**Trạng thái cập nhật 16/10/2026:** Phần nền tảng Python và các luồng AI đã được hiện thực, có 76 kiểm thử offline bằng dữ liệu tổng hợp. Chưa nghiệm thu tích hợp đầy đủ với Java, PostgreSQL/pgvector, Object Storage và nhà cung cấp mô hình thật.
 **Phạm vi:** Python AI Service và các contract Java ↔ Python liên quan đến Personal PDF Assistant, Course Material AI Tutor và AI Quiz Generator.
+
+## 0. Trạng thái hiện tại và kế hoạch làm tiếp
+
+### 0.1. Phần đã có
+
+| Nhóm | Trạng thái hiện tại |
+|---|---|
+| API nội bộ | Đã có health, index, deindex, job polling, Personal Assistant, Course Material Tutor và Quiz Generator theo schema version 3 |
+| Xử lý PDF | Đã có kiểm tra PDF có lớp văn bản, tách nội dung theo trang, chunk, embedding 1024 chiều và lưu pgvector |
+| Personal Assistant | Đã có bộ điều phối một agent để chọn hỏi đáp, tóm tắt hoặc tạo Quiz; có hỏi lại khi thiếu thông tin |
+| Grounding | Đã có giới hạn phạm vi tài liệu, `NO_EVIDENCE`, citation theo trang và kiểm tra lại nguồn |
+| Quiz | Đã kiểm tra đúng `MCQ_SINGLE`, bốn phương án, một đáp án đúng, citation và chống tạo trùng |
+| Kiểm thử | Có 76 ca offline; chưa được xem là nghiệm thu với hạ tầng và mô hình thật |
+
+### 0.2. Thứ tự triển khai tiếp theo
+
+| Ưu tiên | Mốc tiếp theo | Công việc | Điều kiện hoàn thành |
+|---|---|---|---|
+| 1 | AI-N1 — PostgreSQL thật | Chạy integration test trên schema `ai`, kiểm tra migration, vector 1024 chiều, cosine index, quyền role và cô lập khỏi schema `app` | Migration tiến thành công; role AI không đọc/ghi được bảng nghiệp vụ; index/deindex không tạo chunk trùng |
+| 2 | AI-N2 — Worker và Storage | Dùng PDF tổng hợp qua signed URL, chạy worker thật, kiểm tra file hợp lệ, file mã hóa, file không có text, URL hết hạn và thu hồi chỉ mục | Job chuyển đúng `PENDING → RUNNING → SUCCEEDED/FAILED`; không log URL hoặc nội dung PDF |
+| 3 | AI-N3 — Java contract v3 | Đối chiếu DTO Java với `CONTRACT_V3.md`, bổ sung Java AI client, service credential, request ID, schema version, timeout và idempotency | Contract test hai phía đạt cho cả phản hồi thành công, input sai và output sai schema |
+| 4 | AI-N4 — E2E Personal Assistant | Java cấp đúng Personal PDF scope; thử hỏi đáp, tóm tắt và tạo Quiz từ hội thoại | Owner isolation đạt; citation đúng trang; Quiz được Java lưu ở `REVIEW_REQUIRED` |
+| 5 | AI-N5 — E2E Course AI | Tích hợp Course Material Tutor cho Student và Quiz Generator cho Teacher | Enrollment/publication/ownership được kiểm tra lại trước khi trả kết quả hoặc lưu Quiz |
+| 6 | AI-N6 — Provider thật | Chỉ sau khi được cấp phép chi phí: kiểm tra model chat, embedding 1024 chiều, structured output, timeout và refusal | Không biến lỗi provider thành kết quả thành công; model ID và khả năng thực tế được xác nhận |
+| 7 | AI-N7 — Evaluation | Xây tập kiểm chứng tiếng Việt tổng hợp, tách development/final set và đo retrieval, grounding, citation, abstention, Quiz | Scope violation bằng 0; citation hợp lệ 100%; KPI chất lượng được ghi bằng kết quả thật, không dùng fixture |
+| 8 | AI-N8 — Hoàn thiện | Kiểm thử tải, crash recovery, metrics, retention, Docker và hướng dẫn demo | Demo end-to-end lặp lại được; có báo cáo latency/lỗi/chi phí và checklist vận hành |
+
+### 0.3. Phạm vi của đợt triển khai gần nhất
+
+Đợt kế tiếp chỉ nên nhận `AI-N1 → AI-N3`. Chưa dùng tài liệu người dùng thật và chưa gọi OpenRouter thật trong unit/integration test. Sau khi contract Java–Python ổn định mới mở `AI-N4 → AI-N6`, tránh sửa đồng thời database, wire schema và giao diện.
 
 ## 1. Quyết định đã chốt
 

@@ -1,7 +1,40 @@
 # StudyFlow — Kế hoạch triển khai Frontend
 
 **Người phụ trách:** Chủ dự án, thực hiện theo boundary `FRONTEND_AGENT`.
-**Trạng thái:** Next.js demo đã được thiết kế lại theo phương án PDF + Single Agent; chưa kết nối đầy đủ Java Backend production.
+**Trạng thái cập nhật 16/10/2026:** FE-M0 đã hoàn thành; build, lint và 49 kiểm thử đạt. Auth/OTP đã gọi Java, API client đã có Course Offering, Enrollment và Study Plan. Các màn PDF, AI, Quiz, Review, Dashboard và một phần Plan vẫn cần thay fixture/local state bằng API production.
+
+## 0. Trạng thái hiện tại và kế hoạch làm tiếp
+
+### 0.1. Trạng thái theo mốc
+
+| Mốc | Trạng thái | Phần còn thiếu |
+|---|---|---|
+| FE-M0 | Hoàn thành | Duy trì build/lint/test trong mọi thay đổi |
+| FE-M1 | Gần hoàn thành | Kiểm thử phiên hết hạn, refresh cookie, forbidden và responsive bằng trình duyệt thật |
+| FE-M2 | Một phần | Nối và kiểm thử đầy đủ UI tạo/join/duyệt lớp; loại fixture khỏi production mode |
+| FE-M3 | Chưa nghiệm thu | Cần public Java API cho upload, trạng thái xử lý, viewer, note và Personal PDF |
+| FE-M4 | Chưa nghiệm thu | Giao diện đã có khung nhưng cần Java API cho Personal Assistant và Course Material Tutor |
+| FE-M5 | Một phần | Study Plan API client đã có nhưng `/plan` còn local state; Quiz/Review/Dashboard chưa nối đủ API thật |
+| FE-M6 | Chưa bắt đầu | Cần accessibility audit và E2E ba vai trò trên hệ thống tích hợp |
+
+### 0.2. Thứ tự triển khai tiếp theo
+
+| Ưu tiên | Mốc tiếp theo | Công việc | Điều kiện hoàn thành |
+|---|---|---|---|
+| 1 | FE-N1 — Core Java API | Nối màn Auth, Course Offering, Enrollment, Study Plan và Calendar với Java; thay local state/fixture khi demo mode tắt | Refresh trang không mất dữ liệu; loading/empty/error/forbidden đúng; browser không gọi Python |
+| 2 | FE-N2 — Plan theo mock | Giữ bố cục lịch tuần Thứ 2–Chủ nhật, thêm task/lịch, chuyển tuần, hoàn tất và hủy item bằng API Java | `/plan` dùng dữ liệu thật; thao tác lặp có idempotency; font/kích thước đồng bộ toàn hệ thống |
+| 3 | FE-N3 — PDF Library | Nối Teacher Course Material và Student Personal Documents: upload PDF, theo dõi processing, public/revoke và danh sách `READY` | Chỉ nhận PDF; trạng thái job hiển thị đúng; không lộ object key hoặc signed URL lâu dài |
+| 4 | FE-N4 — Viewer và Tutor | Nối PDF viewer, note theo trang và Course Material Tutor cho Student được duyệt | Citation mở đúng trang; `NO_EVIDENCE`, revoked và forbidden được thể hiện rõ |
+| 5 | FE-N5 — Personal Assistant | Nối khu vực AI nằm trong `/personal-documents`, chọn 1–10 PDF, hội thoại, tóm tắt, tạo Quiz và citation drawer | Không có menu Assistant riêng; capability/clarification đúng response Java; Quiz chuyển sang review |
+| 6 | FE-N6 — Quiz và Review | Nối Student/Teacher Quiz form, trạng thái sinh, duyệt/từ chối/công bố, attempt/result và nội dung cần ôn | FE không chấm điểm; bốn lựa chọn được render từ Java; lịch sử attempt không bị ghi đè |
+| 7 | FE-N7 — Dashboard | Nối Daily Goal, Streak, aggregate và progress từng Course Offering | Không có route Progress riêng; client không tự tính actual hoặc Streak |
+| 8 | FE-N8 — Hardening | E2E Student/Teacher/Admin, responsive 360px, keyboard, focus, WCAG AA và lỗi mạng/timeout | Demo flow ba vai trò đạt trên build production, không phụ thuộc fixture |
+
+### 0.3. Quy tắc triển khai
+
+- Chỉ bắt đầu màn AI khi public Java API tương ứng đã có trong `docs/api-plan.md` và contract test đạt.
+- Mỗi route chuyển sang production API phải bỏ fallback fixture âm thầm; fixture chỉ chạy khi `NEXT_PUBLIC_DEMO_MODE=true` và phải hiện nhãn “Dữ liệu demo”.
+- Đợt gần nhất ưu tiên `FE-N1 → FE-N2`. Song song với `AI-N1 → AI-N3`, Frontend chỉ hoàn thiện component/state cho AI, chưa tự gọi Python hoặc tạo mock giả production.
 
 ## 1. Nguyên tắc
 
