@@ -129,3 +129,12 @@ a.bg-ptit-red:disabled {
   background: #cbd5e1;
   border-radius: 9999px;
 }
+
+/* Ẩn logo Next.js Dev Tools / Indicator ở góc màn hình */
+nextjs-portal,
+script[data-nextjs-dev-overlay="true"],
+[data-nextjs-dev-overlay],
+[data-nextjs-dev-tools-button] {
+  display: none !important;
+}
+
