@@ -30,9 +30,9 @@ test("FE-M0: API Client contract & error envelope handling", async (t) => {
   });
 
   await t.test("API base URL should not end with trailing slash", () => {
-    const rawUrl = "http://localhost:8080/api/v1/";
+    const rawUrl = "http://localhost:8088/api/v1/";
     const normalized = rawUrl.endsWith("/") ? rawUrl.slice(0, -1) : rawUrl;
-    assert.equal(normalized, "http://localhost:8080/api/v1");
+    assert.equal(normalized, "http://localhost:8088/api/v1");
   });
 
   await t.test("Auth endpoints should only call Java /api/v1 without exposing direct AI/DB URLs", () => {
@@ -40,6 +40,8 @@ test("FE-M0: API Client contract & error envelope handling", async (t) => {
     const endpoints = [
       "/auth/login",
       "/auth/register",
+      "/auth/verify-registration",
+      "/auth/resend-verification",
       "/auth/logout",
       "/me",
     ];

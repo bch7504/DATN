@@ -12,6 +12,7 @@ import com.studyflow.courseoffering.domain.CourseOffering;
 import com.studyflow.courseoffering.domain.CourseOfferingStatus;
 import com.studyflow.courseoffering.dto.StudentCourseOfferingResponse;
 import com.studyflow.enrollment.application.CourseEnrollmentService;
+import com.studyflow.enrollment.domain.EnrollmentStatus;
 import com.studyflow.user.domain.UserAccount;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +60,13 @@ public class StudentCourseOfferingController {
         }
     }
 
+    /**
+     * Lists Course Offerings for which the authenticated Student is approved.
+     *
+     * @param jwt verified Student JWT with UUID subject
+     * @param status optional Course Offering lifecycle filter
+     * @return HTTP 200 list whose enrollmentStatus is always APPROVED
+     */
     @GetMapping
     public ResponseEntity<List<StudentCourseOfferingResponse>> getApprovedOfferings(
             @AuthenticationPrincipal Jwt jwt,
@@ -93,12 +101,13 @@ public class StudentCourseOfferingController {
         List<StudentCourseOfferingResponse> responseList = offerings.stream()
                 .map(o -> {
                     UserAccount teacher = teacherMap.get(o.getTeacherId());
-                    return StudentCourseOfferingResponse.fromEntity(
+                    return StudentCourseOfferingResponse.from(
                             o,
                             subjectMap.get(o.getSubjectId()),
                             semesterMap.get(o.getSemesterId()),
                             teacher != null ? teacher.fullName() : null,
-                            teacher != null ? teacher.email() : null
+                            teacher != null ? teacher.email() : null,
+                            EnrollmentStatus.APPROVED
                     );
                 })
                 .collect(Collectors.toList());
@@ -106,6 +115,14 @@ public class StudentCourseOfferingController {
         return ResponseEntity.ok(responseList);
     }
 
+    /**
+     * Gets one Course Offering after enforcing approved Student enrollment.
+     *
+     * @param jwt verified Student JWT with UUID subject
+     * @param id required Course Offering UUID
+     * @return HTTP 200 offering with enrollmentStatus APPROVED
+     * @throws ForbiddenException when the Student does not have approved enrollment
+     */
     @GetMapping("/{id}")
     public ResponseEntity<StudentCourseOfferingResponse> getOfferingDetail(
             @AuthenticationPrincipal Jwt jwt,
@@ -120,12 +137,13 @@ public class StudentCourseOfferingController {
         Semester semester = semesterRepository.findById(offering.getSemesterId()).orElse(null);
         UserAccount teacher = userAccountStore.findById(offering.getTeacherId()).orElse(null);
 
-        StudentCourseOfferingResponse response = StudentCourseOfferingResponse.fromEntity(
+        StudentCourseOfferingResponse response = StudentCourseOfferingResponse.from(
                 offering,
                 subject,
                 semester,
                 teacher != null ? teacher.fullName() : null,
-                teacher != null ? teacher.email() : null
+                teacher != null ? teacher.email() : null,
+                EnrollmentStatus.APPROVED
         );
 
         return ResponseEntity.ok(response);

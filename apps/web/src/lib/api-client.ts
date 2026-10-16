@@ -19,7 +19,13 @@ import {
   demoStudyStreak,
   demoNotifications,
 } from "./demo-data";
-import { User, LoginRequest, RegisterRequest } from "@/types/auth";
+import {
+  User,
+  LoginRequest,
+  RegisterRequest,
+  RegistrationStatus,
+  VerifyRegistrationRequest,
+} from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
 import {
   Subject,
@@ -56,6 +62,15 @@ import {
   StudyStreak,
 } from "@/types/review";
 import { StudentNotification } from "@/types/notification";
+import {
+  CalendarProjection,
+  CreateStudyPlanRequest,
+  SaveStudyPlanItemRequest,
+  StudyPlan,
+  StudyPlanItem,
+  StudyPlanItemStatus,
+  StudyPlanStatus,
+} from "@/types/study-plan";
 
 /**
  * Standard typed API client error encapsulating the Java backend error envelope.
@@ -91,6 +106,7 @@ type BackendTeacherCourseOffering = {
   rawJoinCode?: string | null;
   joinCode?: string;
   joinCodeHint?: string;
+  joinEnabled?: boolean;
   joinCodeActive?: boolean;
   joinCodeEnabled?: boolean;
   enrolledCount?: number;
@@ -116,7 +132,10 @@ function mapTeacherCourseOffering(
     joinCode: offering.rawJoinCode || offering.joinCode || "",
     joinCodeHint: offering.joinCodeHint,
     joinCodeEnabled:
-      offering.joinCodeActive ?? offering.joinCodeEnabled ?? false,
+      offering.joinEnabled ??
+      offering.joinCodeActive ??
+      offering.joinCodeEnabled ??
+      false,
     status: offering.status,
     enrolledCount: offering.enrolledCount ?? 0,
     pendingCount: offering.pendingCount ?? 0,
@@ -129,8 +148,10 @@ function mapEnrollment(item: any): CourseEnrollment {
   return {
     id: item.id,
     offeringId: item.courseOfferingId || item.offeringId || "",
-    offeringCode: item.courseOfferingCode || item.offeringCode || "",
-    offeringName: item.courseOfferingName || item.offeringName || "",
+    offeringCode:
+      item.courseCode || item.courseOfferingCode || item.offeringCode || "",
+    offeringName:
+      item.courseName || item.courseOfferingName || item.offeringName || "",
     subjectName: item.subjectName || "",
     semesterName: item.semesterName || "",
     teacherName: item.teacherName || "",
@@ -139,8 +160,9 @@ function mapEnrollment(item: any): CourseEnrollment {
     studentEmail: item.studentEmail || "",
     status: item.status,
     requestedAt: item.requestedAt,
-    approvedAt: item.approvedAt,
-    rejectedReason: item.decisionReason || item.rejectedReason,
+    approvedAt: item.decidedAt || item.approvedAt,
+    rejectedReason:
+      item.decisionNote || item.decisionReason || item.rejectedReason,
   };
 }
 
@@ -288,16 +310,52 @@ export const authApi = {
     }
   },
 
-  async register(data: RegisterRequest): Promise<void> {
+  async register(data: RegisterRequest): Promise<RegistrationStatus> {
     try {
-      await apiFetch<void>("/auth/register", {
+      return await apiFetch<RegistrationStatus>("/auth/register", {
         method: "POST",
         body: JSON.stringify(data),
       });
     } catch (err) {
       if (isDemoMode()) {
         console.info("[Demo Mode] Giả lập đăng ký thành công cho:", data.email);
-        return;
+        const now = Date.now();
+        return {
+          status: "VERIFICATION_REQUIRED",
+          expiresAt: new Date(now + 10 * 60_000).toISOString(),
+          resendAvailableAt: new Date(now + 60_000).toISOString(),
+        };
+      }
+      throw err;
+    }
+  },
+
+  async verifyRegistration(data: VerifyRegistrationRequest): Promise<void> {
+    try {
+      await apiFetch<void>("/auth/verify-registration", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    } catch (err) {
+      if (isDemoMode()) return;
+      throw err;
+    }
+  },
+
+  async resendVerification(email: string): Promise<RegistrationStatus> {
+    try {
+      return await apiFetch<RegistrationStatus>("/auth/resend-verification", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+    } catch (err) {
+      if (isDemoMode()) {
+        const now = Date.now();
+        return {
+          status: "VERIFICATION_REQUIRED",
+          expiresAt: new Date(now + 10 * 60_000).toISOString(),
+          resendAvailableAt: new Date(now + 60_000).toISOString(),
+        };
       }
       throw err;
     }
@@ -822,7 +880,7 @@ export const teacherApi = {
   async toggleJoinCode(offeringId: string, enabled: boolean): Promise<void> {
     try {
       await apiFetch<void>(
-        `/teacher/course-offerings/${offeringId}/join-code`,
+        `/teacher/course-offerings/${offeringId}/join-code/toggle`,
         {
           method: "PATCH",
           body: JSON.stringify({ enabled }),
@@ -1750,6 +1808,78 @@ export const reviewApi = {
       if (isDemoMode()) return demoStudyStreak;
       throw err;
     }
+  },
+};
+
+/**
+ * Student Study Plan and Calendar API. Java owns validation, lifecycle and completion events.
+ */
+export const studyPlanApi = {
+  async listPlans(status?: StudyPlanStatus): Promise<StudyPlan[]> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : "";
+    const response = await apiFetch<PaginatedList<StudyPlan>>(
+      `/study-plans${query}`
+    );
+    return response.items;
+  },
+
+  async createPlan(request: CreateStudyPlanRequest): Promise<StudyPlan> {
+    return apiFetch<StudyPlan>("/study-plans", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async listItems(planId: string): Promise<StudyPlanItem[]> {
+    const response = await apiFetch<PaginatedList<StudyPlanItem>>(
+      `/study-plans/${encodeURIComponent(planId)}/items?size=100`
+    );
+    return response.items;
+  },
+
+  async createItem(
+    planId: string,
+    request: SaveStudyPlanItemRequest
+  ): Promise<StudyPlanItem> {
+    return apiFetch<StudyPlanItem>(
+      `/study-plans/${encodeURIComponent(planId)}/items`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      }
+    );
+  },
+
+  async deleteItem(planId: string, itemId: string): Promise<void> {
+    await apiFetch<void>(
+      `/study-plans/${encodeURIComponent(planId)}/items/${encodeURIComponent(itemId)}`,
+      { method: "DELETE" }
+    );
+  },
+
+  async updateItemStatus(
+    itemId: string,
+    status: StudyPlanItemStatus,
+    idempotencyKey?: string
+  ): Promise<StudyPlanItem> {
+    const headers = new Headers();
+    if (idempotencyKey) headers.set("Idempotency-Key", idempotencyKey);
+    return apiFetch<StudyPlanItem>(
+      `/study-plan-items/${encodeURIComponent(itemId)}/status`,
+      {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ status }),
+      }
+    );
+  },
+
+  async getCalendar(from: Date, to: Date): Promise<CalendarProjection> {
+    const query = new URLSearchParams({
+      from: from.toISOString(),
+      to: to.toISOString(),
+    });
+    return apiFetch<CalendarProjection>(`/calendar?${query.toString()}`);
   },
 };
 

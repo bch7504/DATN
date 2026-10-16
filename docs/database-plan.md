@@ -4,6 +4,14 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 [Xem ERD tổng quan](diagrams/erd/index.html) và [giả định kiểu dữ liệu/ràng buộc](diagrams/erd/README.md). ERD là bản thiết kế đề xuất phục vụ báo cáo; kiểu dữ liệu, độ dài, nullable và khóa ghép chưa được chốt bằng migration.
 
+## Trạng thái triển khai hiện tại
+
+- Database local chạy bằng `pgvector/pgvector:pg17` tại `127.0.0.1:5433`; xem lệnh vận hành trong [`infrastructure/docker/README.md`](../infrastructure/docker/README.md).
+- Flyway đã có V1–V4 và tạo các bảng đã triển khai của Java trong schema `app`: xác thực, Study Plan, Learning Event, Notification, Subject, Semester, Course Offering và Enrollment.
+- Alembic đã có revision `20261012_0001`–`20261012_0005`, tạo bảng chỉ mục tài liệu, chunk vector, job và agent run trong schema `ai`.
+- Role `studyflow_app` không có quyền dùng schema `ai`; role `studyflow_ai` không có quyền dùng schema `app`. Quyền tạo schema cấp database chỉ được cấp tạm khi chạy migration rồi thu hồi.
+- Các bảng Documents/Publication/Note/Conversation/Quiz/Progress/Daily Goal/Admin ở các mục dưới vẫn là thiết kế đích, chưa được xem là đã triển khai nếu chưa có migration tiến tương ứng.
+
 ## 1. Nguyên tắc
 
 - Mô hình học vụ: `semesters → course_offerings → course_enrollments`.

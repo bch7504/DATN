@@ -26,10 +26,11 @@ spring:
     username: ${MAIL_USERNAME}
     password: ${MAIL_PASSWORD}
     properties:
-      mail.smtp.auth: true
-      mail.smtp.starttls.enable: true
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
 
 server:
+  port: ${SERVER_PORT:8088}
   forward-headers-strategy: framework
 
 management:
@@ -44,6 +45,8 @@ logging:
     org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: INFO
 
 studyflow:
+  cors:
+    allowed-origins: ${STUDYFLOW_CORS_ALLOWED_ORIGINS:http://localhost:3000}
   notifications:
     reminder-scan-delay: ${STUDYFLOW_REMINDER_SCAN_DELAY:60000}
   auth:

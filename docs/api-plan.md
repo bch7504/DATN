@@ -331,7 +331,7 @@ Plan item optional `courseOfferingId`. Java phát hiện conflict. Không có To
 | GET/PATCH | `/api/v1/teacher/course-offerings/{id}` | Owner-only metadata update |
 | POST | `/api/v1/teacher/course-offerings/{id}/archive` | `ACTIVE → ARCHIVED` |
 | POST | `/api/v1/teacher/course-offerings/{id}/join-code/regenerate` | Sinh code mới, vô hiệu code cũ |
-| PATCH | `/api/v1/teacher/course-offerings/{id}/join-code` | `{enabled:boolean}` |
+| PATCH | `/api/v1/teacher/course-offerings/{id}/join-code/toggle` | `{enabled:boolean}` |
 
 - Không nhận `teacherId` từ client.
 - `409 SEMESTER_NOT_ACTIVE|COURSE_CODE_EXISTS|COURSE_LOCKED`; `404` nếu không phải owner.

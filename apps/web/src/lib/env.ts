@@ -11,7 +11,7 @@ const envSchema = z.object({
     .default("http://localhost:8088/api/v1"),
   NEXT_PUBLIC_DEMO_MODE: z
     .enum(["true", "false", "1", "0"])
-    .default("true")
+    .default("false")
     .transform((val) => val === "true" || val === "1"),
 });
 
@@ -41,7 +41,7 @@ export function getEnv(): EnvConfig {
   const rawEnv = {
     NEXT_PUBLIC_API_URL:
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088/api/v1",
-    NEXT_PUBLIC_DEMO_MODE: process.env.NEXT_PUBLIC_DEMO_MODE ?? "true",
+    NEXT_PUBLIC_DEMO_MODE: process.env.NEXT_PUBLIC_DEMO_MODE ?? "false",
   };
 
   const parsed = envSchema.safeParse(rawEnv);
@@ -53,7 +53,7 @@ export function getEnv(): EnvConfig {
     );
     cachedEnv = {
       NEXT_PUBLIC_API_URL: "http://localhost:8088/api/v1",
-      NEXT_PUBLIC_DEMO_MODE: true,
+      NEXT_PUBLIC_DEMO_MODE: false,
     };
     return cachedEnv;
   }
@@ -69,7 +69,7 @@ export function getEnv(): EnvConfig {
  * - args: none
  * - input: getEnv() output
  * - output: boolean (true if demo mode is enabled)
- * - errors: none (falls back to true on failure)
+ * - errors: none (falls back to false on failure)
  *
  * @returns {boolean} Whether demo mode is enabled
  */
@@ -77,7 +77,7 @@ export function isDemoMode(): boolean {
   try {
     return getEnv().NEXT_PUBLIC_DEMO_MODE;
   } catch {
-    return true;
+    return false;
   }
 }
 

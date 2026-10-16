@@ -8,7 +8,14 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import { User, UserRole, LoginRequest, RegisterRequest } from "@/types/auth";
+import {
+  User,
+  UserRole,
+  LoginRequest,
+  RegisterRequest,
+  RegistrationStatus,
+  VerifyRegistrationRequest,
+} from "@/types/auth";
 import { authApi } from "@/lib/api-client";
 import { isDemoMode } from "@/lib/env";
 import { DEMO_USERS } from "@/lib/demo-data";
@@ -21,7 +28,9 @@ export interface AuthContextType {
   isDemo: boolean;
   error: string | null;
   login: (credentials: LoginRequest) => Promise<User>;
-  register: (data: RegisterRequest) => Promise<void>;
+  register: (data: RegisterRequest) => Promise<RegistrationStatus>;
+  verifyRegistration: (data: VerifyRegistrationRequest) => Promise<void>;
+  resendVerification: (email: string) => Promise<RegistrationStatus>;
   logout: () => Promise<void>;
   switchDemoRole: (targetRole: UserRole) => void;
   clearError: () => void;
@@ -100,16 +109,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (data: RegisterRequest): Promise<void> => {
+    async (data: RegisterRequest): Promise<RegistrationStatus> => {
       setIsLoading(true);
       setError(null);
       try {
-        await authApi.register(data);
+        return await authApi.register(data);
       } catch (err: unknown) {
         const message =
           err instanceof Error
             ? err.message
             : "Đăng ký không thành công. Vui lòng thử lại.";
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  const verifyRegistration = useCallback(
+    async (data: VerifyRegistrationRequest): Promise<void> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        await authApi.verifyRegistration(data);
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Mã xác minh không hợp lệ.";
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  const resendVerification = useCallback(
+    async (email: string): Promise<RegistrationStatus> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        return await authApi.resendVerification(email);
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Chưa thể gửi lại mã xác minh.";
         setError(message);
         throw err;
       } finally {
@@ -150,6 +195,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error,
     login,
     register,
+    verifyRegistration,
+    resendVerification,
     logout,
     switchDemoRole,
     clearError,

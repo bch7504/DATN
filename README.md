@@ -4,7 +4,7 @@
 
 StudyFlow là nền tảng web giúp sinh viên học theo lớp học phần, quản lý tài liệu cá nhân, hỏi đáp nội dung có trích dẫn và tạo Quiz để ôn tập. Hệ thống tách rõ nghiệp vụ học tập khỏi AI: Java Backend quyết định quyền truy cập, chấm điểm và tiến độ; Python AI Service chỉ xử lý tài liệu, truy xuất bằng chứng và sinh nội dung có cấu trúc.
 
-> Trạng thái hiện tại: Frontend Next.js đang được xây dựng và có thể chạy bằng dữ liệu demo. Java Backend, Python AI Service và Docker mới ở giai đoạn cấu trúc/kế hoạch, chưa có runtime hoàn chỉnh.
+> Trạng thái hiện tại: Frontend Next.js có giao diện demo và đã nối một phần API Java. Java đã triển khai Auth, hồ sơ, Course Offering, Enrollment, Study Plan và Notification. Python AI Service đã có runtime, migration và kiểm thử offline. PostgreSQL + pgvector local đã chạy được bằng Docker; các luồng Documents, AI và Quiz vẫn chưa được tích hợp end-to-end qua Java.
 
 ## Điểm nổi bật
 
@@ -62,14 +62,14 @@ Xem chi tiết tại [Architecture](docs/architecture.md) và [API plan](docs/ap
 ```text
 DATN/
 ├── apps/web/                 # Next.js frontend và HTML prototype
-├── services/backend/         # Cấu trúc Java Spring Boot mục tiêu
-├── services/ai/              # Cấu trúc Python FastAPI mục tiêu
+├── services/backend/         # Java Spring Boot, Flyway và nghiệp vụ hệ thống
+├── services/ai/              # Python FastAPI, Alembic, RAG/Quiz và evaluation
 ├── docs/
 │   ├── bao-cao/              # Báo cáo tách theo Chương 1, 2, 3
 │   ├── diagrams/             # SVG và nguồn Mermaid
 │   ├── specs/                # Feature specifications
 │   └── *-plan.md             # Kiến trúc, API, CSDL và kế hoạch triển khai
-├── infrastructure/           # Kế hoạch Docker và CI
+├── infrastructure/           # PostgreSQL/pgvector local, kế hoạch Docker và CI
 ├── index.html                # Trang giới thiệu/prototype tĩnh
 ├── AGENTS.md                 # Quy tắc bắt buộc cho AI coding agents
 └── PROJECT_STRUCTURE.md      # Cấu trúc chi tiết
@@ -82,8 +82,10 @@ DATN/
 - Git.
 - Node.js 20 trở lên và npm để chạy frontend Next.js.
 - Trình duyệt hiện đại.
+- Docker Desktop để chạy PostgreSQL + pgvector local.
+- `uv` khi cần chạy migration hoặc kiểm thử Python AI.
 
-Backend Java, AI Service, PostgreSQL, pgvector và Object Storage chưa cần thiết khi chạy frontend ở chế độ demo.
+Backend Java, AI Service, PostgreSQL, pgvector và Object Storage chưa cần thiết nếu chỉ chạy frontend ở chế độ demo.
 
 ### 2. Clone repository
 
@@ -104,12 +106,38 @@ Mở [http://localhost:3000](http://localhost:3000). Cấu hình mặc định c
 
 ```text
 NEXT_PUBLIC_DEMO_MODE=true
-NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+NEXT_PUBLIC_API_URL=http://localhost:8088/api/v1
 ```
 
 Không cần tạo file môi trường để chạy demo vì ứng dụng có giá trị mặc định an toàn. Khi tích hợp Java Backend, đặt `NEXT_PUBLIC_DEMO_MODE=false` và trỏ `NEXT_PUBLIC_API_URL` đến public API `/api/v1`. Không đưa AI key hoặc service credential vào biến `NEXT_PUBLIC_*`.
 
-### 4. Kiểm tra Frontend
+### 4. Tạo PostgreSQL + pgvector local
+
+Các lệnh dưới đây không đọc `.env`; database được bind riêng tại `127.0.0.1:5433` để không xung đột PostgreSQL mặc định ở cổng `5432`:
+
+```powershell
+.\scripts\database.ps1 start
+.\scripts\database.ps1 migrate
+.\scripts\database.ps1 status
+```
+
+Kết nối Java local:
+
+```text
+DATABASE_URL=jdbc:postgresql://localhost:5433/studyflow?currentSchema=app
+DATABASE_USERNAME=studyflow_app
+DATABASE_PASSWORD=studyflow_app_local_only
+```
+
+Kết nối Python local:
+
+```text
+AI_DATABASE_URL=postgresql+psycopg://studyflow_ai:studyflow_ai_local_only@127.0.0.1:5433/studyflow?connect_timeout=5&options=-csearch_path%3Dai%2Cpublic
+```
+
+Đây là thông tin công khai chỉ dành cho local. Khi dừng bằng `.\scripts\database.ps1 stop`, container dừng nhưng volume dữ liệu vẫn được giữ.
+
+### 5. Kiểm tra Frontend
 
 Chạy trong `apps/web`:
 
@@ -121,7 +149,7 @@ npm run build
 
 Các lệnh tương ứng kiểm tra ESLint, test contract/UI bằng Node test runner và production build.
 
-### 5. Xem prototype HTML không cần cài dependency
+### 6. Xem prototype HTML không cần cài dependency
 
 Có thể mở trực tiếp hai file sau bằng trình duyệt:
 
@@ -130,11 +158,15 @@ Có thể mở trực tiếp hai file sau bằng trình duyệt:
 
 Hai trang HTML sử dụng fixture tổng hợp, không gọi Backend hoặc model thật.
 
-### 6. Backend, AI và Docker
+### 7. Backend, AI và Docker
 
-Các phần này hiện **chưa có manifest/runtime hoàn chỉnh**, vì vậy repository chưa cung cấp lệnh Maven, FastAPI hoặc Docker Compose có thể chạy end-to-end. Không dùng các lệnh giả như `docker compose up` cho đến khi các milestone tương ứng được triển khai.
+Database local đã có Compose và migration thật. Backend/AI có runtime riêng nhưng toàn hệ thống chưa chạy end-to-end vì Java adapter cho Documents/AI/Quiz và Object Storage vẫn chưa hoàn thiện. Xem hướng dẫn từng service trước khi chạy:
 
-Tài liệu chuẩn bị triển khai:
+- [Backend README](services/backend/README.md)
+- [AI Service README](services/ai/README.md)
+- [Database Docker README](infrastructure/docker/README.md)
+
+Tài liệu kế hoạch:
 
 - [Backend implementation plan](docs/backend-implementation-plan.md)
 - [AI implementation plan](docs/ai-implementation-plan.md)
@@ -180,9 +212,10 @@ Chi tiết xem tại [demo flow](docs/demo-flow.md).
 - [x] HTML mock và thiết kế giao diện PTIT.
 - [x] Bộ báo cáo Chương 1–3 và sơ đồ thiết kế.
 - [ ] Hoàn thiện Frontend Next.js và kết nối public Java API.
-- [ ] Triển khai Java Backend và Flyway migrations.
-- [ ] Triển khai Python AI Service, Alembic và pgvector pipeline.
-- [ ] Hoàn thiện Docker Compose, CI và kiểm thử end-to-end.
+- [x] Triển khai phần nền Java Backend và Flyway V1–V4.
+- [x] Triển khai Python AI Service, Alembic và pgvector pipeline ở mức offline/local.
+- [x] Tạo PostgreSQL + pgvector local, tách role/schema và chạy migration thật.
+- [ ] Hoàn thiện Docker Compose toàn hệ thống, Object Storage, CI và kiểm thử end-to-end.
 - [ ] Chạy AI evaluation và bổ sung kết quả thực đo vào báo cáo.
 
 ## Quy tắc dành cho AI coding agents

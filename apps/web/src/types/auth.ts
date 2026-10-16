@@ -33,6 +33,19 @@ export interface RegisterRequest {
   password: string;
 }
 
+/** Registration challenge returned before the Student account is created. */
+export interface RegistrationStatus {
+  status: "VERIFICATION_REQUIRED";
+  expiresAt: string;
+  resendAvailableAt: string;
+}
+
+/** Request payload for POST /api/v1/auth/verify-registration. */
+export interface VerifyRegistrationRequest {
+  email: string;
+  verificationCode: string;
+}
+
 /**
  * Authentication context state
  */

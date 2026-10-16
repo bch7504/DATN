@@ -1,0 +1,59 @@
+name: studyflow-local-database
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: studyflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: studyflow
+      POSTGRES_USER: studyflow_admin
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-studyflow_admin_local_only}
+      STUDYFLOW_APP_PASSWORD: ${DATABASE_PASSWORD:-studyflow_app_local_only}
+      STUDYFLOW_AI_PASSWORD: ${AI_DATABASE_PASSWORD:-studyflow_ai_local_only}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - studyflow-postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studyflow_admin -d studyflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  app-migrate:
+    image: flyway/flyway:10.20.1-alpine
+    profiles: ["migration"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/studyflow
+      FLYWAY_USER: studyflow_app
+      FLYWAY_PASSWORD: ${DATABASE_PASSWORD:-studyflow_app_local_only}
+      FLYWAY_SCHEMAS: app
+      FLYWAY_DEFAULT_SCHEMA: app
+      FLYWAY_CONNECT_RETRIES: "20"
+    command: ["migrate"]
+    volumes:
+      - ../../services/backend/src/main/resources/db/migration:/flyway/sql:ro
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: studyflow-mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_HTTP_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+volumes:
+  studyflow-postgres-data:
+    name: studyflow-postgres-data
