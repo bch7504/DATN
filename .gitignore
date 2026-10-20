@@ -2,11 +2,13 @@
 node_modules/
 .next/
 out/
+*.tsbuildinfo
 
 # Java
 target/
 .gradle/
 build/
+.maven/
 
 # Python
 __pycache__/

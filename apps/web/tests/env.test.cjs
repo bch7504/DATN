@@ -2,8 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 test("FE-M0: Environment configuration & validation", async (t) => {
-  await t.test("should default NEXT_PUBLIC_API_URL to localhost:8080/api/v1", () => {
-    const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+  await t.test("should default NEXT_PUBLIC_API_URL to localhost:8088/api/v1", () => {
+    const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8088/api/v1";
     assert.match(rawUrl, /^https?:\/\//);
     assert.ok(rawUrl.includes("/api/v1"));
   });

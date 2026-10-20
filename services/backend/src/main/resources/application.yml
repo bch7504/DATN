@@ -37,6 +37,7 @@ spring:
       max-request-size: 26MB
 
 server:
+  port: ${SERVER_PORT:8088}
   forward-headers-strategy: framework
 
 management:

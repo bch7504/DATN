@@ -2,6 +2,11 @@
 
 Mỗi chương là một tài liệu độc lập để người viết hoặc AI agent chỉ đọc đúng phạm vi đang làm.
 
+## Báo cáo cá nhân và báo cáo toàn hệ thống
+
+- [Chương 2–3 của thành viên AI](chuong-2-3-thanh-vien-ai.md): ba chức năng chính — hỏi đáp và tóm tắt tài liệu cá nhân; hỏi đáp tài liệu bài giảng PDF; sinh bộ câu hỏi trắc nghiệm cho Sinh viên và Giảng viên. Giữ mã UC-RAG-01, UC-TUTOR-01 và UC-QUIZ-01 để đối chiếu với báo cáo chung.
+- Các chương trong bảng dưới là **báo cáo toàn hệ thống**, không bị thay thế bởi bản cá nhân. Cách nhóm chức năng trong báo cáo cá nhân không tự đổi phạm vi/luồng chung.
+
 | Chương | File | Nội dung chính |
 |---|---|---|
 | 1 | [Tổng quan đề tài](chuong-1-tong-quan-de-tai.md) | Bài toán, mục tiêu, phạm vi, phương pháp và bố cục |

@@ -1,0 +1,5 @@
+# Non-secret local defaults used explicitly by scripts/database.ps1.
+# Keeping this separate prevents Docker Compose from auto-loading the repository .env.
+POSTGRES_PORT=5433
+MAILPIT_SMTP_PORT=1025
+MAILPIT_HTTP_PORT=8025

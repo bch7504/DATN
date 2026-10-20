@@ -2,189 +2,323 @@
 
 **Hệ thống hỗ trợ học tập và ôn luyện ứng dụng Trí tuệ Nhân tạo**
 
-StudyFlow là nền tảng web giúp sinh viên học theo lớp học phần, quản lý tài liệu cá nhân, hỏi đáp nội dung có trích dẫn và tạo Quiz để ôn tập. Hệ thống tách rõ nghiệp vụ học tập khỏi AI: Java Backend quyết định quyền truy cập, chấm điểm và tiến độ; Python AI Service chỉ xử lý tài liệu, truy xuất bằng chứng và sinh nội dung có cấu trúc.
+StudyFlow là nền tảng web hỗ trợ sinh viên học theo lớp học phần, quản lý tài liệu PDF, lập kế hoạch học tập, hỏi đáp có trích dẫn và tạo Quiz ôn tập. Hệ thống gồm ba phần độc lập:
 
-> Trạng thái hiện tại: Frontend Next.js đang được xây dựng và có thể chạy bằng dữ liệu demo. Java Backend, Python AI Service và Docker mới ở giai đoạn cấu trúc/kế hoạch, chưa có runtime hoàn chỉnh.
+```text
+Next.js Web → Java Spring Boot → Python FastAPI
+                       │              │
+                       ▼              ▼
+                 PostgreSQL app   PostgreSQL ai + pgvector
+```
 
-## Điểm nổi bật
+- Frontend chỉ gọi Java qua `/api/v1`.
+- Java quản lý tài khoản, phân quyền, lớp học phần, Quiz, điểm, tiến độ và kế hoạch.
+- Python xử lý PDF, embedding, truy xuất nội dung, citation, hỏi đáp, tóm tắt và sinh bản nháp Quiz.
+- PostgreSQL dùng chung một cluster nhưng tách schema và database role: `app` cho Java, `ai` cho Python.
 
-- Học theo mô hình `Semester → Course Offering → Documents`.
-- Teacher tự tạo Course Offering, quản lý join code, duyệt Student và công bố học liệu.
-- Student xem Course Material PDF, ghi chú theo trang và hỏi Course Material AI Tutor.
-- Personal Document Assistant dùng một Single Agent để hỏi đáp, tóm tắt hoặc tạo Quiz từ PDF cá nhân, kèm citation theo trang.
-- Teacher sinh Quiz từ Course Material PDF theo số câu/độ khó/chủ đề/trang và review trước khi public.
-- Java chấm `MCQ_SINGLE`, lưu từng attempt và liên kết câu sai với nguồn cần ôn lại.
-- Dashboard tổng hợp tiến độ theo lớp, Study Streak và Daily Goal; màn Kế hoạch & Lịch quản lý task và lịch tuần riêng.
-- Giao diện đỏ–trắng theo định hướng nhận diện PTIT, hỗ trợ Student, Teacher và Admin.
+## Trạng thái hiện tại
 
-## Vai trò trong MVP
+- Frontend Next.js đã có giao diện Student, Teacher và Admin; Auth/OTP cùng một phần API nghiệp vụ đã kết nối Java.
+- Java đã có Auth, hồ sơ, Course Offering, Enrollment, Study Plan, Calendar và Notification.
+- Python AI Service đã có 7 internal endpoint và kiểm thử offline; chưa nghiệm thu đầy đủ với Java, Object Storage và OpenRouter thật.
+- PostgreSQL 17 + pgvector và Mailpit có thể chạy local bằng Docker.
+
+## Chức năng MVP
 
 | Vai trò | Chức năng chính |
 |---|---|
-| Student | Tham gia lớp, PDF Viewer/Page Note/Tutor, Personal Assistant, Quiz, Dashboard và Kế hoạch & Lịch tuần |
-| Teacher | Tạo Course Offering, quản lý join code/enrollment, upload/public PDF và AI Quiz Studio |
-| Admin | Quản lý tài khoản, Subject, Semester, giám sát lớp, feedback, audit và settings |
+| Student | Tham gia lớp, xem PDF, ghi chú, AI Tutor, tài liệu cá nhân, Quiz, Dashboard và Kế hoạch & Lịch |
+| Teacher | Tạo lớp học phần, quản lý join code/enrollment, công bố PDF và sinh Quiz bằng AI |
+| Admin | Quản lý tài khoản, danh mục, giám sát, phản hồi, nhật ký và thiết lập |
 
-Ngoài phạm vi MVP: PPTX/DOCX, OCR cho PDF scan, Teacher chatbot/Tutor, multi-agent, Topic Mastery, Exam/Mock Exam, recommendation tự động, XP, level, badge và leaderboard.
-
-## Quy tắc học liệu và AI
-
-| Nguồn | Chính sách MVP |
-|---|---|
-| Course Material PDF | Student được duyệt xem web, ghi Note và dùng Tutor; Teacher dùng làm nguồn tạo Quiz |
-| Personal Document | Chỉ PDF có text layer, thuộc Student owner |
-| Personal Assistant | Single Agent chỉ dùng nguồn `READY`; hỏi đáp/tóm tắt/tạo Quiz; thiếu bằng chứng trả `NO_EVIDENCE` |
-| Quiz AI | Hai mode Student/Teacher; đúng 4 phương án và 1 đáp án; Java validate/lifecycle/chấm điểm |
-
-## Kiến trúc
-
-```text
-Next.js Web
-    │ /api/v1
-    ▼
-Java Spring Boot ───────► PostgreSQL schema app
-    │                   └► Object Storage
-    │ /internal/v1
-    ▼
-Python FastAPI ─────────► PostgreSQL schema ai + pgvector
-    └───────────────────► LLM / Embedding Provider
-```
-
-- **Frontend** chỉ gọi public Java API.
-- **Java Backend** là system of record: auth/RBAC, Course Offering, enrollment, publication, Quiz lifecycle/scoring, progress và plan.
-- **Python AI Service** xử lý PDF, chunking, embedding, retrieval, Single Agent, Tutor, citation và Quiz draft.
-- PostgreSQL dùng chung một cluster nhưng tách schema và database role; Java không đọc vector, Python không đọc bảng nghiệp vụ.
-
-Xem chi tiết tại [Architecture](docs/architecture.md) và [API plan](docs/api-plan.md).
+MVP chỉ nhận PDF có lớp văn bản. Không hỗ trợ PPTX, DOCX, OCR, multi-agent, Topic Mastery, XP, badge hoặc leaderboard.
 
 ## Cấu trúc repository
 
 ```text
 DATN/
-├── apps/web/                 # Next.js frontend và HTML prototype
-├── services/backend/         # Cấu trúc Java Spring Boot mục tiêu
-├── services/ai/              # Cấu trúc Python FastAPI mục tiêu
-├── docs/
-│   ├── bao-cao/              # Báo cáo tách theo Chương 1, 2, 3
-│   ├── diagrams/             # SVG và nguồn Mermaid
-│   ├── specs/                # Feature specifications
-│   └── *-plan.md             # Kiến trúc, API, CSDL và kế hoạch triển khai
-├── infrastructure/           # Kế hoạch Docker và CI
-├── index.html                # Trang giới thiệu/prototype tĩnh
-├── AGENTS.md                 # Quy tắc bắt buộc cho AI coding agents
+├── apps/web/                 # Next.js Frontend
+├── services/backend/         # Java Spring Boot + Flyway
+├── services/ai/              # Python FastAPI + Alembic + RAG/Quiz
+├── infrastructure/docker/    # PostgreSQL/pgvector và Mailpit local
+├── scripts/                  # Script database và kiểm thử E2E
+├── docs/                     # Đặc tả, kế hoạch, báo cáo và sơ đồ
+├── AGENTS.md                 # Quy tắc cho AI coding agents
 └── PROJECT_STRUCTURE.md      # Cấu trúc chi tiết
 ```
 
-## Chạy dự án hiện tại
+## Yêu cầu môi trường
 
-### 1. Yêu cầu
+| Công cụ | Phiên bản/ghi chú |
+|---|---|
+| Git | Bản ổn định gần đây |
+| Node.js | 20 trở lên |
+| JDK | 17 |
+| Docker Desktop | Dùng cho PostgreSQL, pgvector và Mailpit |
+| uv | Dùng cho Python 3.12, Alembic và AI Service |
 
-- Git.
-- Node.js 20 trở lên và npm để chạy frontend Next.js.
-- Trình duyệt hiện đại.
+Kiểm tra nhanh:
 
-Backend Java, AI Service, PostgreSQL, pgvector và Object Storage chưa cần thiết khi chạy frontend ở chế độ demo.
+```powershell
+git --version
+node --version
+npm.cmd --version
+java -version
+docker version
+uv --version
+```
 
-### 2. Clone repository
+## Cổng local
 
-```bash
+| Thành phần | Địa chỉ |
+|---|---|
+| Frontend | `http://localhost:3000` |
+| Java Backend | `http://localhost:8088` |
+| Python AI Service | `http://127.0.0.1:8001` |
+| PostgreSQL | `127.0.0.1:5433` |
+| Mailpit SMTP | `127.0.0.1:1025` |
+| Mailpit Web | `http://127.0.0.1:8025` |
+
+## Chạy nhanh Frontend + Java + PostgreSQL
+
+Các lệnh dưới đây dành cho PowerShell trên Windows. Không cần đọc hoặc dùng `.env` của người khác.
+
+### 1. Clone repository
+
+```powershell
 git clone https://github.com/bch7504/DATN.git
-cd DATN
+Set-Location DATN
 ```
 
-### 3. Chạy Frontend Next.js ở chế độ demo
+### 2. Khởi động PostgreSQL, pgvector và migration
 
-```bash
-cd apps/web
-npm install
-npm run dev
+Mở Docker Desktop trước, sau đó chạy tại thư mục root:
+
+```powershell
+.\scripts\database.ps1 start
+.\scripts\database.ps1 migrate
+.\scripts\database.ps1 status
 ```
 
-Mở [http://localhost:3000](http://localhost:3000). Cấu hình mặc định của source là:
+Database được bind tại `127.0.0.1:5433`. Script dùng file cấu hình local riêng và không tự đọc `.env`.
+
+### 3. Khởi động Mailpit để nhận OTP
+
+```powershell
+docker compose --env-file infrastructure/docker/database.defaults `
+  -f infrastructure/docker/compose.database.yml `
+  up -d --wait mailpit
+```
+
+Mở `http://127.0.0.1:8025` để xem email OTP khi đăng ký tài khoản local.
+
+### 4. Chạy Java Backend
+
+Mở một PowerShell mới tại root:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = "local"
+$env:DATABASE_URL = "jdbc:postgresql://127.0.0.1:5433/studyflow?currentSchema=app"
+$env:DATABASE_USERNAME = "studyflow_app"
+$env:DATABASE_PASSWORD = "studyflow_app_local_only"
+$env:JWT_SECRET = "studyflow-local-jwt-secret-minimum-32-characters"
+$env:MAIL_FROM = "no-reply@studyflow.local"
+
+Set-Location services/backend
+.\mvnw.cmd -s maven-settings.xml spring-boot:run
+```
+
+Kiểm tra Backend:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8088/actuator/health
+```
+
+Kết quả mong đợi có `status: UP`.
+
+Nếu Maven gặp lỗi do đường dẫn repository có ký tự Unicode, có thể tạo ổ tạm rồi chạy lại:
+
+```powershell
+subst S: "E:\ĐATN"
+Set-Location S:\services\backend
+.\mvnw.cmd -s maven-settings.xml spring-boot:run
+```
+
+Thay `E:\ĐATN` bằng đường dẫn repository trên máy đang chạy.
+
+### 5. Cấu hình Frontend
+
+Tạo file `apps/web/.env.local` với đúng hai biến public:
 
 ```text
+NEXT_PUBLIC_API_URL=http://localhost:8088/api/v1
+NEXT_PUBLIC_DEMO_MODE=false
+```
+
+Không đặt database password, AI key hoặc service token trong biến `NEXT_PUBLIC_*`.
+
+### 6. Chạy Frontend
+
+Mở PowerShell mới:
+
+```powershell
+Set-Location apps/web
+npm.cmd install
+npm.cmd run dev
+```
+
+Mở `http://localhost:3000`. Khi đăng ký tài khoản Student bằng email `@ptit.edu.vn`, lấy mã OTP tại Mailpit rồi nhập vào màn xác minh.
+
+## Chạy Frontend ở chế độ demo
+
+Nếu chỉ cần xem giao diện mà không chạy Java/PostgreSQL, đặt trong `apps/web/.env.local`:
+
+```text
+NEXT_PUBLIC_API_URL=http://localhost:8088/api/v1
 NEXT_PUBLIC_DEMO_MODE=true
-NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
 ```
 
-Không cần tạo file môi trường để chạy demo vì ứng dụng có giá trị mặc định an toàn. Khi tích hợp Java Backend, đặt `NEXT_PUBLIC_DEMO_MODE=false` và trỏ `NEXT_PUBLIC_API_URL` đến public API `/api/v1`. Không đưa AI key hoặc service credential vào biến `NEXT_PUBLIC_*`.
+Sau đó chạy `npm.cmd run dev`. Các tài khoản fixture:
 
-### 4. Kiểm tra Frontend
+| Vai trò | Email | Mật khẩu demo |
+|---|---|---|
+| Student | `student@ptit.edu.vn` | `ptit@demo123` |
+| Teacher | `teacher@ptit.edu.vn` | `ptit@demo123` |
+| Admin | `admin@ptit.edu.vn` | `ptit@demo123` |
 
-Chạy trong `apps/web`:
+Đây không phải tài khoản PostgreSQL và không được dùng để kiểm chứng backend production.
 
-```bash
-npm run lint
-npm test
-npm run build
+## Chạy Python AI Service
+
+AI Service có thể chạy và kiểm thử độc lập. Để chạy health API local, mở PowerShell mới:
+
+```powershell
+Set-Location services/ai
+uv sync --dev
+
+$env:INTERNAL_SERVICE_TOKEN = "studyflow-local-ai-token"
+$env:AI_DATABASE_URL = "postgresql+psycopg://studyflow_ai:studyflow_ai_local_only@127.0.0.1:5433/studyflow?connect_timeout=5&options=-csearch_path%3Dai%2Cpublic"
+$env:OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+$env:OPENROUTER_CHAT_MODEL = "openai/gpt-5.6-luna"
+$env:OPENROUTER_EMBEDDING_MODEL = "openai/text-embedding-3-large"
+$env:EMBEDDING_DIMENSIONS = "1024"
+
+uv run uvicorn app.asgi:app --host 127.0.0.1 --port 8001 --no-access-log
 ```
 
-Các lệnh tương ứng kiểm tra ESLint, test contract/UI bằng Node test runner và production build.
+Kiểm tra health trong PowerShell khác:
 
-### 5. Xem prototype HTML không cần cài dependency
+```powershell
+$headers = @{
+  Authorization = "Bearer studyflow-local-ai-token"
+  "X-Request-Id" = "local-health-001"
+  "X-Schema-Version" = "3"
+}
+Invoke-RestMethod -Headers $headers http://127.0.0.1:8001/internal/v1/health
+```
 
-Có thể mở trực tiếp hai file sau bằng trình duyệt:
+Chạy worker trong terminal riêng sau khi đã cấp đầy đủ cấu hình AI và Storage:
 
-- [`index.html`](index.html): tổng quan kiến trúc, quy tắc và demo flow.
-- [`docs/frontend-implementation-plan.md`](docs/frontend-implementation-plan.md): route, chức năng và kế hoạch triển khai Frontend.
+```powershell
+Set-Location services/ai
+uv run python -m app.workers.documents
+```
 
-Hai trang HTML sử dụng fixture tổng hợp, không gọi Backend hoặc model thật.
+Không commit `OPENROUTER_API_KEY`. Các luồng index/RAG/Quiz thật còn cần Object Storage, API key hợp lệ và Java adapter tương ứng; health chạy được không có nghĩa toàn bộ AI end-to-end đã hoàn tất.
 
-### 6. Backend, AI và Docker
+## Kiểm thử
 
-Các phần này hiện **chưa có manifest/runtime hoàn chỉnh**, vì vậy repository chưa cung cấp lệnh Maven, FastAPI hoặc Docker Compose có thể chạy end-to-end. Không dùng các lệnh giả như `docker compose up` cho đến khi các milestone tương ứng được triển khai.
+### Frontend
 
-Tài liệu chuẩn bị triển khai:
+```powershell
+Set-Location apps/web
+npm.cmd test
+npm.cmd run lint
+npm.cmd run build
+```
 
-- [Backend implementation plan](docs/backend-implementation-plan.md)
-- [AI implementation plan](docs/ai-implementation-plan.md)
-- [Docker deployment plan](docs/docker-deployment-plan.md)
-- [Tech stack](docs/tech-stack.md)
+### Backend
 
-## Luồng demo dự kiến
+```powershell
+Set-Location services/backend
+.\mvnw.cmd -s maven-settings.xml test
+```
 
-1. Admin tạo Subject/Semester và quản lý tài khoản.
-2. Teacher tạo Course Offering, lấy join code và duyệt Student.
-3. Teacher upload/public Course Material PDF; Student mở PDF Viewer, ghi Note và hỏi Tutor.
-4. Student upload Personal PDF, chọn nguồn rồi hỏi, tóm tắt hoặc tạo Quiz ngay trong trang Tài liệu cá nhân.
-5. Teacher dùng AI Quiz Studio; Student/Teacher review Quiz theo đúng vai trò trước khi sử dụng/public.
-6. Dashboard cập nhật tiến độ, Streak, Daily Goal và công việc sắp tới.
+### AI Service
 
-Chi tiết xem tại [demo flow](docs/demo-flow.md).
+```powershell
+Set-Location services/ai
+uv run --offline ruff check .
+uv run --offline ruff format --check .
+uv run --offline pytest
+uv run --offline python -m evals --synthetic
+```
 
-## Tài liệu
+### Luồng Backend end-to-end local
 
-- [Mục lục báo cáo Chương 1–3](docs/bao-cao/README.md)
-- [Kế hoạch và flow MVP v2 hiện hành](docs/bao-cao/Ke_hoach_do_an_tot_nghiep_MVP_v2_PDF_Single_Agent_Teacher_Quiz.md)
-- [Master specification](docs/specification.md)
-- [High-level architecture](docs/architecture.md)
-- [Low-level design](docs/low-level-design.md)
-- [Database plan](docs/database-plan.md)
-- [API plan](docs/api-plan.md)
-- [ERD tổng quan](docs/diagrams/erd/index.html)
+Khi PostgreSQL, Mailpit và Java Backend đang chạy:
+
+```powershell
+Set-Location <thu-muc-root-cua-repository>
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backend-e2e.ps1
+```
+
+Script dùng dữ liệu tổng hợp để kiểm tra:
+
+```text
+Auth → Course Offering → Enrollment → Study Plan → Calendar
+```
+
+## Dừng dịch vụ
+
+- Dừng Frontend, Backend, AI API hoặc worker bằng `Ctrl+C` tại terminal tương ứng.
+- Dừng PostgreSQL nhưng giữ dữ liệu:
+
+```powershell
+.\scripts\database.ps1 stop
+```
+
+- Dừng Mailpit:
+
+```powershell
+docker compose --env-file infrastructure/docker/database.defaults `
+  -f infrastructure/docker/compose.database.yml `
+  stop mailpit
+```
+
+Script không xóa Docker volume. Không chạy lệnh xóa volume nếu chưa xác nhận vì thao tác đó sẽ xóa tài khoản và dữ liệu local.
+
+## Lỗi thường gặp
+
+| Lỗi | Cách xử lý |
+|---|---|
+| `npm.ps1 cannot be loaded` | Dùng `npm.cmd` thay cho `npm` trong PowerShell |
+| Backend không kết nối database | Kiểm tra Docker Desktop và chạy `.\scripts\database.ps1 status` |
+| Không nhận OTP | Kiểm tra container Mailpit và mở `http://127.0.0.1:8025` |
+| Frontend vẫn dùng dữ liệu demo | Đặt `NEXT_PUBLIC_DEMO_MODE=false`, sau đó khởi động lại Next.js |
+| Biểu tượng Dev Tools vẫn hiện | Dừng rồi chạy lại `npm.cmd run dev`; `next.config.ts` đã tắt dev indicator |
+| Port đã được sử dụng | Kiểm tra các cổng `3000`, `8088`, `8001`, `5433`, `8025` trước khi chạy |
+| Maven lỗi với đường dẫn Unicode | Dùng `subst` như hướng dẫn ở phần Java Backend |
+
+## Tài liệu chính
+
+- [Quy tắc làm việc cho agents](AGENTS.md)
 - [Cấu trúc repository](PROJECT_STRUCTURE.md)
+- [Đặc tả hệ thống](docs/specification.md)
+- [Kiến trúc](docs/architecture.md)
+- [API contract](docs/api-plan.md)
+- [Kế hoạch cơ sở dữ liệu](docs/database-plan.md)
+- [Kế hoạch Frontend](docs/frontend-implementation-plan.md)
+- [Kế hoạch Backend](docs/backend-implementation-plan.md)
+- [Kế hoạch AI](docs/ai-implementation-plan.md)
+- [Demo flow](docs/demo-flow.md)
+- [Báo cáo Chương 1–3](docs/bao-cao/README.md)
 
-## Nguyên tắc phát triển
+## Nguyên tắc an toàn
 
-1. Không vượt quyền owner, role, Course Offering hoặc authorized document scope.
-2. Thiếu bằng chứng phải trả `NO_EVIDENCE`; không để LLM đoán ngoài nguồn.
-3. Java sở hữu Quiz lifecycle, scoring, progress, Study Streak và Daily Goal.
-4. Mỗi lần làm Quiz tạo attempt mới; không ghi đè lịch sử.
-5. Dashboard là nơi hiển thị toàn bộ tiến độ; không tạo màn Progress độc lập.
-6. Không commit secret, tài liệu cá nhân, log sản xuất hoặc vector dump.
-7. Mock/fixture phải được đánh dấu rõ và không được xem là tính năng production.
-
-## Trạng thái phát triển
-
-- [x] Phân tích nghiệp vụ, kiến trúc, CSDL và API mục tiêu.
-- [x] HTML mock và thiết kế giao diện PTIT.
-- [x] Bộ báo cáo Chương 1–3 và sơ đồ thiết kế.
-- [ ] Hoàn thiện Frontend Next.js và kết nối public Java API.
-- [ ] Triển khai Java Backend và Flyway migrations.
-- [ ] Triển khai Python AI Service, Alembic và pgvector pipeline.
-- [ ] Hoàn thiện Docker Compose, CI và kiểm thử end-to-end.
-- [ ] Chạy AI evaluation và bổ sung kết quả thực đo vào báo cáo.
-
-## Quy tắc dành cho AI coding agents
-
-Mọi AI coding agent phải đọc [`AGENTS.md`](AGENTS.md) trước khi làm việc, chọn đúng vai trò và chỉ đọc/sửa phạm vi được phép. Trạng thái và kế hoạch triển khai được duy trì trực tiếp trong `docs/**`.
+1. Không commit `.env`, API key, token, tài liệu cá nhân, log hoặc database dump.
+2. Frontend không gọi Python, database hoặc OpenRouter trực tiếp.
+3. Java xác minh quyền trước khi cấp phạm vi tài liệu cho Python.
+4. Thiếu bằng chứng phải trả `NO_EVIDENCE`.
+5. Java là nơi duy nhất chấm Quiz và cập nhật tiến độ.
+6. Fixture chỉ chạy khi demo mode được bật rõ ràng.

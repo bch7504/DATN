@@ -132,6 +132,7 @@ type BackendTeacherCourseOffering = {
   rawJoinCode?: string | null;
   joinCode?: string;
   joinCodeHint?: string;
+  joinEnabled?: boolean;
   joinCodeActive?: boolean;
   joinCodeEnabled?: boolean;
   enrolledCount?: number;
@@ -157,7 +158,10 @@ function mapTeacherCourseOffering(
     joinCode: offering.rawJoinCode || offering.joinCode || "",
     joinCodeHint: offering.joinCodeHint,
     joinCodeEnabled:
-      offering.joinCodeActive ?? offering.joinCodeEnabled ?? false,
+      offering.joinEnabled ??
+      offering.joinCodeActive ??
+      offering.joinCodeEnabled ??
+      false,
     status: offering.status,
     enrolledCount: offering.enrolledCount ?? 0,
     pendingCount: offering.pendingCount ?? 0,
@@ -170,8 +174,10 @@ function mapEnrollment(item: any): CourseEnrollment {
   return {
     id: item.id,
     offeringId: item.courseOfferingId || item.offeringId || "",
-    offeringCode: item.courseOfferingCode || item.offeringCode || "",
-    offeringName: item.courseOfferingName || item.offeringName || "",
+    offeringCode:
+      item.courseCode || item.courseOfferingCode || item.offeringCode || "",
+    offeringName:
+      item.courseName || item.courseOfferingName || item.offeringName || "",
     subjectName: item.subjectName || "",
     semesterName: item.semesterName || "",
     teacherName: item.teacherName || "",
@@ -180,8 +186,9 @@ function mapEnrollment(item: any): CourseEnrollment {
     studentEmail: item.studentEmail || "",
     status: item.status,
     requestedAt: item.requestedAt,
-    approvedAt: item.approvedAt,
-    rejectedReason: item.decisionReason || item.rejectedReason,
+    approvedAt: item.decidedAt || item.approvedAt,
+    rejectedReason:
+      item.decisionNote || item.decisionReason || item.rejectedReason,
   };
 }
 
