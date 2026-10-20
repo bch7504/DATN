@@ -22,24 +22,21 @@ test("repeated page metadata is rejected instead of looping or silently dropping
   await assert.rejects(client.materialApi.getMaterials(), { code: "INVALID_API_RESPONSE" });
 });
 
-test("draft update, grading and plan edit preserve method, path and payload", async () => {
+test("draft update and plan edit preserve method, path and payload", async () => {
   const calls = [];
   const client = loadClient(async (url, options) => {
     calls.push({ url, options });
     return Response.json({ id: "saved" });
   }, "http://java.test/api/v1");
   await client.assignmentApi.update("assignment", { title: "Edited", description: "Work", dueAt: "2030-01-01T00:00:00Z" });
-  await client.assignmentApi.review("assignment", "student", { score: 85, feedback: "Good" });
   await client.studyPlanApi.updateItem("actual-plan", "item", { title: "Edited task", type: "TASK", dueAt: "2030-01-01T00:00:00Z" });
   await client.studyPlanApi.updatePlan("actual-plan", { title: "Edited plan", startDate: "2029-01-01", endDate: "2030-12-31", status: "ACTIVE" });
   await client.studyPlanApi.archivePlan("actual-plan");
   assert.equal(calls[0].options.method, "PUT");
-  assert.equal(calls[1].url, "http://java.test/api/v1/teacher/assignments/assignment/submissions/student/review");
-  assert.equal(JSON.parse(calls[1].options.body).score, 85);
-  assert.equal(calls[2].url, "http://java.test/api/v1/study-plans/actual-plan/items/item");
+  assert.equal(calls[1].url, "http://java.test/api/v1/study-plans/actual-plan/items/item");
+  assert.equal(calls[1].options.method, "PUT");
   assert.equal(calls[2].options.method, "PUT");
-  assert.equal(calls[3].options.method, "PUT");
-  assert.equal(calls[4].options.method, "DELETE");
+  assert.equal(calls[3].options.method, "DELETE");
 });
 
 test("PDF invalid sizes never reach network; upload leaves multipart boundary to fetch", async () => {

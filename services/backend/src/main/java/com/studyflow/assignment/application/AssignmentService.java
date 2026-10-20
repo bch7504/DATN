@@ -32,6 +32,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
@@ -55,9 +57,15 @@ public class AssignmentService {
     private final CourseEnrollmentRepository enrollments;
     private final UserAccountStore users;
     private final NotificationStore notifications;
+    private final AttachmentCleanupQueue attachmentCleanup;
     private final Clock clock;
     private final ObjectProvider<AssignmentAttachmentStorage> attachmentStorageProvider;
 
+    /**
+     * Args: repositories, identity/notification stores, clock, optional attachment storage and durable cleanup queue.
+     * Input: Spring-managed backend adapters; all required except the storage provider's optional value.
+     * Output: service instance; constructor has no side effects. Errors: missing required beans fail startup.
+     */
     public AssignmentService(CourseAssignmentRepository assignments,
                              AssignmentSubmissionRepository submissions,
                              CourseOfferingRepository offerings,
@@ -66,7 +74,8 @@ public class AssignmentService {
                              NotificationStore notifications,
                              Clock clock,
                              AssignmentSubmissionAttachmentRepository attachments,
-                             ObjectProvider<AssignmentAttachmentStorage> attachmentStorageProvider) {
+                             ObjectProvider<AssignmentAttachmentStorage> attachmentStorageProvider,
+                             AttachmentCleanupQueue attachmentCleanup) {
         this.assignments = assignments;
         this.submissions = submissions;
         this.attachments = attachments;
@@ -76,6 +85,7 @@ public class AssignmentService {
         this.notifications = notifications;
         this.clock = clock;
         this.attachmentStorageProvider = attachmentStorageProvider;
+        this.attachmentCleanup = attachmentCleanup;
     }
 
     /**
@@ -169,8 +179,10 @@ public class AssignmentService {
     /**
      * Creates or replaces a Student answer, including late submissions.
      * Args: approved studentId, assignmentId and nonblank answerText. Input is limited by the request DTO.
-     * Output: stored submission. Errors: 404 unknown/unpublished assignment, 403 not enrolled,
-     * 409 closed class/assignment, 422 invalid answer. Side effect: upserts the student's latest answer.
+     * Output: stored latest submission. Errors: 404 unknown/unpublished assignment, 403 not enrolled,
+     * 409 closed class/assignment, 422 invalid answer, or database failure.
+     * Side effects: replaces current answer, removes old file metadata, queues old objects for deletion
+     * after commit. No submission history is retained.
      */
     @Transactional
     public AssignmentSubmission submit(UUID studentId, UUID assignmentId, AssignmentRequests.SubmitAnswer input) {
@@ -181,14 +193,18 @@ public class AssignmentService {
                 .map(existing -> { existing.resubmit(input.answerText().trim(), now, status); return existing; })
                 .orElseGet(() -> new AssignmentSubmission(UUID.randomUUID(), assignmentId, studentId,
                         input.answerText().trim(), now, status));
-        return submissions.save(submission);
+        AssignmentSubmission saved = submissions.save(submission);
+        queueReplacedAttachments(saved.getId(), now);
+        return saved;
     }
 
     /**
-     * Adds uploaded files and optional text to the Student's latest submission.
+     * Replaces the Student's current answer and attachments with one multipart submission.
      * Args: student/assignment UUIDs, optional answer text and 1..5 multipart files. Input is restricted to
      * approved enrollment, allowlisted file signatures, 10 MiB/file and 25 MiB total. Output: stored submission.
-     * Errors: 401/403/404/409/422/503/502. Side effects: stores private objects and attachment metadata.
+     * Errors: 401/403/404/409/422/503/502 or persistence failure. Side effects: uploads new private objects,
+     * replaces old metadata and queues old objects for deletion after commit.
+     * Uploads are compensated on rollback; old objects remain intact until replacement commits.
      */
     @Transactional
     public AssignmentSubmission submitAttachments(UUID studentId, UUID assignmentId, String answerText,
@@ -210,17 +226,9 @@ public class AssignmentService {
         }
         Instant now = clock.instant();
         SubmissionStatus status = now.isAfter(assignment.getDueAt()) ? SubmissionStatus.LATE : SubmissionStatus.ON_TIME;
-        AssignmentSubmission submission = submissions.findByAssignmentIdAndStudentId(assignmentId, studentId)
-                .map(existing -> {
-                    existing.resubmit(cleanText == null ? existing.getAnswerText() : cleanText, now, status);
-                    return existing;
-                })
+        Optional<AssignmentSubmission> existingSubmission = submissions.findByAssignmentIdAndStudentId(assignmentId, studentId);
+        AssignmentSubmission submission = existingSubmission
                 .orElseGet(() -> new AssignmentSubmission(UUID.randomUUID(), assignmentId, studentId, cleanText, now, status));
-        submission = submissions.save(submission);
-        long currentCount = attachments.countBySubmissionId(submission.getId());
-        if (currentCount + uploadedFiles.size() > 5) {
-            throw new ValidationException("ATTACHMENT_LIMIT_EXCEEDED", "Tối đa 5 tệp được lưu trong một bài nộp.");
-        }
         long totalBytes = 0;
         List<AttachmentFileValidator.ValidatedAttachment> metadata = new ArrayList<>();
         try {
@@ -243,12 +251,10 @@ public class AssignmentService {
                 AttachmentFileValidator.ValidatedAttachment info = metadata.get(i);
                 String objectKey = "assignment-submissions/" + assignmentId + "/" + submission.getId()
                         + "/" + UUID.randomUUID();
+                uploadedKeys.add(objectKey);
                 try (InputStream input = file.getInputStream()) {
                     storage.put(objectKey, info.contentType(), input, info.sizeBytes());
                 }
-                uploadedKeys.add(objectKey);
-                attachments.save(new AssignmentSubmissionAttachment(UUID.randomUUID(), submission.getId(),
-                        info.fileName(), info.contentType(), info.sizeBytes(), objectKey, now));
             }
         } catch (IOException | RuntimeException exception) {
             uploadedKeys.forEach(key -> { try { storage.delete(key); } catch (RuntimeException ignored) { } });
@@ -257,7 +263,31 @@ public class AssignmentService {
                     "Không thể lưu tệp đính kèm. Vui lòng thử lại.");
         }
         registerRollbackCleanup(storage, uploadedKeys);
+        if (existingSubmission.isPresent()) {
+            submission.resubmit(cleanText, now, status);
+        }
+        submission = submissions.save(submission);
+        queueReplacedAttachments(submission.getId(), now);
+        for (int i = 0; i < uploadedFiles.size(); i++) {
+            AttachmentFileValidator.ValidatedAttachment info = metadata.get(i);
+            attachments.save(new AssignmentSubmissionAttachment(UUID.randomUUID(), submission.getId(),
+                    info.fileName(), info.contentType(), info.sizeBytes(), uploadedKeys.get(i), now));
+        }
         return submission;
+    }
+
+    /**
+     * Args: current submission ID and replacement time, both required. Input: the submission's committed
+     * attachment rows inside the current write transaction. Output: void; removes old metadata and queues
+     * private objects for retryable deletion after commit. Errors: database failure rolls back replacement.
+     */
+    private void queueReplacedAttachments(UUID submissionId, Instant now) {
+        List<AssignmentSubmissionAttachment> oldFiles = attachments.findBySubmissionIdOrderByCreatedAt(submissionId);
+        if (oldFiles.isEmpty()) return;
+        attachments.deleteAll(oldFiles);
+        for (AssignmentSubmissionAttachment oldFile : oldFiles) {
+            attachmentCleanup.enqueue(oldFile.getStorageKey(), now);
+        }
     }
 
     private static void registerRollbackCleanup(AssignmentAttachmentStorage storage, List<String> objectKeys) {
@@ -312,7 +342,9 @@ public class AssignmentService {
     /**
      * Returns every approved Student and whether they submitted, for teacher-owned assignment.
      * Args: teacherId and assignmentId. Input is restricted to the assignment's owning class.
-     * Output: aggregate counts and per-student names/status. Errors: 404 missing, 403 non-owner.
+     * Output: three category counts and named currently approved students, regardless of approval time.
+     * Students approved after dueAt without a submission are counted as NOT_SUBMITTED.
+     * Errors: 404 missing, 403 non-owner.
      * Side effect: none. Does not infer or expose unrelated student progress.
      */
     @Transactional(readOnly = true)
@@ -336,30 +368,18 @@ public class AssignmentService {
                     submission == null ? null : submission.getSubmittedAt(),
                     submission == null ? null : submission.getStatus(),
                     submission == null ? null : submission.getAnswerText(),
-                    submission == null ? null : submission.getScore(),
-                    submission == null ? null : submission.getTeacherFeedback(),
-                    submission == null ? null : submission.getReviewedAt(),
                     submission == null ? List.of() : listAttachments(submission.getId())));
         }
         long submitted = results.stream().filter(result -> "SUBMITTED".equals(result.submissionState())).count();
+        long onTime = results.stream().filter(result -> result.status() == SubmissionStatus.ON_TIME).count();
+        long late = results.stream().filter(result -> result.status() == SubmissionStatus.LATE).count();
         return new AssignmentResponses.AssignmentStats(assignmentId, assignment.getTitle(), assignment.getDueAt(),
-                results.size(), submitted, results.size() - submitted, results);
-    }
-
-    /** Scores one submitted answer from 0 to 100 and returns the saved submission. */
-    @Transactional
-    public AssignmentSubmission review(UUID teacherId, UUID assignmentId, UUID studentId,
-                                      AssignmentRequests.Review input) {
-        CourseAssignment assignment = requireOwnedAssignment(teacherId, assignmentId);
-        AssignmentSubmission submission = submissions.findByAssignmentIdAndStudentId(assignmentId, studentId)
-                .orElseThrow(() -> new ResourceNotFoundException("SUBMISSION_NOT_FOUND", "Sinh viên chưa nộp bài."));
-        submission.review(input.score(), input.feedback(), teacherId, clock.instant());
-        return submissions.save(submission);
+                results.size(), submitted, onTime, late, results.size() - submitted, results);
     }
 
     /**
-     * Creates idempotent in-app reminders for published assignments whose 24-hour reminder time arrived.
-     * Args/input: current app data and injected clock; no external user input. Output: inserted notification count.
+     * Creates idempotent reminders before the deadline only for approved Students without a submission.
+     * Args/input: current app data and injected clock; no external user input. Output: processed assignment count.
      * Errors: persistence exceptions propagate for scheduled retry. Side effect: notifications and reminder marker.
      */
     @Transactional
@@ -368,11 +388,16 @@ public class AssignmentService {
         int processed = 0;
         for (CourseAssignment assignment : assignments.findByStatusAndReminderAtLessThanEqualAndReminderSentAtIsNull(
                 AssignmentStatus.PUBLISHED, now).stream().limit(REMINDER_BATCH_SIZE).toList()) {
-            List<CourseEnrollment> approved = enrollments.findByCourseOfferingIdAndStatus(
-                    assignment.getCourseOfferingId(), EnrollmentStatus.APPROVED);
-            for (CourseEnrollment enrollment : approved) {
-                notifications.createAssignmentDeadlineReminderIfAbsent(enrollment.getStudentId(), assignment.getId(),
-                        assignment.getTitle(), assignment.getDueAt(), now);
+            if (assignment.getDueAt().isAfter(now)) {
+                Set<UUID> submittedStudentIds = submissions.findByAssignmentId(assignment.getId()).stream()
+                        .map(AssignmentSubmission::getStudentId).collect(Collectors.toSet());
+                for (CourseEnrollment enrollment : enrollments.findByCourseOfferingIdAndStatus(
+                        assignment.getCourseOfferingId(), EnrollmentStatus.APPROVED)) {
+                    if (!submittedStudentIds.contains(enrollment.getStudentId())) {
+                        notifications.createAssignmentDeadlineReminderIfAbsent(enrollment.getStudentId(), assignment.getId(),
+                                assignment.getTitle(), assignment.getDueAt(), now);
+                    }
+                }
             }
             assignment.markReminderSent(now);
             assignments.save(assignment);

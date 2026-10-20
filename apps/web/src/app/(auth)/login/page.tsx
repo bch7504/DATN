@@ -114,7 +114,7 @@ export default function LoginPage() {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="student@ptit.edu.vn"
+                  placeholder="student@stu.ptit.edu.vn"
                   className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
                 />
               </div>

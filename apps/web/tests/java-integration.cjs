@@ -36,14 +36,14 @@ async function run() {
   role = "teacher";
   const report = await client.assignmentApi.stats(draft.id);
   assert.equal(report.submittedCount, 1);
+  assert.equal(report.onTimeCount, 1);
+  assert.equal(report.lateCount, 0);
   assert.equal(report.notSubmittedCount, 0);
   assert.equal((await client.assignmentApi.downloadForTeacher(draft.id, fixture.studentId, submitted.attachments[0].id)).size, pdf.size);
-  await assert.rejects(client.assignmentApi.review(draft.id, fixture.studentId, { score: 101 }), { status: 422 });
-  await client.assignmentApi.review(draft.id, fixture.studentId, { score: 85, feedback: "Synthetic review" });
   role = "student";
   const result = (await client.assignmentApi.listForStudent()).find((item) => item.id === draft.id).submission;
-  assert.equal(result.score, 85);
-  assert.equal(result.teacherFeedback, "Synthetic review");
+  assert.equal(Object.hasOwn(result, "score"), false);
+  assert.equal(Object.hasOwn(result, "teacherFeedback"), false);
   console.log("WEB_JAVA_PASS assignments");
 
   role = "teacher";

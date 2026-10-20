@@ -2,10 +2,10 @@
 
 ## Kiểm thử HTTP và cấu hình trình duyệt
 
-- Chạy riêng kiểm thử HTTP: `./mvnw -Dtest=RealHttpApiTest test` (Windows: `.\mvnw.cmd "-Dtest=RealHttpApiTest" test`). Test khởi động HTTP server trên cổng ngẫu nhiên, dùng dữ liệu tổng hợp và H2; chỉ giả lập gửi email và kho tệp. Không xác nhận kết nối SMTP, S3 hay PostgreSQL thật.
+- Chạy riêng kiểm thử HTTP: `./mvnw -Dtest=RealHttpApiTest test` (Windows: `.\mvnw.cmd "-Dtest=RealHttpApiTest" test`). Test khởi động HTTP server trên cổng ngẫu nhiên, dùng dữ liệu tổng hợp và PostgreSQL cách ly bằng Testcontainers; chỉ giả lập gửi email và kho tệp. Cần Docker để chạy test này; không xác nhận kết nối SMTP hay S3 thật.
 - Cấu hình `studyflow.cors.allowed-origins` bằng danh sách origin phân cách bởi dấu phẩy. Cấu hình mặc định nhận biến `STUDYFLOW_CORS_ALLOWED_ORIGINS`; kiểm tra profile đang chạy nếu có giá trị ghi đè. Chỉ cho phép origin cụ thể, không dùng `*` với cookie đăng nhập.
 - API đổi trạng thái mã lớp nhận `PATCH /api/v1/teacher/course-offerings/{id}/join-code`; API xóa sinh viên khỏi lớp nhận `DELETE /api/v1/teacher/enrollments/{id}`. Giữ các đường dẫn cũ để tương thích; vẫn kiểm tra quyền giảng viên sở hữu lớp.
-- Ghi thông báo dùng `ON CONFLICT DO NOTHING` và ràng buộc duy nhất theo người nhận, loại thông báo và nguồn. H2 ở chế độ PostgreSQL và PostgreSQL đều chống tạo trùng; gửi lại không ghi đè trạng thái đã đọc.
+- Ghi thông báo dùng `ON CONFLICT DO NOTHING` và ràng buộc duy nhất theo người nhận, loại thông báo và nguồn trên PostgreSQL; gửi lại không ghi đè trạng thái đã đọc.
 - Kiểm kê endpoint trong test chỉ báo các API còn thiếu so với tài liệu, không coi chúng là đã triển khai. Kiểm thử HTTP không thay thế kiểm thử giao diện đầu cuối.
 
 Java backend là system of record và public API duy nhất cho Web. Module dùng Spring Boot 3, Maven và Java 17 trở lên.
@@ -14,10 +14,18 @@ Java backend là system of record và public API duy nhất cho Web. Module dùn
 
 1. Chuẩn bị PostgreSQL và cấu hình `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`.
 2. Cấu hình `JWT_SECRET` tối thiểu 32 byte.
-3. Cấu hình SMTP qua `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` để gửi OTP đăng ký.
+3. Cấu hình SMTP qua `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` để gửi OTP đăng ký và thông báo cho email sinh viên đã đăng ký. Không đưa mật khẩu ứng dụng vào Git.
 4. Chạy `./mvnw spring-boot:run` (Windows: `mvnw.cmd spring-boot:run`); Flyway sẽ tạo schema `app` và các bảng xác thực.
 
-Đăng ký công khai chỉ nhận email có miền chính xác `ptit.edu.vn`. Tài khoản `STUDENT` chỉ được tạo sau khi xác minh OTP sáu chữ số.
+Đăng ký công khai chỉ nhận email có miền chính xác `stu.ptit.edu.vn` (không nhận `ptit.edu.vn` hoặc miền con khác). Tài khoản `STUDENT` chỉ được tạo sau khi xác minh OTP sáu chữ số. Nếu môi trường đã đặt `STUDYFLOW_ALLOWED_EMAIL_DOMAIN`, cần đổi giá trị đó thành `stu.ptit.edu.vn` và khởi động lại backend. Tài khoản cũ không bị tự động đổi địa chỉ hoặc khóa đăng nhập.
+
+Profile `dev` cũng dùng PostgreSQL qua cùng các biến `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`; không có CSDL nhúng riêng. Migration Flyway vẫn chạy như cấu hình mặc định.
+
+### Sinh viên mẫu cho lớp học phần (chỉ môi trường dev)
+
+Khi cần kiểm tra danh sách học viên, bài nộp và thống kê, khởi động backend với profile `sample-data` và `STUDYFLOW_DEV_SAMPLE_STUDENTS_ENABLED=true` trên **PostgreSQL local chứa các lớp cần thử**. Profile này chỉ kiểm tra schema hiện có, không chạy migration. Bộ nạp sẽ thêm **12 sinh viên mẫu đã được duyệt vào mỗi lớp hiện có**. Khởi động lại nhiều lần không tạo trùng; lớp tạo sau đó cần khởi động lại backend để được thêm mẫu. Mặc định tính năng **tắt**, và sẽ từ chối PostgreSQL không nằm trên chính máy (`localhost`, `127.0.0.1`, `::1`).
+
+Các tài khoản có tên `Sinh viên mẫu …`, email `@example.invalid` (không gửi được thư) và mật khẩu ngẫu nhiên không được hiển thị/lưu ở dạng rõ. Chúng chỉ phục vụ xem dữ liệu, không đăng nhập như sinh viên thật. Nếu đã xóa/từ chối một đăng ký mẫu, chạy lại sẽ không tự duyệt lại đăng ký đó. Không bật bộ nạp trên dữ liệu cần giữ sạch để nghiệm thu.
 
 ## Module đích
 
@@ -40,12 +48,12 @@ Mỗi business module triển khai theo `api → application → domain → infr
 ## Phần đã triển khai
 
 - Auth/profile: đăng ký email PTIT qua OTP, đăng nhập, refresh/logout, RBAC và hồ sơ cá nhân.
-- Study Plan/Calendar: CRUD mềm kế hoạch và nhiệm vụ cá nhân, lịch tuần, kiểm tra trùng giờ, owner scope và learning event idempotent khi hoàn thành task.
-- Deadline reminder: job mặc định quét mỗi 60 giây, tạo một thông báo trong ứng dụng trước hạn 24 giờ và cung cấp API danh sách/đánh dấu đã đọc. Có thể đổi chu kỳ bằng `STUDYFLOW_REMINDER_SCAN_DELAY` sau khi khai báo mapping cấu hình triển khai; không gửi email/push trong MVP.
-- Course Assignment: Teacher giao bài theo lớp, Student nộp câu trả lời hoặc tối đa 5 tệp PDF/ảnh JPG/PNG/Office; file được kiểm tra định dạng/dung lượng, lưu riêng tư trong S3-compatible storage và chỉ tải qua endpoint Java có kiểm tra quyền. Cấu hình `STORAGE_ENABLED=true` cùng các biến `STORAGE_*` để bật upload; khi chưa cấu hình, backend vẫn khởi động nhưng endpoint upload trả `503 STORAGE_NOT_CONFIGURED`.
+- Study Plan/Calendar: CRUD mềm kế hoạch và nhiệm vụ cá nhân, lịch tuần, kiểm tra trùng giờ, owner scope và learning event idempotent khi hoàn thành task. Item có thể gắn `courseOfferingId` nếu Student có Enrollment `APPROVED`; không gắn lớp vẫn hợp lệ. API hiển thị `OVERDUE` cho item `TODO` đã qua hạn (trạng thái lưu trong CSDL vẫn là `TODO`), không tự hoàn thành. `DELETE .../items/{itemId}` giữ nghĩa hủy (`CANCELLED`); `DELETE .../items/{itemId}/remove` ẩn item khỏi danh sách/lịch (`DELETED`) nhưng giữ bản ghi, thời điểm hoàn thành và learning event.
+- Deadline reminder: job mặc định quét mỗi 60 giây, tạo thông báo trong ứng dụng trước hạn 24 giờ; bài tập mới công bố cũng tạo thông báo. Mỗi thông báo mới được xếp hàng gửi email tới địa chỉ `@stu.ptit.edu.vn` của Student đang hoạt động, bằng cùng SMTP với OTP. Email quét mỗi 60 giây, lỗi gửi được thử lại tối đa 5 lần; thông báo trong ứng dụng không mất khi email lỗi. Đổi chu kỳ bằng `STUDYFLOW_REMINDER_SCAN_DELAY` và `STUDYFLOW_EMAIL_SCAN_DELAY`. Không gửi tới tài khoản mẫu `@example.invalid`; không gửi push. SMTP chấp nhận thư không bảo đảm thư vào Inbox (có thể vào Spam). Nếu tiến trình dừng ngay sau khi SMTP chấp nhận thư nhưng trước khi lưu trạng thái, lần thử lại có thể gửi trùng một email.
+- Course Assignment: Teacher giao bài theo lớp, Student nộp câu trả lời hoặc tối đa 5 tệp PDF/ảnh JPG/PNG/Office; file được kiểm tra định dạng/dung lượng, lưu riêng tư trong S3-compatible storage và chỉ tải qua endpoint Java có kiểm tra quyền. Nộp lại thay thế bài và toàn bộ tệp cũ, không giữ lịch sử; tệp cũ được đưa vào hàng đợi xóa sau khi bài mới lưu thành công (chu kỳ mặc định 60 giây, tùy chỉnh bằng `STUDYFLOW_ASSIGNMENT_ATTACHMENT_CLEANUP_DELAY`). Nhắc hạn chỉ gửi trước hạn cho Student chưa nộp. Báo cáo tính mọi Student hiện đã được duyệt vào lớp và chia đúng hạn/muộn/chưa nộp; người được duyệt sau hạn mà chưa nộp vẫn nằm trong nhóm chưa nộp. Không có chức năng chấm điểm bài tập; các cột điểm cũ trong CSDL được giữ nguyên để tránh xóa dữ liệu lịch sử. Cấu hình `STORAGE_ENABLED=true` cùng các biến `STORAGE_*` để bật upload; khi chưa cấu hình, backend vẫn khởi động nhưng endpoint upload trả `503 STORAGE_NOT_CONFIGURED`.
 - Course Material: Teacher lưu PDF có text layer (tối đa 20 MB) vào kho riêng, công bố/gỡ công bố theo lớp mình sở hữu; Student đã được duyệt mới xem/tải được. Cấu hình `STORAGE_ENABLED=true` cùng các biến `STORAGE_*`; khi chưa bật, API trả `503 STORAGE_NOT_CONFIGURED`, không tạo dữ liệu mẫu.
 
-Study Plan hoạt động độc lập khi module Course Offering chưa sẵn sàng. Liên kết item với lớp học phần chỉ được bổ sung sau khi có access policy production; không dùng adapter giả để bỏ qua kiểm tra quyền.
+Study Plan vẫn hoạt động độc lập khi không chọn lớp học phần. Liên kết tùy chọn với Course Offering được Java kiểm tra bằng Enrollment `APPROVED`; không dùng adapter giả để bỏ qua kiểm tra quyền.
 
 ## Kiểm tra luồng học liệu và giới hạn tải lên
 

@@ -48,7 +48,7 @@ class AuthControllerTest {
                         .content("""
                                 {
                                   "displayName": "Nguyễn Văn A",
-                                  "email": "b22dccn001@ptit.edu.vn",
+                                  "email": "b22dccn001@stu.ptit.edu.vn",
                                   "password": "StrongPass1"
                                 }
                                 """))

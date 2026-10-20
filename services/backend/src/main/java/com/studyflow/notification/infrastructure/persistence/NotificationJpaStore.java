@@ -1,6 +1,7 @@
 package com.studyflow.notification.infrastructure.persistence;
 
 import com.studyflow.notification.application.port.NotificationStore;
+import com.studyflow.notification.application.port.NotificationEmailOutbox;
 import com.studyflow.notification.domain.StudentNotification;
 import com.studyflow.study.application.PageResult;
 import java.time.Instant;
@@ -14,14 +15,17 @@ import org.springframework.stereotype.Repository;
 public class NotificationJpaStore implements NotificationStore {
 
     private final SpringDataNotificationRepository repository;
+    private final NotificationEmailOutbox emailOutbox;
 
     /**
      * Creates the JPA notification adapter.
      *
      * @param repository Spring Data repository for app.notifications
+     * @param emailOutbox durable email queue in the same transaction as each new notification
      */
-    public NotificationJpaStore(SpringDataNotificationRepository repository) {
+    public NotificationJpaStore(SpringDataNotificationRepository repository, NotificationEmailOutbox emailOutbox) {
         this.repository = repository;
+        this.emailOutbox = emailOutbox;
     }
 
     @Override
@@ -33,25 +37,40 @@ public class NotificationJpaStore implements NotificationStore {
             Instant dueAt,
             Instant createdAt
     ) {
-        return repository.insertDeadlineReminderIfAbsent(
-                UUID.randomUUID(), userId, itemId, title, message, dueAt, createdAt
+        UUID notificationId = UUID.randomUUID();
+        boolean inserted = repository.insertDeadlineReminderIfAbsent(
+                notificationId, userId, itemId, title, message, dueAt, createdAt
         ) == 1;
+        if (inserted) {
+            emailOutbox.enqueue(notificationId, createdAt);
+        }
+        return inserted;
     }
 
     @Override
     public boolean createAssignmentDeadlineReminderIfAbsent(
             UUID studentId, UUID assignmentId, String assignmentTitle, Instant dueAt, Instant createdAt) {
         String safeTitle = assignmentTitle == null ? "Bài tập" : assignmentTitle;
-        return repository.insertAssignmentReminderIfAbsent(UUID.randomUUID(), studentId, assignmentId,
+        UUID notificationId = UUID.randomUUID();
+        boolean inserted = repository.insertAssignmentReminderIfAbsent(notificationId, studentId, assignmentId,
                 "Bài tập \"" + safeTitle + "\" sắp đến hạn nộp.", dueAt, createdAt) == 1;
+        if (inserted) {
+            emailOutbox.enqueue(notificationId, createdAt);
+        }
+        return inserted;
     }
 
     @Override
     public boolean createAssignmentPublishedIfAbsent(
             UUID studentId, UUID assignmentId, String assignmentTitle, Instant dueAt, Instant createdAt) {
         String safeTitle = assignmentTitle == null ? "Bài tập" : assignmentTitle;
-        return repository.insertAssignmentPublishedIfAbsent(UUID.randomUUID(), studentId, assignmentId,
+        UUID notificationId = UUID.randomUUID();
+        boolean inserted = repository.insertAssignmentPublishedIfAbsent(notificationId, studentId, assignmentId,
                 "Bạn có bài tập mới: \"" + safeTitle + "\".", dueAt, createdAt) == 1;
+        if (inserted) {
+            emailOutbox.enqueue(notificationId, createdAt);
+        }
+        return inserted;
     }
 
     @Override

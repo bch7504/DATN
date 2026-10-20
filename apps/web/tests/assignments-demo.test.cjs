@@ -36,4 +36,14 @@ test("Class assignments use persisted Java API data without a demo fallback", as
     assert.match(studentPage, /assignmentApi\.listForStudent/);
     assert.doesNotMatch(`${teacherPage}\n${studentPage}`, /Failed to fetch/);
   });
+
+  await t.test("F01 has submission counts but no grading flow", () => {
+    assert.match(client, /onTimeCount: number/);
+    assert.match(client, /lateCount: number/);
+    assert.match(client, /notSubmittedCount: number/);
+    assert.doesNotMatch(client, /assignmentApi\.review|review: \(submissionId: string/);
+    assert.doesNotMatch(`${teacherPage}\n${studentPage}`, /assignmentApi\.review|teacherFeedback|reviewedAt/);
+    assert.match(teacherPage, /kể cả người được duyệt sau hạn/);
+    assert.doesNotMatch(teacherPage, /chỉ tính sinh viên được duyệt vào lớp không muộn hơn hạn nộp/);
+  });
 });

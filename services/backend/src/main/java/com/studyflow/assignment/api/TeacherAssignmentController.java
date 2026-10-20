@@ -2,7 +2,6 @@ package com.studyflow.assignment.api;
 
 import com.studyflow.assignment.application.AssignmentService;
 import com.studyflow.assignment.domain.CourseAssignment;
-import com.studyflow.assignment.domain.AssignmentSubmission;
 import com.studyflow.common.exception.ApiException;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -72,15 +71,6 @@ public class TeacherAssignmentController {
     public ResponseEntity<AssignmentResponses.AssignmentStats> stats(
             @AuthenticationPrincipal Jwt jwt, @PathVariable UUID assignmentId) {
         return ResponseEntity.ok(service.stats(userId(jwt), assignmentId));
-    }
-
-    /** Input: authenticated Teacher, assignment/student UUIDs and validated score/feedback. Output: HTTP 200 reviewed submission. Errors: 401/403/404/422. */
-    @PostMapping("/assignments/{assignmentId}/submissions/{studentId}/review")
-    public ResponseEntity<AssignmentResponses.Submission> review(
-            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID assignmentId,
-            @PathVariable UUID studentId, @Valid @RequestBody AssignmentRequests.Review input) {
-        AssignmentSubmission reviewed = service.review(userId(jwt), assignmentId, studentId, input);
-        return ResponseEntity.ok(AssignmentResponses.Submission.from(reviewed, service.listAttachments(reviewed.getId())));
     }
 
     /** Input: owning Teacher JWT and assignment/student/attachment UUIDs. Output: streamed attachment with safe download headers. Errors: 401/403/404/503. */

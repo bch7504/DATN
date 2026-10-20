@@ -28,6 +28,9 @@ spring:
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
   servlet:
     multipart:
       max-file-size: 20MB
@@ -48,6 +51,11 @@ logging:
     org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: INFO
 
 studyflow:
+  assignments:
+    attachment-cleanup-delay: ${STUDYFLOW_ASSIGNMENT_ATTACHMENT_CLEANUP_DELAY:60000}
+  dev:
+    sample-students:
+      enabled: ${STUDYFLOW_DEV_SAMPLE_STUDENTS_ENABLED:false}
   cors:
     allowed-origins: ${STUDYFLOW_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
   storage:
@@ -59,8 +67,9 @@ studyflow:
     secret-key: ${STORAGE_SECRET_KEY:}
   notifications:
     reminder-scan-delay: ${STUDYFLOW_REMINDER_SCAN_DELAY:60000}
+    email-scan-delay: ${STUDYFLOW_EMAIL_SCAN_DELAY:60000}
   auth:
-    allowed-email-domain: ${STUDYFLOW_ALLOWED_EMAIL_DOMAIN:ptit.edu.vn}
+    allowed-email-domain: ${STUDYFLOW_ALLOWED_EMAIL_DOMAIN:stu.ptit.edu.vn}
     otp-ttl: ${STUDYFLOW_OTP_TTL:10m}
     resend-cooldown: ${STUDYFLOW_OTP_RESEND_COOLDOWN:60s}
     max-verification-attempts: ${STUDYFLOW_OTP_MAX_ATTEMPTS:5}

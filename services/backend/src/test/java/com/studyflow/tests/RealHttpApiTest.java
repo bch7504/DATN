@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyflow.academic.domain.*;
 import com.studyflow.auth.application.port.UserAccountStore;
 import com.studyflow.auth.application.port.VerificationCodeSender;
+import com.studyflow.assignment.application.AssignmentAttachmentCleanupJob;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
 import com.studyflow.user.domain.*;
 import java.io.*;
@@ -31,22 +32,26 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Real socket HTTP audit: real controllers/security/services/JPA, isolated H2 database.
+ * Real socket HTTP audit: real controllers/security/services/JPA, isolated PostgreSQL database.
  * Only outbound email and object storage are test doubles. No production accounts, files or SMTP.
  * Run: mvnw.cmd -Dtest=RealHttpApiTest test. Nonzero exit means a contract/scenario failed.
  * Tests have no args and return void; HTTP/JSON errors and failed expectations fail the test.
  * Console output contains method/path/status only, never cookies, passwords, OTPs or file contents.
- * This does not validate PostgreSQL migrations, S3 connectivity, SMTP delivery or browser UI.
+ * This does not validate Flyway migrations, S3 connectivity, SMTP delivery or browser UI.
  */
+@Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "spring.profiles.active=qa-http",
         "server.address=127.0.0.1",
-        "spring.datasource.url=jdbc:h2:mem:qa_http;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS app",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa", "spring.datasource.password=",
+        "spring.datasource.driver-class-name=org.postgresql.Driver",
         "spring.jpa.hibernate.ddl-auto=create-drop", "spring.jpa.show-sql=false",
         "spring.flyway.enabled=false", "spring.sql.init.mode=never",
         "spring.mail.host=127.0.0.1", "spring.mail.port=1",
@@ -54,14 +59,39 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
         "management.health.mail.enabled=false", "studyflow.storage.enabled=false",
         "studyflow.auth.jwt-secret=qa-only-signing-key-never-use-outside-tests-123456789",
         "studyflow.auth.mail-from=qa@example.invalid", "studyflow.auth.cookie-secure=false",
-        "studyflow.auth.allowed-email-domain=ptit.edu.vn", "studyflow.auth.resend-cooldown=60s",
+        "studyflow.auth.allowed-email-domain=stu.ptit.edu.vn", "studyflow.auth.resend-cooldown=60s",
         "studyflow.cors.allowed-origins=http://localhost:3000",
         "studyflow.notifications.reminder-scan-delay=3600000",
+        "studyflow.notifications.email-scan-delay=3600000",
+        "studyflow.assignments.attachment-cleanup-delay=3600000",
         "logging.level.root=ERROR", "spring.main.banner-mode=off"
 })
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @org.springframework.context.annotation.Import(RealHttpApiTest.Diagnostics.class)
 class RealHttpApiTest {
+    @Container
+    private static final PostgreSQLContainer<?> DATABASE = new PostgreSQLContainer<>("postgres:16-alpine")
+            .withDatabaseName("studyflow_qa")
+            .withInitScript("postgres-schema.sql");
+
+    /**
+     * Starts the isolated PostgreSQL container before Spring resolves the test connection.
+     *
+     * @param registry required Spring registry; receives URL, username and password
+     * @return void; starts the container if needed and registers test connection properties
+     * @throws IllegalStateException if the PostgreSQL container cannot start
+     */
+    @DynamicPropertySource
+    static void databaseProperties(DynamicPropertyRegistry registry) {
+        DATABASE.start();
+        registry.add("spring.datasource.url", () -> {
+            String jdbcUrl = DATABASE.getJdbcUrl();
+            return jdbcUrl + (jdbcUrl.contains("?") ? "&" : "?") + "currentSchema=app";
+        });
+        registry.add("spring.datasource.username", DATABASE::getUsername);
+        registry.add("spring.datasource.password", DATABASE::getPassword);
+    }
+
     private static final String PASSWORD = "QaSynthetic123!";
     private static final String MISSING_ID = "00000000-0000-0000-0000-000000000001";
     @LocalServerPort private int port;
@@ -71,6 +101,7 @@ class RealHttpApiTest {
     @Autowired private SemesterRepository semesters;
     @Autowired private com.studyflow.notification.application.port.NotificationStore notifications;
     @Autowired private org.springframework.transaction.PlatformTransactionManager transactions;
+    @Autowired private AssignmentAttachmentCleanupJob attachmentCleanupJob;
     @Autowired private ObjectMapper json;
     @Autowired @Qualifier("requestMappingHandlerMapping") private RequestMappingHandlerMapping mappings;
     @MockBean(reset = org.springframework.boot.test.mock.mockito.MockReset.NONE) private VerificationCodeSender mail;
@@ -151,9 +182,13 @@ class RealHttpApiTest {
 
     @Test
     void registrationOtpAndRefreshLifecycleOverHttp() throws Exception {
-        String email = "qa-registration@ptit.edu.vn";
+        String email = "qa-registration@stu.ptit.edu.vn";
         expect(send("POST", "/api/v1/auth/register", null,
                 Map.of("displayName", "QA Registration", "email", "qa@example.invalid", "password", PASSWORD)), 422);
+        expect(send("POST", "/api/v1/auth/register", null,
+                Map.of("displayName", "QA Registration", "email", "qa-registration@ptit.edu.vn", "password", PASSWORD)), 422);
+        expect(send("POST", "/api/v1/auth/register", null,
+                Map.of("displayName", "QA Registration", "email", "qa-registration@mail.stu.ptit.edu.vn", "password", PASSWORD)), 422);
         expect(send("POST", "/api/v1/auth/register", null,
                 Map.of("displayName", "QA Registration", "email", email, "password", PASSWORD)), 202);
         expect(send("POST", "/api/v1/auth/resend-verification", null, Map.of("email", email)), 429);
@@ -190,7 +225,7 @@ class RealHttpApiTest {
     }
 
     @Test
-    void assignmentTextSubmissionStatisticsReviewAndNotification() throws Exception {
+    void assignmentTextSubmissionStatisticsAndNotification() throws Exception {
         String offering = approvedCourse();
         Map<String, String> draft = Map.of("title", "QA assignment", "description", "Synthetic task",
                 "dueAt", Instant.now().plusSeconds(86400 * 3).toString());
@@ -204,8 +239,11 @@ class RealHttpApiTest {
         expect(send("POST", "/api/v1/student/assignments/" + id + "/submissions", student, Map.of("answerText", "Synthetic answer")), 200);
         JsonNode after = expect(send("GET", "/api/v1/teacher/assignments/" + id + "/submissions", teacher, null), 200);
         assertThat(after.path("submittedCount").asInt()).isEqualTo(1);
+        assertThat(after.path("onTimeCount").asInt()).isEqualTo(1);
+        assertThat(after.path("lateCount").asInt()).isZero();
+        assertThat(after.path("students").get(0).has("score")).isFalse();
         expect(send("POST", "/api/v1/teacher/assignments/" + id + "/submissions/" + studentId + "/review", teacher,
-                Map.of("score", 80, "feedback", "Synthetic feedback")), 200);
+                Map.of("score", 80)), 404);
         JsonNode notices = expect(send("GET", "/api/v1/student/notifications", student, null), 200);
         assertThat(notices.path("items").size()).isPositive();
         String notification = notices.path("items").get(0).path("id").asText();
@@ -217,24 +255,46 @@ class RealHttpApiTest {
     void assignmentFileUploadAndDownloadThroughHttp() throws Exception {
         String id = assignmentPublishedBeforeEnrollment();
         byte[] pdf = syntheticPdf();
+        Set<String> keysBefore = new HashSet<>(objects.keySet());
         JsonNode result = expect(multipart("/api/v1/student/assignments/" + id + "/submissions/attachments", student, "files", pdf, null), 200);
         String attachment = result.path("attachments").get(0).path("id").asText();
+        Set<String> firstUploadKeys = new HashSet<>(objects.keySet());
+        firstUploadKeys.removeAll(keysBefore);
+        assertThat(firstUploadKeys).hasSize(1);
+        String oldKey = firstUploadKeys.iterator().next();
         var downloaded = send("GET", "/api/v1/student/assignments/" + id + "/submissions/attachments/" + attachment + "/download", student, null);
         assertThat(downloaded.statusCode()).isEqualTo(200);
         assertThat(downloaded.body()).isEqualTo(pdf);
         var teacherDownload = send("GET", "/api/v1/teacher/assignments/" + id + "/submissions/" + studentId + "/attachments/" + attachment + "/download", teacher, null);
         assertThat(teacherDownload.statusCode()).isEqualTo(200);
         assertThat(teacherDownload.body()).isEqualTo(pdf);
+        JsonNode replacement = expect(multipart("/api/v1/student/assignments/" + id + "/submissions/attachments", student, "files", pdf, null), 200);
+        assertThat(replacement.path("id").asText()).isEqualTo(result.path("id").asText());
+        assertThat(replacement.has("score")).isFalse();
+        assertThat(replacement.has("teacherFeedback")).isFalse();
+        assertThat(replacement.path("attachments").size()).isEqualTo(1);
+        String replacementId = replacement.path("attachments").get(0).path("id").asText();
+        assertThat(replacementId).isNotEqualTo(attachment);
+        expect(send("GET", "/api/v1/student/assignments/" + id + "/submissions/attachments/" + attachment + "/download", student, null), 404);
+        expect(send("GET", "/api/v1/teacher/assignments/" + id + "/submissions/" + studentId + "/attachments/" + attachment + "/download", teacher, null), 404);
+        assertThat(send("GET", "/api/v1/student/assignments/" + id + "/submissions/attachments/" + replacementId + "/download", student, null).statusCode()).isEqualTo(200);
+        attachmentCleanupJob.deletePending();
+        assertThat(objects).doesNotContainKey(oldKey);
+
+        JsonNode textOnly = expect(send("POST", "/api/v1/student/assignments/" + id + "/submissions", student,
+                Map.of("answerText", "Final synthetic answer")), 200);
+        assertThat(textOnly.path("attachments").size()).isZero();
+        expect(send("GET", "/api/v1/student/assignments/" + id + "/submissions/attachments/" + replacementId + "/download", student, null), 404);
+        attachmentCleanupJob.deletePending();
     }
 
     @Test
-    void submissionAndReviewWorkWithPrepublishedAssignmentFixture() throws Exception {
+    void submissionWorksWithPrepublishedAssignmentFixture() throws Exception {
         String id = assignmentPublishedBeforeEnrollment();
         expect(send("POST", "/api/v1/student/assignments/" + id + "/submissions", student, Map.of("answerText", "Synthetic answer")), 200);
         JsonNode stats = expect(send("GET", "/api/v1/teacher/assignments/" + id + "/submissions", teacher, null), 200);
         assertThat(stats.path("submittedCount").asInt()).isEqualTo(1);
-        expect(send("POST", "/api/v1/teacher/assignments/" + id + "/submissions/" + studentId + "/review", teacher,
-                Map.of("score", 80, "feedback", "Synthetic review")), 200);
+        assertThat(stats.path("onTimeCount").asInt()).isEqualTo(1);
     }
 
     @Test
@@ -298,6 +358,7 @@ class RealHttpApiTest {
 
     @Test
     void studyPlanCalendarAndItemLifecycle() throws Exception {
+        String offering = approvedCourse();
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         Map<String, String> plan = Map.of("title", "QA plan", "startDate", today.toString(), "endDate", today.plusDays(7).toString());
         String id = expect(send("POST", "/api/v1/study-plans", student, plan), 201).path("id").asText();
@@ -307,14 +368,29 @@ class RealHttpApiTest {
         Map<String, String> update = new HashMap<>(plan);
         update.put("status", "ACTIVE");
         expect(send("PUT", "/api/v1/study-plans/" + id, student, update), 200);
-        Map<String, String> task = Map.of("title", "Synthetic task", "type", "TASK", "dueAt", Instant.now().plusSeconds(7200).toString());
-        String item = expect(send("POST", "/api/v1/study-plans/" + id + "/items", student, task), 201).path("id").asText();
+        Map<String, String> task = Map.of("title", "Synthetic task", "type", "TASK",
+                "dueAt", Instant.now().plusSeconds(7200).toString(), "courseOfferingId", offering);
+        expect(send("POST", "/api/v1/study-plans/" + id + "/items", student,
+                Map.of("title", "Foreign class task", "type", "TASK",
+                        "dueAt", Instant.now().plusSeconds(7200).toString(),
+                        "courseOfferingId", UUID.randomUUID().toString())), 403);
+        JsonNode created = expect(send("POST", "/api/v1/study-plans/" + id + "/items", student, task), 201);
+        String item = created.path("id").asText();
+        assertThat(created.path("courseOfferingId").asText()).isEqualTo(offering);
         expect(send("GET", "/api/v1/study-plans/" + id + "/items", student, null), 200);
         expect(send("PUT", "/api/v1/study-plans/" + id + "/items/" + item, student, task), 200);
         expect(send("PATCH", "/api/v1/study-plan-items/" + item + "/status", student, Map.of("status", "COMPLETED"),
                 Map.of("Idempotency-Key", "qa-complete-" + item)), 200);
         expect(send("GET", "/api/v1/calendar?from=" + Instant.now().minusSeconds(60) + "&to=" + Instant.now().plusSeconds(86400), student, null), 200);
-        expect(send("DELETE", "/api/v1/study-plans/" + id + "/items/" + item, student, null), 204);
+        expect(send("DELETE", "/api/v1/study-plans/" + id + "/items/" + item + "/remove", student, null), 204);
+        JsonNode afterRemoval = expect(send("GET", "/api/v1/study-plans/" + id + "/items", student, null), 200);
+        assertThat(afterRemoval.path("items").toString()).doesNotContain(item);
+        String cancelled = expect(send("POST", "/api/v1/study-plans/" + id + "/items", student,
+                Map.of("title", "Cancelled task", "type", "TASK", "dueAt", Instant.now().plusSeconds(9000).toString())), 201)
+                .path("id").asText();
+        expect(send("DELETE", "/api/v1/study-plans/" + id + "/items/" + cancelled, student, null), 204);
+        JsonNode afterCancel = expect(send("GET", "/api/v1/study-plans/" + id + "/items", student, null), 200);
+        assertThat(afterCancel.path("items").toString()).contains(cancelled);
         expect(send("DELETE", "/api/v1/study-plans/" + id, student, null), 204);
     }
 

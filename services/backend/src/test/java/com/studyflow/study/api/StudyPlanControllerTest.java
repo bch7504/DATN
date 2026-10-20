@@ -3,10 +3,12 @@ package com.studyflow.study.api;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -14,6 +16,7 @@ import com.studyflow.auth.infrastructure.RestAccessDeniedHandler;
 import com.studyflow.auth.infrastructure.RestAuthenticationEntryPoint;
 import com.studyflow.auth.infrastructure.SecurityConfig;
 import com.studyflow.auth.infrastructure.SecurityErrorResponder;
+import com.studyflow.common.config.TimeConfig;
 import com.studyflow.study.application.StudyPlanService;
 import com.studyflow.study.domain.StudyPlan;
 import com.studyflow.study.domain.StudyPlanItem;
@@ -39,10 +42,11 @@ import org.springframework.test.web.servlet.MockMvc;
         SecurityConfig.class,
         RestAuthenticationEntryPoint.class,
         RestAccessDeniedHandler.class,
-        SecurityErrorResponder.class
+        SecurityErrorResponder.class,
+        TimeConfig.class
 })
 @TestPropertySource(properties = {
-        "studyflow.auth.allowed-email-domain=ptit.edu.vn",
+        "studyflow.auth.allowed-email-domain=stu.ptit.edu.vn",
         "studyflow.auth.otp-ttl=10m",
         "studyflow.auth.resend-cooldown=60s",
         "studyflow.auth.max-verification-attempts=5",
@@ -58,6 +62,7 @@ class StudyPlanControllerTest {
     private static final UUID STUDENT_ID = UUID.fromString("81c138cf-49a3-44dd-8497-ec8684ee79d7");
     private static final UUID PLAN_ID = UUID.fromString("6726d698-a9de-4145-a43e-c7e5a15bb8f4");
     private static final UUID ITEM_ID = UUID.fromString("ed787f71-5242-451a-9c1c-c9e979327c39");
+    private static final UUID COURSE_ID = UUID.fromString("a4306c28-f41e-4bcd-ae47-fd55e14f27cd");
     private static final Instant NOW = Instant.parse("2026-10-13T09:00:00Z");
 
     @Autowired
@@ -143,6 +148,32 @@ class StudyPlanControllerTest {
                 .andExpect(jsonPath("$.to").value("2026-10-19T17:00:00Z"))
                 .andExpect(jsonPath("$.items").isArray())
                 .andExpect(jsonPath("$.items.length()").value(0));
+    }
+
+    /** Args: none. Input: past-due linked TODO item. Output: OVERDUE and courseOfferingId in calendar JSON. */
+    @Test
+    void calendarMarksPastDueTodoAsOverdue() throws Exception {
+        StudyPlanItem pastDue = new StudyPlanItem(ITEM_ID, PLAN_ID, "Ôn tập", null, StudyPlanItemType.TASK,
+                null, null, Instant.parse("2020-01-01T12:00:00Z"),
+                Instant.parse("2019-12-31T12:00:00Z"), null,
+                StudyPlanItemStatus.TODO, null, NOW, NOW, COURSE_ID);
+        when(service.calendar(eq(STUDENT_ID), any(), any())).thenReturn(List.of(pastDue));
+
+        mockMvc.perform(get("/api/v1/calendar").with(studentJwt())
+                        .queryParam("from", "2020-01-01T00:00:00Z")
+                        .queryParam("to", "2020-01-08T00:00:00Z"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].status").value("OVERDUE"))
+                .andExpect(jsonPath("$.items[0].courseOfferingId").value(COURSE_ID.toString()));
+    }
+
+    /** Args: none. Input: owned plan/item path. Output: HTTP 204 and separate hide operation; errors: assertions. */
+    @Test
+    void removeItemCallsSeparateHideOperation() throws Exception {
+        mockMvc.perform(delete("/api/v1/study-plans/{planId}/items/{itemId}/remove", PLAN_ID, ITEM_ID)
+                        .with(studentJwt()))
+                .andExpect(status().isNoContent());
+        verify(service).deleteItem(STUDENT_ID, PLAN_ID, ITEM_ID);
     }
 
     @Test

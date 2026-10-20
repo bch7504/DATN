@@ -2,6 +2,8 @@ package com.studyflow.study.application;
 
 import com.studyflow.auth.application.port.UserAccountStore;
 import com.studyflow.common.exception.ApiException;
+import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
+import com.studyflow.enrollment.domain.EnrollmentStatus;
 import com.studyflow.study.application.port.LearningEventStore;
 import com.studyflow.study.application.port.StudyPlanItemStore;
 import com.studyflow.study.application.port.StudyPlanStore;
@@ -34,6 +36,7 @@ public class StudyPlanService {
     private final StudyPlanItemStore items;
     private final LearningEventStore learningEvents;
     private final UserAccountStore users;
+    private final CourseEnrollmentRepository enrollments;
     private final Clock clock;
 
     /**
@@ -43,6 +46,7 @@ public class StudyPlanService {
      * @param items persistence port for plan items and calendar projection
      * @param learningEvents idempotent learning-event persistence port
      * @param users account source used to enforce active Student scope and time zone
+     * @param enrollments approved Course Offering membership for optional item links
      * @param clock system clock used for timestamps and local activity dates
      */
     public StudyPlanService(
@@ -50,12 +54,14 @@ public class StudyPlanService {
             StudyPlanItemStore items,
             LearningEventStore learningEvents,
             UserAccountStore users,
+            CourseEnrollmentRepository enrollments,
             Clock clock
     ) {
         this.plans = plans;
         this.items = items;
         this.learningEvents = learningEvents;
         this.users = users;
+        this.enrollments = enrollments;
         this.clock = clock;
     }
 
@@ -130,7 +136,7 @@ public class StudyPlanService {
         }
         ZoneId zoneId = ZoneId.of(student.timeZone());
         for (StudyPlanItem item : items.findAllOwnedUnpaged(planId, studentId)) {
-            if (item.status() != StudyPlanItemStatus.CANCELLED) {
+            if (item.status() != StudyPlanItemStatus.CANCELLED && item.status() != StudyPlanItemStatus.DELETED) {
                 validateItemInsideRange(item, command.startDate(), command.endDate(), zoneId);
             }
         }
@@ -161,20 +167,21 @@ public class StudyPlanService {
      *
      * @param studentId authenticated Student identifier
      * @param planId required active/non-archived plan identifier
-     * @param command complete item content, type, optional schedule and deadline
+     * @param command complete item content, type, optional schedule, deadline and approved class link
      * @return persisted TODO item
-     * @throws ApiException with 404 when plan is absent, 409 for archive/conflict, or 422 for invalid time
+     * @throws ApiException with 403 for unapproved class link, 404 absent plan, 409 archive/conflict or 422 invalid time
      */
     @Transactional
     public StudyPlanItem createItem(UUID studentId, UUID planId, SaveStudyPlanItemCommand command) {
         UserAccount student = requireActiveStudent(studentId);
         StudyPlan plan = requireMutablePlan(planId, studentId);
         ValidatedItem validated = validateItem(command, plan, ZoneId.of(student.timeZone()), null);
+        requireApprovedCourseLink(studentId, command.courseOfferingId());
         Instant now = clock.instant();
         return items.save(StudyPlanItem.create(
                 planId, validated.title(), validated.description(), command.type(),
                 command.scheduledStart(), command.scheduledEnd(), command.dueAt(),
-                validated.reminderAt(), now
+                validated.reminderAt(), now, command.courseOfferingId()
         ));
     }
 
@@ -185,7 +192,7 @@ public class StudyPlanService {
      * @param planId owner-scoped plan identifier
      * @param page zero-based page index
      * @param size page size from 1 to 100, validated by the HTTP boundary
-     * @return page of ordered items including completed and cancelled history
+     * @return page of ordered items including completed and cancelled, excluding hidden DELETED records
      * @throws ApiException with 404 when plan is absent/not owned
      */
     @Transactional(readOnly = true)
@@ -201,9 +208,9 @@ public class StudyPlanService {
      * @param studentId authenticated Student identifier
      * @param planId owner-scoped plan identifier
      * @param itemId owner-scoped item identifier
-     * @param command complete replacement item data
+     * @param command complete replacement item data, including optional approved class link
      * @return persisted updated item
-     * @throws ApiException with 404 when absent, 409 when archived/cancelled/conflicting, or 422 for invalid input
+     * @throws ApiException with 403 for unapproved class link, 404 absent/deleted item, 409 archive/cancel/conflict or 422 invalid input
      */
     @Transactional
     public StudyPlanItem updateItem(
@@ -214,15 +221,17 @@ public class StudyPlanService {
     ) {
         UserAccount student = requireActiveStudent(studentId);
         StudyPlan plan = requireMutablePlan(planId, studentId);
-        StudyPlanItem current = requireOwnedItem(itemId, planId, studentId);
+        StudyPlanItem current = requireOwnedItemForUpdate(itemId, planId, studentId);
         if (current.status() == StudyPlanItemStatus.CANCELLED) {
             throw new ApiException(HttpStatus.CONFLICT, "STUDY_PLAN_ITEM_CANCELLED", "Nhiệm vụ đã bị hủy");
         }
+        if (current.status() == StudyPlanItemStatus.DELETED) throw itemNotFound();
         ValidatedItem validated = validateItem(command, plan, ZoneId.of(student.timeZone()), itemId);
+        requireApprovedCourseLink(studentId, command.courseOfferingId());
         return items.save(current.updateDetails(
                 validated.title(), validated.description(), command.type(),
                 command.scheduledStart(), command.scheduledEnd(), command.dueAt(),
-                validated.reminderAt(), clock.instant()
+                validated.reminderAt(), clock.instant(), command.courseOfferingId()
         ));
     }
 
@@ -239,9 +248,25 @@ public class StudyPlanService {
     public void cancelItem(UUID studentId, UUID planId, UUID itemId) {
         requireActiveStudent(studentId);
         requireMutablePlan(planId, studentId);
-        StudyPlanItem item = requireOwnedItem(itemId, planId, studentId);
+        StudyPlanItem item = requireOwnedItemForUpdate(itemId, planId, studentId);
+        if (item.status() == StudyPlanItemStatus.DELETED) throw itemNotFound();
         if (item.status() != StudyPlanItemStatus.CANCELLED) {
             items.save(item.cancel(clock.instant()));
+        }
+    }
+
+    /**
+     * Hides one owned item while preserving its record, completion time and learning event.
+     * Args: authenticated studentId, owner planId and itemId. Input: mutable owned plan and item.
+     * Output: void, idempotent DELETED transition. Errors: 404 missing/not owned, 409 archived plan.
+     */
+    @Transactional
+    public void deleteItem(UUID studentId, UUID planId, UUID itemId) {
+        requireActiveStudent(studentId);
+        requireMutablePlan(planId, studentId);
+        StudyPlanItem item = requireOwnedItemForUpdate(itemId, planId, studentId);
+        if (item.status() != StudyPlanItemStatus.DELETED) {
+            items.save(item.delete(clock.instant()));
         }
     }
 
@@ -253,7 +278,7 @@ public class StudyPlanService {
      * @param status requested TODO or COMPLETED state
      * @param idempotencyKey required 8..100 character key only for a new transition to COMPLETED
      * @return persisted item, or the current item for an identical repeated state
-     * @throws ApiException with 404 when absent, 409 when cancelled/archived, or 422 for invalid state/key
+     * @throws ApiException with 404 when absent/deleted, 409 when cancelled/archived, or 422 for invalid state/key
      */
     @Transactional
     public StudyPlanItem changeItemStatus(
@@ -269,7 +294,8 @@ public class StudyPlanService {
         if (current.status() == StudyPlanItemStatus.CANCELLED) {
             throw new ApiException(HttpStatus.CONFLICT, "STUDY_PLAN_ITEM_CANCELLED", "Nhiệm vụ đã bị hủy");
         }
-        if (status == null || status == StudyPlanItemStatus.CANCELLED) {
+        if (current.status() == StudyPlanItemStatus.DELETED) throw itemNotFound();
+        if (status == null || status == StudyPlanItemStatus.CANCELLED || status == StudyPlanItemStatus.DELETED) {
             throw new ApiException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
                     "INVALID_STUDY_PLAN_ITEM_STATUS",
@@ -344,8 +370,26 @@ public class StudyPlanService {
         return plan;
     }
 
-    private StudyPlanItem requireOwnedItem(UUID itemId, UUID planId, UUID studentId) {
-        return items.findOwned(itemId, planId, studentId).orElseThrow(StudyPlanService::itemNotFound);
+    /** Args: owner item/plan/student IDs. Input: current write transaction. Output: locked owned item; errors: 404 otherwise. */
+    private StudyPlanItem requireOwnedItemForUpdate(UUID itemId, UUID planId, UUID studentId) {
+        return items.findOwnedForUpdate(itemId, studentId)
+                .filter(candidate -> candidate.planId().equals(planId))
+                .orElseThrow(StudyPlanService::itemNotFound);
+    }
+
+    /**
+     * Args: authenticated studentId and optional courseOfferingId. Input: current enrollment record.
+     * Output: void when unlinked or APPROVED. Errors: 403 when the Student is not approved in that class.
+     */
+    private void requireApprovedCourseLink(UUID studentId, UUID courseOfferingId) {
+        if (courseOfferingId == null) return;
+        boolean approved = enrollments.findByCourseOfferingIdAndStudentId(courseOfferingId, studentId)
+                .filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.APPROVED)
+                .isPresent();
+        if (!approved) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "COURSE_ENROLLMENT_REQUIRED",
+                    "Chỉ được gắn đầu việc với lớp học phần đã được duyệt");
+        }
     }
 
     private ValidatedItem validateItem(
@@ -377,7 +421,7 @@ public class StudyPlanService {
         );
         StudyPlanItem candidate = StudyPlanItem.create(
                 plan.id(), title, description, command.type(), command.scheduledStart(),
-                command.scheduledEnd(), command.dueAt(), reminderAt, clock.instant()
+                command.scheduledEnd(), command.dueAt(), reminderAt, clock.instant(), command.courseOfferingId()
         );
         validateItemInsideRange(candidate, plan.startDate(), plan.endDate(), zoneId);
         if (hasStart && items.hasScheduleConflict(

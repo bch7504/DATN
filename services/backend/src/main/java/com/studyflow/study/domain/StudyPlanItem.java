@@ -17,8 +17,17 @@ public record StudyPlanItem(
         StudyPlanItemStatus status,
         Instant completedAt,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        UUID courseOfferingId
 ) {
+    /** Args: original personal-only fields. Input: historical or synthetic item without class link. Output: item with null courseOfferingId. */
+    public StudyPlanItem(UUID id, UUID planId, String title, String description, StudyPlanItemType type,
+                         Instant scheduledStart, Instant scheduledEnd, Instant dueAt, Instant reminderAt,
+                         Instant reminderSentAt, StudyPlanItemStatus status, Instant completedAt,
+                         Instant createdAt, Instant updatedAt) {
+        this(id, planId, title, description, type, scheduledStart, scheduledEnd, dueAt, reminderAt,
+                reminderSentAt, status, completedAt, createdAt, updatedAt, null);
+    }
     /**
      * Creates a to-do item inside a personal study plan.
      *
@@ -31,6 +40,7 @@ public record StudyPlanItem(
      * @param dueAt optional UTC deadline; at least schedule or deadline is required
      * @param reminderAt optional reminder time not after dueAt
      * @param now creation time
+     * @param courseOfferingId optional approved class link
      * @return new TODO item with a generated identifier
      */
     public static StudyPlanItem create(
@@ -42,12 +52,13 @@ public record StudyPlanItem(
             Instant scheduledEnd,
             Instant dueAt,
             Instant reminderAt,
-            Instant now
+            Instant now,
+            UUID courseOfferingId
     ) {
         return new StudyPlanItem(
                 UUID.randomUUID(), planId, title, description, type,
                 scheduledStart, scheduledEnd, dueAt, reminderAt, null, StudyPlanItemStatus.TODO,
-                null, now, now
+                null, now, now, courseOfferingId
         );
     }
 
@@ -62,6 +73,7 @@ public record StudyPlanItem(
      * @param newDueAt optional deadline
      * @param newReminderAt optional reminder time recalculated from the deadline
      * @param now update time
+     * @param newCourseOfferingId optional approved class link
      * @return updated immutable item
      */
     public StudyPlanItem updateDetails(
@@ -72,12 +84,13 @@ public record StudyPlanItem(
             Instant newScheduledEnd,
             Instant newDueAt,
             Instant newReminderAt,
-            Instant now
+            Instant now,
+            UUID newCourseOfferingId
     ) {
         return new StudyPlanItem(
                 id, planId, newTitle, newDescription, newType,
                 newScheduledStart, newScheduledEnd, newDueAt, newReminderAt, null, status,
-                completedAt, createdAt, now
+                completedAt, createdAt, now, newCourseOfferingId
         );
     }
 
@@ -93,7 +106,7 @@ public record StudyPlanItem(
         return new StudyPlanItem(
                 id, planId, title, description, type, scheduledStart, scheduledEnd, dueAt,
                 reminderAt, reminderSentAt,
-                newStatus, newCompletedAt, createdAt, now
+                newStatus, newCompletedAt, createdAt, now, courseOfferingId
         );
     }
 
@@ -109,7 +122,20 @@ public record StudyPlanItem(
                 : new StudyPlanItem(
                         id, planId, title, description, type, scheduledStart, scheduledEnd,
                         dueAt, reminderAt, reminderSentAt, StudyPlanItemStatus.CANCELLED,
-                        null, createdAt, now
+                        null, createdAt, now, courseOfferingId
                 );
+    }
+
+    /**
+     * Args: deletion time. Input: an owned item in a mutable plan. Output: DELETED item hidden from
+     * ordinary lists/calendar while retaining its original completion timestamp and learning event.
+     * Errors: none; repeated deletion returns the current value. Side effect: none until repository save.
+     */
+    public StudyPlanItem delete(Instant now) {
+        return status == StudyPlanItemStatus.DELETED
+                ? this
+                : new StudyPlanItem(id, planId, title, description, type, scheduledStart, scheduledEnd,
+                        dueAt, reminderAt, reminderSentAt, StudyPlanItemStatus.DELETED,
+                        completedAt, createdAt, now, courseOfferingId);
     }
 }

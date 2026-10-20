@@ -5,7 +5,6 @@ import com.studyflow.assignment.domain.AssignmentSubmission;
 import com.studyflow.assignment.domain.AssignmentSubmissionAttachment;
 import com.studyflow.assignment.domain.CourseAssignment;
 import com.studyflow.assignment.domain.SubmissionStatus;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -26,12 +25,12 @@ public final class AssignmentResponses {
         }
     }
 
+    /** Current submission only; no grading fields or previous attempts are exposed. */
     public record Submission(UUID id, String answerText, Instant submittedAt, SubmissionStatus status,
-                             BigDecimal score, String teacherFeedback, Instant reviewedAt,
                              java.util.List<Attachment> attachments) {
         public static Submission from(AssignmentSubmission s, java.util.List<Attachment> files) {
             return new Submission(s.getId(), s.getAnswerText(), s.getSubmittedAt(), s.getStatus(),
-                    s.getScore(), s.getTeacherFeedback(), s.getReviewedAt(), files);
+                    files);
         }
     }
 
@@ -43,10 +42,11 @@ public final class AssignmentResponses {
 
     public record StudentResult(UUID studentId, String fullName, String email,
                                 String submissionState, Instant submittedAt, SubmissionStatus status,
-                                String answerText, BigDecimal score, String teacherFeedback,
-                                Instant reviewedAt, java.util.List<Attachment> attachments) {}
+                                String answerText, java.util.List<Attachment> attachments) {}
 
+    /** Counts and named students eligible as of the deadline; before deadline includes current approved students. */
     public record AssignmentStats(UUID assignmentId, String title, Instant dueAt,
                                   long approvedStudentCount, long submittedCount,
-                                  long notSubmittedCount, java.util.List<StudentResult> students) {}
+                                  long onTimeCount, long lateCount, long notSubmittedCount,
+                                  java.util.List<StudentResult> students) {}
 }

@@ -343,7 +343,6 @@ async function fetchAllPages<T>(endpoint: string): Promise<T[]> {
 export type AssignmentAttachment = { id: string; fileName: string; contentType: string; sizeBytes: number };
 export type AssignmentSubmission = {
   id: string; answerText: string | null; submittedAt: string; status: "ON_TIME" | "LATE";
-  score: number | null; teacherFeedback: string | null; reviewedAt: string | null;
   attachments: AssignmentAttachment[];
 };
 export type CourseAssignment = {
@@ -353,11 +352,12 @@ export type CourseAssignment = {
 export type AssignmentStudentResult = {
   studentId: string; fullName: string; email: string; submissionState: "SUBMITTED" | "NOT_SUBMITTED";
   submittedAt: string | null; status: "ON_TIME" | "LATE" | null; answerText: string | null;
-  score: number | null; teacherFeedback: string | null; reviewedAt: string | null; attachments: AssignmentAttachment[];
+  attachments: AssignmentAttachment[];
 };
 export type AssignmentStats = {
   assignmentId: string; title: string; dueAt: string; approvedStudentCount: number;
-  submittedCount: number; notSubmittedCount: number; students: AssignmentStudentResult[];
+  submittedCount: number; onTimeCount: number; lateCount: number;
+  notSubmittedCount: number; students: AssignmentStudentResult[];
 };
 
 /** Assignment API client: all file transfers are proxied by the permission-checking Java API. */
@@ -368,10 +368,6 @@ export const assignmentApi = {
   create: (offeringId: string, input: { title: string; description: string; dueAt: string }): Promise<CourseAssignment> => apiFetch(`/teacher/course-offerings/${encodeURIComponent(offeringId)}/assignments`, { method: "POST", body: JSON.stringify(input) }),
   /** Args: owned draft ID, complete title/description/future dueAt. Output: saved draft. Errors: API validation/ownership/state failures. */
   update: (assignmentId: string, input: { title: string; description: string; dueAt: string }): Promise<CourseAssignment> => apiFetch(`/teacher/assignments/${encodeURIComponent(assignmentId)}`, { method: "PUT", body: JSON.stringify(input) }),
-  /** Args: owned assignment ID, submitted student's ID, score 0..100 and optional feedback <=10000 chars.
-   * Input: authenticated Teacher. Output: saved review; errors: API validation/ownership/missing submission.
-   */
-  review: (assignmentId: string, studentId: string, input: { score: number; feedback?: string }): Promise<AssignmentSubmission> => apiFetch(`/teacher/assignments/${encodeURIComponent(assignmentId)}/submissions/${encodeURIComponent(studentId)}/review`, { method: "POST", body: JSON.stringify(input) }),
   /** Publishes a draft. @param assignmentId assignment ID @returns published assignment @throws ApiClientError */
   publish: (assignmentId: string): Promise<CourseAssignment> => apiFetch(`/teacher/assignments/${encodeURIComponent(assignmentId)}/publish`, { method: "POST" }),
   /** Reads class submission status. @param assignmentId assignment ID @returns per-student report @throws ApiClientError */

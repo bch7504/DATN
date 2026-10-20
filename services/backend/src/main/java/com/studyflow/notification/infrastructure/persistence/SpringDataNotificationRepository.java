@@ -25,7 +25,7 @@ interface SpringDataNotificationRepository extends JpaRepository<NotificationJpa
      * Args: generated id, owner/source UUIDs, bounded title/message and due/creation instants.
      * Input: active application transaction. Output: 1 inserted, 0 duplicate owner/type/source.
      * Errors: persistence errors propagate; existing read state/timestamps are never overwritten.
-     * Target-free ON CONFLICT works on PostgreSQL and H2 in PostgreSQL mode; uniqueness is schema-enforced.
+     * Target-free ON CONFLICT relies on PostgreSQL; uniqueness is schema-enforced.
      */
     @Modifying
     @Query(value = """
