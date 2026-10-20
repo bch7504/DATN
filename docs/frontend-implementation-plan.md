@@ -1,7 +1,7 @@
 # StudyFlow — Kế hoạch triển khai Frontend
 
 **Người phụ trách:** Chủ dự án, thực hiện theo boundary `FRONTEND_AGENT`.
-**Trạng thái cập nhật 16/10/2026:** FE-M0 đã hoàn thành; build, lint và 49 kiểm thử đạt. Auth/OTP đã gọi Java, API client đã có Course Offering, Enrollment và Study Plan. Các màn PDF, AI, Quiz, Review, Dashboard và một phần Plan vẫn cần thay fixture/local state bằng API production.
+**Trạng thái cập nhật 20/10/2026:** FE-M0 đã hoàn thành; build, lint và 54 kiểm thử đạt. Auth/OTP đã gọi Java; `/plan` đã dùng Study Plan/Calendar API khi tắt demo mode, hỗ trợ lịch tuần, thêm task/lịch, hoàn tất và hủy mục. Các màn PDF, AI, Quiz, Review và Dashboard vẫn cần thay fixture/local state bằng API production.
 
 ## 0. Trạng thái hiện tại và kế hoạch làm tiếp
 
@@ -14,7 +14,7 @@
 | FE-M2 | Một phần | Nối và kiểm thử đầy đủ UI tạo/join/duyệt lớp; loại fixture khỏi production mode |
 | FE-M3 | Chưa nghiệm thu | Cần public Java API cho upload, trạng thái xử lý, viewer, note và Personal PDF |
 | FE-M4 | Chưa nghiệm thu | Giao diện đã có khung nhưng cần Java API cho Personal Assistant và Course Material Tutor |
-| FE-M5 | Một phần | Study Plan API client đã có nhưng `/plan` còn local state; Quiz/Review/Dashboard chưa nối đủ API thật |
+| FE-M5 | Một phần | `/plan` đã nối Study Plan/Calendar API; Quiz/Review/Dashboard chưa nối đủ API thật |
 | FE-M6 | Chưa bắt đầu | Cần accessibility audit và E2E ba vai trò trên hệ thống tích hợp |
 
 ### 0.2. Thứ tự triển khai tiếp theo
@@ -22,7 +22,7 @@
 | Ưu tiên | Mốc tiếp theo | Công việc | Điều kiện hoàn thành |
 |---|---|---|---|
 | 1 | FE-N1 — Core Java API | Nối màn Auth, Course Offering, Enrollment, Study Plan và Calendar với Java; thay local state/fixture khi demo mode tắt | Refresh trang không mất dữ liệu; loading/empty/error/forbidden đúng; browser không gọi Python |
-| 2 | FE-N2 — Plan theo mock | Giữ bố cục lịch tuần Thứ 2–Chủ nhật, thêm task/lịch, chuyển tuần, hoàn tất và hủy item bằng API Java | `/plan` dùng dữ liệu thật; thao tác lặp có idempotency; font/kích thước đồng bộ toàn hệ thống |
+| 2 | FE-N2 — Plan theo mock | **Đã hoàn thành ở mức code và test:** lịch tuần Thứ 2–Chủ nhật, thêm task/lịch, chuyển tuần, hoàn tất và hủy item bằng API Java | Còn nghiệm thu bằng trình duyệt với Java đang chạy và tài khoản Student thật |
 | 3 | FE-N3 — PDF Library | Nối Teacher Course Material và Student Personal Documents: upload PDF, theo dõi processing, public/revoke và danh sách `READY` | Chỉ nhận PDF; trạng thái job hiển thị đúng; không lộ object key hoặc signed URL lâu dài |
 | 4 | FE-N4 — Viewer và Tutor | Nối PDF viewer, note theo trang và Course Material Tutor cho Student được duyệt | Citation mở đúng trang; `NO_EVIDENCE`, revoked và forbidden được thể hiện rõ |
 | 5 | FE-N5 — Personal Assistant | Nối khu vực AI nằm trong `/personal-documents`, chọn 1–10 PDF, hội thoại, tóm tắt, tạo Quiz và citation drawer | Không có menu Assistant riêng; capability/clarification đúng response Java; Quiz chuyển sang review |

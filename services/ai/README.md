@@ -26,7 +26,7 @@ Python AI Service xử lý PDF, hỏi đáp có nguồn, tóm tắt, Course Mate
 - Kết quả bị cắt ngắn hoặc bị nhà cung cấp từ chối được coi là lỗi, không giả thành `NO_EVIDENCE`; chỉ mã truy vết đúng định dạng mới được trả lại trong response.
 - Đếm request và latency theo route cố định trong bộ nhớ; không ghi prompt, URL tài liệu hoặc nội dung PDF.
 
-Chưa nghiệm thu tích hợp với PostgreSQL/pgvector thật, Object Storage thật, Java hoặc OpenRouter thật. `health.readiness` hiện phản ánh **đủ cấu hình**, không phải kết quả kiểm tra kết nối từng dịch vụ. Chưa khẳng định model mặc định khả dụng hoặc đạt KPI đánh giá chất lượng.
+Đã kiểm tra migration, index lặp và retrieval có giới hạn quyền với PostgreSQL/pgvector local bằng PDF tổng hợp. Chưa nghiệm thu Object Storage thật, Java hoặc OpenRouter thật. `health.readiness` hiện phản ánh **đủ cấu hình**, không phải kết quả kiểm tra kết nối từng dịch vụ. Chưa khẳng định model mặc định khả dụng hoặc đạt KPI đánh giá chất lượng.
 
 Chi tiết giao tiếp Python hiện thực nằm tại [CONTRACT_V3.md](CONTRACT_V3.md); các việc còn lại và trạng thái từng nhóm mốc nằm tại [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
@@ -63,7 +63,7 @@ Worker có `--once` để xử lý tối đa một job; `--poll-seconds` ghi đ�
 
 Chạy kiểm tra: `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest`. Chạy kiểm tra công thức đánh giá: `uv run python -m evals --synthetic`. Kết quả synthetic không phải điểm chất lượng mô hình.
 
-Không có Docker được khởi chạy trong đợt triển khai này.
+Kiểm thử tích hợp pgvector là opt-in: đặt `STUDYFLOW_RUN_POSTGRES_INTEGRATION=1` cùng `AI_DATABASE_URL`, rồi chạy `pytest tests/test_postgres_pgvector_integration.py`. Test tự tạo PDF có lớp văn bản trong bộ nhớ, dùng embedding xác định và tự xóa dữ liệu kiểm thử; không đọc tài liệu thật hoặc gọi OpenRouter.
 
 ## Cấu trúc
 
