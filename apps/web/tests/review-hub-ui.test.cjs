@@ -207,6 +207,13 @@ test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
     assert.equal(source.includes("Bấm vào ô trống trên bảng"), true);
     assert.equal(source.includes("Daily Goal"), true);
     assert.equal(source.includes("getDailyGoalProgress"), false);
+    assert.equal(source.includes('studyPlanApi.listPlans("ACTIVE")'), true);
+    assert.equal(source.includes("studyPlanApi.getCalendar(weekStart, weekEnd)"), true);
+    assert.equal(source.includes("studyPlanApi.createItem"), true);
+    assert.equal(source.includes("studyPlanApi.updateItemStatus"), true);
+    assert.equal(source.includes("studyPlanApi.deleteItem"), true);
+    assert.equal(source.includes("const demo = isDemoMode()"), true);
+    assert.equal(source.includes("if (demo)"), true);
   });
 
 });

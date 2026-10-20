@@ -4,7 +4,7 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import Connection, engine_from_config, inspect, pool
 
 from app.core.database import Base
 from app.repositories import models  # noqa: F401
@@ -15,6 +15,24 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+
+def ensure_ai_schema(connection: Connection) -> None:
+    """Create the AI schema only when infrastructure has not provisioned it.
+
+    Args:
+        connection: Active migration connection for the AI database role.
+
+    Returns:
+        None. An existing schema is left unchanged.
+
+    Raises:
+        sqlalchemy.exc.SQLAlchemyError: If inspection fails or the missing schema
+            cannot be created by the configured migration role.
+    """
+
+    if not inspect(connection).has_schema("ai"):
+        connection.exec_driver_sql("CREATE SCHEMA ai")
 
 
 def include_ai_name(name: str | None, type_: str, parent_names: dict[str, str | None]) -> bool:
@@ -107,7 +125,7 @@ def run_migrations_online() -> None:
             compare_type=True,
         )
         with context.begin_transaction():
-            context.execute("CREATE SCHEMA IF NOT EXISTS ai")
+            ensure_ai_schema(connection)
             context.run_migrations()
 
 

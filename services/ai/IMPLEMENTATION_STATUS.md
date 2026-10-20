@@ -1,12 +1,12 @@
-# Trạng thái triển khai AI Service — 12/10/2026
+# Trạng thái triển khai AI Service — 20/10/2026
 
 Phạm vi: `AI_AGENT`, chỉ code và tài liệu trong `services/ai`. Tài liệu này ghi nhận phần đã hiện thực và kiểm tra; không thay thế tiêu chí nghiệm thu tích hợp của kế hoạch toàn dự án.
 
 | Nhóm mốc | Đã hiện thực trong Python | Còn thiếu để nghiệm thu |
 |---|---|---|
-| M0 — Nền tảng | FastAPI, service auth, cấu hình, model/repository, 5 migration, OpenRouter adapter, dependency injection | Chạy migration trên PostgreSQL thử nghiệm có pgvector; kiểm tra role không có quyền schema `app` |
+| M0 — Nền tảng | FastAPI, service auth, cấu hình, model/repository, 5 migration, OpenRouter adapter, dependency injection; migration và role isolation đã kiểm tra trên PostgreSQL/pgvector local | Đối chiếu cấu hình môi trường triển khai thực tế |
 | M1 — Contract/vận hành nền | Schema v3, camelCase, error envelope, request ID, counters và latency không chứa dữ liệu nhạy cảm | Đối chiếu DTO và chạy contract test phía Java; export metrics vào hệ thống giám sát nếu cần |
-| M2 — Tài liệu | PDF parser, chunking không mất chữ, embedding batch, index/deindex API, hàng đợi, worker lease/retry/fencing, lưu vector, chống trùng | Integration test transaction/concurrency/revoke trên PostgreSQL thật; thử signed URL từ Storage của dự án |
+| M2 — Tài liệu | PDF parser, chunking không mất chữ, embedding batch, index/deindex API, hàng đợi, worker lease/retry/fencing, lưu vector, chống trùng; đã test index lặp và retrieval có giới hạn trang trên pgvector local | Integration test cạnh tranh nhiều worker/revoke; thử signed URL từ Storage của dự án |
 | M3 — Hỏi đáp/tóm tắt/Tutor | Lọc quyền hai lớp, ưu tiên trang hiện tại, citation, NO_EVIDENCE, hỏi đáp và tóm tắt trong Personal Assistant, lịch sử hội thoại có giới hạn | Đánh giá tiếng Việt với mô hình thật; điều chỉnh ngưỡng retrieval; thử thu hồi quyền trong luồng Java → Python |
 | M4 — Quiz | Student/Teacher scope, đúng 4 phương án, một đáp án, số câu, nguồn, replay theo key; chat cũng chống chạy trùng theo request ID | Tích hợp Java lưu bản nháp/duyệt/công bố; kiểm thử provider và cạnh tranh request trên DB thật |
 | M5 — Quan sát/đánh giá | Metadata an toàn, safe error, kiểm tra input/output, bộ tính recall/citation/abstention, điểm grounding chỉ dùng khi có nhãn người đánh giá | Chuẩn bị tập kiểm chứng tiếng Việt đủ đại diện; latency dưới tải, theo dõi lỗi thật |
@@ -17,7 +17,8 @@ Phạm vi: `AI_AGENT`, chỉ code và tài liệu trong `services/ai`. Tài li�
 ### Kiểm tra offline mới nhất
 
 - `uv run --offline ruff check .` và `uv run --offline ruff format --check .`.
-- `uv run --offline pytest`: bộ kiểm thử có 76 ca, bao gồm 5 luồng xuyên qua các thành phần Python với PDF tổng hợp và HTTP provider giả lập.
+- `pytest`: 76 ca offline đạt và một ca PostgreSQL/pgvector chạy opt-in đạt bằng PDF tổng hợp.
+- Migration đã chạy bằng role `studyflow_ai`; kiểm tra `vector(1024)`, chỉ mục HNSW cosine, chống chunk trùng và role không có quyền dùng schema `app` đều đạt.
 - `uv run --offline python -m app.workers.documents --help`: CLI worker nạp được; không khởi chạy worker hoặc kết nối database.
 - `uv run --offline python -m evals --synthetic`: kiểm tra công thức đánh giá; không phải số đo chất lượng mô hình thật.
 
@@ -26,7 +27,7 @@ Phạm vi: `AI_AGENT`, chỉ code và tài liệu trong `services/ai`. Tài li�
 ### Các giới hạn cần nghiệm thu tiếp
 
 - Chưa gọi API AI thật hoặc sử dụng tài liệu người dùng; chưa đo độ chính xác trả lời hay chất lượng câu hỏi của model.
-- Chưa chạy PostgreSQL/Storage/Docker trong phiên triển khai này. Test SQL hiện gồm kiểm tra câu truy vấn, test repository bằng double và render migration offline; chưa thay thế integration test PostgreSQL.
+- Đã chạy PostgreSQL/pgvector bằng Docker local và kiểm tra luồng index/retrieval thật. Chưa tích hợp Object Storage thật, chưa kiểm tra cạnh tranh nhiều worker hoặc thu hồi tài liệu đồng thời.
 - Python không tự truy vấn dữ liệu enrollment/publication; Java phải dựng scope và kiểm tra lại quyền trước khi trả nội dung hoặc lưu Quiz.
 - ID model chat mặc định giữ theo cấu hình kế hoạch; chưa xác minh model đó có trên tài khoản OpenRouter hoặc hỗ trợ toàn bộ schema hiện dùng.
 - `health.readiness` mới kiểm tra sự hiện diện của cấu hình. Một giá trị `READY` không chứng minh kết nối provider/database hoạt động.
