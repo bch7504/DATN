@@ -45,6 +45,7 @@ interface SpringDataStudyPlanItemRepository extends JpaRepository<StudyPlanItemJ
     @Query("""
             select item from StudyPlanItemJpaEntity item
             where item.planId = :planId
+              and item.status <> com.studyflow.study.domain.StudyPlanItemStatus.DELETED
               and item.planId in (
                 select plan.id from StudyPlanJpaEntity plan where plan.studentId = :studentId
               )
@@ -58,6 +59,7 @@ interface SpringDataStudyPlanItemRepository extends JpaRepository<StudyPlanItemJ
     @Query("""
             select item from StudyPlanItemJpaEntity item
             where item.planId = :planId
+              and item.status <> com.studyflow.study.domain.StudyPlanItemStatus.DELETED
               and item.planId in (
                 select plan.id from StudyPlanJpaEntity plan where plan.studentId = :studentId
               )
@@ -71,6 +73,7 @@ interface SpringDataStudyPlanItemRepository extends JpaRepository<StudyPlanItemJ
     @Query("""
             select item from StudyPlanItemJpaEntity item
             where item.status <> com.studyflow.study.domain.StudyPlanItemStatus.CANCELLED
+              and item.status <> com.studyflow.study.domain.StudyPlanItemStatus.DELETED
               and item.planId in (
                 select plan.id from StudyPlanJpaEntity plan
                 where plan.studentId = :studentId
@@ -91,6 +94,7 @@ interface SpringDataStudyPlanItemRepository extends JpaRepository<StudyPlanItemJ
     @Query("""
             select count(item) from StudyPlanItemJpaEntity item
             where item.status <> com.studyflow.study.domain.StudyPlanItemStatus.CANCELLED
+              and item.status <> com.studyflow.study.domain.StudyPlanItemStatus.DELETED
               and item.planId in (
                 select plan.id from StudyPlanJpaEntity plan where plan.studentId = :studentId
               )

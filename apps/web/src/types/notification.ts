@@ -1,4 +1,4 @@
-export type NotificationType = "STUDY_PLAN_DEADLINE";
+export type NotificationType = "STUDY_PLAN_DEADLINE" | "ASSIGNMENT_PUBLISHED" | "ASSIGNMENT_DEADLINE";
 
 export interface StudentNotification {
   id: string;

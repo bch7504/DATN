@@ -95,7 +95,10 @@ test("invalid OTP response schema and invalid code errors do not report success"
 test("registration screen shows OTP entry and redirects only after verification", () => {
   const page = fs.readFileSync(path.join(process.cwd(), "src/app/(auth)/register/page.tsx"), "utf8");
   assert.match(page, /autoComplete="one-time-code"/);
+  assert.match(page, /@stu\.ptit\.edu\.vn/);
+  assert.match(page, /Mã OTP sẽ được gửi đến email/);
   assert.match(page, /resendVerification\(\{ email: verificationEmail \}\)/);
   assert.match(page, /await verifyRegistration\(\{ email: verificationEmail, verificationCode \}\);\s*router\.replace\("\/login\?verified=1"\)/);
+  assert.doesNotMatch(page, /login\.microsoftonline\.com|window\.location\s*=|window\.location\.href\s*=/);
   assert.doesNotMatch(page, /registered=true/);
 });

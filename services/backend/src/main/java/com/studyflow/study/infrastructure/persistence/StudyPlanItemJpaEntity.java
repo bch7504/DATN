@@ -22,6 +22,9 @@ class StudyPlanItemJpaEntity {
     @Column(name = "plan_id", nullable = false)
     private UUID planId;
 
+    @Column(name = "course_offering_id")
+    private UUID courseOfferingId;
+
     @Column(nullable = false, length = 200)
     private String title;
 
@@ -67,6 +70,7 @@ class StudyPlanItemJpaEntity {
         StudyPlanItemJpaEntity entity = new StudyPlanItemJpaEntity();
         entity.id = item.id();
         entity.planId = item.planId();
+        entity.courseOfferingId = item.courseOfferingId();
         entity.title = item.title();
         entity.description = item.description();
         entity.type = item.type();
@@ -85,7 +89,8 @@ class StudyPlanItemJpaEntity {
     StudyPlanItem toDomain() {
         return new StudyPlanItem(
                 id, planId, title, description, type, scheduledStart, scheduledEnd,
-                dueAt, reminderAt, reminderSentAt, status, completedAt, createdAt, updatedAt
+                dueAt, reminderAt, reminderSentAt, status, completedAt, createdAt, updatedAt,
+                courseOfferingId
         );
     }
 }

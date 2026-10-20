@@ -28,7 +28,7 @@ apps/web/
   - Cột chọn nguồn tài liệu cá nhân đặt gọn ở bên **phải** (~280px) kèm tìm kiếm, nút chọn tất cả / bỏ chọn và badge trạng thái `READY`.
   - Single Orchestrator Agent tự chọn đúng một trong ba tool: hỏi đáp, tóm tắt hoặc tạo Quiz; khi thiếu tham số phải hỏi lại.
   - **In-Chat Citation Drawer:** Click vào chip trích dẫn trong tin nhắn để mở Drawer kiểm chứng trích đoạn (excerpt), số trang, file gốc và mã đối chiếu SHA-256 ngay trong khung chatbot.
-- **Course Material PDF:** Student xem PDF theo trang, ghi chú và dùng AI Tutor; Teacher chỉ upload/public PDF và dùng AI Quiz Studio, không có chatbot/Tutor.
+- **Course Material PDF:** Teacher lưu PDF vào kho riêng rồi công bố theo lớp; Student đã được duyệt mở/tải file. Ghi chú theo trang và AI Tutor chưa được nối với API trong luồng hiện tại.
 - **Ôn tập (Review Hub - 2 tầng):**
   - **Sinh đề thi trắc nghiệm AI** mở `/quiz/create` (form PDF + prompt, bản nháp, accept); không redirect tới hỏi đáp. Chat vẫn có thể tạo Quiz nếu Student chủ động yêu cầu trong hội thoại.
   - **Level 1:** Course Offering được phép và Quiz cá nhân, kèm số Quiz, điểm trung bình và số câu cần ôn.

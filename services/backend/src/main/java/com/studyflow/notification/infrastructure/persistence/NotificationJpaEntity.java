@@ -12,7 +12,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(schema = "app", name = "notifications")
+@Table(schema = "app", name = "notifications", uniqueConstraints = @jakarta.persistence.UniqueConstraint(
+        name = "uq_notifications_source", columnNames = {"user_id", "notification_type", "source_type", "source_id"}))
 class NotificationJpaEntity {
 
     @Id

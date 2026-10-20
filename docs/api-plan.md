@@ -83,9 +83,11 @@ Business/error:
 
 | Method | Endpoint | Quy tắc |
 |---|---|---|
-| GET | `/api/v1/student/course-offerings/{offeringId}/materials` | Enrollment `APPROVED`; publication active; chỉ Course Material PDF `READY` |
-| GET | `/api/v1/student/materials/{documentId}/pages` | Metadata các trang PDF có kiểm quyền |
-| GET | `/api/v1/student/materials/{documentId}/pages/{number}` | Một trang/metadata PDF trong authorized scope |
+| GET | `/api/v1/student/materials` | Trả `{items,page,size,totalItems,totalPages}` gồm PDF đã công bố cho lớp Student được duyệt |
+| GET | `/api/v1/student/course-offerings/{offeringId}/materials` | Enrollment `APPROVED`; chỉ publication active trong lớp đó |
+| GET | `/api/v1/student/materials/{documentId}/download` | Stream inline sau khi kiểm enrollment + publication; `?download=true` dùng attachment; không trả storage key/URL |
+
+Course Material MVP hiện hỗ trợ quản lý file PDF, công bố/gỡ công bố theo lớp và xem/tải PDF. Chưa cung cấp page metadata, ghi chú theo trang, ghi nhận lượt xem hoặc AI Tutor; không hiển thị dữ liệu giả thay cho các phần đó.
 
 Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ khi offering `ARCHIVED`, trừ khi `LOCKED`, publication revoked hoặc policy retention chặn.
 
@@ -331,7 +333,7 @@ Plan item optional `courseOfferingId`. Java phát hiện conflict. Không có To
 | GET/PATCH | `/api/v1/teacher/course-offerings/{id}` | Owner-only metadata update |
 | POST | `/api/v1/teacher/course-offerings/{id}/archive` | `ACTIVE → ARCHIVED` |
 | POST | `/api/v1/teacher/course-offerings/{id}/join-code/regenerate` | Sinh code mới, vô hiệu code cũ |
-| PATCH | `/api/v1/teacher/course-offerings/{id}/join-code/toggle` | `{enabled:boolean}` |
+| PATCH | `/api/v1/teacher/course-offerings/{id}/join-code` | `{enabled:boolean}` |
 
 - Không nhận `teacherId` từ client.
 - `409 SEMESTER_NOT_ACTIVE|COURSE_CODE_EXISTS|COURSE_LOCKED`; `404` nếu không phải owner.
@@ -351,15 +353,17 @@ Student list chỉ trả account metadata tối thiểu; không trả Personal D
 
 ### 5.3 Teacher Course Material PDF và publication
 
-- `POST/GET /api/v1/teacher/documents`
-- `GET/PATCH/DELETE /api/v1/teacher/documents/{id}`
-- `GET /api/v1/teacher/documents/{id}/status`
-- `POST /api/v1/teacher/documents/{id}/retry`
-- `POST /api/v1/teacher/documents/{id}/publications`
-- `GET /api/v1/teacher/documents/{id}/publications`
-- `DELETE /api/v1/teacher/publications/{publicationId}`
+- `POST /api/v1/teacher/documents` — multipart `{file,title}`, PDF text-layer tối đa 20 MiB → `201 TeacherDocument`; kiểm định cấu trúc, số trang và nội dung text trước khi lưu; lỗi `413 FILE_TOO_LARGE`, `415 UNSUPPORTED_MEDIA_TYPE`, `422 INVALID_PDF|PDF_TEXT_REQUIRED|INVALID_TITLE`, `502 DOCUMENT_STORAGE_FAILED`, `503 STORAGE_NOT_CONFIGURED`.
+- `GET /api/v1/teacher/documents` — `{items,page,size,totalItems,totalPages}` theo owner; mỗi item có danh sách publication đang hiệu lực.
+- `GET /api/v1/teacher/documents/{id}/download` — stream PDF cho Teacher owner.
+- `POST /api/v1/teacher/documents/{id}/publications` — `{courseOfferingIds:[...]}`; chọn danh sách đồng nghĩa gỡ khỏi lớp đã bỏ chọn; lớp phải ACTIVE và thuộc Teacher.
+- `DELETE /api/v1/teacher/documents/{id}/publications?offeringId=...` — gỡ một publication, thao tác lặp idempotent.
 
-Chỉ nhận PDF có text layer. Publication input `{courseOfferingIds:[...]}`. Java kiểm document owner + mọi offering owner/status; document phải `READY`. Student `APPROVED` được xem web, ghi Note theo trang và dùng Course Material AI Tutor. Re-public re-activate row cũ.
+Teacher document response: `{id,title,fileName,fileType:"PDF",fileSize,status:"READY",totalPages,publishedOfferings:[{offeringId,offeringCode,offeringName,publishedAt}],createdAt}`. Student response dùng cùng metadata nhưng chỉ liệt kê publication nằm trong các lớp Student đã được duyệt. Download trả `application/pdf` với `Content-Disposition: inline`; Student có thể truyền `?download=true` để nhận `attachment`.
+
+Bản hiện tại trả toàn bộ học liệu trong một page metadata (`page=0`, `totalPages=0|1`). Frontend duyệt theo `totalPages` thay vì giả định chỉ có một trang, áp dụng cả danh sách lớp. Upload hoàn thành đồng bộ với trạng thái `READY`; không có bước chờ xử lý AI trong chức năng quản lý file này. Publish/revoke thành công trả `204` không body.
+
+Chỉ nhận PDF có text layer. Hệ thống kiểm document owner và ownership/trạng thái của mọi lớp; publication được lưu theo lớp và re-public kích hoạt lại row cũ. Student `APPROVED` mới xem/tải được PDF. Tệp nằm trong private Object Storage; object key không xuất hiện trong response. Storage chưa cấu hình trả `503`, không tạo fixture.
 
 ### 5.4 Teacher AI Quiz Generator
 
@@ -371,6 +375,38 @@ Chỉ nhận PDF có text layer. Publication input `{courseOfferingIds:[...]}`. 
 - `PATCH /api/v1/teacher/quizzes/{quizId}` cho phép sửa title/question/options/đáp án/giải thích trong `REVIEW_REQUIRED`.
 - `POST /api/v1/teacher/quizzes/{quizId}/publish` chuyển Quiz đã duyệt sang `PUBLISHED` và gắn Course Offering nguồn.
 - Teacher không có Personal Document chatbot và không gọi Course Material AI Tutor.
+
+### 5.5 Giao và nộp bài tập theo lớp
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| POST | `/api/v1/teacher/course-offerings/{offeringId}/assignments` | `{title,description,dueAt}` → `201` bản nháp; lớp phải thuộc Teacher và đang hoạt động |
+| PUT | `/api/v1/teacher/assignments/{assignmentId}` | Thay toàn bộ `{title,description,dueAt}` khi còn `DRAFT` → `200` |
+| POST | `/api/v1/teacher/assignments/{assignmentId}/publish` | `DRAFT → PUBLISHED`; sinh viên `APPROVED` trong lớp được thông báo bài mới và nhận nhắc hạn trước 24 giờ |
+| GET | `/api/v1/teacher/course-offerings/{offeringId}/assignments` | Danh sách bản nháp/đã công bố của lớp do Teacher sở hữu |
+| GET | `/api/v1/teacher/assignments/{assignmentId}/submissions` | `200` tổng số đúng hạn/nộp muộn/chưa nộp và danh sách mọi Student hiện `APPROVED` trong lớp; người được duyệt sau hạn mà chưa nộp vẫn thuộc nhóm chưa nộp |
+| GET | `/api/v1/student/assignments` | Bài đã công bố thuộc lớp Student `APPROVED`, kèm trạng thái nộp của chính mình |
+| POST | `/api/v1/student/assignments/{assignmentId}/submissions` | `{answerText}` → `200`; cho phép nộp/cập nhật câu trả lời dạng văn bản, tự ghi `ON_TIME` hoặc `LATE` |
+| POST | `/api/v1/student/assignments/{assignmentId}/submissions/attachments` | `multipart/form-data`: `answerText?`, 1–5 phần `files`; ảnh/tệp được kiểm tra và lưu riêng tư, trả metadata attachment |
+| GET | `/api/v1/student/assignments/{assignmentId}/submissions/attachments/{attachmentId}/download` | Student chỉ tải tệp thuộc bài nộp của chính mình; Java kiểm tra enrollment và stream nội dung |
+| GET | `/api/v1/teacher/assignments/{assignmentId}/submissions/{studentId}/attachments/{attachmentId}/download` | Teacher owner tải tệp của bài nộp trong lớp mình |
+
+- Thành công: tạo bản nháp `201 Assignment`; các GET, PUT, publish, submit và download trả `200` với DTO/stream tương ứng; lỗi `401` phiên không hợp lệ, `403` sai quyền/không có enrollment, `404` không tìm thấy hoặc không thuộc owner, `409` sai trạng thái lớp/bản nháp, `413 ATTACHMENT_REQUEST_TOO_LARGE`, `422` body/file không hợp lệ, `502 ATTACHMENT_STORAGE_FAILED`, `503 STORAGE_NOT_CONFIGURED`. Không có API chấm điểm bài tập.
+- `Assignment` response gồm `{id,courseOfferingId,title,description,dueAt,status,publishedAt,createdAt,updatedAt,submission}`; `submission` chỉ có trong danh sách Student và chứa `{id,answerText,submittedAt,status,attachments[]}` của chính Student. `AssignmentStats` gồm `{assignmentId,title,dueAt,approvedStudentCount,submittedCount,onTimeCount,lateCount,notSubmittedCount,students[]}`; mỗi phần tử `students[]` có `{studentId,fullName,email,submissionState,submittedAt,status,answerText,attachments[]}`. `approvedStudentCount` là số Student hiện `APPROVED` trong lớp, không phụ thuộc thời điểm duyệt. Người được duyệt sau `dueAt` mà chưa nộp có `submissionState=NOT_SUBMITTED` và được tính vào `notSubmittedCount`; nếu đã nộp sau hạn thì thuộc nhóm `LATE`. `submittedCount = onTimeCount + lateCount`; các số đếm phản ánh bài nộp hiện tại, không giữ lịch sử lần nộp. Mỗi attachment trả `{id,fileName,contentType,sizeBytes}`; không trả khóa hoặc URL lưu trữ.
+- DTO giới hạn: `title` 1–200 ký tự, `description` 1–10.000 ký tự, `answerText` 1–20.000 ký tự; `dueAt` là ISO-8601 và phải ở tương lai khi tạo/sửa.
+- Không nhận `teacherId`/`studentId` từ body; danh tính lấy từ JWT. Chỉ câu trả lời của Student thuộc enrollment `APPROVED` được chấp nhận.
+- Nhận PDF, PNG, JPG/JPEG, DOCX, XLSX, PPTX; tối đa 10 MB/tệp, 5 tệp/bài nộp và 25 MB tổng. Server kiểm tra phần mở rộng + signature đầu tệp, không tin MIME type client gửi; file trả về dưới dạng attachment với `nosniff`.
+- Object lưu trong S3-compatible storage qua `integration.storage`; cần cấu hình `STORAGE_ENABLED=true` cùng `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`. Không trả storage key hoặc URL trực tiếp; download đi qua Java để kiểm tra quyền.
+- Hạn nộp phải ở tương lai khi tạo/sửa bản nháp. Thông báo bài mới được phát một lần cho mỗi sinh viên đã duyệt; nhắc hạn chỉ gửi trước `dueAt` tới sinh viên hiện `APPROVED` chưa nộp, tối đa một lần cho mỗi sinh viên/bài tập. Nếu job quét sau hạn thì bỏ qua nhắc hạn. Unique source bảo đảm retry không tạo thông báo trùng.
+- Sau hạn, Teacher xem số lượng và danh sách cụ thể đúng hạn, nộp muộn, chưa nộp của mọi Student hiện được duyệt vào lớp, kể cả người được duyệt sau hạn. Sinh viên được duyệt sau hạn mà chưa nộp được tính vào nhóm chưa nộp; nếu nộp sau hạn thì được ghi `LATE`. Nộp lại cập nhật câu trả lời hiện tại. Các lỗi dùng envelope chuẩn: `404 ASSIGNMENT_NOT_FOUND|COURSE_NOT_FOUND`, `403 FORBIDDEN|ENROLLMENT_REQUIRED`, `409 ASSIGNMENT_NOT_DRAFT|COURSE_NOT_ACTIVE`, `422 INVALID_DUE_AT` hoặc lỗi validation DTO.
+
+### 5.6 Trạng thái nối giao diện cho BE2-F01/F02/F03
+
+- F01: giao diện dùng POST/PUT bản nháp, publish và báo cáo ba nhóm bài nộp; Student gửi văn bản/multipart và tải tệp qua Java. Không chấm điểm hoặc nhận xét bài tập.
+- F02: kho riêng → công bố theo lớp → Student được duyệt xem/tải → gỡ công bố. Không tạo dữ liệu mẫu hoặc giả trạng thái thành công khi API/storage lỗi.
+- F03: Student tạo/chọn/đổi tên/lưu trữ kế hoạch; lịch tuần và nhiệm vụ gọi Java để tạo/sửa/hoàn thành/hủy. Sửa/xóa luôn dùng `planId` của từng item. Lịch mới lấy giờ kết thúc làm hạn, nhắc trước 60 phút; task mặc định nhắc trước 1440 phút. Đây là giá trị form gửi qua contract sẵn có, không đổi luật nhắc của backend.
+- Thông báo có type `STUDY_PLAN_DEADLINE|ASSIGNMENT_PUBLISHED|ASSIGNMENT_DEADLINE`; giao diện mở `/plan` cho kế hoạch và `/assignments` cho bài tập. Danh sách có phân trang, đánh dấu đã đọc gọi Java.
+- Kiểm thử `RealHttpApiTest` với `-Dstudyflow.web.contract=true` chạy API client frontend qua HTTP thật bằng tài khoản/tệp tổng hợp; không thay thế kiểm thử trình duyệt hoặc dịch vụ triển khai thật.
 
 ## 6. Admin API
 
