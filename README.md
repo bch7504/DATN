@@ -83,6 +83,34 @@ uv --version
 
 Các lệnh dưới đây dành cho PowerShell trên Windows. Không cần đọc hoặc dùng `.env` của người khác.
 
+### Chạy toàn bộ bằng một lệnh
+
+Sau khi sếp đã cấu hình `.env` tại root và mở Docker Desktop:
+
+```powershell
+.\scripts\start-all.ps1
+```
+
+Nếu đang dùng Command Prompt (`E:\ĐATN>`), chạy:
+
+```bat
+scripts\start-all.cmd
+```
+
+Những lần chạy sau có thể bỏ qua bước đồng bộ dependency:
+
+```powershell
+.\scripts\start-all.ps1 -SkipDependencyInstall
+```
+
+Dừng các tiến trình và container nhưng giữ nguyên dữ liệu:
+
+```powershell
+.\scripts\stop-all.ps1
+```
+
+Script không in giá trị trong `.env`. Các tiến trình chạy ẩn và ghi output kỹ thuật vào `.runtime/`, thư mục này đã được loại khỏi Git. Object Storage không được tự khởi tạo; nếu bật upload, endpoint S3-compatible phải chạy sẵn và các biến `STORAGE_*` phải hợp lệ.
+
 ### 1. Clone repository
 
 ```powershell
