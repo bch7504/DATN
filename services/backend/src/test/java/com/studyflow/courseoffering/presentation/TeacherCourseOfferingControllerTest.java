@@ -6,6 +6,7 @@ import com.studyflow.academic.domain.SemesterRepository;
 import com.studyflow.academic.domain.SemesterStatus;
 import com.studyflow.academic.domain.Subject;
 import com.studyflow.academic.domain.SubjectRepository;
+import com.studyflow.common.api.GlobalExceptionHandler;
 import com.studyflow.courseoffering.application.CourseOfferingService;
 import com.studyflow.courseoffering.application.CreateCourseOfferingCommand;
 import com.studyflow.courseoffering.application.CreatedCourseOfferingResult;
@@ -26,6 +27,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
@@ -37,7 +39,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -65,6 +69,12 @@ class TeacherCourseOfferingControllerTest {
 
     private Jwt mockJwt;
 
+    /**
+     * Args: none; uses synthetic Teacher identity and mocked repositories/service.
+     * Input: standalone MVC request context with Bean Validation and the public error handler.
+     * Output: void; prepares an authenticated controller fixture for each test.
+     * Errors: fixture setup fails the test if validation cannot initialize.
+     */
     @BeforeEach
     void setUp() {
         TeacherCourseOfferingController controller = new TeacherCourseOfferingController(
@@ -93,8 +103,12 @@ class TeacherCourseOfferingControllerTest {
             }
         };
 
+        LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
+        validator.afterPropertiesSet();
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setCustomArgumentResolvers(jwtResolver)
+                .setValidator(validator)
+                .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
 
@@ -127,6 +141,52 @@ class TeacherCourseOfferingControllerTest {
                 .andExpect(jsonPath("$.code").value("DBI-01"))
                 .andExpect(jsonPath("$.rawJoinCode").value("INT1340-ABCD12"))
                 .andExpect(jsonPath("$.joinCodeHint").value("CD12"));
+    }
+
+    /**
+     * Args: none; submits synthetic catalog IDs and omits the optional name.
+     * Input: valid authenticated POST body with a custom class code.
+     * Output: void; verifies HTTP 201 response schema and a null name passed to the service.
+     * Errors: fails on unexpected validation or response mismatch.
+     */
+    @Test
+    @DisplayName("Teacher can omit the optional class name and receive a created offering")
+    void teacherCanCreateOfferingWithoutName() throws Exception {
+        CourseOffering offering = new CourseOffering(
+                OFFERING_ID, SUBJECT_ID, SEMESTER_ID, TEACHER_ID,
+                "BAS1157", "Tiếng Anh (Course 1) (BAS1157)", "hash123", "CD12"
+        );
+        when(offeringService.createCourseOffering(eq(TEACHER_ID), any(CreateCourseOfferingCommand.class)))
+                .thenReturn(new CreatedCourseOfferingResult(offering, "BAS1157-ABCD12"));
+
+        mockMvc.perform(post("/api/v1/teacher/course-offerings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"subjectId\":\"" + SUBJECT_ID + "\",\"semesterId\":\"" + SEMESTER_ID
+                                + "\",\"code\":\"BAS1157\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("BAS1157"))
+                .andExpect(jsonPath("$.name").value("Tiếng Anh (Course 1) (BAS1157)"))
+                .andExpect(jsonPath("$.rawJoinCode").value("BAS1157-ABCD12"));
+
+        verify(offeringService).createCourseOffering(eq(TEACHER_ID),
+                argThat(command -> "BAS1157".equals(command.code()) && command.name() == null));
+    }
+
+    /**
+     * Args: none; submits a synthetic request missing a required catalog ID.
+     * Input: authenticated POST body without subjectId.
+     * Output: void; verifies HTTP 422 with a field-specific error envelope.
+     * Errors: fails if invalid input reaches the application service.
+     */
+    @Test
+    @DisplayName("Teacher create request still rejects a missing subject ID")
+    void teacherCannotCreateOfferingWithoutSubject() throws Exception {
+        mockMvc.perform(post("/api/v1/teacher/course-offerings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"semesterId\":\"" + SEMESTER_ID + "\",\"code\":\"BAS1157\"}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.details[0].field").value("subjectId"));
     }
 
     @Test

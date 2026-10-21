@@ -20,6 +20,14 @@ export default function StudentAssignmentsPage(): ReactElement {
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState("");
 
+  /** Args: none. Input: browser Back/Forward and `assignmentId` in the current URL. Output: void; restores the selected assignment. Errors: none. */
+  useEffect(() => {
+    const syncSelection = (): void => setSelectedAssignmentId(new URLSearchParams(window.location.search).get("assignmentId"));
+    syncSelection();
+    window.addEventListener("popstate", syncSelection);
+    return () => window.removeEventListener("popstate", syncSelection);
+  }, []);
+
   /** Args: none. Input: authenticated Student session and Java assignment list.
    * Output: Promise<void>; refreshes assignments while preserving the selected item if it still exists.
    * Errors: displays the Java/API error in the page and always clears the loading state.
@@ -38,20 +46,32 @@ export default function StudentAssignmentsPage(): ReactElement {
   useEffect(() => { void load(); }, []);
 
   /** Args: one listed assignment ID. Input: ID from Java's published Student assignment list.
-   * Output: void; opens that assignment's submission form without discarding drafts for other assignments.
+   * Output: void; opens that assignment's submission form, adds a browser-history step and retains other drafts.
    * Errors: none; unknown IDs are ignored by the detail lookup.
    */
   function openAssignment(assignmentId: string): void {
+    if (assignmentId === selectedAssignmentId) return;
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("assignmentId", assignmentId);
+    const historyState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
+    window.history.pushState({ ...historyState, studyflowDetail: "student-assignment" }, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
     setSelectedAssignmentId(assignmentId);
     setError("");
     setSuccess("");
   }
 
-  /** Args: none. Input: current selection. Output: void; returns to the horizontal list and retains drafts.
+  /** Args: none. Input: current selection and browser history. Output: void; returns to the horizontal list and retains drafts.
    * Errors: none.
    */
   function showAssignmentList(): void {
-    setSelectedAssignmentId(null);
+    if (window.history.state?.studyflowDetail === "student-assignment") window.history.back();
+    else {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.delete("assignmentId");
+      const historyState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
+      window.history.replaceState({ ...historyState, studyflowDetail: undefined }, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+      setSelectedAssignmentId(null);
+    }
     setError("");
     setSuccess("");
   }

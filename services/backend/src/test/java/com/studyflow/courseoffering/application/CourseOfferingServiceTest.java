@@ -186,6 +186,28 @@ class CourseOfferingServiceTest {
         verify(offeringRepository).countBySubjectIdAndSemesterId(SUBJECT_ID, SEMESTER_ID);
     }
 
+    /**
+     * Args: none; uses synthetic subject, semester and Teacher IDs from this fixture.
+     * Input: an active semester, a custom class code and no optional class name.
+     * Output: void; asserts the saved class gets the subject-based default name.
+     * Errors: fails if creation rejects the optional name or persists an empty name.
+     */
+    @Test
+    @DisplayName("Should default the class name when Teacher only supplies a code")
+    void shouldDefaultNameWhenOnlyCodeProvided() {
+        when(subjectRepository.findById(SUBJECT_ID)).thenReturn(Optional.of(mockSubject));
+        when(semesterRepository.findById(SEMESTER_ID)).thenReturn(Optional.of(mockSemester));
+        when(offeringRepository.save(any(CourseOffering.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CreatedCourseOfferingResult result = offeringService.createCourseOffering(
+                TEACHER_ID,
+                new CreateCourseOfferingCommand(SUBJECT_ID, SEMESTER_ID, "INT1340", null)
+        );
+
+        assertEquals("INT1340", result.getOffering().getCode());
+        assertEquals("Cơ sở dữ liệu (INT1340)", result.getOffering().getName());
+    }
+
     @Test
     @DisplayName("Should update metadata for the owner")
     void shouldUpdateMetadataForOwner() {

@@ -105,6 +105,12 @@ public class NotificationJpaStore implements NotificationStore {
     }
 
     @Override
+    public int deleteStudyPlanItemNotifications(UUID studentId, UUID itemId) {
+        emailOutbox.deleteStudyPlanItemOutboxEntries(studentId, itemId);
+        return repository.deleteStudyPlanItemNotifications(studentId, itemId);
+    }
+
+    @Override
     public PageResult<StudentNotification> findOwned(
             UUID userId,
             boolean unreadOnly,

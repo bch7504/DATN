@@ -12,6 +12,13 @@ import java.util.UUID;
 public interface StudyPlanItemStore {
     StudyPlanItem save(StudyPlanItem item);
 
+    /**
+     * Args: persisted plan item owned by the Student in the current transaction.
+     * Input: item previously loaded with an owner-scoped write lock.
+     * Output: void; physically removes the item row. Errors: persistence failures propagate.
+     */
+    void delete(StudyPlanItem item);
+
     Optional<StudyPlanItem> findOwned(UUID itemId, UUID planId, UUID studentId);
 
     Optional<StudyPlanItem> findOwnedForUpdate(UUID itemId, UUID studentId);

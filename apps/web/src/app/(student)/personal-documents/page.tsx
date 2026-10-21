@@ -34,13 +34,32 @@ export default function StudentPersonalDocumentsPage(): React.JSX.Element {
     const syncView = (): void => setAssistantOpen(window.location.hash === "#personal-ai-assistant");
     syncView();
     window.addEventListener("hashchange", syncView);
-    return () => window.removeEventListener("hashchange", syncView);
+    window.addEventListener("popstate", syncView);
+    return () => {
+      window.removeEventListener("hashchange", syncView);
+      window.removeEventListener("popstate", syncView);
+    };
   }, []);
 
-  /** args: none; input: current URL; output: void, library navigation; errors: none. */
+  /** Args: none. Input: current library URL. Output: void; opens the assistant as one reversible history entry. Errors: none. */
+  const openAssistant = (): void => {
+    const nextUrl = new URL(window.location.href);
+    nextUrl.hash = "personal-ai-assistant";
+    const historyState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
+    window.history.pushState({ ...historyState, studyflowDetail: "personal-assistant" }, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+    setAssistantOpen(true);
+  };
+
+  /** Args: none. Input: current URL/history. Output: void; returns to the library without creating a history loop. Errors: none. */
   const openLibrary = (): void => {
-    window.location.hash = "personal-pdf-library";
-    setAssistantOpen(false);
+    if (window.history.state?.studyflowDetail === "personal-assistant") window.history.back();
+    else {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.hash = "";
+      const historyState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
+      window.history.replaceState({ ...historyState, studyflowDetail: undefined }, "", `${nextUrl.pathname}${nextUrl.search}`);
+      setAssistantOpen(false);
+    }
   };
 
   const loadDocs = async () => {
@@ -126,12 +145,13 @@ export default function StudentPersonalDocumentsPage(): React.JSX.Element {
             Quản lý PDF và mở hỏi đáp tài liệu cá nhân khi cần sử dụng AI
           </p>
         </div>
-        <a
-          href="#personal-ai-assistant"
+        <button
+          type="button"
+          onClick={openAssistant}
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ptit-red px-4 py-2 text-sm font-bold text-white"
         >
           <MessageSquare className="h-4 w-4" /> Hỏi đáp tài liệu cá nhân
-        </a>
+        </button>
       </div>
 
       {/* Policy Box */}

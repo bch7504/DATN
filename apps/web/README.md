@@ -36,6 +36,7 @@ apps/web/
   - Viewing progress chỉ xuất hiện trên Dashboard, không lặp lại trong Ôn tập.
 - **Kế hoạch & Lịch:** lịch tuần hiển thị mọi buổi học theo ngày và giờ đã chọn, không giới hạn ở khung giờ cố định; hỗ trợ chuyển tuần, thêm/sửa lịch, thêm task và đánh dấu hoàn thành. Daily Goal/Streak vẫn ở Dashboard.
 - **Thông báo học tập:** Student và Teacher đều có chuông bên cạnh nút Đăng xuất; mỗi vai trò chỉ lấy thông báo của chính mình từ Java, hiện số chưa đọc, lọc và đánh dấu đã đọc trong cửa sổ bật ra. Java phát thông báo học liệu, bài tập, ghi danh và hạn; browser chỉ hiển thị và dẫn tới đúng khu vực, không tự tính deadline. Route `/notifications` của Student vẫn truy cập trực tiếp được để tương thích liên kết cũ, nhưng không còn trong menu.
+- **Điều hướng quay lại:** thanh trên có nút quay lại cho các trang con. Chi tiết lớp, học liệu và bài tập được phản ánh trong URL/lịch sử để nút Back của trình duyệt trở về danh sách vừa xem; URL mở trực tiếp vẫn có đường về danh sách hoặc Dashboard theo vai trò.
 
 ## Boundary bắt buộc
 

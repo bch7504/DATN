@@ -1,3 +1,3 @@
 # Teacher Document Library
 
-Teacher chỉ upload và quản lý Course Material PDF trong kho riêng, sau đó công bố/gỡ công bố theo lớp học phần mình sở hữu. Giao diện hiện không tạo Quiz hoặc chatbot từ tài liệu. Không nhận PPTX/DOCX.
+Teacher xem danh sách các lớp học phần mình phụ trách trước; chọn một lớp để xem đúng PDF đã công bố cho lớp đó. Tải PDF từ trang lớp sẽ lưu vào kho riêng rồi mở hộp xác nhận công bố cho lớp đang chọn. PDF tải lên nhưng chưa công bố vẫn có thể được quản lý từ danh sách lớp. Teacher có thể quản lý phạm vi công bố hoặc gỡ tài liệu khỏi lớp. Giao diện không tạo Quiz/chatbot từ trang này và không nhận PPTX/DOCX.

@@ -239,6 +239,22 @@ public class StudyPlanController {
     }
 
     /**
+     * Permanently deletes an owned plan item and its derived completion/notification history.
+     * Args: authenticated Student JWT, owner planId and itemId.
+     * Input: an item in the Student's active plan; repeated deletion is idempotent.
+     * Output: HTTP 204 with no body.
+     * Errors: 401/403 authentication or role, 404 plan or same-owner item/plan mismatch, 409 archived plan for an existing item.
+     * Side effects: deletes the item, STUDY_TASK_COMPLETED event and notifications for its source;
+     * Linked notification email-outbox rows are deleted in the same transaction. Already delivered email cannot be recalled.
+     */
+    @DeleteMapping("/api/v1/study-plans/{planId}/items/{itemId}/permanently")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void permanentlyDeleteItem(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID planId,
+                                      @PathVariable UUID itemId) {
+        service.permanentlyDeleteItem(userId(jwt), planId, itemId);
+    }
+
+    /**
      * Changes TODO/completed status and records completion idempotently.
      *
      * @param jwt verified JWT with UUID subject

@@ -177,6 +177,15 @@ class StudyPlanControllerTest {
         verify(service).deleteItem(STUDENT_ID, PLAN_ID, ITEM_ID);
     }
 
+    /** Args: none. Input: authenticated Student and owned item path. Output: HTTP 204; errors: assertions. */
+    @Test
+    void permanentlyDeleteItemCallsPermanentHistoryCleanup() throws Exception {
+        mockMvc.perform(delete("/api/v1/study-plans/{planId}/items/{itemId}/permanently", PLAN_ID, ITEM_ID)
+                        .with(studentJwt()))
+                .andExpect(status().isNoContent());
+        verify(service).permanentlyDeleteItem(STUDENT_ID, PLAN_ID, ITEM_ID);
+    }
+
     @Test
     void createItemRejectsUnknownTypeWithValidationEnvelope() throws Exception {
         mockMvc.perform(post("/api/v1/study-plans/{planId}/items", PLAN_ID)

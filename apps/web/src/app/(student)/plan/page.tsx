@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
   CalendarCheck,
   ChevronLeft,
   ChevronRight,
@@ -15,6 +16,7 @@ import {
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 import {
+  ApiClientError,
   StudyPlanItemRecord,
   StudyPlanRecord,
   SaveStudyPlanItemInput,
@@ -26,6 +28,10 @@ import {
 import { CourseOffering } from "@/types/course-offering";
 
 const WEEKDAY_NAMES = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+
+type PlanConfirmation =
+  | { kind: "ARCHIVE_PLAN"; planId: string; planTitle: string }
+  | { kind: "DELETE_ITEM"; item: StudyPlanItemRecord };
 
 function startOfWeek(date: Date): Date {
   const result = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -117,6 +123,7 @@ export default function StudentPlanPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState<PlanConfirmation | null>(null);
   const [isScheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [isTaskModalOpen, setTaskModalOpen] = useState(false);
   const [scheduleStartAt, setScheduleStartAt] = useState(() => `${dateInputValue(new Date())}T09:00`);
@@ -153,6 +160,18 @@ export default function StudentPlanPage() {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!pendingConfirmation) return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape" && !saving) {
+        setPendingConfirmation(null);
+        setError(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [pendingConfirmation, saving]);
 
   useEffect(() => {
     let cancelled = false;
@@ -284,17 +303,13 @@ export default function StudentPlanPage() {
     finally { setSaving(false); }
   }
 
-  /** Args: none. Input: selected owned plan and user's confirmation. Output: void, soft archives and reloads.
-   * Errors: Java auth/ownership/conflict errors shown in-page; no local deletion on failure.
+  /** Args: none. Input: selected owned plan. Output: void; opens the in-app archive confirmation.
+   * Errors: no mutation occurs until the user confirms.
    */
-  async function archivePlan(): Promise<void> {
-    if (!activePlan || saving || !window.confirm(`Lưu trữ kế hoạch "${activePlan.title}"?`)) return;
-    setSaving(true); setError(null);
-    try {
-      await studyPlanApi.archivePlan(activePlan.id);
-      setSelectedPlanId(null); setReloadKey((value) => value + 1);
-    } catch (archiveError: unknown) { setError(archiveError instanceof Error ? archiveError.message : "Không lưu trữ được kế hoạch."); }
-    finally { setSaving(false); }
+  function requestArchivePlan(): void {
+    if (!activePlan || saving) return;
+    setError(null);
+    setPendingConfirmation({ kind: "ARCHIVE_PLAN", planId: activePlan.id, planTitle: activePlan.title });
   }
 
   /** Args: selected local calendar day. Input: a visible week day or today.
@@ -421,19 +436,44 @@ export default function StudentPlanPage() {
     } finally { setSaving(false); }
   }
 
-  /** Args: owned visible plan item. Input: user's confirmation and Java /remove contract.
-   * Output: void; hides the item but preserves its completion history. Errors: API failures remain visible.
+  /** Args: one visible owned plan item. Input: selected item awaiting confirmation.
+   * Output: void; opens the in-app permanent-delete confirmation. Errors: no mutation occurs until confirmed.
    */
-  async function cancelItem(item: StudyPlanItemRecord): Promise<void> {
-    if (saving || !window.confirm(`Ẩn "${item.title}" khỏi lịch? Lịch sử hoàn thành vẫn được giữ.`)) return;
+  function requestDeleteItem(item: StudyPlanItemRecord): void {
+    if (saving) return;
+    setError(null);
+    setPendingConfirmation({ kind: "DELETE_ITEM", item });
+  }
+
+  /** Args: none. Input: pending owner-confirmed archive/delete action and Java public API.
+   * Output: Promise<void>; archives a plan or permanently deletes an item and its history, then reloads the view.
+   * Errors: API/ownership errors stay visible in the confirmation dialog; failed actions remain retryable.
+   */
+  async function confirmPendingAction(): Promise<void> {
+    const confirmation = pendingConfirmation;
+    if (!confirmation || saving) return;
     setSaving(true);
     setError(null);
     try {
-      await studyPlanApi.removeItem(item.planId, item.id);
-      await refreshCurrentWeek();
-    } catch (cancelError: unknown) {
-      setError(cancelError instanceof Error ? cancelError.message : "Không xóa được lịch hoặc nhiệm vụ.");
-    } finally { setSaving(false); }
+      if (confirmation.kind === "ARCHIVE_PLAN") {
+        await studyPlanApi.archivePlan(confirmation.planId);
+        setPendingConfirmation(null);
+        setSelectedPlanId(null);
+        setReloadKey((value) => value + 1);
+      } else {
+        await studyPlanApi.permanentlyDeleteItem(confirmation.item.planId, confirmation.item.id);
+        setPendingConfirmation(null);
+        await refreshCurrentWeek();
+      }
+    } catch (actionError: unknown) {
+      if (confirmation.kind === "DELETE_ITEM" && actionError instanceof ApiClientError && actionError.status === 404) {
+        setError("Backend chưa nhận API xóa nhiệm vụ mới. Hãy khởi động lại backend rồi thử lại.");
+      } else {
+        setError(actionError instanceof Error ? actionError.message : "Không thể hoàn tất thao tác.");
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   /** Args: ISO instant or null. Output: local datetime input string. Errors: invalid server date throws RangeError. */
@@ -509,7 +549,7 @@ export default function StudentPlanPage() {
           <section className="flex flex-wrap items-end gap-3 rounded-2xl border bg-white p-4">
             <label className="text-sm">Chọn kế hoạch<select disabled={saving} value={activePlan.id} onChange={(event) => setSelectedPlanId(event.target.value)} className="ml-2 rounded-xl border p-2">{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.title}</option>)}</select></label>
             <form onSubmit={(event) => void renamePlan(event)} className="flex flex-wrap items-end gap-2"><label className="text-sm">Tên kế hoạch<input required maxLength={200} value={planTitle} onChange={(event) => setPlanTitle(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><label className="text-sm">Ngày kế hoạch<input required type="date" value={planDate} onChange={(event) => setPlanDate(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><button disabled={saving || !planTitle.trim() || !planDate} className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50">Lưu kế hoạch</button></form>
-            <button type="button" disabled={saving} onClick={() => void archivePlan()} className="rounded-xl border border-red-300 px-3 py-2 text-sm text-red-700 disabled:opacity-50">Lưu trữ</button>
+            <button type="button" disabled={saving} onClick={requestArchivePlan} className="rounded-xl border border-red-300 px-3 py-2 text-sm text-red-700 disabled:opacity-50">Lưu trữ</button>
             <details className="text-sm"><summary className="cursor-pointer text-red-700">Tạo kế hoạch khác</summary><label className="mt-2 block">Tên kế hoạch<input required maxLength={200} value={newPlanTitle} onChange={(event) => setNewPlanTitle(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><label className="mt-2 block">Ngày kế hoạch<input required type="date" value={newPlanDate} onChange={(event) => setNewPlanDate(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><button type="button" disabled={saving || !newPlanTitle.trim() || !newPlanDate} onClick={() => void createPlan()} className="mt-2 rounded-xl bg-red-700 px-3 py-2 text-white disabled:opacity-50">Tạo</button></details>
           </section>
         )}
@@ -566,7 +606,7 @@ export default function StudentPlanPage() {
                 <input type="checkbox" disabled={saving || item.lateCompleted} checked={item.status === "COMPLETED"} onChange={() => void toggleTask(item)} className="mt-1 h-4 w-4 accent-red-700" aria-label={`Đánh dấu ${item.title} ${item.status === "COMPLETED" ? "chưa hoàn thành" : "hoàn thành"}`} />
                 <div className="min-w-0 flex-1"><p className={`text-sm font-semibold ${item.status === "COMPLETED" ? "text-slate-400 line-through" : "text-slate-800"}`}>{item.title}</p><p className="mt-1 text-xs text-slate-500">{item.type === "QUIZ" ? "Ôn Quiz" : item.type === "STUDY_SESSION" ? "Tự học" : "Nhiệm vụ"}{item.description ? ` · ${item.description}` : ""}</p><p className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500"><Clock className="h-3 w-3" />{item.scheduledStart ? "Bắt đầu" : "Hạn"}: {formatDateTime(item.scheduledStart ?? item.dueAt ?? "")}</p>{item.lateCompleted && <p className="mt-1 text-xs font-semibold text-amber-700">Hoàn thành muộn · chỉ có thể xóa</p>}{item.status === "OVERDUE" && <p className="mt-1 text-xs font-semibold text-red-700">Quá hạn · chưa hoàn thành</p>}</div>
                 {!item.lateCompleted && <button type="button" disabled={saving} onClick={() => openEdit(item)} className="rounded p-1 text-slate-400 hover:text-red-700" aria-label={`Sửa nhiệm vụ ${item.title}`}><Pencil className="h-4 w-4" /></button>}
-                <button type="button" disabled={saving} onClick={() => void cancelItem(item)} className="rounded p-1 text-slate-400 hover:text-red-700" aria-label={`Xóa nhiệm vụ ${item.title}`}><Trash2 className="h-4 w-4" /></button>
+                <button type="button" disabled={saving} onClick={() => requestDeleteItem(item)} className="rounded p-1 text-slate-400 hover:text-red-700" aria-label={`Xóa nhiệm vụ ${item.title}`}><Trash2 className="h-4 w-4" /></button>
               </article>)}
               {weekAssignments.map((assignment) => <article key={`assignment-${assignment.id}`} className="rounded-2xl border border-violet-200 bg-violet-50 p-3.5">
                 <p className="text-sm font-semibold text-slate-800">{assignment.title}</p>
@@ -623,6 +663,39 @@ export default function StudentPlanPage() {
         {editDue && <label className="block text-sm">Nhắc trước hạn (phút)<input type="number" min={0} max={10080} required value={editReminder} onChange={(event) => setEditReminder(Number(event.target.value))} className="mt-1 w-full rounded border p-2" /></label>}
         <div className="flex justify-end gap-3"><button type="button" disabled={saving} onClick={() => setEditingItem(null)}>Hủy</button><button disabled={saving} className="rounded-lg bg-red-700 px-4 py-2 text-white">Lưu thay đổi</button></div>
       </form></section></div>}
+      {pendingConfirmation && <div
+        className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+        onClick={(event) => {
+          if (event.target === event.currentTarget && !saving) {
+            setPendingConfirmation(null);
+            setError(null);
+          }
+        }}
+      >
+        <section role="alertdialog" aria-modal="true" aria-labelledby="plan-confirmation-title" aria-describedby="plan-confirmation-description" className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="flex items-start gap-4">
+            <span className="rounded-2xl bg-red-50 p-3 text-red-700"><AlertTriangle className="h-5 w-5" aria-hidden="true" /></span>
+            <div className="min-w-0 flex-1">
+              <h2 id="plan-confirmation-title" className="font-bold text-slate-900">
+                {pendingConfirmation.kind === "ARCHIVE_PLAN" ? "Lưu trữ kế hoạch?" : "Xóa nhiệm vụ?"}
+              </h2>
+              <p id="plan-confirmation-description" className="mt-2 text-sm leading-6 text-slate-600">
+                {pendingConfirmation.kind === "ARCHIVE_PLAN"
+                  ? `Lưu trữ kế hoạch “${pendingConfirmation.planTitle}”?`
+                  : `Nhiệm vụ “${pendingConfirmation.item.title}”, lịch sử hoàn thành và thông báo liên quan sẽ bị xóa. Streak/thống kê học tập có thể thay đổi; thao tác này không thể hoàn tác.`}
+              </p>
+            </div>
+            <button type="button" disabled={saving} onClick={() => { setPendingConfirmation(null); setError(null); }} aria-label="Đóng hộp xác nhận" className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"><X className="h-4 w-4" /></button>
+          </div>
+          {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+          <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <button type="button" autoFocus disabled={saving} onClick={() => { setPendingConfirmation(null); setError(null); }} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Hủy</button>
+            <button type="button" disabled={saving} onClick={() => void confirmPendingAction()} className="rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50">
+              {saving ? "Đang xử lý..." : pendingConfirmation.kind === "ARCHIVE_PLAN" ? "Lưu trữ kế hoạch" : "Xóa nhiệm vụ"}
+            </button>
+          </div>
+        </section>
+      </div>}
     </main>
   );
 }

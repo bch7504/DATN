@@ -284,6 +284,32 @@ public class StudyPlanService {
     }
 
     /**
+     * Permanently deletes an owned item and all derived history tied to that item.
+     * Args: authenticated studentId, owner planId and itemId. Input: active owner-scoped plan/item.
+     * Output: void; removes the plan row, its completion learning event and its in-app notifications.
+     * Errors: 403 unavailable Student, 404 missing/not-owned plan or item in another plan owned by Student,
+     * 409 archived plan when the item exists. A missing or foreign-owned item is a privacy-safe no-op (204).
+     * Linked notification email-outbox rows are removed in the same
+     * transaction; already delivered email cannot be recalled. Derived dashboard metrics may change because
+     * the completion event is removed.
+     */
+    @Transactional
+    public void permanentlyDeleteItem(UUID studentId, UUID planId, UUID itemId) {
+        requireActiveStudent(studentId);
+        StudyPlan plan = requireOwnedPlan(planId, studentId);
+        StudyPlanItem item = items.findOwnedForUpdate(itemId, studentId).orElse(null);
+        if (item == null) return;
+        if (!item.planId().equals(planId)) throw itemNotFound();
+        if (plan.status() == StudyPlanStatus.ARCHIVED) {
+            throw new ApiException(HttpStatus.CONFLICT, "STUDY_PLAN_ARCHIVED", "Kế hoạch đã được lưu trữ");
+        }
+
+        notifications.deleteStudyPlanItemNotifications(studentId, itemId);
+        learningEvents.deleteStudyTaskCompletionEvents(studentId, itemId);
+        items.delete(item);
+    }
+
+    /**
      * Changes TODO/completed state and emits a single idempotent completion event.
      *
      * @param studentId authenticated Student identifier
@@ -339,7 +365,7 @@ public class StudyPlanService {
             if (current.dueAt() != null && now.isAfter(current.dueAt())) {
                 notifications.createEventIfAbsent(studentId, NotificationType.STUDY_PLAN_ITEM_LATE_COMPLETED,
                         "Nhiệm vụ hoàn thành muộn",
-                        "Nhiệm vụ “" + current.title() + "” đã hoàn thành sau hạn và không thể sửa; bạn vẫn có thể xóa khỏi lịch.",
+                        "Nhiệm vụ “" + current.title() + "” đã hoàn thành sau hạn và không thể sửa; bạn vẫn có thể xóa vĩnh viễn nhiệm vụ và lịch sử liên quan.",
                         "STUDY_PLAN_ITEM", current.id(), current.dueAt(), now, true);
             }
         }

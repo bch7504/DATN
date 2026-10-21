@@ -12,4 +12,12 @@ public interface LearningEventStore {
             Instant occurredAt,
             LocalDate activityDate
     );
+
+    /**
+     * Args: Student owner ID and plan-item ID.
+     * Input: an owner-scoped item being permanently deleted in the current transaction.
+     * Output: number of matching STUDY_TASK_COMPLETED rows removed (0 or 1).
+     * Errors: persistence failures propagate and roll back the caller's transaction.
+     */
+    int deleteStudyTaskCompletionEvents(UUID studentId, UUID itemId);
 }

@@ -20,8 +20,12 @@ test("FE-M4: Personal Document Assistant Contract & UI Policies", async (t) => {
 
     assert.match(personalDocumentsSource, /if \(assistantOpen\)/);
     assert.match(personalDocumentsSource, /onBackToLibrary=\{openLibrary\}/);
+    assert.match(personalDocumentsSource, /window\.history\.pushState/);
+    assert.match(personalDocumentsSource, /window\.history\.back\(\)/);
+    assert.match(personalDocumentsSource, /window\.addEventListener\("popstate", syncView\)/);
     assert.match(personalDocumentsSource, /Hỏi đáp tài liệu cá nhân/);
     assert.equal(shellSource.includes('{ label: "Trợ lý tài liệu", href: "/chat"'), false);
+    assert.match(shellSource, /aria-label="Quay lại trang trước"/);
     assert.equal(
       legacyChatSource.includes('redirect("/personal-documents#personal-ai-assistant")'),
       true,

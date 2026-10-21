@@ -220,6 +220,8 @@ Các bảng phần này phục vụ task, deadline và projection lịch tuần 
 
 `learning_events`: event học idempotent do Java sở hữu, gồm Student, loại event, nguồn, idempotency key, `occurred_at` và `activity_date`. Với `STUDY_TASK_COMPLETED`, mỗi item chỉ tạo tối đa một event để retry/đánh dấu lại không làm tăng sai Daily Goal hoặc Streak.
 
+`DELETE .../items/{itemId}/permanently` xóa vật lý plan item cùng `STUDY_TASK_COMPLETED` event, notification và email-outbox có cùng owner/source trong cùng transaction. `DELETE .../remove` vẫn là ẩn mềm (`DELETED`) để giữ lịch sử. Xóa vĩnh viễn làm mất dấu hoàn thành khỏi các chỉ số học tập được suy ra từ learning event; không thể khôi phục event, notification hoặc outbox sau commit.
+
 - Calendar là projection của plan items, không tạo bảng calendar trùng.
 - Java validate time range và xung đột của cùng Student.
 - Index theo owner/khoảng ngày của plan, plan/thời gian item và learning event theo Student/activity date.

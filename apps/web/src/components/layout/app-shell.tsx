@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, ReactNode } from "react";
+import React, { useEffect, useRef, useState, ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { PtitLogo } from "@/components/ui/ptit-logo";
 import { NotificationBell } from "@/components/layout/student-notification-bell";
@@ -29,6 +29,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ClipboardList,
+  ArrowLeft,
 } from "lucide-react";
 import { UserRole } from "@/types/auth";
 
@@ -70,8 +71,23 @@ const ADMIN_NAV: NavItem[] = [
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, role, logout, isDemo, switchDemoRole } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
+  const currentPath = useRef<string | null>(null);
+  const previousPath = useRef<string | null>(null);
+
+  /** Args: pathname from Next navigation. Input: route changes inside this app shell. Output: void; remembers a safe in-app predecessor for the Back button. Errors: none. */
+  useEffect(() => {
+    if (currentPath.current && currentPath.current !== pathname) previousPath.current = currentPath.current;
+    currentPath.current = pathname;
+  }, [pathname]);
+
+  /** Args: none. Input: current in-page history marker or previously visited app route. Output: void; returns one history step, or opens the role dashboard when there is no safe predecessor. Errors: none. */
+  function goBack(): void {
+    if (window.history.state?.studyflowDetail || previousPath.current) window.history.back();
+    else router.push(role === "TEACHER" ? "/teacher/dashboard" : role === "ADMIN" ? "/admin/dashboard" : "/dashboard");
+  }
 
   let navItems: NavItem[] = STUDENT_NAV;
   let roleTitle = "HỌC VIÊN";
@@ -235,6 +251,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           {/* Topbar */}
           <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#e5e7eb] px-4 lg:px-8 py-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
+              {pathname !== "/dashboard" && pathname !== "/teacher/dashboard" && pathname !== "/admin/dashboard" && (
+                <button type="button" onClick={goBack} aria-label="Quay lại trang trước" title="Quay lại trang trước" className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50">
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}

@@ -34,7 +34,20 @@ test("Class assignments use persisted Java API data without a demo fallback", as
   await t.test("Both role pages remain available and show real request failures", () => {
     assert.match(teacherPage, /assignmentApi\.listForTeacher/);
     assert.match(studentPage, /assignmentApi\.listForStudent/);
+    assert.match(teacherPage, /window\.history\.pushState/);
+    assert.match(studentPage, /window\.history\.pushState/);
+    assert.match(teacherPage, /window\.addEventListener\("popstate", syncSelection\)/);
+    assert.match(studentPage, /window\.addEventListener\("popstate", syncSelection\)/);
+    assert.match(studentPage, /window\.history\.back\(\)/);
     assert.doesNotMatch(`${teacherPage}\n${studentPage}`, /Failed to fetch/);
+  });
+
+  await t.test("Teacher sees assignments from all classes by default and selects a class when creating", () => {
+    assert.match(teacherPage, /<option value="">Tất cả<\/option>/);
+    assert.match(teacherPage, /availableOfferings\.map\(\(offering\) => offering\.id\)/);
+    assert.match(teacherPage, /Promise\.all\(ids\.map\(\(offering\) => assignmentApi\.listForTeacher\(offering\)\)\)/);
+    assert.match(teacherPage, /<select required disabled=\{!!editingId\} value=\{composerOfferingId\}/);
+    assert.match(teacherPage, /assignmentApi\.create\(composerOfferingId, input\)/);
   });
 
   await t.test("F01 has submission counts but no grading flow", () => {

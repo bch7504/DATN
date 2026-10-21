@@ -60,3 +60,12 @@ test("Teacher create form prefills editable class code from the selected subject
   assert.match(page, /subjects\.find\(\(subject\) => subject\.id === subjectId\)\?\.code/);
   assert.match(page, /value=\{customCode\}/);
 });
+
+/** Args: none. Input: Student class route source. Output: void; asserts detail/history integration. Errors: AssertionError on regression. */
+test("Student class details have a reversible browser-history step", () => {
+  const page = fs.readFileSync(path.join(__dirname, "../src/app/(student)/course-offerings/page.tsx"), "utf8");
+  assert.match(page, /window\.history\.pushState/);
+  assert.match(page, /window\.addEventListener\("popstate", syncSelection\)/);
+  assert.match(page, /window\.history\.back\(\)/);
+  assert.match(page, /onClick=\{\(\) => navigateToOffering\(offering\.id\)\}/);
+});

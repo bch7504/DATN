@@ -38,6 +38,16 @@ interface SpringDataNotificationRepository extends JpaRepository<NotificationJpa
             Pageable pageable
     );
 
+    /** Args: Student owner and item IDs. Input: active item-deletion transaction. Output: deleted count; errors: DB failure. */
+    @Modifying
+    @Query("""
+            delete from NotificationJpaEntity notice
+            where notice.userId = :studentId
+              and notice.sourceType = 'STUDY_PLAN_ITEM'
+              and notice.sourceId = :itemId
+            """)
+    int deleteStudyPlanItemNotifications(@Param("studentId") UUID studentId, @Param("itemId") UUID itemId);
+
     /**
      * Args: generated id, owner/source UUIDs, bounded title/message and due/creation instants.
      * Input: active application transaction. Output: 1 inserted, 0 duplicate owner/type/source.

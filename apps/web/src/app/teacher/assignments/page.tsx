@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState, type ReactElement } from "react";
-import { AlertCircle, ClipboardList, Download, Eye, Plus, Send, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, ClipboardList, Download, Eye, Plus, Send, X } from "lucide-react";
 import { assignmentApi, AssignmentStats, CourseAssignment, teacherApi } from "@/lib/api-client";
 import { CourseOffering } from "@/types/course-offering";
 
@@ -15,6 +15,7 @@ interface AssignmentPreview {
 export default function TeacherAssignmentsPage(): ReactElement {
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
   const [offeringId, setOfferingId] = useState("");
+  const [composerOfferingId, setComposerOfferingId] = useState("");
   const [items, setItems] = useState<CourseAssignment[]>([]);
   const [stats, setStats] = useState<AssignmentStats | null>(null);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
@@ -35,28 +36,73 @@ export default function TeacherAssignmentsPage(): ReactElement {
   const previewUrl = useRef<string | null>(null);
 
   async function loadOfferings(): Promise<void> {
-    try { const data = await teacherApi.getOfferings(); setOfferings(data); if (!offeringId && data[0]) setOfferingId(data[0].id); }
+    try { const data = await teacherApi.getOfferings(); setOfferings(data); }
     catch (e) { setError(e instanceof Error ? e.message : "Không tải được lớp học phần."); }
   }
-  /** Args: Course Offering ID. Input: authenticated Teacher and an owned offering. Output: void; refreshes its assignment list. Errors: displays Java API errors and ignores stale responses. */
-  async function loadAssignments(id: string): Promise<void> {
+  /** Args: optional selected Course Offering ID and owned offering list. Input: authenticated Teacher and Java assignment API. Output: void; refreshes one class or all classes, with no API writes. Errors: displays Java API errors and ignores stale responses. */
+  async function loadAssignments(id: string, availableOfferings: CourseOffering[]): Promise<void> {
     const request = ++listRequest.current;
     ++reportRequest.current;
     setItems([]); setStats(null); setSelectedAssignmentId(null); setReportLoading(false); setLoading(true);
-    try { if (id) { const data = await assignmentApi.listForTeacher(id); if (request === listRequest.current) { setItems(data); setError(""); } } }
+    try {
+      const ids = id ? [id] : availableOfferings.map((offering) => offering.id);
+      const groups = await Promise.all(ids.map((offering) => assignmentApi.listForTeacher(offering)));
+      if (request === listRequest.current) {
+        const assignments = groups.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        setItems(assignments);
+        const requestedId = new URLSearchParams(window.location.search).get("assignmentId");
+        setSelectedAssignmentId(requestedId && assignments.some((item) => item.id === requestedId) ? requestedId : null);
+        setError("");
+      }
+    }
     catch (e) { if (request === listRequest.current) setError(e instanceof Error ? e.message : "Không tải được danh sách bài tập."); }
     finally { if (request === listRequest.current) setLoading(false); }
   }
   // Fetch once on entry; class changes are handled by the separate assignments effect.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void loadOfferings(); }, []);
-  useEffect(() => { void loadAssignments(offeringId); }, [offeringId]);
+  useEffect(() => { void loadAssignments(offeringId, offerings); }, [offeringId, offerings]);
+  /** Args: none. Input: browser Back/Forward and the `assignmentId` URL parameter. Output: void; restores the selected assignment without changing Java data. Errors: none. */
+  useEffect(() => {
+    const syncSelection = (): void => setSelectedAssignmentId(new URLSearchParams(window.location.search).get("assignmentId"));
+    window.addEventListener("popstate", syncSelection);
+    return () => window.removeEventListener("popstate", syncSelection);
+  }, []);
+  useEffect(() => {
+    const selected = items.find((item) => item.id === selectedAssignmentId);
+    if (selected?.status === "PUBLISHED") void showReport(selected.id);
+  }, [selectedAssignmentId, items]);
   useEffect(() => () => { if (previewUrl.current) URL.revokeObjectURL(previewUrl.current); }, []);
+
+  /** Args: owned assignment ID. Input: current URL and detail history state. Output: void; selects the assignment and records one reversible browser-history step. Errors: none. */
+  function selectAssignment(assignmentId: string): void {
+    const nextUrl = new URL(window.location.href);
+    if (nextUrl.searchParams.get("assignmentId") !== assignmentId) {
+      nextUrl.searchParams.set("assignmentId", assignmentId);
+      const historyState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
+      if (historyState.studyflowDetail === "teacher-assignment") window.history.replaceState(historyState, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+      else window.history.pushState({ ...historyState, studyflowDetail: "teacher-assignment" }, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+    }
+    setSelectedAssignmentId(assignmentId);
+  }
+
+  /** Args: none. Input: current browser URL/history. Output: void; returns to the assignment list without adding a history entry. Errors: none. */
+  function showAssignmentList(): void {
+    ++reportRequest.current; setStats(null); setReportLoading(false);
+    if (window.history.state?.studyflowDetail === "teacher-assignment") window.history.back();
+    else {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.delete("assignmentId");
+      const historyState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
+      window.history.replaceState({ ...historyState, studyflowDetail: undefined }, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+      setSelectedAssignmentId(null);
+    }
+  }
 
   /** Args: optional owned draft. Output: void; fills the composer and opens it; no API writes. */
   function editDraft(item?: CourseAssignment): void {
-    ++reportRequest.current; setSelectedAssignmentId(null); setStats(null); setReportLoading(false);
+    if (selectedAssignmentId) showAssignmentList();
     setEditingId(item?.id ?? null); setTitle(item?.title ?? ""); setDescription(item?.description ?? "");
+    setComposerOfferingId(item?.courseOfferingId ?? (offerings.find((offering) => offering.id === offeringId && offering.status === "ACTIVE")?.id ?? offerings.find((offering) => offering.status === "ACTIVE")?.id ?? ""));
     if (item) {
       const date = new Date(item.dueAt);
       setDueAt(new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
@@ -65,33 +111,33 @@ export default function TeacherAssignmentsPage(): ReactElement {
   }
   /** Args: none. Input: current composer state. Output: void; closes and clears the form without an API write. */
   function closeComposer(): void {
-    setEditingId(null); setTitle(""); setDescription(""); setDueAt(""); setIsComposerOpen(false);
+    setEditingId(null); setComposerOfferingId(""); setTitle(""); setDescription(""); setDueAt(""); setIsComposerOpen(false);
   }
-  /** Args: one assignment from the current list. Output: void; opens its details and fetches report for published work. Errors: shown in the page alert. */
+  /** Args: one assignment from the current list. Output: void; opens its details; the selection effect fetches the published-work report. Errors: shown in the page alert. */
   function openAssignment(item: CourseAssignment): void {
-    setSelectedAssignmentId(item.id);
+    if (selectedAssignmentId === item.id) return;
+    selectAssignment(item.id);
     setStats(null);
     setError("");
-    if (item.status === "PUBLISHED") void showReport(item.id);
-    else { ++reportRequest.current; setReportLoading(false); }
+    ++reportRequest.current; setReportLoading(false);
   }
 
-  /** Args: form submit event. Input: valid class, title, instructions and due time. Output: saves/updates draft, closes composer and refreshes list. Errors: shown in the page alert. */
+  /** Args: form submit event. Input: chosen active class, title, instructions and due time. Output: saves/updates draft, closes composer and refreshes the current filter. Errors: shown in the page alert. */
   async function createDraft(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault(); if (!offeringId || !dueAt) return;
+    event.preventDefault(); if (!composerOfferingId || !dueAt) return;
     setBusy(true); setError("");
     try {
       const input = { title: title.trim(), description: description.trim(), dueAt: new Date(dueAt).toISOString() };
       const saved = editingId
         ? await assignmentApi.update(editingId, input)
-        : await assignmentApi.create(offeringId, input);
-      closeComposer(); setSuccess("Đã lưu bản nháp."); await loadAssignments(offeringId); setSelectedAssignmentId(saved.id);
+        : await assignmentApi.create(composerOfferingId, input);
+      closeComposer(); setSuccess("Đã lưu bản nháp."); await loadAssignments(offeringId, offerings); selectAssignment(saved.id);
     } catch (e) { setError(e instanceof Error ? e.message : "Không tạo được bài tập."); }
     finally { setBusy(false); }
   }
   /** Args: draft assignment ID. Input: Teacher owns the draft. Output: publishes and refreshes list/report. Errors: shown in the page alert. */
   async function publish(id: string): Promise<void> {
-    setBusy(true); setError(""); try { await assignmentApi.publish(id); await loadAssignments(offeringId); setSelectedAssignmentId(id); void showReport(id); }
+    setBusy(true); setError(""); try { await assignmentApi.publish(id); await loadAssignments(offeringId, offerings); selectAssignment(id); }
     catch (e) { setError(e instanceof Error ? e.message : "Không công bố được bài tập."); }
     finally { setBusy(false); }
   }
@@ -131,6 +177,8 @@ export default function TeacherAssignmentsPage(): ReactElement {
   const selectedAssignment = items.find((item) => item.id === selectedAssignmentId) ?? null;
   const selectedReport = selectedAssignment && stats?.assignmentId === selectedAssignment.id ? stats : null;
   const activeOffering = offerings.find((item) => item.id === offeringId);
+  const composerOffering = offerings.find((item) => item.id === composerOfferingId);
+  const hasActiveOffering = offerings.some((item) => item.status === "ACTIVE");
   const previewName = previewFile?.fileName.toLowerCase() ?? "";
   const isPdfPreview = !!previewFile && (previewFile.contentType === "application/pdf" || previewName.endsWith(".pdf"));
   const isImagePreview = !!previewFile && (previewFile.contentType.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(previewName));
@@ -145,7 +193,7 @@ export default function TeacherAssignmentsPage(): ReactElement {
         </div>
         <button
           type="button"
-          disabled={!offeringId || busy || activeOffering?.status !== "ACTIVE"}
+          disabled={!hasActiveOffering || busy}
           onClick={() => editDraft()}
           className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -161,10 +209,10 @@ export default function TeacherAssignmentsPage(): ReactElement {
         <select
           disabled={busy}
           value={offeringId}
-          onChange={(event) => { closeComposer(); setSuccess(""); setOfferingId(event.target.value); }}
+          onChange={(event) => { if (selectedAssignmentId) showAssignmentList(); closeComposer(); setSuccess(""); setOfferingId(event.target.value); }}
           className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
         >
-          <option value="">Chọn lớp</option>
+          <option value="">Tất cả</option>
           {offerings.map((offering) => <option key={offering.id} value={offering.id}>{offering.code} · {offering.name}</option>)}
         </select>
       </label>
@@ -178,12 +226,18 @@ export default function TeacherAssignmentsPage(): ReactElement {
             </div>
             <button type="button" aria-label="Đóng biểu mẫu" onClick={closeComposer} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
           </div>
+          <label className="text-sm font-semibold md:col-span-2">Lớp học phần
+            <select required disabled={!!editingId} value={composerOfferingId} onChange={(event) => setComposerOfferingId(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal disabled:bg-slate-50">
+              <option value="">Chọn lớp để giao bài tập</option>
+              {offerings.filter((offering) => offering.status === "ACTIVE" || offering.id === composerOfferingId).map((offering) => <option key={offering.id} value={offering.id}>{offering.code} · {offering.name}</option>)}
+            </select>
+          </label>
           <label className="text-sm font-semibold">Tên bài<input required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" placeholder="Ví dụ: Bài tập chương 1" /></label>
           <label className="text-sm font-semibold">Hạn nộp<input required type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" /></label>
           <label className="text-sm font-semibold md:col-span-2">Hướng dẫn<textarea required maxLength={10000} rows={4} value={description} onChange={(event) => setDescription(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" placeholder="Mô tả yêu cầu bài tập..." /></label>
           <div className="md:col-span-2 flex justify-end gap-2">
             <button type="button" disabled={busy} onClick={closeComposer} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Hủy</button>
-            <button disabled={!offeringId || busy || activeOffering?.status !== "ACTIVE"} className="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+            <button disabled={!composerOfferingId || busy || composerOffering?.status !== "ACTIVE"} className="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">
               <Plus className="h-4 w-4" /> {busy ? "Đang lưu..." : "Lưu bản nháp"}
             </button>
           </div>
@@ -194,7 +248,7 @@ export default function TeacherAssignmentsPage(): ReactElement {
         <div className="flex items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Danh sách bài tập</h2>
-            {activeOffering && <p className="mt-1 text-sm text-slate-500">{activeOffering.code} · {activeOffering.name}</p>}
+            <p className="mt-1 text-sm text-slate-500">{activeOffering ? `${activeOffering.code} · ${activeOffering.name}` : "Tất cả lớp học phần"}</p>
           </div>
           {!loading && <span className="text-xs text-slate-500">{items.length} bài</span>}
         </div>
@@ -204,7 +258,7 @@ export default function TeacherAssignmentsPage(): ReactElement {
         ) : items.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
             <ClipboardList className="mx-auto mb-2 h-7 w-7" />
-            {offeringId ? "Chưa có bài tập trong lớp này." : "Chọn lớp học phần để xem bài tập."}
+            {offeringId ? "Chưa có bài tập trong lớp này." : "Chưa có bài tập nào."}
           </div>
         ) : (
           <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -221,6 +275,7 @@ export default function TeacherAssignmentsPage(): ReactElement {
                   <span className="min-w-0">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="truncate font-semibold text-slate-900">{item.title}</span>
+                      {!offeringId && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{offerings.find((offering) => offering.id === item.courseOfferingId)?.code ?? "Lớp học phần"}</span>}
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${item.status === "DRAFT" ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>
                         {item.status === "DRAFT" ? "Bản nháp" : "Đã giao"}
                       </span>
@@ -246,6 +301,7 @@ export default function TeacherAssignmentsPage(): ReactElement {
                 </span>
               </div>
               <p className="mt-1 text-sm text-slate-500">Hạn nộp: {new Date(selectedAssignment.dueAt).toLocaleString("vi-VN")}</p>
+              <p className="mt-1 text-xs text-slate-500">Lớp: {offerings.find((offering) => offering.id === selectedAssignment.courseOfferingId)?.code ?? "Lớp học phần"}</p>
             </div>
             <div className="flex shrink-0 gap-2">
               {selectedAssignment.status === "DRAFT" ? (
@@ -256,7 +312,7 @@ export default function TeacherAssignmentsPage(): ReactElement {
               ) : (
                 <button type="button" disabled={reportLoading} onClick={() => void showReport(selectedAssignment.id)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">{reportLoading ? "Đang tải..." : "Tải lại tình trạng nộp"}</button>
               )}
-              <button type="button" aria-label="Đóng chi tiết" onClick={() => { ++reportRequest.current; setSelectedAssignmentId(null); setStats(null); setReportLoading(false); }} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={showAssignmentList} className="inline-flex items-center gap-1 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ArrowLeft className="h-4 w-4" /> Danh sách bài tập</button>
             </div>
           </div>
 

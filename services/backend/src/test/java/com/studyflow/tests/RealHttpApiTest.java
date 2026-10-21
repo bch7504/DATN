@@ -97,6 +97,7 @@ class RealHttpApiTest {
     @LocalServerPort private int port;
     @Autowired private UserAccountStore users;
     @Autowired private PasswordEncoder passwords;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
     @Autowired private SubjectRepository subjects;
     @Autowired private SemesterRepository semesters;
     @Autowired private com.studyflow.notification.application.port.NotificationStore notifications;
@@ -395,6 +396,30 @@ class RealHttpApiTest {
         expect(send("DELETE", "/api/v1/study-plans/" + id + "/items/" + item + "/remove", student, null), 204);
         JsonNode afterRemoval = expect(send("GET", "/api/v1/study-plans/" + id + "/items", student, null), 200);
         assertThat(afterRemoval.path("items").toString()).doesNotContain(item);
+        UUID itemId = UUID.fromString(item);
+        List<UUID> relatedNoticeIds = jdbc.query(
+                "SELECT id FROM app.notifications WHERE user_id = ? AND source_type = 'STUDY_PLAN_ITEM' AND source_id = ?",
+                (result, row) -> result.getObject("id", UUID.class), studentId, itemId);
+        assertThat(relatedNoticeIds).isNotEmpty();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM app.learning_events WHERE student_id = ? AND event_type = 'STUDY_TASK_COMPLETED' AND source_type = 'STUDY_PLAN_ITEM' AND source_id = ?",
+                Long.class, studentId, itemId)).isEqualTo(1L);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM app.notification_email_outbox WHERE notification_id = ?",
+                Long.class, relatedNoticeIds.get(0))).isEqualTo(1L);
+        expect(send("DELETE", "/api/v1/study-plans/" + id + "/items/" + item + "/permanently", student, null), 204);
+        expect(send("DELETE", "/api/v1/study-plans/" + id + "/items/" + item + "/permanently", student, null), 204);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM app.study_plan_items WHERE id = ?", Long.class, itemId)).isZero();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM app.learning_events WHERE student_id = ? AND event_type = 'STUDY_TASK_COMPLETED' AND source_type = 'STUDY_PLAN_ITEM' AND source_id = ?",
+                Long.class, studentId, itemId)).isZero();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM app.notifications WHERE user_id = ? AND source_type = 'STUDY_PLAN_ITEM' AND source_id = ?",
+                Long.class, studentId, itemId)).isZero();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM app.notification_email_outbox WHERE notification_id = ?",
+                Long.class, relatedNoticeIds.get(0))).isZero();
         String cancelled = expect(send("POST", "/api/v1/study-plans/" + id + "/items", student,
                 Map.of("title", "Cancelled task", "type", "TASK", "dueAt", Instant.now().plusSeconds(9000).toString())), 201)
                 .path("id").asText();

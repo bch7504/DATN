@@ -34,4 +34,9 @@ public class LearningEventJpaStore implements LearningEventStore {
             ));
         }
     }
+
+    @Override
+    public int deleteStudyTaskCompletionEvents(UUID studentId, UUID itemId) {
+        return repository.deleteStudyTaskCompletionEvents(studentId, itemId);
+    }
 }

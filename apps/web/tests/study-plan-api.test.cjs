@@ -16,6 +16,8 @@ test("Personal study plan and calendar use persisted Java API data", async (t) =
     assert.match(api, /changeItemStatus\([\s\S]*?Idempotency-Key/);
     assert.match(api, /cancelItem\(planId: string, itemId: string\)/);
     assert.match(api, /removeItem\(planId: string, itemId: string\)/);
+    assert.match(api, /permanentlyDeleteItem\(planId: string, itemId: string\)/);
+    assert.match(api, /\/permanently`/);
   });
 
   await t.test("Plan screen loads and mutates server data without fixed demo entries", () => {
@@ -52,15 +54,26 @@ test("Personal study plan and calendar use persisted Java API data", async (t) =
     assert.doesNotMatch(calendar, /openEdit\(item\)|toggleTask\(item\)|cancelItem\(item\)/);
     assert.match(list, /onClick=\{\(\) => openEdit\(item\)\}/);
     assert.match(list, /onChange=\{\(\) => void toggleTask\(item\)\}/);
-    assert.match(list, /onClick=\{\(\) => void cancelItem\(item\)\}/);
+    assert.match(list, /onClick=\{\(\) => requestDeleteItem\(item\)\}/);
     assert.match(list, /item\.lateCompleted/);
-    assert.match(planPage, /studyPlanApi\.removeItem\(item\.planId, item\.id\)/);
+    assert.doesNotMatch(planPage, /studyPlanApi\.removeItem\(confirmation\.item\.planId, confirmation\.item\.id\)/);
     assert.match(planPage, /saving \|\| item\.lateCompleted/);
     assert.doesNotMatch(planPage, /item\.type === "TASK"\s*\)/);
     assert.match(list, /onClick=\{openTask\}/);
     assert.doesNotMatch(list, /<form|Tên nhiệm vụ cần làm/);
     assert.match(planPage, /aria-labelledby="task-modal-title"/);
     assert.match(planPage, /onSubmit=\{\(event\) => void addTask\(event\)\}/);
+  });
+
+  await t.test("Destructive plan actions use in-app confirmation and permanently remove item history", () => {
+    assert.doesNotMatch(planPage, /window\.confirm|\bconfirm\(/);
+    assert.match(planPage, /role="alertdialog" aria-modal="true"/);
+    assert.match(planPage, /Xóa nhiệm vụ\?/);
+    assert.match(planPage, /lịch sử hoàn thành và thông báo liên quan sẽ bị xóa\./);
+    assert.match(planPage, /actionError\.status === 404/);
+    assert.match(planPage, /Backend chưa nhận API xóa nhiệm vụ mới/);
+    assert.match(planPage, /confirmPendingAction\(\)/);
+    assert.match(planPage, /studyPlanApi\.permanentlyDeleteItem\(confirmation\.item\.planId, confirmation\.item\.id\)/);
   });
 
   await t.test("Optional class label appears only for approved offerings and is not presented as a real link", () => {

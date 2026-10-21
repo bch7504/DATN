@@ -27,6 +27,19 @@ public class JdbcNotificationEmailOutbox implements NotificationEmailOutbox {
                 """, notificationId, Timestamp.from(nextAttemptAt));
     }
 
+    /** Args: Student owner and item IDs. Input: active owner-scoped delete transaction. Output: void; removes linked outbox rows. Errors: JDBC failure. */
+    @Override
+    public void deleteStudyPlanItemOutboxEntries(UUID studentId, UUID itemId) {
+        jdbc.update("""
+                DELETE FROM app.notification_email_outbox outbox
+                USING app.notifications notification
+                WHERE outbox.notification_id = notification.id
+                  AND notification.user_id = ?
+                  AND notification.source_type = 'STUDY_PLAN_ITEM'
+                  AND notification.source_id = ?
+                """, studentId, itemId);
+    }
+
     @Override
     public List<PendingNotificationEmail> lockDue(Instant now, int limit) {
         if (limit < 1 || limit > 100) {

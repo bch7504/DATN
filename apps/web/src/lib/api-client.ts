@@ -1964,6 +1964,17 @@ export const studyPlanApi = {
     );
   },
 
+  /** Args: owned plan/item IDs. Input: authenticated Student and an existing item in an active plan.
+   * Output: void; permanently deletes the item, completion event and related in-app notifications.
+   * Errors: ApiClientError for auth, ownership, missing plan or archived plan. Repeated deletion is safe.
+   */
+  permanentlyDeleteItem(planId: string, itemId: string): Promise<void> {
+    return apiFetch<void>(
+      `/study-plans/${encodeURIComponent(planId)}/items/${encodeURIComponent(itemId)}/permanently`,
+      { method: "DELETE" }
+    );
+  },
+
   /**
    * Args: itemId, target TODO|COMPLETED status and an idempotency key for a new completion.
    * Input: current Student session and owner-scoped non-cancelled item. Output: updated item.

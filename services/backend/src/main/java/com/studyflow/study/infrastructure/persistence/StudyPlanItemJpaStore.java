@@ -29,6 +29,11 @@ public class StudyPlanItemJpaStore implements StudyPlanItemStore {
     }
 
     @Override
+    public void delete(StudyPlanItem item) {
+        repository.deleteById(item.id());
+    }
+
+    @Override
     public Optional<StudyPlanItem> findOwned(UUID itemId, UUID planId, UUID studentId) {
         return repository.findOwned(itemId, planId, studentId).map(StudyPlanItemJpaEntity::toDomain);
     }

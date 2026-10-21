@@ -15,6 +15,14 @@ public interface NotificationEmailOutbox {
     void enqueue(UUID notificationId, Instant nextAttemptAt);
 
     /**
+     * Args: Student owner ID and plan-item ID.
+     * Input: owner-scoped item being permanently deleted in the current transaction.
+     * Output: void; removes all linked email-delivery rows, including pending and terminal entries.
+     * Errors: persistence failures propagate and roll back the caller's transaction.
+     */
+    void deleteStudyPlanItemOutboxEntries(UUID studentId, UUID itemId);
+
+    /**
      * Args: now is required UTC cutoff; limit is 1..100.
      * Input: an active write transaction. Output: due entries locked against competing workers.
      * Errors: database failures propagate and release locks on rollback.

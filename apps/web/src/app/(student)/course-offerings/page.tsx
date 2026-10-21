@@ -42,6 +42,33 @@ function CourseOfferingsContent() {
   const [selectedOfferingId, setSelectedOfferingId] = useState<string | null>(
     initialOfferingId
   );
+
+  /** Args: none. Input: browser Back/Forward and the `offeringId` URL parameter. Output: void; restores the selected class without changing enrollment data. Errors: none. */
+  useEffect(() => {
+    const syncSelection = (): void => {
+      const offeringId = new URLSearchParams(window.location.search).get("offeringId");
+      setSelectedOfferingId(offeringId);
+      if (offeringId) setActiveTab("APPROVED");
+    };
+    window.addEventListener("popstate", syncSelection);
+    return () => window.removeEventListener("popstate", syncSelection);
+  }, []);
+
+  /** Args: owned approved offering ID or null. Input: current class-list/detail URL. Output: void; opens a history-backed detail or returns to the list. Errors: none. */
+  function navigateToOffering(offeringId: string | null): void {
+    if (offeringId === selectedOfferingId) return;
+    if (!offeringId && window.history.state?.studyflowDetail === "student-course-offerings") {
+      window.history.back();
+      return;
+    }
+    const nextUrl = new URL(window.location.href);
+    if (offeringId) nextUrl.searchParams.set("offeringId", offeringId);
+    else nextUrl.searchParams.delete("offeringId");
+    const historyState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
+    if (offeringId) window.history.pushState({ ...historyState, studyflowDetail: "student-course-offerings" }, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+    else window.history.replaceState({ ...historyState, studyflowDetail: undefined }, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+    setSelectedOfferingId(offeringId);
+  }
   const [materials, setMaterials] = useState<TeacherDocument[]>([]);
   const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
   const [materialCounts, setMaterialCounts] = useState<Record<string, number>>({});
@@ -216,7 +243,7 @@ function CourseOfferingsContent() {
           type="button"
           onClick={() => {
             setActiveTab("APPROVED");
-            setSelectedOfferingId(null);
+            navigateToOffering(null);
           }}
           className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "APPROVED"
@@ -232,7 +259,7 @@ function CourseOfferingsContent() {
           type="button"
           onClick={() => {
             setActiveTab("PENDING");
-            setSelectedOfferingId(null);
+            navigateToOffering(null);
           }}
           className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "PENDING"
@@ -248,7 +275,7 @@ function CourseOfferingsContent() {
           type="button"
           onClick={() => {
             setActiveTab("ARCHIVED");
-            setSelectedOfferingId(null);
+            navigateToOffering(null);
           }}
           className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "ARCHIVED"
@@ -283,7 +310,7 @@ function CourseOfferingsContent() {
                   <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => setSelectedOfferingId(null)}
+                        onClick={() => navigateToOffering(null)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100  text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
                       >
                         <ArrowLeft className="w-3.5 h-3.5" /> Quay lại danh sách lớp
@@ -413,7 +440,7 @@ function CourseOfferingsContent() {
                           </b>
                         </span>
                         <button
-                          onClick={() => setSelectedOfferingId(offering.id)}
+                          onClick={() => navigateToOffering(offering.id)}
                           className="inline-flex items-center gap-1 text-xs font-bold text-ptit-red  bg-red-50  px-3.5 py-2 rounded-xl transition cursor-pointer"
                         >
                           <BookOpen className="w-3.5 h-3.5" /> Xem học liệu PDF

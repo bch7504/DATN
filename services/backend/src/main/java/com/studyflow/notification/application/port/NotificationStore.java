@@ -49,6 +49,14 @@ public interface NotificationStore {
             UUID teacherId, UUID submissionId, String assignmentTitle, Instant createdAt);
 
     /**
+     * Args: Student owner ID and plan-item ID.
+     * Input: an owner-scoped item being permanently deleted in the current transaction.
+     * Output: number of in-app notifications removed; linked email-outbox rows are explicitly removed first.
+     * Errors: persistence failures propagate and roll back the caller's transaction.
+     */
+    int deleteStudyPlanItemNotifications(UUID studentId, UUID itemId);
+
+    /**
      * Returns an owner-scoped page, optionally restricted to unread rows.
      *
      * @return page ordered newest first

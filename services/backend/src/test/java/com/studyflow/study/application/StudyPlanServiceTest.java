@@ -340,6 +340,37 @@ class StudyPlanServiceTest {
         verifyNoInteractions(learningEvents);
     }
 
+    /** Args: none. Input: completed owned item. Output: physical item/history cleanup; errors: assertions. */
+    @Test
+    void permanentlyDeleteRemovesItemCompletionEventAndNotifications() {
+        when(plans.findOwned(PLAN_ID, STUDENT_ID)).thenReturn(Optional.of(plan));
+        StudyPlanItem completed = todoItem().changeStatus(StudyPlanItemStatus.COMPLETED, NOW.plusSeconds(60));
+        when(items.findOwnedForUpdate(ITEM_ID, STUDENT_ID)).thenReturn(Optional.of(completed));
+
+        service.permanentlyDeleteItem(STUDENT_ID, PLAN_ID, ITEM_ID);
+
+        verify(notifications).deleteStudyPlanItemNotifications(STUDENT_ID, ITEM_ID);
+        verify(learningEvents).deleteStudyTaskCompletionEvents(STUDENT_ID, ITEM_ID);
+        verify(items).delete(completed);
+        verify(items, never()).save(any());
+    }
+
+    /** Args: none. Input: same permanent-delete request repeated. Output: one cleanup; errors: assertions. */
+    @Test
+    void permanentlyDeleteIsIdempotentAfterTheItemIsGone() {
+        when(plans.findOwned(PLAN_ID, STUDENT_ID)).thenReturn(Optional.of(plan));
+        StudyPlanItem completed = todoItem().changeStatus(StudyPlanItemStatus.COMPLETED, NOW);
+        when(items.findOwnedForUpdate(ITEM_ID, STUDENT_ID))
+                .thenReturn(Optional.of(completed), Optional.empty());
+
+        service.permanentlyDeleteItem(STUDENT_ID, PLAN_ID, ITEM_ID);
+        service.permanentlyDeleteItem(STUDENT_ID, PLAN_ID, ITEM_ID);
+
+        verify(items).delete(completed);
+        verify(learningEvents).deleteStudyTaskCompletionEvents(STUDENT_ID, ITEM_ID);
+        verify(notifications).deleteStudyPlanItemNotifications(STUDENT_ID, ITEM_ID);
+    }
+
     private static UserAccount activeStudent() {
         return new UserAccount(
                 STUDENT_ID,

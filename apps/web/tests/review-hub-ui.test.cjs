@@ -211,7 +211,7 @@ test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
     assert.equal(source.includes("studyPlanApi.getCalendar(from.toISOString(), to.toISOString())"), true);
     assert.equal(source.includes("studyPlanApi.createItem"), true);
     assert.equal(source.includes("studyPlanApi.updateItem"), true);
-    assert.equal(source.includes("studyPlanApi.removeItem"), true);
+    assert.equal(source.includes("studyPlanApi.permanentlyDeleteItem"), true);
     assert.equal(source.includes("isDemoMode()"), false);
   });
 
