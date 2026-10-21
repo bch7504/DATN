@@ -51,7 +51,12 @@ class Settings(BaseSettings):
         validation_alias="OPENROUTER_EMBEDDING_MODEL",
         min_length=1,
     )
-    embedding_dimensions: Literal[1024] = 1024
+    embedding_dimensions: int = Field(
+        default=1024,
+        ge=1024,
+        le=1024,
+        validation_alias="EMBEDDING_DIMENSIONS",
+    )
     storage_endpoint: AnyHttpUrl | None = Field(default=None, validation_alias="STORAGE_ENDPOINT")
     job_max_attempts: int = Field(default=3, ge=1, le=10, validation_alias="AI_JOB_MAX_ATTEMPTS")
     job_retry_base_seconds: float = Field(

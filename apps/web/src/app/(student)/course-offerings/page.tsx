@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { studentApi, materialApi } from "@/lib/api-client";
 import { CourseOffering, CourseEnrollment } from "@/types/course-offering";
@@ -17,6 +17,7 @@ import {
   Archive,
   BookOpen,
   ChevronRight,
+  ChevronDown,
   ShieldAlert,
   ArrowRight,
   FileText,
@@ -37,6 +38,7 @@ function CourseOfferingsContent() {
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"APPROVED" | "PENDING" | "ARCHIVED">("APPROVED");
+  const [collapsedSemesters, setCollapsedSemesters] = useState<Set<string>>(new Set());
 
   // In-course Course Material PDF state
   const [selectedOfferingId, setSelectedOfferingId] = useState<string | null>(
@@ -118,6 +120,42 @@ function CourseOfferingsContent() {
   const pendingEnrollments = enrollments.filter((e) => e.status === "PENDING");
   const approvedOfferings = offerings.filter((o) => o.status === "ACTIVE");
   const archivedOfferings = offerings.filter((o) => o.status === "ARCHIVED");
+
+  const approvedSemesterGroups = useMemo(() => {
+    const groups = new Map<string, { id: string; name: string; courses: CourseOffering[] }>();
+    for (const offering of approvedOfferings) {
+      const semesterId = offering.semesterId || offering.semesterName;
+      const existing = groups.get(semesterId);
+      if (existing) {
+        existing.courses.push(offering);
+      } else {
+        groups.set(semesterId, {
+          id: semesterId,
+          name: offering.semesterName,
+          courses: [offering],
+        });
+      }
+    }
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        courses: group.courses.sort((first, second) => first.name.localeCompare(second.name, "vi")),
+      }))
+      .sort((first, second) => first.name.localeCompare(second.name, "vi"));
+  }, [approvedOfferings]);
+
+  /**
+   * @param semesterId required semester identifier from Java
+   * @returns void; toggles only presentation state and never changes enrollment data
+   */
+  const toggleSemester = (semesterId: string): void => {
+    setCollapsedSemesters((current) => {
+      const next = new Set(current);
+      if (next.has(semesterId)) next.delete(semesterId);
+      else next.add(semesterId);
+      return next;
+    });
+  };
 
   const currentSelectedOffering = approvedOfferings.find(
     (o) => o.id === selectedOfferingId
@@ -333,44 +371,67 @@ function CourseOfferingsContent() {
                 </div>
               ) : (
                 /* DEFAULT APPROVED OFFERINGS LIST */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {approvedOfferings.map((offering) => (
-                    <div
-                      key={offering.id}
-                      className="p-5 rounded-2xl border border-slate-200 bg-white   transition"
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-0.5 rounded-lg bg-red-100 text-ptit-red font-mono font-bold text-xs">
-                            {offering.code}
-                          </span>
-                          <StatusBadge status="APPROVED" size="sm" />
-                        </div>
-                        <span className="text-xs text-slate-500">
-                          {offering.semesterName}
-                        </span>
-                      </div>
-
-                      <h3 className="font-bold text-slate-800 text-base mb-1">
-                        {offering.name}
-                      </h3>
-                      <p className="text-xs text-slate-500 mb-4">
-                        Giảng viên: <span className="font-medium text-slate-700">{offering.teacherName}</span>
-                      </p>
-
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                        <span className="text-xs text-slate-500">
-                          Học liệu lớp: <b>{offering.materialsCount || 4} tài liệu</b>
-                        </span>
+                <div className="space-y-4">
+                  {approvedSemesterGroups.map((semester) => {
+                    const isCollapsed = collapsedSemesters.has(semester.id);
+                    return (
+                      <section key={semester.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
                         <button
-                          onClick={() => setSelectedOfferingId(offering.id)}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-ptit-red  bg-red-50  px-3.5 py-2 rounded-xl transition cursor-pointer"
+                          type="button"
+                          onClick={() => toggleSemester(semester.id)}
+                          aria-expanded={!isCollapsed}
+                          className="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-red-50 px-5 py-4 text-left"
                         >
-                          <BookOpen className="w-3.5 h-3.5" /> Xem học liệu PDF
+                          <span className="flex min-w-0 items-center gap-3">
+                            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-600 text-white">
+                              <GraduationCap className="h-5 w-5" />
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block truncate text-base font-extrabold text-slate-900">{semester.name}</span>
+                              <span className="mt-0.5 block text-xs font-medium text-slate-500">{semester.courses.length} môn học trong học kỳ</span>
+                            </span>
+                          </span>
+                          {isCollapsed
+                            ? <ChevronRight className="h-5 w-5 flex-shrink-0 text-red-600" />
+                            : <ChevronDown className="h-5 w-5 flex-shrink-0 text-red-600" />}
                         </button>
-                      </div>
-                    </div>
-                  ))}
+
+                        {!isCollapsed && (
+                          <div className="divide-y divide-slate-100">
+                            {semester.courses.map((offering, index) => (
+                              <article key={offering.id} className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                                <div className="flex min-w-0 items-start gap-3">
+                                  <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-extrabold text-slate-600">
+                                    {String(index + 1).padStart(2, "0")}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <h3 className="text-sm font-extrabold text-slate-900">{offering.name}</h3>
+                                      <span className="rounded-md bg-red-50 px-2 py-0.5 font-mono text-[11px] font-bold text-red-700">{offering.code}</span>
+                                      <StatusBadge status="APPROVED" size="sm" />
+                                    </div>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                      Giảng viên: <span className="font-semibold text-slate-700">{offering.teacherName}</span>
+                                      <span className="mx-1.5 text-slate-300">•</span>
+                                      {offering.materialsCount ?? 0} tài liệu PDF
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedOfferingId(offering.id)}
+                                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white"
+                                >
+                                  <BookOpen className="h-4 w-4" /> Mở môn học
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                </button>
+                              </article>
+                            ))}
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
                 </div>
               )}
             </div>

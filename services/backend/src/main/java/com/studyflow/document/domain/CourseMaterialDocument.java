@@ -63,6 +63,7 @@ public class CourseMaterialDocument {
     public long getFileSize() { return fileSize; }
     public String getStorageKey() { return storageKey; }
     public String getProcessingStatus() { return processingStatus; }
+    public int getDocumentVersion() { return documentVersion; }
     public int getPageCount() { return pageCount; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getDeletedAt() { return deletedAt; }

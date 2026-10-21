@@ -33,6 +33,7 @@ import {
 import {
   TeacherDocument,
   PersonalDocument,
+  CourseMaterialTutorResponse,
 } from "@/types/material";
 import {
   ChatConversation,
@@ -700,8 +701,13 @@ export const studentApi = {
   },
 
   async getOfferings(): Promise<CourseOffering[]> {
-    const items = await fetchAllPages<CourseOffering>("/student/course-offerings");
-    return items.map(mapStudentCourseOffering);
+    try {
+      const items = await fetchAllPages<CourseOffering>("/student/course-offerings");
+      return items.map(mapStudentCourseOffering);
+    } catch (err) {
+      if (isDemoMode()) return demoOfferings.map((offering) => ({ ...offering }));
+      throw err;
+    }
   },
 
   async getOfferingDetail(offeringId: string): Promise<CourseOffering> {
@@ -739,6 +745,36 @@ export const materialApi = {
   getDownloadUrl(documentId: string, asAttachment = false): string {
     const query = asAttachment ? "?download=true" : "";
     return `${getApiUrl()}/student/materials/${encodeURIComponent(documentId)}/download${query}`;
+  },
+
+  /**
+   * Sends one page-aware question to Java. Java validates enrollment/publication
+   * before forwarding the authorized scope to the Python AI service.
+   *
+   * @param documentId required Course Material PDF identifier
+   * @param pageNumber required 1-based page currently viewed by the Student
+   * @param question required non-blank question, at most 2,000 characters
+   * @returns a grounded answer or NO_EVIDENCE with page citations
+   * @throws ApiClientError for validation, access or service failures
+   */
+  askTutor(documentId: string, pageNumber: number, question: string): Promise<CourseMaterialTutorResponse> {
+    if (!Number.isInteger(pageNumber) || pageNumber < 1) {
+      throw new ApiClientError(422, {
+        code: "INVALID_PAGE_NUMBER",
+        message: "Trang tài liệu phải là số nguyên lớn hơn hoặc bằng 1.",
+      });
+    }
+    const normalizedQuestion = question.trim();
+    if (!normalizedQuestion || normalizedQuestion.length > 2000) {
+      throw new ApiClientError(422, {
+        code: "INVALID_QUESTION",
+        message: "Câu hỏi phải có từ 1 đến 2000 ký tự.",
+      });
+    }
+    return apiFetch<CourseMaterialTutorResponse>(
+      `/student/materials/${encodeURIComponent(documentId)}/pages/${pageNumber}/tutor`,
+      { method: "POST", body: JSON.stringify({ question: normalizedQuestion }) }
+    );
   },
 };
 

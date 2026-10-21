@@ -60,3 +60,30 @@ test("Teacher create form prefills editable class code from the selected subject
   assert.match(page, /subjects\.find\(\(subject\) => subject\.id === subjectId\)\?\.code/);
   assert.match(page, /value=\{customCode\}/);
 });
+
+test("Student Course Offerings are grouped by semester with the first seven PTIT subjects", () => {
+  const page = fs.readFileSync(
+    path.join(__dirname, "../src/app/(student)/course-offerings/page.tsx"),
+    "utf8"
+  );
+  const demoData = fs.readFileSync(
+    path.join(__dirname, "../src/lib/demo-data.ts"),
+    "utf8"
+  );
+
+  assert.match(page, /approvedSemesterGroups/);
+  assert.match(page, /toggleSemester/);
+  assert.match(page, /aria-expanded=\{!isCollapsed\}/);
+  assert.match(page, /môn học trong học kỳ/);
+  for (const subject of [
+    "Giải tích 2",
+    "Kinh tế chính trị Mác - Lênin",
+    "Kỹ thuật số",
+    "Tiếng Anh C1",
+    "Tin học cơ sở 2",
+    "Vật lý thí nghiệm",
+    "Xác suất thống kê",
+  ]) {
+    assert.match(demoData, new RegExp(subject));
+  }
+});

@@ -87,7 +87,7 @@ Business/error:
 | GET | `/api/v1/student/course-offerings/{offeringId}/materials` | Enrollment `APPROVED`; chỉ publication active trong lớp đó |
 | GET | `/api/v1/student/materials/{documentId}/download` | Stream inline sau khi kiểm enrollment + publication; `?download=true` dùng attachment; không trả storage key/URL |
 
-Course Material MVP hiện hỗ trợ quản lý file PDF, công bố/gỡ công bố theo lớp và xem/tải PDF. Chưa cung cấp page metadata, ghi chú theo trang, ghi nhận lượt xem hoặc AI Tutor; không hiển thị dữ liệu giả thay cho các phần đó.
+Course Material MVP hiện hỗ trợ quản lý file PDF, công bố/gỡ công bố theo lớp, xem/tải PDF và hỏi đáp bằng AI Tutor qua Java → Python. Page metadata, ghi chú theo trang và ghi nhận lượt xem chưa được nối; không hiển thị dữ liệu giả thay cho các phần đó.
 
 Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ khi offering `ARCHIVED`, trừ khi `LOCKED`, publication revoked hoặc policy retention chặn.
 
@@ -96,6 +96,8 @@ Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ k
 - `GET/PUT /api/v1/student/materials/{documentId}/pages/{number}/note`
 - `POST /api/v1/student/materials/{documentId}/pages/{number}/view-events` với `Idempotency-Key`
 - `POST /api/v1/student/materials/{documentId}/pages/{number}/tutor`
+
+Trạng thái triển khai: endpoint Tutor đã có ở Java. Frontend chỉ gọi endpoint Java này; Java xác thực Student, enrollment `APPROVED`, publication và trạng thái Course Offering trước khi chuyển phạm vi tài liệu tối thiểu sang Python `/internal/v1/course-materials/ask`. Java kiểm tra lại `documentId`, `documentVersion` và `pageNumber` của mọi citation trước khi trả về trình duyệt.
 
 Tutor request:
 
@@ -115,6 +117,12 @@ Tutor response:
 ```
 
 Thiếu evidence trả `status=NO_EVIDENCE`, `answer=null`, `citations=[]`. Java tự dựng allowed page/document scope sau khi kiểm enrollment/publication. Teacher không sử dụng endpoint Tutor này.
+
+- Thành công: `200` với `ANSWERED|NO_EVIDENCE`.
+- Body không hợp lệ hoặc trang ngoài PDF: `422` với error envelope chuẩn.
+- Không có enrollment/publication hợp lệ: `403`; tài liệu không tồn tại: `404`.
+- Python chưa được cấu hình/không khả dụng: `503 AI_SERVICE_UNAVAILABLE`.
+- Python trả citation vượt phạm vi Java đã cấp: `502 AI_INVALID_CITATION` và kết quả không được chuyển cho Frontend.
 
 ### 4.4 Personal Documents
 
