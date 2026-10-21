@@ -16,6 +16,8 @@ import com.studyflow.enrollment.domain.CourseEnrollment;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
+import com.studyflow.notification.application.port.NotificationStore;
+import com.studyflow.notification.domain.NotificationType;
 import com.studyflow.publication.domain.DocumentPublication;
 import com.studyflow.publication.domain.DocumentPublicationRepository;
 import java.io.ByteArrayInputStream;
@@ -42,6 +44,7 @@ class CourseMaterialAccessTest {
     private final CourseOfferingRepository offerings = mock(CourseOfferingRepository.class);
     private final CourseEnrollmentRepository enrollments = mock(CourseEnrollmentRepository.class);
     private final AssignmentAttachmentStorage storage = mock(AssignmentAttachmentStorage.class);
+    private final NotificationStore notifications = mock(NotificationStore.class);
     private CourseMaterialLibraryService service;
     private CourseMaterialDocument document;
     private CourseOffering offering;
@@ -54,7 +57,8 @@ class CourseMaterialAccessTest {
         ObjectProvider<AssignmentAttachmentStorage> provider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(storage);
         service = new CourseMaterialLibraryService(documents, publications, offerings, enrollments,
-                provider, Clock.fixed(now, ZoneOffset.UTC));
+                provider, notifications,
+                Clock.fixed(now, ZoneOffset.UTC));
         document = new CourseMaterialDocument(UUID.randomUUID(), teacher, "lesson.pdf", "Lesson",
                 "synthetic-key", 8, 1, now);
         offering = new CourseOffering(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), teacher,
@@ -120,11 +124,29 @@ class CourseMaterialAccessTest {
         Instant original = publication.getPublishedAt();
         service.setPublications(teacher, document.getId(), List.of(offering.getId()));
         assertThat(publication.getPublishedAt()).isEqualTo(original);
+        verify(notifications, never()).createEventIfAbsent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean());
 
         service.revokePublication(teacher, document.getId(), offering.getId());
         service.setPublications(teacher, document.getId(), List.of(offering.getId()));
         assertThat(publication.getStatus()).isEqualTo("PUBLISHED");
         assertThat(publication.getPublishedAt()).isEqualTo(now);
+    }
+
+    /** Args: none. Input: one revoked PDF and an approved Student. Output: one notice per recipient on republish; errors: assertion failure. */
+    @Test
+    void republishingNotifiesTeacherAndApprovedStudent() {
+        publication.revoke(now.minusSeconds(60));
+        CourseEnrollment approved = new CourseEnrollment(UUID.randomUUID(), offering.getId(), student);
+        approved.approve(teacher);
+        when(enrollments.findByCourseOfferingIdAndStatus(offering.getId(), EnrollmentStatus.APPROVED))
+                .thenReturn(List.of(approved));
+
+        service.setPublications(teacher, document.getId(), List.of(offering.getId()));
+
+        verify(notifications).createEventIfAbsent(eq(teacher), eq(NotificationType.TEACHER_MATERIAL_PUBLISHED),
+                any(), any(), eq("DOCUMENT_PUBLICATION"), any(), eq(null), eq(now), eq(false));
+        verify(notifications).createEventIfAbsent(eq(student), eq(NotificationType.STUDENT_MATERIAL_PUBLISHED),
+                any(), any(), eq("DOCUMENT_PUBLICATION"), any(), eq(null), eq(now), eq(true));
     }
 
     @Test

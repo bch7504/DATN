@@ -1,0 +1,71 @@
+@startuml
+' Palette: class; Visual Paradigm-style UML compartments and dependencies.
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam roundcorner 10
+skinparam nodesep 35
+skinparam ranksep 45
+hide circle
+top to bottom direction
+
+class StudyPlanController <<boundary>> {
+  +getWeek(studentId: UUID, weekStart: LocalDate): CalendarWeek
+  +createItem(request: StudyItemRequest): StudyPlanItem
+  +updateItem(itemId: UUID, request: StudyItemRequest): StudyPlanItem
+  +complete(itemId: UUID): StudyPlanItem
+  +hide(itemId: UUID): void
+}
+class StudyPlanService <<control>> {
+  +checkOwner(studentId: UUID, itemId: UUID): void
+  +checkApprovedEnrollment(offeringId: UUID): void
+  +completeOnce(itemId: UUID): StudyPlanItem
+  +buildWeek(studentId: UUID, weekStart: LocalDate): CalendarWeek
+}
+class StudyReminderJob <<scheduler>> {
+  +remindDueItems(now: Instant): void
+}
+class StudyPlan <<entity>> {
+  -id: UUID
+  -studentId: UUID
+  -title: String
+}
+class StudyPlanItem <<entity>> {
+  -id: UUID
+  -offeringId: UUID?
+  -dueAt: Instant
+  -status: ItemStatus
+  -completedAt: Instant?
+  -hiddenAt: Instant?
+}
+class CalendarWeek <<DTO>> {
+  +items: CalendarItem[]
+  +displayOverdue(itemId: UUID, now: Instant): boolean
+}
+class NotificationService <<control>> {
+  +remindStudent(itemId: UUID): void
+}
+
+StudyPlanController --> StudyPlanService
+StudyReminderJob --> StudyPlanService
+StudyReminderJob --> NotificationService
+StudyPlanService --> StudyPlan
+StudyPlanService --> StudyPlanItem
+StudyPlanService ..> CalendarWeek
+StudyPlan "1" -- "0..*" StudyPlanItem
+
+note bottom of StudyPlanItem
+Lớp là tùy chọn; nếu gắn lớp phải được duyệt.
+Ẩn khỏi lịch vẫn giữ lịch sử. Quá hạn chỉ tính khi xem.
+end note
+@enduml

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertCircle, Bell, CheckCircle2, Clock3, RefreshCw } from "lucide-react";
 import { notificationApi } from "@/lib/api-client";
 import { StudentNotification } from "@/types/notification";
+import { notificationDestination } from "@/lib/notification-navigation";
 
 /**
  * Renders the Student's owner-scoped in-app deadline notifications.
@@ -78,7 +79,7 @@ export default function StudentNotificationsPage() {
             </h1>
           </div>
           <p className="mt-2 text-sm text-slate-500">
-            Thông báo bài tập mới và nhắc hạn bài tập, nhiệm vụ cá nhân.
+            Cập nhật học liệu, bài tập và nhiệm vụ cá nhân của bạn.
           </p>
         </div>
 
@@ -123,7 +124,7 @@ export default function StudentNotificationsPage() {
             Không có thông báo phù hợp
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Những nhiệm vụ sắp đến hạn sẽ xuất hiện tại đây.
+            Học liệu, bài tập và nhiệm vụ mới sẽ xuất hiện tại đây.
           </p>
           <Link href="/plan" className="mt-4 inline-flex text-sm font-bold text-ptit-red">
             Mở Kế hoạch &amp; Lịch
@@ -164,8 +165,8 @@ export default function StudentNotificationsPage() {
                       {notification.dueAt && (
                         <span>Hạn: {formatDateTime(notification.dueAt)}</span>
                       )}
-                      <Link href={notification.type === "STUDY_PLAN_DEADLINE" ? "/plan" : "/assignments"} className="font-bold text-ptit-red">
-                        {notification.type === "STUDY_PLAN_DEADLINE" ? "Xem kế hoạch" : "Xem bài tập"}
+                      <Link href={notificationDestination(notification.type, "STUDENT").href} className="font-bold text-ptit-red">
+                        {notificationDestination(notification.type, "STUDENT").label}
                       </Link>
                     </div>
                   </div>

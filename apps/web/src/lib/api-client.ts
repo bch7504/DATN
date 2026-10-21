@@ -59,7 +59,7 @@ import { StudentNotification } from "@/types/notification";
 
 export type StudyPlanStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED";
 export type StudyPlanItemType = "STUDY_SESSION" | "TASK" | "QUIZ";
-export type StudyPlanItemStatus = "TODO" | "COMPLETED" | "CANCELLED";
+export type StudyPlanItemStatus = "TODO" | "OVERDUE" | "COMPLETED" | "CANCELLED" | "DELETED";
 
 export interface StudyPlanRecord {
   id: string;
@@ -84,6 +84,7 @@ export interface StudyPlanItemRecord {
   reminderAt: string | null;
   status: StudyPlanItemStatus;
   completedAt: string | null;
+  lateCompleted: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -216,6 +217,7 @@ function mapStudentCourseOffering(item: any): CourseOffering {
 
 // In-memory token storage (persists in session memory without using localStorage)
 let inMemoryAccessToken: string | null = null;
+let refreshInFlight: Promise<boolean> | null = null;
 if (typeof window !== "undefined") {
   try {
     inMemoryAccessToken = window.sessionStorage?.getItem("sf_access_token") || null;
@@ -237,6 +239,73 @@ function setInMemoryToken(token: string | null): void {
       // sessionStorage not available
     }
   }
+}
+
+/** Args: none. Input: browser refresh cookie issued by Java; no expired bearer token is sent.
+ * Output: true and the new access token/cookie after rotation, false for an invalid refresh session.
+ * Errors: network/5xx responses propagate so transient outages do not silently log the user out.
+ */
+async function refreshAccessSession(): Promise<boolean> {
+  const response = await requestJava(`${getApiUrl()}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (response.status === 401 || response.status === 403) {
+    setInMemoryToken(null);
+    return false;
+  }
+  if (!response.ok) {
+    throw new ApiClientError(response.status, {
+      code: "SESSION_REFRESH_FAILED",
+      message: "Không thể làm mới phiên đăng nhập. Vui lòng thử lại.",
+    });
+  }
+  if (response.status === 204) {
+    setInMemoryToken(null);
+    return true;
+  }
+  const body: unknown = await response.json();
+  if (!body || typeof body !== "object") {
+    setInMemoryToken(null);
+    return true;
+  }
+  const result = body as { accessToken?: unknown; token?: unknown };
+  const token = typeof result.accessToken === "string" ? result.accessToken
+    : typeof result.token === "string" ? result.token : null;
+  setInMemoryToken(token);
+  return true;
+}
+
+/** Args: none. Input: current browser session; calls refresh at most once across concurrent requests.
+ * Output: true after rotation or false for an invalid refresh cookie. Errors: network/server errors propagate.
+ */
+function refreshSessionOnce(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = refreshAccessSession().finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
+}
+
+/** Args: Java URL, request options and refresh permission. Input: one authenticated API request.
+ * Output: Java response, retrying exactly once after a 401 and successful refresh.
+ * Errors: transport/refresh failures propagate; exhausted sessions notify AuthProvider.
+ */
+async function requestWithSessionRefresh(url: string, options: RequestInit, allowRefresh: boolean): Promise<Response> {
+  let response = await requestJava(url, options);
+  if (response.status !== 401 || !allowRefresh) return response;
+  if (!(await refreshSessionOnce())) {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("studyflow:session-expired"));
+    return response;
+  }
+  const headers = new Headers(options.headers);
+  if (inMemoryAccessToken) headers.set("Authorization", `Bearer ${inMemoryAccessToken}`);
+  else headers.delete("Authorization");
+  response = await requestJava(url, { ...options, headers, credentials: "include" });
+  if (response.status === 401) {
+    setInMemoryToken(null);
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("studyflow:session-expired"));
+  }
+  return response;
 }
 
 // In-memory demo session storage for offline/demo mode testing
@@ -263,11 +332,11 @@ export async function apiFetch<T>(
     headers.set("Authorization", `Bearer ${inMemoryAccessToken}`);
   }
 
-  const response = await requestJava(url, {
+  const response = await requestWithSessionRefresh(url, {
     ...options,
     headers,
     credentials: "include", // Required for HttpOnly session cookie
-  });
+  }, !endpoint.startsWith("/auth/"));
 
   if (!response.ok) {
     let errorEnvelope: ApiErrorEnvelope = {
@@ -316,10 +385,10 @@ async function requestJava(url: string, options: RequestInit): Promise<Response>
  * @throws ApiClientError when the API rejects the request
  */
 export async function apiDownload(endpoint: string): Promise<Blob> {
-  const response = await requestJava(`${getApiUrl()}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`, {
+  const response = await requestWithSessionRefresh(`${getApiUrl()}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`, {
     credentials: "include",
     headers: inMemoryAccessToken ? { Authorization: `Bearer ${inMemoryAccessToken}` } : undefined,
-  });
+  }, true);
   if (!response.ok) {
     throw new ApiClientError(response.status, {
       code: "DOWNLOAD_FAILED",
@@ -354,7 +423,8 @@ export type AssignmentSubmission = {
 };
 export type CourseAssignment = {
   id: string; courseOfferingId: string; title: string; description: string; dueAt: string;
-  status: "DRAFT" | "PUBLISHED"; publishedAt: string | null; submission?: AssignmentSubmission | null;
+  status: "DRAFT" | "PUBLISHED"; publishedAt: string | null; createdAt: string;
+  submission?: AssignmentSubmission | null;
 };
 export type AssignmentStudentResult = {
   studentId: string; fullName: string; email: string; submissionState: "SUBMITTED" | "NOT_SUBMITTED";
@@ -1584,10 +1654,25 @@ export const quizApi = {
  * Client never infers review items or computes Streak/Topic Mastery.
  */
 export const reviewApi = {
+  /** Args: none. Input: current Student session and the existing approved Course Offering endpoint.
+   * Output: approved offerings with Quiz metrics marked unavailable until Java persists Quiz data.
+   * Errors: ApiClientError for auth, permission or server failures; demo fixtures only in demo mode.
+   */
   async getCourseSummaries(): Promise<CourseReviewSummary[]> {
     try {
-      const res = await apiFetch<PaginatedList<CourseReviewSummary>>("/review/course-offerings");
-      return res.items;
+      const offerings = await studentApi.getOfferings();
+      return offerings.map((offering): CourseReviewSummary => ({
+        courseOfferingId: offering.id,
+        courseCode: offering.code,
+        courseName: offering.name,
+        teacherName: offering.teacherName,
+        isPersonal: false,
+        totalQuizzes: null,
+        totalAttempts: null,
+        reviewItemsCount: null,
+        averageScore: null,
+        quizDataAvailable: false,
+      }));
     } catch (err) {
       if (isDemoMode()) {
         const summaries: CourseReviewSummary[] = [
@@ -1632,18 +1717,44 @@ export const reviewApi = {
     }
   },
 
+  /** Args: courseOfferingId is a Course Offering UUID or "PERSONAL". Input: authenticated Student session.
+   * Output: authorized empty workspace marked unavailable until Java implements Quiz persistence.
+   * Errors: ApiClientError for a missing/unapproved Course Offering or backend failure; demo mode returns fixtures.
+   */
   async getCourseWorkspace(courseOfferingId: string): Promise<CourseReviewWorkspace> {
+    if (isDemoMode()) {
+      const quizzes = courseOfferingId === "PERSONAL"
+        ? demoQuizzes.filter((quiz) => quiz.isPersonal)
+        : demoQuizzes.filter((quiz) => quiz.courseOfferingId === courseOfferingId);
+      const quizIds = new Set(quizzes.map((quiz) => quiz.id));
+      return {
+        courseOfferingId,
+        quizzes,
+        attempts: demoQuizAttempts.filter((attempt) => quizIds.has(attempt.quizId)),
+        reviewItems: demoReviewItems.filter((item) => quizIds.has(item.quizId)),
+        quizDataAvailable: true,
+      };
+    }
     try {
       if (courseOfferingId === "PERSONAL") {
-        const quizzes = await apiFetch<PaginatedList<Quiz>>("/review/personal-quizzes");
         return {
           courseOfferingId,
-          quizzes: quizzes.items,
+          quizzes: [],
           attempts: [],
           reviewItems: [],
+          quizDataAvailable: false,
         };
       }
-      return await apiFetch<CourseReviewWorkspace>(`/review/course-offerings/${courseOfferingId}`);
+      // This call both verifies approved enrollment and avoids calling a review endpoint
+      // which Java has not implemented yet. The Quiz workspace is explicitly unavailable.
+      await studentApi.getOfferingDetail(courseOfferingId);
+      return {
+        courseOfferingId,
+        quizzes: [],
+        attempts: [],
+        reviewItems: [],
+        quizDataAvailable: false,
+      };
     } catch (err) {
       if (isDemoMode()) {
         const quizzes = courseOfferingId === "PERSONAL"
@@ -1736,6 +1847,22 @@ export const notificationApi = {
   },
 };
 
+/** Teacher-only in-app notifications; all calls use the public Java API and current session. */
+export const teacherNotificationApi = {
+  /** Args: unreadOnly (default false), page (default 0), size (default 20, 1..100). Input: Teacher session. Output: owner-scoped page. Errors: ApiClientError. */
+  async list(unreadOnly = false, page = 0, size = 20): Promise<PaginatedList<StudentNotification>> {
+    const query = new URLSearchParams({ unreadOnly: String(unreadOnly), page: String(page), size: String(size) });
+    return apiFetch<PaginatedList<StudentNotification>>(`/teacher/notifications?${query.toString()}`);
+  },
+
+  /** Args: required notification ID. Input: Teacher session. Output: updated owner-scoped notification. Errors: ApiClientError including owner-safe 404. */
+  async markRead(notificationId: string): Promise<StudentNotification> {
+    return apiFetch<StudentNotification>(
+      `/teacher/notifications/${encodeURIComponent(notificationId)}/read`, { method: "PATCH" }
+    );
+  },
+};
+
 /**
  * Personal plan and calendar API. All data is owned and validated by Java; this
  * client deliberately has no fixture fallback so failures cannot look persisted.
@@ -1807,7 +1934,7 @@ export const studyPlanApi = {
   },
 
   /** Args: owned plan/item IDs and complete replacement fields. Input: Student session.
-   * Output: persisted item. Errors: validation, ownership, archived plan or conflicting schedule from Java.
+   * Output: persisted item. Errors: validation, ownership, archive, schedule conflict or locked late completion.
    */
   updateItem(planId: string, itemId: string, input: SaveStudyPlanItemInput): Promise<StudyPlanItemRecord> {
     return apiFetch<StudyPlanItemRecord>(`/study-plans/${encodeURIComponent(planId)}/items/${encodeURIComponent(itemId)}`, {
@@ -1827,13 +1954,25 @@ export const studyPlanApi = {
   },
 
   /**
+   * Args: owned plan/item IDs. Input: authenticated Student and an existing item.
+   * Output: void; hides the item while preserving completion history. Errors: Java auth/owner/archived-plan errors.
+   */
+  removeItem(planId: string, itemId: string): Promise<void> {
+    return apiFetch<void>(
+      `/study-plans/${encodeURIComponent(planId)}/items/${encodeURIComponent(itemId)}/remove`,
+      { method: "DELETE" }
+    );
+  },
+
+  /**
    * Args: itemId, target TODO|COMPLETED status and an idempotency key for a new completion.
    * Input: current Student session and owner-scoped non-cancelled item. Output: updated item.
-   * Errors: ApiClientError for auth, invalid state or missing idempotency key. COMPLETED emits one learning event.
+   * Errors: ApiClientError for auth, invalid state, missing key or locked late completion.
+   * A new COMPLETED transition emits one learning event and may create a late-completion notice.
    */
   changeItemStatus(
     itemId: string,
-    status: Exclude<StudyPlanItemStatus, "CANCELLED">,
+    status: "TODO" | "COMPLETED",
     idempotencyKey?: string
   ): Promise<StudyPlanItemRecord> {
     const headers = new Headers();

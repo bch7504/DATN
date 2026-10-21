@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.studyflow.notification.application.port.NotificationEmailOutbox;
+import com.studyflow.notification.domain.NotificationType;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,55 @@ class NotificationJpaStoreTest {
 
         boolean created = new NotificationJpaStore(repository, outbox)
                 .createAssignmentDeadlineReminderIfAbsent(USER, SOURCE, "Bài tập", NOW.plusSeconds(3600), NOW);
+
+        assertThat(created).isFalse();
+        verify(outbox, never()).enqueue(any(), any());
+    }
+
+    @Test
+    void teacherNoticeDoesNotQueueStudentEmail() {
+        when(repository.insertTeacherEnrollmentRequestedIfAbsent(any(), eq(USER), eq(SOURCE), any(), eq(NOW)))
+                .thenReturn(1);
+        boolean created = new NotificationJpaStore(repository, outbox)
+                .createTeacherEnrollmentRequestedIfAbsent(USER, SOURCE, "Lớp kiểm thử", NOW);
+        assertThat(created).isTrue();
+        verify(outbox, never()).enqueue(any(), any());
+    }
+
+    @Test
+    void duplicateTeacherNoticeDoesNotQueueEmailOrOverwriteReadState() {
+        when(repository.insertTeacherAssignmentSubmittedIfAbsent(any(), eq(USER), eq(SOURCE), any(), eq(NOW)))
+                .thenReturn(0);
+        boolean created = new NotificationJpaStore(repository, outbox)
+                .createTeacherAssignmentSubmittedIfAbsent(USER, SOURCE, "Bài tập kiểm thử", NOW);
+        assertThat(created).isFalse();
+        verify(outbox, never()).enqueue(any(), any());
+    }
+
+    /** Args: none. Input: synthetic new Student material event. Output: one in-app row and one queued email; errors: assertion failure. */
+    @Test
+    void newStudentMaterialEventQueuesEmail() {
+        when(repository.insertEventIfAbsent(any(), eq(USER), eq("STUDENT_MATERIAL_PUBLISHED"),
+                eq("Học liệu mới"), eq("PDF mới"), eq("DOCUMENT_PUBLICATION"), eq(SOURCE),
+                org.mockito.ArgumentMatchers.isNull(), eq(NOW))).thenReturn(1);
+
+        boolean created = new NotificationJpaStore(repository, outbox).createEventIfAbsent(USER,
+                NotificationType.STUDENT_MATERIAL_PUBLISHED, "Học liệu mới", "PDF mới",
+                "DOCUMENT_PUBLICATION", SOURCE, null, NOW, true);
+
+        assertThat(created).isTrue();
+        verify(outbox).enqueue(any(UUID.class), eq(NOW));
+    }
+
+    /** Args: none. Input: duplicate Teacher expiry event. Output: no new row/email; errors: assertion failure. */
+    @Test
+    void duplicateGenericEventDoesNotQueueEmail() {
+        when(repository.insertEventIfAbsent(any(), eq(USER), eq("TEACHER_ASSIGNMENT_EXPIRED"),
+                any(), any(), eq("COURSE_ASSIGNMENT"), eq(SOURCE), eq(NOW), eq(NOW))).thenReturn(0);
+
+        boolean created = new NotificationJpaStore(repository, outbox).createEventIfAbsent(USER,
+                NotificationType.TEACHER_ASSIGNMENT_EXPIRED, "Hết hạn", "Bài đã hết hạn",
+                "COURSE_ASSIGNMENT", SOURCE, NOW, NOW, false);
 
         assertThat(created).isFalse();
         verify(outbox, never()).enqueue(any(), any());

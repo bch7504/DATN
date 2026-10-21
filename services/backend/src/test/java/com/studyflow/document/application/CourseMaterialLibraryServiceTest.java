@@ -37,6 +37,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 class CourseMaterialLibraryServiceTest {
     private CourseMaterialDocumentRepository documents;
     private AssignmentAttachmentStorage storage;
+    private com.studyflow.notification.application.port.NotificationStore notifications;
     private CourseMaterialLibraryService service;
 
     @SuppressWarnings("unchecked")
@@ -46,11 +47,13 @@ class CourseMaterialLibraryServiceTest {
         DocumentPublicationRepository publications = org.mockito.Mockito.mock(DocumentPublicationRepository.class);
         CourseOfferingRepository offerings = org.mockito.Mockito.mock(CourseOfferingRepository.class);
         CourseEnrollmentRepository enrollments = org.mockito.Mockito.mock(CourseEnrollmentRepository.class);
+        notifications = org.mockito.Mockito.mock(
+                com.studyflow.notification.application.port.NotificationStore.class);
         ObjectProvider<AssignmentAttachmentStorage> storageProvider = org.mockito.Mockito.mock(ObjectProvider.class);
         storage = org.mockito.Mockito.mock(AssignmentAttachmentStorage.class);
         when(storageProvider.getIfAvailable()).thenReturn(storage);
         service = new CourseMaterialLibraryService(documents, publications, offerings, enrollments,
-                storageProvider, Clock.fixed(Instant.parse("2026-10-15T00:00:00Z"), ZoneOffset.UTC));
+                storageProvider, notifications, Clock.fixed(Instant.parse("2026-10-15T00:00:00Z"), ZoneOffset.UTC));
     }
 
     @Test
@@ -66,6 +69,12 @@ class CourseMaterialLibraryServiceTest {
         assertEquals(1, saved.getPageCount());
         verify(storage).put(eq("course-materials/" + teacherId + "/" + saved.getId() + ".pdf"),
                 eq("application/pdf"), any(), eq((long) pdfBytes.length));
+        verify(notifications).createEventIfAbsent(eq(teacherId),
+                eq(com.studyflow.notification.domain.NotificationType.TEACHER_MATERIAL_UPLOADED),
+                any(), any(), eq("COURSE_MATERIAL"), eq(saved.getId()), eq(null), any(), eq(false));
+        verify(notifications, never()).createEventIfAbsent(any(),
+                eq(com.studyflow.notification.domain.NotificationType.STUDENT_MATERIAL_PUBLISHED),
+                any(), any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
     }
 
     @Test

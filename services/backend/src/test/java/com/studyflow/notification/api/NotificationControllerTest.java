@@ -49,6 +49,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class NotificationControllerTest {
 
     private static final UUID STUDENT_ID = UUID.fromString("81c138cf-49a3-44dd-8497-ec8684ee79d7");
+    private static final UUID TEACHER_ID = UUID.fromString("59db68bd-d2c0-460c-a23c-fb00fa89a5fa");
     private static final UUID ITEM_ID = UUID.fromString("ed787f71-5242-451a-9c1c-c9e979327c39");
     private static final UUID NOTIFICATION_ID = UUID.fromString("2539957f-e515-4ca9-925c-8dc6d8b71f8a");
     private static final Instant NOW = Instant.parse("2026-10-13T09:00:00Z");
@@ -94,6 +95,51 @@ class NotificationControllerTest {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
+    @Test
+    void teacherListReturnsOwnerScopedPageContract() throws Exception {
+        StudentNotification notice = new StudentNotification(
+                NOTIFICATION_ID, TEACHER_ID, NotificationType.TEACHER_ENROLLMENT_REQUESTED,
+                "Yêu cầu tham gia lớp mới", "Có yêu cầu tham gia lớp", "COURSE_ENROLLMENT",
+                ITEM_ID, null, null, NOW
+        );
+        when(service.listTeacher(TEACHER_ID, true, 0, 20))
+                .thenReturn(new PageResult<>(List.of(notice), 0, 20, 1, 1));
+
+        mockMvc.perform(get("/api/v1/teacher/notifications")
+                        .with(teacherJwt()).queryParam("unreadOnly", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].type").value("TEACHER_ENROLLMENT_REQUESTED"))
+                .andExpect(jsonPath("$.items[0].sourceId").value(ITEM_ID.toString()))
+                .andExpect(jsonPath("$.items[0].userId").doesNotExist())
+                .andExpect(jsonPath("$.totalItems").value(1));
+    }
+
+    @Test
+    void teacherCanMarkOwnNotificationRead() throws Exception {
+        when(service.markTeacherRead(TEACHER_ID, NOTIFICATION_ID)).thenReturn(new StudentNotification(
+                NOTIFICATION_ID, TEACHER_ID, NotificationType.TEACHER_ASSIGNMENT_SUBMITTED,
+                "Có bài nộp mới", "Có bài nộp", "ASSIGNMENT_SUBMISSION", ITEM_ID,
+                null, NOW, NOW.minusSeconds(60)
+        ));
+        mockMvc.perform(patch("/api/v1/teacher/notifications/{notificationId}/read", NOTIFICATION_ID)
+                        .with(teacherJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.readAt").value(NOW.toString()));
+    }
+
+    @Test
+    void studentCannotReadTeacherNotifications() throws Exception {
+        mockMvc.perform(get("/api/v1/teacher/notifications").with(studentJwt()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void teacherRejectsInvalidPageSize() throws Exception {
+        mockMvc.perform(get("/api/v1/teacher/notifications")
+                        .with(teacherJwt()).queryParam("size", "101"))
+                .andExpect(status().isUnprocessableEntity());
+    }
+
     private static StudentNotification notification(Instant readAt) {
         return new StudentNotification(
                 NOTIFICATION_ID, STUDENT_ID, NotificationType.STUDY_PLAN_DEADLINE,
@@ -108,7 +154,7 @@ class NotificationControllerTest {
     }
 
     private static org.springframework.test.web.servlet.request.RequestPostProcessor teacherJwt() {
-        return jwt().jwt(token -> token.subject(UUID.randomUUID().toString()).claim("role", "TEACHER"))
+        return jwt().jwt(token -> token.subject(TEACHER_ID.toString()).claim("role", "TEACHER"))
                 .authorities(new SimpleGrantedAuthority("ROLE_TEACHER"));
     }
 }

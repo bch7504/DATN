@@ -1,12 +1,23 @@
 package com.studyflow.notification.application.port;
 
 import com.studyflow.notification.domain.StudentNotification;
+import com.studyflow.notification.domain.NotificationType;
 import com.studyflow.study.application.PageResult;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface NotificationStore {
+    /**
+     * Args: recipient/source UUIDs, a supported type, bounded title/message, optional dueAt,
+     * creation time and email flag. Input: caller has validated owner/class access and an active transaction.
+     * Output: true only for a new owner/type/source event; false for duplicate retries.
+     * Errors: database failure propagates. Side effect: inserts a notice and optionally queues Student email.
+     */
+    boolean createEventIfAbsent(UUID recipientId, NotificationType type, String title, String message,
+                                String sourceType, UUID sourceId, Instant dueAt, Instant createdAt,
+                                boolean emailStudent);
+
     /**
      * Inserts one deadline notification unless its owner/type/source tuple already exists.
      *
@@ -28,6 +39,14 @@ public interface NotificationStore {
     /** Inserts an idempotent notice when the Teacher publishes an assignment to a class. */
     boolean createAssignmentPublishedIfAbsent(
             UUID studentId, UUID assignmentId, String assignmentTitle, Instant dueAt, Instant createdAt);
+
+    /** Args: teacher/enrollment IDs, class name and time. Input: pending request; output: true if newly inserted; errors: persistence failure. */
+    boolean createTeacherEnrollmentRequestedIfAbsent(
+            UUID teacherId, UUID enrollmentId, String className, Instant createdAt);
+
+    /** Args: teacher/submission IDs, assignment title and time. Input: first successful submission; output: true if newly inserted; errors: persistence failure. */
+    boolean createTeacherAssignmentSubmittedIfAbsent(
+            UUID teacherId, UUID submissionId, String assignmentTitle, Instant createdAt);
 
     /**
      * Returns an owner-scoped page, optionally restricted to unread rows.

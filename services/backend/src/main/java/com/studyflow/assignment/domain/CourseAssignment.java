@@ -28,6 +28,8 @@ public class CourseAssignment {
     private Instant reminderAt;
     @Column(name = "reminder_sent_at")
     private Instant reminderSentAt;
+    @Column(name = "expiry_notified_at")
+    private Instant expiryNotifiedAt;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AssignmentStatus status;
@@ -71,6 +73,8 @@ public class CourseAssignment {
     }
 
     public void markReminderSent(Instant now) { reminderSentAt = now; }
+    /** Args: current instant. Input: published assignment at/after dueAt. Output: void; records one expiry scan. Errors: none. */
+    public void markExpiryNotified(Instant now) { expiryNotifiedAt = now; }
 
     public UUID getId() { return id; }
     public UUID getCourseOfferingId() { return courseOfferingId; }
@@ -80,6 +84,7 @@ public class CourseAssignment {
     public Instant getDueAt() { return dueAt; }
     public Instant getReminderAt() { return reminderAt; }
     public Instant getReminderSentAt() { return reminderSentAt; }
+    public Instant getExpiryNotifiedAt() { return expiryNotifiedAt; }
     public AssignmentStatus getStatus() { return status; }
     public Instant getPublishedAt() { return publishedAt; }
     public Instant getCreatedAt() { return createdAt; }

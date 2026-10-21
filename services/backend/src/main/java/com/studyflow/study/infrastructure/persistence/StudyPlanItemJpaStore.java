@@ -3,6 +3,7 @@ package com.studyflow.study.infrastructure.persistence;
 import com.studyflow.study.application.port.StudyPlanItemStore;
 import com.studyflow.study.application.PageResult;
 import com.studyflow.study.application.StudyReminderCandidate;
+import com.studyflow.study.application.StudyExpiredCandidate;
 import com.studyflow.study.domain.StudyPlanItem;
 import java.time.Instant;
 import java.util.List;
@@ -77,6 +78,15 @@ public class StudyPlanItemJpaStore implements StudyPlanItemStore {
                         candidate.getItemId(), candidate.getStudentId(),
                         candidate.getItemTitle(), candidate.getDueAt()
                 ))
+                .toList();
+    }
+
+    /** Args: current time and batch limit. Input: repository expiry query. Output: candidate list; errors: database failure. */
+    @Override
+    public List<StudyExpiredCandidate> findExpiredCandidates(Instant now, int limit) {
+        return repository.findExpiredCandidates(now, PageRequest.of(0, limit)).stream()
+                .map(candidate -> new StudyExpiredCandidate(candidate.getItemId(), candidate.getStudentId(),
+                        candidate.getItemTitle(), candidate.getDueAt(), candidate.getCompletedAt()))
                 .toList();
     }
 

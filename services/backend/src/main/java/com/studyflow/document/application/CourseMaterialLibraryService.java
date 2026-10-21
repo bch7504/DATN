@@ -13,11 +13,14 @@ import com.studyflow.common.exception.ForbiddenException;
 import com.studyflow.common.exception.ResourceNotFoundException;
 import com.studyflow.common.exception.ValidationException;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
+import com.studyflow.notification.application.port.NotificationStore;
+import com.studyflow.notification.domain.NotificationType;
 import com.studyflow.publication.domain.DocumentPublication;
 import com.studyflow.publication.domain.DocumentPublicationRepository;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -50,6 +53,7 @@ public class CourseMaterialLibraryService {
     private final CourseOfferingRepository offerings;
     private final CourseEnrollmentRepository enrollments;
     private final ObjectProvider<AssignmentAttachmentStorage> storageProvider;
+    private final NotificationStore notifications;
     private final Clock clock;
 
     public CourseMaterialLibraryService(CourseMaterialDocumentRepository documents,
@@ -57,12 +61,14 @@ public class CourseMaterialLibraryService {
                                         CourseOfferingRepository offerings,
                                         CourseEnrollmentRepository enrollments,
                                         ObjectProvider<AssignmentAttachmentStorage> storageProvider,
+                                        NotificationStore notifications,
                                         Clock clock) {
         this.documents = documents;
         this.publications = publications;
         this.offerings = offerings;
         this.enrollments = enrollments;
         this.storageProvider = storageProvider;
+        this.notifications = notifications;
         this.clock = clock;
     }
 
@@ -111,7 +117,11 @@ public class CourseMaterialLibraryService {
         CourseMaterialDocument document = new CourseMaterialDocument(id, teacherId,
                 sanitizeFileName(file.getOriginalFilename()), cleanTitle, objectKey, content.length, pageCount, now);
         try {
-            return documents.save(document);
+            CourseMaterialDocument saved = documents.save(document);
+            notifications.createEventIfAbsent(teacherId, NotificationType.TEACHER_MATERIAL_UPLOADED,
+                    "Đã tải học liệu PDF", "Học liệu “" + cleanTitle + "” đã được lưu vào kho riêng. Chọn lớp để công bố.",
+                    "COURSE_MATERIAL", id, null, now, false);
+            return saved;
         } catch (RuntimeException exception) {
             if (!cleanupRegistered) deleteAfterFailedUpload(storage, objectKey);
             throw exception;
@@ -164,7 +174,7 @@ public class CourseMaterialLibraryService {
      */
     @Transactional
     public void setPublications(UUID teacherId, UUID documentId, List<UUID> selectedOfferingIds) {
-        requireOwned(teacherId, documentId);
+        CourseMaterialDocument document = requireOwned(teacherId, documentId);
         if (selectedOfferingIds == null || selectedOfferingIds.size() > 100 || selectedOfferingIds.stream().anyMatch(java.util.Objects::isNull)) {
             throw new ValidationException("INVALID_OFFERING_SELECTION", "Danh sách lớp phải có tối đa 100 mã lớp hợp lệ.");
         }
@@ -179,14 +189,18 @@ public class CourseMaterialLibraryService {
             if (offering.getStatus() != CourseOfferingStatus.ACTIVE) throw new ApiException(HttpStatus.CONFLICT, "COURSE_NOT_ACTIVE", "Chỉ công bố vào lớp đang hoạt động.");
         }
         for (UUID offeringId : ids) {
-            DocumentPublication publication = publications.findByDocumentIdAndCourseOfferingId(documentId, offeringId)
+            var existingPublication = publications.findByDocumentIdAndCourseOfferingId(documentId, offeringId);
+            DocumentPublication publication = existingPublication
                     .orElseGet(() -> new DocumentPublication(UUID.randomUUID(), documentId, offeringId, teacherId, now));
+            boolean newlyPublished = existingPublication
+                    .map(existing -> !"PUBLISHED".equals(existing.getStatus())).orElse(true);
             if (!"PUBLISHED".equals(publication.getStatus())) publication.publish(teacherId, now);
             publications.save(publication);
+            if (newlyPublished) notifyPublication(teacherId, document, offeringId, publication, now);
         }
         publications.findByDocumentIdAndStatus(documentId, "PUBLISHED").stream()
                 .filter(publication -> !ids.contains(publication.getCourseOfferingId()))
-                .forEach(publication -> publication.revoke(now));
+                .forEach(publication -> revokeAndNotify(teacherId, document, publication, now));
     }
 
     /**
@@ -196,13 +210,54 @@ public class CourseMaterialLibraryService {
      */
     @Transactional
     public void revokePublication(UUID teacherId, UUID documentId, UUID offeringId) {
-        requireOwned(teacherId, documentId);
+        CourseMaterialDocument document = requireOwned(teacherId, documentId);
         DocumentPublication publication = publications.findByDocumentIdAndCourseOfferingId(documentId, offeringId)
                 .orElseThrow(() -> new ResourceNotFoundException("PUBLICATION_NOT_FOUND", "Không tìm thấy lượt công bố."));
         if ("PUBLISHED".equals(publication.getStatus())) {
-            publication.revoke(clock.instant());
-            publications.save(publication);
+            revokeAndNotify(teacherId, document, publication, clock.instant());
         }
+    }
+
+    /**
+     * Args: owner, owned PDF, class and active publication with event time. Input: newly published class.
+     * Output: void; adds one owner notice and notices/email for currently approved Students.
+     * Errors: persistence failure rolls back publication and all notices.
+     */
+    private void notifyPublication(UUID teacherId, CourseMaterialDocument document, UUID offeringId,
+                                   DocumentPublication publication, Instant now) {
+        UUID eventId = publicationEventId(publication, "published");
+        String title = document.getDisplayName();
+        notifications.createEventIfAbsent(teacherId, NotificationType.TEACHER_MATERIAL_PUBLISHED,
+                "Đã công bố học liệu", "Học liệu “" + title + "” đã được công bố vào lớp.",
+                "DOCUMENT_PUBLICATION", eventId, null, now, false);
+        for (var enrollment : enrollments.findByCourseOfferingIdAndStatus(offeringId, EnrollmentStatus.APPROVED)) {
+            notifications.createEventIfAbsent(enrollment.getStudentId(), NotificationType.STUDENT_MATERIAL_PUBLISHED,
+                    "Học liệu mới", "Giảng viên đã công bố học liệu “" + title + "” trong lớp của bạn.",
+                    "DOCUMENT_PUBLICATION", eventId, null, now, true);
+        }
+    }
+
+    /** Args: owner/PDF/active publication and time. Input: currently visible class. Output: void; revokes and notifies approved users. Errors: persistence rollback. */
+    private void revokeAndNotify(UUID teacherId, CourseMaterialDocument document,
+                                 DocumentPublication publication, Instant now) {
+        publication.revoke(now);
+        publications.save(publication);
+        UUID eventId = publicationEventId(publication, "revoked:" + now);
+        notifications.createEventIfAbsent(teacherId, NotificationType.TEACHER_MATERIAL_REVOKED,
+                "Đã thu hồi học liệu", "Học liệu “" + document.getDisplayName() + "” đã được thu hồi khỏi lớp.",
+                "DOCUMENT_PUBLICATION", eventId, null, now, false);
+        for (var enrollment : enrollments.findByCourseOfferingIdAndStatus(
+                publication.getCourseOfferingId(), EnrollmentStatus.APPROVED)) {
+            notifications.createEventIfAbsent(enrollment.getStudentId(), NotificationType.STUDENT_MATERIAL_REVOKED,
+                    "Học liệu đã thu hồi", "Học liệu “" + document.getDisplayName() + "” không còn được công bố trong lớp.",
+                    "DOCUMENT_PUBLICATION", eventId, null, now, true);
+        }
+    }
+
+    /** Args: publication and event discriminator. Input: persisted publication lifecycle. Output: stable UUID for one event; errors: none. */
+    private static UUID publicationEventId(DocumentPublication publication, String event) {
+        return UUID.nameUUIDFromBytes((publication.getId() + ":" + publication.getPublishedAt() + ":" + event)
+                .getBytes(StandardCharsets.UTF_8));
     }
 
     /**

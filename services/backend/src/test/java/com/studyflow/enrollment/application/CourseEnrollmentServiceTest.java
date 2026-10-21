@@ -9,6 +9,8 @@ import com.studyflow.courseoffering.domain.CourseOfferingRepository;
 import com.studyflow.enrollment.domain.CourseEnrollment;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
+import com.studyflow.notification.application.port.NotificationStore;
+import com.studyflow.notification.domain.NotificationType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,9 @@ class CourseEnrollmentServiceTest {
     @Mock
     private CourseOfferingRepository offeringRepository;
 
+    @Mock
+    private NotificationStore notifications;
+
     private CourseEnrollmentService enrollmentService;
 
     private CourseOffering mockOffering;
@@ -52,7 +57,7 @@ class CourseEnrollmentServiceTest {
 
     @BeforeEach
     void setUp() {
-        enrollmentService = new CourseEnrollmentService(enrollmentRepository, offeringRepository);
+        enrollmentService = new CourseEnrollmentService(enrollmentRepository, offeringRepository, notifications);
         codeHash = JoinCodeUtils.sha256Hex(rawCode);
 
         mockOffering = new CourseOffering(
@@ -78,6 +83,11 @@ class CourseEnrollmentServiceTest {
         assertNotNull(result.getRequestedAt());
 
         verify(enrollmentRepository, times(1)).save(any(CourseEnrollment.class));
+        verify(notifications).createTeacherEnrollmentRequestedIfAbsent(eq(TEACHER_ID), eq(result.getId()),
+                eq(mockOffering.getName()), eq(result.getRequestedAt()));
+        verify(notifications).createEventIfAbsent(eq(STUDENT_ID), eq(NotificationType.STUDENT_ENROLLMENT_REQUESTED),
+                anyString(), anyString(), eq("COURSE_ENROLLMENT"), any(UUID.class), eq(null),
+                eq(result.getRequestedAt()), eq(true));
     }
 
     @Test
@@ -92,6 +102,7 @@ class CourseEnrollmentServiceTest {
 
         assertSame(existing, result);
         verify(enrollmentRepository, never()).save(any());
+        verifyNoInteractions(notifications);
     }
 
     @Test
@@ -165,6 +176,9 @@ class CourseEnrollmentServiceTest {
         assertEquals(TEACHER_ID, result.getDecidedBy());
         assertNotNull(result.getDecidedAt());
         verify(enrollmentRepository, times(1)).save(enrollment);
+        verify(notifications).createEventIfAbsent(eq(STUDENT_ID), eq(NotificationType.STUDENT_ENROLLMENT_APPROVED),
+                anyString(), anyString(), eq("COURSE_ENROLLMENT"), any(UUID.class), eq(null),
+                eq(result.getDecidedAt()), eq(true));
     }
 
     @Test
@@ -193,6 +207,9 @@ class CourseEnrollmentServiceTest {
         assertEquals(EnrollmentStatus.REJECTED, result.getStatus());
         assertEquals("Không đúng chuyên ngành", result.getDecisionNote());
         verify(enrollmentRepository, times(1)).save(enrollment);
+        verify(notifications).createEventIfAbsent(eq(STUDENT_ID), eq(NotificationType.STUDENT_ENROLLMENT_REJECTED),
+                anyString(), anyString(), eq("COURSE_ENROLLMENT"), any(UUID.class), eq(null),
+                eq(result.getDecidedAt()), eq(true));
     }
 
     @Test

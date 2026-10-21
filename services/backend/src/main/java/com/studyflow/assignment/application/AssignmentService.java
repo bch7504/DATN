@@ -23,6 +23,7 @@ import com.studyflow.enrollment.domain.CourseEnrollment;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
 import com.studyflow.notification.application.port.NotificationStore;
+import com.studyflow.notification.domain.NotificationType;
 import com.studyflow.user.domain.UserAccount;
 import java.time.Clock;
 import java.time.Duration;
@@ -148,6 +149,9 @@ public class AssignmentService {
             throw new ConflictException("ASSIGNMENT_NOT_DRAFT", "Bài tập không còn ở trạng thái bản nháp.");
         }
         CourseAssignment published = assignments.save(assignment);
+        notifications.createEventIfAbsent(teacherId, NotificationType.TEACHER_ASSIGNMENT_PUBLISHED,
+                "Đã giao bài tập", "Bài tập “" + assignment.getTitle() + "” đã được công bố cho lớp.",
+                "COURSE_ASSIGNMENT", assignment.getId(), assignment.getDueAt(), clock.instant(), false);
         for (CourseEnrollment enrollment : enrollments.findByCourseOfferingIdAndStatus(
                 assignment.getCourseOfferingId(), EnrollmentStatus.APPROVED)) {
             notifications.createAssignmentPublishedIfAbsent(enrollment.getStudentId(), assignment.getId(),
@@ -182,7 +186,8 @@ public class AssignmentService {
      * Output: stored latest submission. Errors: 404 unknown/unpublished assignment, 403 not enrolled,
      * 409 closed class/assignment, 422 invalid answer, or database failure.
      * Side effects: replaces current answer, removes old file metadata, queues old objects for deletion
-     * after commit. No submission history is retained.
+     * after commit and records one in-app Teacher notice for the first submission.
+     * No submission history is retained.
      */
     @Transactional
     public AssignmentSubmission submit(UUID studentId, UUID assignmentId, AssignmentRequests.SubmitAnswer input) {
@@ -195,6 +200,11 @@ public class AssignmentService {
                         input.answerText().trim(), now, status));
         AssignmentSubmission saved = submissions.save(submission);
         queueReplacedAttachments(saved.getId(), now);
+        notifications.createTeacherAssignmentSubmittedIfAbsent(assignment.getTeacherId(), saved.getId(),
+                assignment.getTitle(), now);
+        notifications.createEventIfAbsent(studentId, NotificationType.STUDENT_ASSIGNMENT_SUBMITTED,
+                "Đã nộp bài tập", "Bài làm cho “" + assignment.getTitle() + "” đã được ghi nhận.",
+                "ASSIGNMENT_SUBMISSION", saved.getId(), assignment.getDueAt(), now, true);
         return saved;
     }
 
@@ -203,7 +213,8 @@ public class AssignmentService {
      * Args: student/assignment UUIDs, optional answer text and 1..5 multipart files. Input is restricted to
      * approved enrollment, allowlisted file signatures, 10 MiB/file and 25 MiB total. Output: stored submission.
      * Errors: 401/403/404/409/422/503/502 or persistence failure. Side effects: uploads new private objects,
-     * replaces old metadata and queues old objects for deletion after commit.
+     * replaces old metadata, queues old objects for deletion after commit and records one
+     * in-app Teacher notice for the first submission.
      * Uploads are compensated on rollback; old objects remain intact until replacement commits.
      */
     @Transactional
@@ -273,6 +284,11 @@ public class AssignmentService {
             attachments.save(new AssignmentSubmissionAttachment(UUID.randomUUID(), submission.getId(),
                     info.fileName(), info.contentType(), info.sizeBytes(), uploadedKeys.get(i), now));
         }
+        notifications.createTeacherAssignmentSubmittedIfAbsent(assignment.getTeacherId(), submission.getId(),
+                assignment.getTitle(), now);
+        notifications.createEventIfAbsent(studentId, NotificationType.STUDENT_ASSIGNMENT_SUBMITTED,
+                "Đã nộp bài tập", "Bài làm cho “" + assignment.getTitle() + "” đã được ghi nhận.",
+                "ASSIGNMENT_SUBMISSION", submission.getId(), assignment.getDueAt(), now, true);
         return submission;
     }
 
@@ -400,6 +416,42 @@ public class AssignmentService {
                 }
             }
             assignment.markReminderSent(now);
+            assignments.save(assignment);
+            processed++;
+        }
+        return processed;
+    }
+
+    /**
+     * Args: none. Input: published assignments past due, current approved roster and submissions.
+     * Output: number of expired assignments processed (0..100). Errors: database failures roll back
+     * the batch for retry. Side effect: one Teacher summary notice and one Student notice for each
+     * currently approved non-submitter; persists an expiry marker to avoid repeated scans.
+     */
+    @Transactional
+    public int generateExpiryNotifications() {
+        Instant now = clock.instant();
+        int processed = 0;
+        for (CourseAssignment assignment : assignments.findByStatusAndDueAtLessThanEqualAndExpiryNotifiedAtIsNull(
+                AssignmentStatus.PUBLISHED, now).stream().limit(REMINDER_BATCH_SIZE).toList()) {
+            Set<UUID> submitted = submissions.findByAssignmentId(assignment.getId()).stream()
+                    .map(AssignmentSubmission::getStudentId).collect(Collectors.toSet());
+            List<CourseEnrollment> approved = enrollments.findByCourseOfferingIdAndStatus(
+                    assignment.getCourseOfferingId(), EnrollmentStatus.APPROVED);
+            long missing = approved.stream().filter(item -> !submitted.contains(item.getStudentId())).count();
+            notifications.createEventIfAbsent(assignment.getTeacherId(), NotificationType.TEACHER_ASSIGNMENT_EXPIRED,
+                    "Bài tập đã hết hạn", "Bài tập “" + assignment.getTitle() + "” đã hết hạn; " + missing
+                            + " sinh viên chưa nộp trong lớp hiện tại.",
+                    "COURSE_ASSIGNMENT", assignment.getId(), assignment.getDueAt(), now, false);
+            for (CourseEnrollment enrollment : approved) {
+                if (!submitted.contains(enrollment.getStudentId())) {
+                    notifications.createEventIfAbsent(enrollment.getStudentId(), NotificationType.STUDENT_ASSIGNMENT_EXPIRED,
+                            "Bài tập đã quá hạn", "Bài tập “" + assignment.getTitle()
+                                    + "” đã hết hạn và bạn chưa nộp. Hãy kiểm tra bài tập.",
+                            "COURSE_ASSIGNMENT", assignment.getId(), assignment.getDueAt(), now, true);
+                }
+            }
+            assignment.markExpiryNotified(now);
             assignments.save(assignment);
             processed++;
         }

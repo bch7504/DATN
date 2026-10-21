@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { PtitLogo } from "@/components/ui/ptit-logo";
+import { NotificationBell } from "@/components/layout/student-notification-bell";
 import {
   LayoutDashboard,
   GraduationCap,
@@ -27,7 +28,6 @@ import {
   ListChecks,
   PanelLeftClose,
   PanelLeftOpen,
-  Bell,
   ClipboardList,
 } from "lucide-react";
 import { UserRole } from "@/types/auth";
@@ -46,7 +46,6 @@ const STUDENT_NAV: NavItem[] = [
   { label: "Học liệu lớp học", href: "/materials", icon: BookOpen },
   { label: "Tài liệu cá nhân", href: "/personal-documents", icon: FileText },
   { label: "Kế hoạch & Lịch", href: "/plan", icon: CalendarCheck },
-  { label: "Thông báo", href: "/notifications", icon: Bell },
   { label: "Ôn tập", href: "/review", icon: RotateCcw },
 ];
 
@@ -332,6 +331,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <span className="w-2 h-2 rounded-full bg-amber-500" />
                   <span>Dữ liệu demo</span>
                 </div>
+              )}
+
+              {(role === "STUDENT" || role === "TEACHER") && user?.id && (
+                <NotificationBell key={`${role}:${user.id}`} userId={user.id} role={role} />
               )}
 
               <button

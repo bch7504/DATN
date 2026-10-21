@@ -18,6 +18,7 @@ public record StudyPlanItemResponse(
         Instant reminderAt,
         StudyPlanItemViewStatus status,
         Instant completedAt,
+        boolean lateCompleted,
         Instant createdAt,
         Instant updatedAt,
         UUID courseOfferingId
@@ -27,7 +28,7 @@ public record StudyPlanItemResponse(
      *
      * @param item required domain item
      * @param now server clock instant for the derived OVERDUE display status
-     * @return public item response
+     * @return public item response with server-derived OVERDUE and lateCompleted fields
      * @throws IllegalArgumentException if an unsupported persisted status is introduced without a view mapping
      */
     public static StudyPlanItemResponse from(StudyPlanItem item, Instant now) {
@@ -35,10 +36,13 @@ public record StudyPlanItemResponse(
                 && item.dueAt() != null && item.dueAt().isBefore(now)
                 ? StudyPlanItemViewStatus.OVERDUE
                 : StudyPlanItemViewStatus.valueOf(item.status().name());
+        boolean lateCompleted = item.status() == StudyPlanItemStatus.COMPLETED
+                && item.dueAt() != null && item.completedAt() != null
+                && item.completedAt().isAfter(item.dueAt());
         return new StudyPlanItemResponse(
                 item.id(), item.planId(), item.title(), item.description(), item.type(),
                 item.scheduledStart(), item.scheduledEnd(), item.dueAt(), item.reminderAt(), viewStatus,
-                item.completedAt(), item.createdAt(), item.updatedAt(), item.courseOfferingId()
+                item.completedAt(), lateCompleted, item.createdAt(), item.updatedAt(), item.courseOfferingId()
         );
     }
 }
