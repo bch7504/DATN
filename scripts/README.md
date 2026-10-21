@@ -1,46 +1,21 @@
 # Scripts
 
-Khu vực dành cho script setup, seed data, import tài liệu demo, warm-up backend và smoke test trước buổi bảo vệ.
+Thư mục này chỉ chứa các script hỗ trợ riêng lẻ đã được kiểm soát phạm vi.
 
-## Chạy toàn bộ hệ thống local
+## Trạng thái chạy toàn hệ thống
 
-Sau khi cấu hình `.env` tại root và mở Docker Desktop, chạy đúng một lệnh:
+Bộ launcher local `start-all`, `stop-all` và `status-all` đã được loại bỏ. Cách chạy
+một lệnh cho toàn bộ Next.js, Java Backend, Python AI và hạ tầng sẽ chỉ được bổ
+sung khi các service đã hoàn thiện Dockerfile và có Docker Compose thống nhất.
 
-```powershell
-.\scripts\start-all.ps1
-```
+Không sử dụng ánh xạ ổ đĩa hoặc giả định repository nằm tại một ổ cố định. Cấu
+hình Docker sau này phải chạy được từ mọi đường dẫn hợp lệ trên máy phát triển.
 
-Nếu terminal đang là Command Prompt (`E:\ĐATN>` không có tiền tố `PS`), dùng:
+## Script hiện có
 
-```bat
-scripts\start-all.cmd
-```
+- `database.ps1`: quản lý PostgreSQL/pgvector phục vụ phát triển local.
+- `backend-e2e.ps1`: chạy kiểm thử end-to-end của Java Backend theo contract được
+  mô tả trong chính script.
 
-Script nạp biến môi trường mà không in giá trị, cài dependency, khởi động PostgreSQL/pgvector, Mailpit, chạy migration, rồi chạy Java Backend, Python AI API, AI worker và Next.js Frontend. Các tiến trình ứng dụng chạy ẩn; PID và output kỹ thuật nằm trong `.runtime/`, thư mục này không được commit.
-
-Không cần nhập lại API key ở mỗi lần chạy. Script tự nạp `E:\ĐATN\.env` và chấp nhận cả `OPENROUTER_API_KEY=...` lẫn cú pháp PowerShell `$env:OPENROUTER_API_KEY="..."`; màn hình chỉ báo `FOUND/MISSING`, không hiện giá trị.
-
-Những lần sau có thể bỏ qua bước đồng bộ dependency:
-
-```powershell
-.\scripts\start-all.ps1 -SkipDependencyInstall
-```
-
-Dừng toàn bộ nhưng giữ nguyên database/volume:
-
-```powershell
-.\scripts\stop-all.ps1
-```
-
-Từ Command Prompt dùng `scripts\stop-all.cmd`.
-
-Xem tiến trình và API nào đang phản hồi:
-
-```powershell
-.\scripts\status-all.ps1
-```
-
-Từ Command Prompt dùng `scripts\status-all.cmd`.
-
-Script không tự dựng Object Storage. Nếu `STORAGE_ENABLED=true`, endpoint S3-compatible và thông tin truy cập phải được cung cấp sẵn trong `.env`.
-
+Đọc phần contract ở đầu từng script trước khi chạy. Các script không được đọc hoặc
+in giá trị bí mật từ `.env` ra terminal.
