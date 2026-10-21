@@ -44,6 +44,10 @@ function CourseOfferingsContent() {
   );
   const [materials, setMaterials] = useState<TeacherDocument[]>([]);
   const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
+  const [materialCounts, setMaterialCounts] = useState<Record<string, number>>({});
+  const [materialCountsStatus, setMaterialCountsStatus] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
 
   const loadData = async () => {
     try {
@@ -62,6 +66,45 @@ function CourseOfferingsContent() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    /**
+     * Args: none.
+     * Input: the authenticated student's published course-material list from the Java API.
+     * Output: void; stores the unique published-document count for each offering in component state.
+     * Errors: logs API failures and marks counts unavailable so the UI never substitutes a fake count.
+     */
+    const loadMaterialCounts = async (): Promise<void> => {
+      try {
+        const documents = await materialApi.getMaterials();
+        const counts: Record<string, number> = {};
+
+        for (const document of documents) {
+          const offeringIds = new Set(
+            document.publishedOfferings.map((publication) => publication.offeringId)
+          );
+          for (const offeringId of offeringIds) {
+            counts[offeringId] = (counts[offeringId] ?? 0) + 1;
+          }
+        }
+
+        if (mounted) {
+          setMaterialCounts(counts);
+          setMaterialCountsStatus("ready");
+        }
+      } catch (err: unknown) {
+        console.error("Failed to load course material counts:", err);
+        if (mounted) setMaterialCountsStatus("error");
+      }
+    };
+
+    void loadMaterialCounts();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // When selectedOfferingId changes, load its materials
@@ -360,7 +403,14 @@ function CourseOfferingsContent() {
 
                       <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                         <span className="text-xs text-slate-500">
-                          Học liệu lớp: <b>{offering.materialsCount || 4} tài liệu</b>
+                          Học liệu lớp:{" "}
+                          <b>
+                            {materialCountsStatus === "loading"
+                              ? "…"
+                              : materialCountsStatus === "error"
+                                ? "—"
+                                : `${materialCounts[offering.id] ?? 0} tài liệu`}
+                          </b>
                         </span>
                         <button
                           onClick={() => setSelectedOfferingId(offering.id)}

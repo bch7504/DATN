@@ -2,7 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { teacherApi, catalogApi } from "@/lib/api-client";
-import { CourseOffering, Subject, Semester } from "@/types/course-offering";
+import {
+  CourseEnrollment,
+  CourseOffering,
+  Subject,
+  Semester,
+} from "@/types/course-offering";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
@@ -23,6 +28,12 @@ import Link from "next/link";
 
 export default function TeacherCourseOfferingsPage() {
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
+  const [enrollmentCounts, setEnrollmentCounts] = useState<
+    Record<string, { approved: number; pending: number }>
+  >({});
+  const [enrollmentCountsStatus, setEnrollmentCountsStatus] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,9 +57,9 @@ export default function TeacherCourseOfferingsPage() {
   } | null>(null);
 
   /**
-   * Args: none. Input: Teacher's offerings and the public subject/semester catalog.
-   * Output: Promise<void>; refreshes form/list state and prefills the first subject code.
-   * Errors: API failures are shown in errorMsg so the caller can retry.
+   * Args: none. Input: Teacher-owned offerings, enrollment records, and public subject/semester catalogs from Java APIs.
+   * Output: Promise<void>; refreshes list/form state, enrollment counts, and the first subject-code prefill.
+   * Errors: offering/catalog failures are shown in errorMsg; enrollment failures mark counts unavailable.
    */
   const loadData = async (): Promise<void> => {
     try {
@@ -66,6 +77,23 @@ export default function TeacherCourseOfferingsPage() {
       }
       const activeSem = semestersData.find((s) => s.status === "ACTIVE");
       if (activeSem) setSelectedSemesterId(activeSem.id);
+
+      setEnrollmentCountsStatus("loading");
+      try {
+        const enrollments: CourseEnrollment[] = await teacherApi.getEnrollments();
+        const counts: Record<string, { approved: number; pending: number }> = {};
+        for (const enrollment of enrollments) {
+          const count = counts[enrollment.offeringId] ?? { approved: 0, pending: 0 };
+          if (enrollment.status === "APPROVED") count.approved += 1;
+          if (enrollment.status === "PENDING") count.pending += 1;
+          counts[enrollment.offeringId] = count;
+        }
+        setEnrollmentCounts(counts);
+        setEnrollmentCountsStatus("ready");
+      } catch (enrollmentError: unknown) {
+        console.error("Failed to load teacher enrollment counts:", enrollmentError);
+        setEnrollmentCountsStatus("error");
+      }
     } catch (err: unknown) {
       setErrorMsg(
         err instanceof Error
@@ -311,13 +339,20 @@ export default function TeacherCourseOfferingsPage() {
               <div className="pt-2 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-4 text-slate-600">
                   <span>
-                    Sinh viên: <b>{offering.enrolledCount}</b>
+                    Sinh viên: <b>
+                      {enrollmentCountsStatus === "loading"
+                        ? "…"
+                        : enrollmentCountsStatus === "error"
+                          ? "—"
+                          : enrollmentCounts[offering.id]?.approved ?? 0}
+                    </b>
                   </span>
-                  {offering.pendingCount > 0 && (
-                    <span className="font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md">
-                      {offering.pendingCount} chờ duyệt
-                    </span>
-                  )}
+                  {enrollmentCountsStatus === "ready" &&
+                    (enrollmentCounts[offering.id]?.pending ?? 0) > 0 && (
+                      <span className="font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md">
+                        {enrollmentCounts[offering.id]?.pending ?? 0} chờ duyệt
+                      </span>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-2">
