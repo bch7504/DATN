@@ -1,0 +1,7 @@
+# One-off fixture profile: validate the existing PostgreSQL schema without running migrations.
+spring:
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate

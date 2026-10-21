@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { PtitLogo } from "@/components/ui/ptit-logo";
+import { NotificationBell } from "@/components/layout/student-notification-bell";
 import {
   LayoutDashboard,
   GraduationCap,
@@ -27,7 +28,7 @@ import {
   ListChecks,
   PanelLeftClose,
   PanelLeftOpen,
-  Bell,
+  ClipboardList,
 } from "lucide-react";
 import { UserRole } from "@/types/auth";
 
@@ -41,15 +42,17 @@ interface NavItem {
 const STUDENT_NAV: NavItem[] = [
   { label: "Tổng quan", href: "/dashboard", icon: LayoutDashboard },
   { label: "Lớp học phần", href: "/course-offerings", icon: GraduationCap },
+  { label: "Bài tập về nhà", href: "/assignments", icon: ClipboardList },
+  { label: "Học liệu lớp học", href: "/materials", icon: BookOpen },
   { label: "Tài liệu cá nhân", href: "/personal-documents", icon: FileText },
   { label: "Kế hoạch & Lịch", href: "/plan", icon: CalendarCheck },
-  { label: "Thông báo", href: "/notifications", icon: Bell },
   { label: "Ôn tập", href: "/review", icon: RotateCcw },
 ];
 
 const TEACHER_NAV: NavItem[] = [
   { label: "Tổng quan", href: "/teacher/dashboard", icon: LayoutDashboard },
   { label: "Lớp học phần của tôi", href: "/teacher/course-offerings", icon: GraduationCap },
+  { label: "Giao bài tập", href: "/teacher/assignments", icon: ClipboardList },
   { label: "Yêu cầu tham gia", href: "/teacher/enrollments", icon: UserCheck },
   { label: "Kho học liệu PDF", href: "/teacher/documents", icon: FolderKanban },
   { label: "AI Quiz Studio", href: "/teacher/quizzes/create", icon: ListChecks },
@@ -255,6 +258,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                     crumbs.push("Bảng điều khiển");
                   } else if (pathname?.startsWith("/course-offerings")) {
                     crumbs.push("Lớp học phần");
+                  } else if (pathname?.startsWith("/assignments")) {
+                    crumbs.push("Bài tập về nhà");
                   } else if (pathname?.startsWith("/personal-documents")) {
                     crumbs.push("Tài liệu cá nhân");
                   } else if (pathname?.startsWith("/chat")) {
@@ -273,6 +278,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                     crumbs.push("Bảng điều khiển");
                   } else if (pathname?.startsWith("/teacher/course-offerings")) {
                     crumbs.push("Quản lý Lớp học phần");
+                  } else if (pathname?.startsWith("/teacher/assignments")) {
+                    crumbs.push("Giao bài tập về nhà");
                   } else if (pathname?.startsWith("/teacher/enrollments")) {
                     crumbs.push("Phê duyệt sinh viên");
                   } else if (pathname?.startsWith("/teacher/documents")) {
@@ -324,6 +331,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <span className="w-2 h-2 rounded-full bg-amber-500" />
                   <span>Dữ liệu demo</span>
                 </div>
+              )}
+
+              {(role === "STUDENT" || role === "TEACHER") && user?.id && (
+                <NotificationBell key={`${role}:${user.id}`} userId={user.id} role={role} />
               )}
 
               <button

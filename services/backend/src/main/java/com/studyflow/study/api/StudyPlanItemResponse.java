@@ -16,22 +16,33 @@ public record StudyPlanItemResponse(
         Instant scheduledEnd,
         Instant dueAt,
         Instant reminderAt,
-        StudyPlanItemStatus status,
+        StudyPlanItemViewStatus status,
         Instant completedAt,
+        boolean lateCompleted,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        UUID courseOfferingId
 ) {
     /**
      * Maps an owner-scoped item to the public plan/calendar JSON contract.
      *
      * @param item required domain item
-     * @return public item response
+     * @param now server clock instant for the derived OVERDUE display status
+     * @return public item response with server-derived OVERDUE and lateCompleted fields
+     * @throws IllegalArgumentException if an unsupported persisted status is introduced without a view mapping
      */
-    public static StudyPlanItemResponse from(StudyPlanItem item) {
+    public static StudyPlanItemResponse from(StudyPlanItem item, Instant now) {
+        StudyPlanItemViewStatus viewStatus = item.status() == StudyPlanItemStatus.TODO
+                && item.dueAt() != null && item.dueAt().isBefore(now)
+                ? StudyPlanItemViewStatus.OVERDUE
+                : StudyPlanItemViewStatus.valueOf(item.status().name());
+        boolean lateCompleted = item.status() == StudyPlanItemStatus.COMPLETED
+                && item.dueAt() != null && item.completedAt() != null
+                && item.completedAt().isAfter(item.dueAt());
         return new StudyPlanItemResponse(
                 item.id(), item.planId(), item.title(), item.description(), item.type(),
-                item.scheduledStart(), item.scheduledEnd(), item.dueAt(), item.reminderAt(), item.status(),
-                item.completedAt(), item.createdAt(), item.updatedAt()
+                item.scheduledStart(), item.scheduledEnd(), item.dueAt(), item.reminderAt(), viewStatus,
+                item.completedAt(), lateCompleted, item.createdAt(), item.updatedAt(), item.courseOfferingId()
         );
     }
 }

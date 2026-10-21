@@ -7,10 +7,12 @@ import com.studyflow.study.application.StudyPlanService;
 import com.studyflow.study.application.UpdateStudyPlanCommand;
 import com.studyflow.study.application.PageResult;
 import com.studyflow.study.domain.StudyPlanStatus;
+import com.studyflow.study.domain.StudyPlanItem;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.time.Instant;
+import java.time.Clock;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -35,14 +37,17 @@ import org.springframework.validation.annotation.Validated;
 public class StudyPlanController {
 
     private final StudyPlanService service;
+    private final Clock clock;
 
     /**
      * Creates the HTTP adapter for personal study plans and calendar projection.
      *
      * @param service application service enforcing owner, time and lifecycle rules
+     * @param clock server clock used to derive OVERDUE in public item responses
      */
-    public StudyPlanController(StudyPlanService service) {
+    public StudyPlanController(StudyPlanService service, Clock clock) {
         this.service = service;
+        this.clock = clock;
     }
 
     /**
@@ -156,7 +161,7 @@ public class StudyPlanController {
             @PathVariable UUID planId,
             @Valid @RequestBody SaveStudyPlanItemRequest request
     ) {
-        return StudyPlanItemResponse.from(service.createItem(userId(jwt), planId, itemCommand(request)));
+        return itemResponse(service.createItem(userId(jwt), planId, itemCommand(request)));
     }
 
     /**
@@ -177,7 +182,7 @@ public class StudyPlanController {
                 userId(jwt), planId, page, size
         );
         return new PageResponse<>(
-                result.items().stream().map(StudyPlanItemResponse::from).toList(),
+                result.items().stream().map(this::itemResponse).toList(),
                 result.page(), result.size(), result.totalItems(), result.totalPages()
         );
     }
@@ -198,7 +203,7 @@ public class StudyPlanController {
             @PathVariable UUID itemId,
             @Valid @RequestBody SaveStudyPlanItemRequest request
     ) {
-        return StudyPlanItemResponse.from(service.updateItem(
+        return itemResponse(service.updateItem(
                 userId(jwt), planId, itemId, itemCommand(request)
         ));
     }
@@ -222,6 +227,18 @@ public class StudyPlanController {
     }
 
     /**
+     * Args: authenticated Student JWT, owned planId and itemId. Input: an existing personal item.
+     * Output: HTTP 204 with no body; hides item from ordinary views but preserves completion history.
+     * Errors: 401/403/404/409 from authentication, ownership or archived plan.
+     */
+    @DeleteMapping("/api/v1/study-plans/{planId}/items/{itemId}/remove")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteItem(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID planId,
+                           @PathVariable UUID itemId) {
+        service.deleteItem(userId(jwt), planId, itemId);
+    }
+
+    /**
      * Changes TODO/completed status and records completion idempotently.
      *
      * @param jwt verified JWT with UUID subject
@@ -237,7 +254,7 @@ public class StudyPlanController {
             @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody UpdateStudyPlanItemStatusRequest request
     ) {
-        return StudyPlanItemResponse.from(service.changeItemStatus(
+        return itemResponse(service.changeItemStatus(
                 userId(jwt), itemId, request.status(), idempotencyKey
         ));
     }
@@ -257,7 +274,7 @@ public class StudyPlanController {
             @RequestParam Instant to
     ) {
         List<StudyPlanItemResponse> items = service.calendar(userId(jwt), from, to).stream()
-                .map(StudyPlanItemResponse::from)
+                .map(this::itemResponse)
                 .toList();
         return new CalendarResponse(from, to, items);
     }
@@ -265,8 +282,14 @@ public class StudyPlanController {
     private static SaveStudyPlanItemCommand itemCommand(SaveStudyPlanItemRequest request) {
         return new SaveStudyPlanItemCommand(
                 request.title(), request.description(), request.type(), request.scheduledStart(),
-                request.scheduledEnd(), request.dueAt(), request.reminderMinutesBefore()
+                request.scheduledEnd(), request.dueAt(), request.reminderMinutesBefore(),
+                request.courseOfferingId()
         );
+    }
+
+    /** Args: one owned item. Input: current server time. Output: typed public item with derived OVERDUE; errors: none. */
+    private StudyPlanItemResponse itemResponse(StudyPlanItem item) {
+        return StudyPlanItemResponse.from(item, clock.instant());
     }
 
     private static StudyPlanStatus parsePlanStatus(String rawStatus) {

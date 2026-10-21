@@ -45,6 +45,7 @@ interface SpringDataStudyPlanItemRepository extends JpaRepository<StudyPlanItemJ
     @Query("""
             select item from StudyPlanItemJpaEntity item
             where item.planId = :planId
+              and item.status <> com.studyflow.study.domain.StudyPlanItemStatus.DELETED
               and item.planId in (
                 select plan.id from StudyPlanJpaEntity plan where plan.studentId = :studentId
               )
@@ -58,6 +59,7 @@ interface SpringDataStudyPlanItemRepository extends JpaRepository<StudyPlanItemJ
     @Query("""
             select item from StudyPlanItemJpaEntity item
             where item.planId = :planId
+              and item.status <> com.studyflow.study.domain.StudyPlanItemStatus.DELETED
               and item.planId in (
                 select plan.id from StudyPlanJpaEntity plan where plan.studentId = :studentId
               )
@@ -71,6 +73,7 @@ interface SpringDataStudyPlanItemRepository extends JpaRepository<StudyPlanItemJ
     @Query("""
             select item from StudyPlanItemJpaEntity item
             where item.status <> com.studyflow.study.domain.StudyPlanItemStatus.CANCELLED
+              and item.status <> com.studyflow.study.domain.StudyPlanItemStatus.DELETED
               and item.planId in (
                 select plan.id from StudyPlanJpaEntity plan
                 where plan.studentId = :studentId
@@ -91,6 +94,7 @@ interface SpringDataStudyPlanItemRepository extends JpaRepository<StudyPlanItemJ
     @Query("""
             select count(item) from StudyPlanItemJpaEntity item
             where item.status <> com.studyflow.study.domain.StudyPlanItemStatus.CANCELLED
+              and item.status <> com.studyflow.study.domain.StudyPlanItemStatus.DELETED
               and item.planId in (
                 select plan.id from StudyPlanJpaEntity plan where plan.studentId = :studentId
               )
@@ -124,6 +128,26 @@ interface SpringDataStudyPlanItemRepository extends JpaRepository<StudyPlanItemJ
             @Param("now") Instant now,
             Pageable pageable
     );
+
+    /** Args: now and page limit. Input: past-due active plan items. Output: items lacking the unique expiry notice; errors: database failure. */
+    @Query(value = """
+            SELECT item.id AS "itemId", plan.student_id AS "studentId", item.title AS "itemTitle",
+                   item.due_at AS "dueAt", item.completed_at AS "completedAt"
+            FROM app.study_plan_items item
+            JOIN app.study_plans plan ON plan.id = item.plan_id
+            WHERE item.due_at <= :now
+              AND item.status IN ('TODO', 'COMPLETED')
+              AND plan.status <> 'ARCHIVED'
+              AND NOT EXISTS (
+                  SELECT 1 FROM app.notifications notice
+                  WHERE notice.user_id = plan.student_id
+                    AND notice.notification_type = 'STUDY_PLAN_ITEM_EXPIRED'
+                    AND notice.source_type = 'STUDY_PLAN_ITEM'
+                    AND notice.source_id = item.id
+              )
+            ORDER BY item.due_at ASC
+            """, nativeQuery = true)
+    List<StudyExpiredProjection> findExpiredCandidates(@Param("now") Instant now, Pageable pageable);
 
     @Modifying
     @Query("""

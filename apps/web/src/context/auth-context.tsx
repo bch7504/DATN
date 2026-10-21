@@ -14,7 +14,6 @@ import {
   LoginRequest,
   RegisterRequest,
   RegistrationStatusResponse,
-  RegistrationStatus,
   VerifyRegistrationRequest,
   ResendVerificationRequest,
 } from "@/types/auth";
@@ -32,9 +31,7 @@ export interface AuthContextType {
   login: (credentials: LoginRequest) => Promise<User>;
   register: (data: RegisterRequest) => Promise<RegistrationStatusResponse>;
   verifyRegistration: (data: VerifyRegistrationRequest) => Promise<void>;
-  resendVerification: (
-    dataOrEmail: string | ResendVerificationRequest
-  ) => Promise<RegistrationStatusResponse>;
+  resendVerification: (data: ResendVerificationRequest) => Promise<RegistrationStatusResponse>;
   logout: () => Promise<void>;
   switchDemoRole: (targetRole: UserRole) => void;
   clearError: () => void;
@@ -66,7 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    async function initSession() {
+    /** Args: none. Input: browser session cookie or a refreshable expired access token.
+     * Output: void; restores the current user or clears an invalid session.
+     * Errors: API failures are caught and leave the user unauthenticated.
+     */
+    async function initSession(): Promise<void> {
       try {
         const currentUser = await authApi.getMe();
         if (mounted) {
@@ -83,11 +84,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    initSession();
+    void initSession();
 
     return () => {
       mounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    /** Args: none. Input: an API request whose refresh token was rejected by Java.
+     * Output: void; clears the user so role guards return to login. Errors: none.
+     */
+    const onSessionExpired = (): void => { setUser(null); };
+    window.addEventListener("studyflow:session-expired", onSessionExpired);
+    return () => window.removeEventListener("studyflow:session-expired", onSessionExpired);
   }, []);
 
   const login = useCallback(
@@ -136,24 +146,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Args: pending email and six-digit OTP. Input: Student registration challenge.
    * Output: void after Java creates the account. Errors: API/validation errors propagate.
    */
-  const verifyRegistration = useCallback(
-    async (data: VerifyRegistrationRequest): Promise<void> => {
-      setError(null);
-      await authApi.verifyRegistration(data);
-    },
-    []
-  );
+  const verifyRegistration = useCallback(async (data: VerifyRegistrationRequest): Promise<void> => {
+    setError(null);
+    await authApi.verifyRegistration(data);
+  }, []);
 
   /**
-   * Args: pending registration email or request object. Input: explicit resend after server cooldown.
+   * Args: pending registration email. Input: explicit resend after server cooldown.
    * Output: new OTP timing. Errors: API/validation errors propagate.
    */
   const resendVerification = useCallback(
-    async (
-      dataOrEmail: string | ResendVerificationRequest
-    ): Promise<RegistrationStatusResponse> => {
+    async (data: ResendVerificationRequest): Promise<RegistrationStatusResponse> => {
       setError(null);
-      return await authApi.resendVerification(dataOrEmail);
+      return await authApi.resendVerification(data);
     },
     []
   );
@@ -169,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const switchDemoRole = useCallback((targetRole: UserRole): void => {
+    if (targetRole === "TEACHER") return;
     const targetUser = DEMO_USERS[targetRole];
     if (targetUser) {
       authApi.setDemoUser(targetUser);
@@ -185,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: user?.role ?? null,
     isAuthenticated: !!user,
     isLoading,
-    isDemo,
+    isDemo: isDemo && user?.role !== "TEACHER",
     error,
     login,
     register,

@@ -1,0 +1,66 @@
+@startuml
+' Palette: class; Visual Paradigm-style UML compartments and dependencies.
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam roundcorner 10
+skinparam nodesep 35
+skinparam ranksep 45
+hide circle
+top to bottom direction
+
+class TeacherMaterialController <<boundary>> {
+  +uploadPdf(request: UploadRequest): CourseMaterialDocument
+  +publish(documentId: UUID, offeringId: UUID): Publication
+  +revoke(publicationId: UUID): Publication
+}
+class StudentMaterialController <<boundary>> {
+  +listPublished(offeringId: UUID): CourseMaterialDocument[]
+  +viewPdf(documentId: UUID): PdfResponse
+  +downloadPdf(documentId: UUID): PdfResponse
+}
+class MaterialLibraryService <<control>> {
+  +validateTextPdf(file: PdfFile): void
+  +storeInLibrary(ownerId: UUID, file: PdfFile): CourseMaterialDocument
+  +publishReady(documentId: UUID, offeringId: UUID): Publication
+  +checkApprovedAccess(documentId: UUID, studentId: UUID): void
+}
+class CourseMaterialDocument <<entity>> {
+  -id: UUID
+  -ownerId: UUID
+  -fileType: PDF
+  -processingStatus: READY
+  -storageKey: String
+}
+class DocumentPublication <<entity>> {
+  -documentId: UUID
+  -offeringId: UUID
+  -status: PublicationStatus
+}
+class ObjectStorage <<adapter>> {
+  +savePdf(file: PdfFile): StorageKey
+  +readPdf(key: StorageKey): PdfStream
+}
+
+TeacherMaterialController --> MaterialLibraryService
+StudentMaterialController --> MaterialLibraryService
+MaterialLibraryService --> CourseMaterialDocument
+MaterialLibraryService --> DocumentPublication
+MaterialLibraryService --> ObjectStorage
+CourseMaterialDocument "1" -- "0..*" DocumentPublication
+
+note bottom of DocumentPublication
+Tài liệu nằm trong kho độc lập với việc công bố.
+Thu hồi chỉ chặn truy cập từ lớp, không xóa PDF.
+end note
+@enduml

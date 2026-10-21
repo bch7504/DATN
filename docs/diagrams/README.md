@@ -5,6 +5,7 @@ Mở [gallery tổng](index.html), [PDF sơ đồ](luong-use-case-studyflow.pdf)
 ## Nguồn và cách dùng
 
 - `.puml`: nguồn UML hiện hành; `.svg` và `.png`: ảnh xuất tương ứng. Các `.mmd` cùng tên là bản mô tả Mermaid phụ đã được đồng bộ nội dung nhưng không dùng để render đè bộ UML báo cáo.
+- Sáu hình BE2-F01/F02/F03 trong mục 3.4.4–3.4.6 dùng các nguồn `chuong-3/class-be2-*.puml` và `chuong-3/sequence-be2-*.puml`; khi xuất lại phải dùng `render-plantuml.mjs` (hoặc wrapper `chuong-3/render_be2_report_diagrams.py` với dependency prefix), không dùng bộ SVG dựng thủ công cũ.
 - ERD vật lý dùng nguồn `chuong-3/erd-physical-03-studyflow-overview.puml` và ảnh cùng tên. Đây là thiết kế mục tiêu 27 bảng `app` + 4 bảng `ai`, chưa phải bằng chứng migration đã chạy.
 - Word: ưu tiên SVG, dùng PNG nếu trình soạn thảo không hỗ trợ. Đường nối dùng đoạn thẳng/vuông góc và hạn chế giao cắt. Chỉ hình có nhiều bước/cột mới dùng bố cục và trang ngang; hình ngắn dùng dọc. Sequence vẫn tiến triển thời gian từ trên xuống, Activity chia swimlane; ERD tổng quan dùng trang phù hợp hoặc phụ lục khổ lớn, không xoay chữ hay thu nhỏ tới mức không đọc được.
 - Trước mỗi ảnh có câu dẫn; dưới ảnh có số hình/tên; sau ảnh có đoạn giải thích. Không lấy số hình của bản PDF cũ làm số hình hiện hành.

@@ -15,6 +15,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -48,7 +50,7 @@ class AuthControllerTest {
                         .content("""
                                 {
                                   "displayName": "Nguyễn Văn A",
-                                  "email": "b22dccn001@ptit.edu.vn",
+                                  "email": "b22dccn001@stu.ptit.edu.vn",
                                   "password": "StrongPass1"
                                 }
                                 """))
@@ -73,6 +75,47 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.details").isArray())
                 .andExpect(jsonPath("$.traceId").exists());
+    }
+
+    /**
+     * Args: password is a six- or twelve-character boundary value.
+     * Input: synthetic Student registration; output: accepted OTP response schema.
+     * Errors: test fails if validation rejects a permitted length.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"Abc123", "Abc123456789"})
+    void registerAcceptsPasswordLengthBoundaries(String password) throws Exception {
+        when(authService.startRegistration(any())).thenReturn(RegistrationStatus.verificationRequired(
+                Instant.parse("2026-10-13T08:10:00Z"),
+                Instant.parse("2026-10-13T08:01:00Z")
+        ));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"displayName":"Sinh viên Test","email":"student@example.invalid","password":"%s"}
+                                """.formatted(password)))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("VERIFICATION_REQUIRED"));
+    }
+
+    /**
+     * Args: password is a five- or thirteen-character boundary violation.
+     * Input: synthetic Student registration; output: 422 with the password field error.
+     * Errors: test fails if an invalid length reaches the registration service.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"Abc12", "Abc1234567890"})
+    void registerRejectsPasswordOutsideLengthBoundaries(String password) throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"displayName":"Sinh viên Test","email":"student@example.invalid","password":"%s"}
+                                """.formatted(password)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.details[0].field").value("password"))
+                .andExpect(jsonPath("$.details[0].message").value("Mật khẩu phải có từ 6 đến 12 ký tự"));
     }
 
     @Test

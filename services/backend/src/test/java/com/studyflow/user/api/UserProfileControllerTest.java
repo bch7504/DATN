@@ -38,7 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
         UserProfileControllerTest.RoleProbeController.class
 })
 @TestPropertySource(properties = {
-        "studyflow.auth.allowed-email-domain=ptit.edu.vn",
+        "studyflow.auth.allowed-email-domain=stu.ptit.edu.vn",
         "studyflow.auth.otp-ttl=10m",
         "studyflow.auth.resend-cooldown=60s",
         "studyflow.auth.max-verification-attempts=5",

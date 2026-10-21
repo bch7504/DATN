@@ -105,6 +105,17 @@ public class TeacherEnrollmentController {
         return ResponseEntity.ok(responses);
     }
 
+    /**
+     * Args: authenticated Teacher JWT and enrollment UUID. Input: owned class, approved enrollment.
+     * Output: 200 safe enrollment metadata with REMOVED state; preserves history.
+     * Errors: 401/403/404/409. Documented DELETE contract; legacy POST /remove remains available.
+     */
+    @DeleteMapping("/enrollments/{enrollmentId}")
+    public ResponseEntity<TeacherEnrollmentResponse> deleteEnrollment(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable("enrollmentId") UUID enrollmentId) {
+        return removeStudent(jwt, enrollmentId, null);
+    }
+
     @PostMapping("/enrollments/{enrollmentId}/remove")
     public ResponseEntity<TeacherEnrollmentResponse> removeStudent(
             @AuthenticationPrincipal Jwt jwt,

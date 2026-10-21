@@ -3,6 +3,7 @@ package com.studyflow.study.application.port;
 import com.studyflow.study.domain.StudyPlanItem;
 import com.studyflow.study.application.PageResult;
 import com.studyflow.study.application.StudyReminderCandidate;
+import com.studyflow.study.application.StudyExpiredCandidate;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +28,12 @@ public interface StudyPlanItemStore {
      * Returns at most {@code limit} unsent TODO reminders due at {@code now}, ordered oldest first.
      */
     List<StudyReminderCandidate> findDueReminderCandidates(Instant now, int limit);
+
+    /**
+     * Args: current time and positive batch limit. Input: active items past their deadline without
+     * an expiry notice. Output: bounded candidates, ordered by deadline. Errors: persistence failure.
+     */
+    List<StudyExpiredCandidate> findExpiredCandidates(Instant now, int limit);
 
     /**
      * Marks a reminder as sent only when it has not already been processed.

@@ -7,12 +7,10 @@ import { useAuth } from "@/context/auth-context";
 import { PtitLogo } from "@/components/ui/ptit-logo";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
-import { UserRole } from "@/types/auth";
-import { DEMO_USERS } from "@/lib/demo-data";
-import { GraduationCap, BookOpen, ShieldCheck, ArrowRight, Lock, Mail } from "lucide-react";
+import { ArrowRight, Lock, Mail } from "lucide-react";
 
 export default function LoginPage() {
-  const { login, isAuthenticated, role, isDemo } = useAuth();
+  const { login, isAuthenticated, role } = useAuth();
   const router = useRouter();
 
   const [identifier, setIdentifier] = useState("");
@@ -58,33 +56,6 @@ export default function LoginPage() {
         err instanceof Error
           ? err.message
           : "Đăng nhập không thành công. Vui lòng kiểm tra lại.";
-      setLoginError(msg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleQuickDemo = async (targetRole: UserRole) => {
-    const demo = DEMO_USERS[targetRole];
-    setIdentifier(demo.email);
-    setPassword("ptit@demo123");
-    setSubmitting(true);
-    setLoginError(null);
-
-    try {
-      const loggedUser = await login({
-        identifier: demo.email,
-        password: "ptit@demo123",
-      });
-      if (loggedUser.role === "TEACHER") {
-        router.push("/teacher/dashboard");
-      } else if (loggedUser.role === "ADMIN") {
-        router.push("/admin/dashboard");
-      } else {
-        router.push("/dashboard");
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Đăng nhập demo thất bại";
       setLoginError(msg);
     } finally {
       setSubmitting(false);
@@ -143,7 +114,7 @@ export default function LoginPage() {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="student@ptit.edu.vn"
+                  placeholder="student@stu.ptit.edu.vn"
                   className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
                 />
               </div>
@@ -190,51 +161,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Login Option */}
-          {isDemo && (
-            <div className="mt-6 pt-6 border-t border-slate-200">
-              <div className="text-center mb-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                  ⚡ Đăng nhập nhanh (Chế độ Demo)
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo("STUDENT")}
-                  disabled={submitting}
-                  className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-red-200 bg-red-50/60  text-red-900 transition text-center group"
-                >
-                  <GraduationCap className="w-4 h-4 text-red-600 mb-1  transition-transform" />
-                  <span className="text-xs font-bold">Sinh viên</span>
-                  <span className="text-[10px] text-slate-500 truncate w-full">student@ptit</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo("TEACHER")}
-                  disabled={submitting}
-                  className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-amber-200 bg-amber-50/60  text-amber-900 transition text-center group"
-                >
-                  <BookOpen className="w-4 h-4 text-amber-600 mb-1  transition-transform" />
-                  <span className="text-xs font-bold">Giảng viên</span>
-                  <span className="text-[10px] text-slate-500 truncate w-full">teacher@ptit</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo("ADMIN")}
-                  disabled={submitting}
-                  className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-purple-200 bg-purple-50/60  text-purple-900 transition text-center group"
-                >
-                  <ShieldCheck className="w-4 h-4 text-purple-600 mb-1  transition-transform" />
-                  <span className="text-xs font-bold">Quản trị</span>
-                  <span className="text-[10px] text-slate-500 truncate w-full">admin@ptit</span>
-                </button>
-              </div>
-            </div>
-          )}
 
           <div className="mt-6 text-center">
             <p className="text-xs text-slate-500">

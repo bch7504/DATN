@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 test("FE-M2: Course Offering & Enrollment business rules", async (t) => {
   await t.test("Join code normalization should trim and uppercase input", () => {
@@ -45,4 +47,16 @@ test("FE-M2: Course Offering & Enrollment business rules", async (t) => {
     const adminPermittedActions = ["MONITOR", "LOCK", "ARCHIVE"];
     assert.ok(!adminPermittedActions.includes("ASSIGN_TEACHER"));
   });
+});
+
+test("Teacher create form prefills editable class code from the selected subject", () => {
+  const page = fs.readFileSync(
+    path.join(__dirname, "../src/app/teacher/course-offerings/page.tsx"),
+    "utf8"
+  );
+
+  assert.match(page, /setCustomCode\(subjectsData\[0\]\.code\)/);
+  assert.match(page, /handleSubjectChange\(event\.target\.value\)/);
+  assert.match(page, /subjects\.find\(\(subject\) => subject\.id === subjectId\)\?\.code/);
+  assert.match(page, /value=\{customCode\}/);
 });

@@ -57,7 +57,7 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         AuthProperties properties = new AuthProperties(
-                "ptit.edu.vn",
+                "stu.ptit.edu.vn",
                 Duration.ofMinutes(10),
                 Duration.ofSeconds(60),
                 5,
@@ -83,8 +83,8 @@ class AuthServiceTest {
 
     @Test
     void startRegistrationStoresOnlyHashesAndSendsOtp() {
-        when(users.existsByEmail("b22dccn001@ptit.edu.vn")).thenReturn(false);
-        when(challenges.findByEmailForUpdate("b22dccn001@ptit.edu.vn")).thenReturn(Optional.empty());
+        when(users.existsByEmail("b22dccn001@stu.ptit.edu.vn")).thenReturn(false);
+        when(challenges.findByEmailForUpdate("b22dccn001@stu.ptit.edu.vn")).thenReturn(Optional.empty());
         when(codeGenerator.generate()).thenReturn("123456");
         when(hasher.hash("StrongPass1")).thenReturn("password-hash");
         when(hasher.hash("123456")).thenReturn("code-hash");
@@ -92,18 +92,18 @@ class AuthServiceTest {
 
         RegistrationStatus result = service.startRegistration(new StartRegistrationCommand(
                 "Nguyễn Văn A",
-                "B22DCCN001@PTIT.EDU.VN",
+                "B22DCCN001@STU.PTIT.EDU.VN",
                 "StrongPass1"
         ));
 
         ArgumentCaptor<RegistrationChallenge> challenge = ArgumentCaptor.forClass(RegistrationChallenge.class);
         verify(challenges).save(challenge.capture());
-        assertThat(challenge.getValue().email()).isEqualTo("b22dccn001@ptit.edu.vn");
+        assertThat(challenge.getValue().email()).isEqualTo("b22dccn001@stu.ptit.edu.vn");
         assertThat(challenge.getValue().passwordHash()).isEqualTo("password-hash");
         assertThat(challenge.getValue().codeHash()).isEqualTo("code-hash");
         assertThat(challenge.getValue().expiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(10)));
         verify(codeSender).send(
-                "b22dccn001@ptit.edu.vn",
+                "b22dccn001@stu.ptit.edu.vn",
                 "Nguyễn Văn A",
                 "123456",
                 NOW.plus(Duration.ofMinutes(10))
@@ -112,7 +112,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void startRegistrationRejectsNonPtitAndSubdomainEmail() {
+    void startRegistrationRejectsWrongPtitAndSubdomainEmail() {
         assertThatThrownBy(() -> service.startRegistration(
                 new StartRegistrationCommand("Student", "student@gmail.com", "StrongPass1")
         )).isInstanceOfSatisfying(ApiException.class, error ->
@@ -123,6 +123,16 @@ class AuthServiceTest {
         )).isInstanceOfSatisfying(ApiException.class, error ->
                 assertThat(error.code()).isEqualTo("EMAIL_DOMAIN_NOT_ALLOWED"));
 
+        assertThatThrownBy(() -> service.startRegistration(
+                new StartRegistrationCommand("Student", "student@ptit.edu.vn", "StrongPass1")
+        )).isInstanceOfSatisfying(ApiException.class, error ->
+                assertThat(error.code()).isEqualTo("EMAIL_DOMAIN_NOT_ALLOWED"));
+
+        assertThatThrownBy(() -> service.startRegistration(
+                new StartRegistrationCommand("Student", "student@mail.stu.ptit.edu.vn", "StrongPass1")
+        )).isInstanceOfSatisfying(ApiException.class, error ->
+                assertThat(error.code()).isEqualTo("EMAIL_DOMAIN_NOT_ALLOWED"));
+
         verify(challenges, never()).save(any());
         verify(codeSender, never()).send(any(), any(), any(), any());
     }
@@ -130,7 +140,7 @@ class AuthServiceTest {
     @Test
     void verifyRegistrationCreatesActiveStudentAndConsumesChallenge() {
         RegistrationChallenge challenge = RegistrationChallenge.issue(
-                "b22dccn001@ptit.edu.vn",
+                "b22dccn001@stu.ptit.edu.vn",
                 "Nguyễn Văn A",
                 "password-hash",
                 "code-hash",
@@ -161,7 +171,7 @@ class AuthServiceTest {
     @Test
     void verifyRegistrationDecrementsAttemptsForWrongOtp() {
         RegistrationChallenge challenge = RegistrationChallenge.issue(
-                "b22dccn001@ptit.edu.vn",
+                "b22dccn001@stu.ptit.edu.vn",
                 "Student",
                 "password-hash",
                 "code-hash",

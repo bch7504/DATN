@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertCircle, Bell, CheckCircle2, Clock3, RefreshCw } from "lucide-react";
 import { notificationApi } from "@/lib/api-client";
 import { StudentNotification } from "@/types/notification";
+import { notificationDestination } from "@/lib/notification-navigation";
 
 /**
  * Renders the Student's owner-scoped in-app deadline notifications.
@@ -18,13 +19,16 @@ export default function StudentNotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   const loadNotifications = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await notificationApi.list(unreadOnly, 0, 50);
+      const result = await notificationApi.list(unreadOnly, page, 50);
       setNotifications(result.items);
+      setTotalPages(result.totalPages);
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -34,7 +38,7 @@ export default function StudentNotificationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [unreadOnly]);
+  }, [unreadOnly, page]);
 
   useEffect(() => {
     void loadNotifications();
@@ -75,7 +79,7 @@ export default function StudentNotificationsPage() {
             </h1>
           </div>
           <p className="mt-2 text-sm text-slate-500">
-            Hệ thống tự nhắc các nhiệm vụ cá nhân sắp đến hạn.
+            Cập nhật học liệu, bài tập và nhiệm vụ cá nhân của bạn.
           </p>
         </div>
 
@@ -84,7 +88,8 @@ export default function StudentNotificationsPage() {
             <input
               type="checkbox"
               checked={unreadOnly}
-              onChange={(event) => setUnreadOnly(event.target.checked)}
+              disabled={loading || markingId !== null}
+              onChange={(event) => { setUnreadOnly(event.target.checked); setPage(0); }}
               className="h-4 w-4 accent-[#d71920]"
             />
             Chỉ hiện chưa đọc
@@ -119,7 +124,7 @@ export default function StudentNotificationsPage() {
             Không có thông báo phù hợp
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Những nhiệm vụ sắp đến hạn sẽ xuất hiện tại đây.
+            Học liệu, bài tập và nhiệm vụ mới sẽ xuất hiện tại đây.
           </p>
           <Link href="/plan" className="mt-4 inline-flex text-sm font-bold text-ptit-red">
             Mở Kế hoạch &amp; Lịch
@@ -160,8 +165,8 @@ export default function StudentNotificationsPage() {
                       {notification.dueAt && (
                         <span>Hạn: {formatDateTime(notification.dueAt)}</span>
                       )}
-                      <Link href="/plan" className="font-bold text-ptit-red">
-                        Xem kế hoạch
+                      <Link href={notificationDestination(notification.type, "STUDENT").href} className="font-bold text-ptit-red">
+                        {notificationDestination(notification.type, "STUDENT").label}
                       </Link>
                     </div>
                   </div>
@@ -169,7 +174,7 @@ export default function StudentNotificationsPage() {
                     <button
                       type="button"
                       onClick={() => void markRead(notification.id)}
-                      disabled={markingId === notification.id}
+                      disabled={markingId !== null || loading}
                       className="inline-flex flex-shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
@@ -182,6 +187,7 @@ export default function StudentNotificationsPage() {
           })}
         </div>
       )}
+      <nav aria-label="Trang thông báo" className="flex items-center justify-end gap-3 text-sm"><button disabled={loading || markingId !== null || page === 0} onClick={() => setPage((value) => value - 1)} className="disabled:opacity-50">Trang trước</button><span>Trang {page + 1}/{Math.max(totalPages, 1)}</span><button disabled={loading || markingId !== null || page + 1 >= totalPages} onClick={() => setPage((value) => value + 1)} className="disabled:opacity-50">Trang sau</button></nav>
     </div>
   );
 }

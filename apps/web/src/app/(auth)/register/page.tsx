@@ -264,6 +264,7 @@ export default function RegisterPage() {
                 <input
                   id="email"
                   type="email"
+                  aria-describedby="student-email-help"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -271,6 +272,9 @@ export default function RegisterPage() {
                   className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
               </div>
+              <p id="student-email-help" className="mt-1.5 text-xs text-slate-500">
+                Mã OTP sẽ được gửi đến email @stu.ptit.edu.vn này. Bạn nhập mã ngay tại đây, không cần đăng nhập qua Microsoft.
+              </p>
             </div>
 
             <div>

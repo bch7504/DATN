@@ -82,6 +82,16 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 - `decided_by` phải là Teacher owner hoặc Admin trong policy đặc biệt được audit; luồng MVP dùng Teacher owner.
 - Enrollment không bị xóa khi lớp/học kỳ kết thúc.
 
+### Bài tập theo lớp
+
+`course_assignments`: `id`, `course_offering_id`, `teacher_id`, `title`, `description`, `due_at`, `reminder_at`, `reminder_sent_at`, `status (DRAFT|PUBLISHED)`, `published_at`, timestamps. Teacher chỉ tạo/sửa/công bố trong lớp mình sở hữu; chỉ `PUBLISHED` hiển thị cho enrollment `APPROVED`. Nhắc hạn mặc định trước 24 giờ và idempotent.
+
+`assignment_submissions`: `id`, `assignment_id`, `student_id`, `answer_text`, `submitted_at`, `status (ON_TIME|LATE)`, `score`, `teacher_feedback`, `reviewed_at`, `reviewed_by`, timestamps. Unique `(assignment_id, student_id)` giữ câu trả lời mới nhất; sau hạn vẫn nhận bài và đánh dấu `LATE`. Danh sách thống kê được dựng từ các enrollment `APPROVED` và left-join submission để phân biệt rõ người chưa nộp.
+
+`assignment_submission_attachments`: `id`, `submission_id`, `original_file_name`, server-detected `content_type`, `size_bytes`, private `storage_key`, `created_at`. Không ghi nội dung file vào PostgreSQL; object key chỉ do Java sinh và không xuất hiện trong DTO. Attachment được tải qua Java sau khi xác minh owner/enrollment.
+
+`notifications.notification_type` bổ sung `ASSIGNMENT_PUBLISHED` và `ASSIGNMENT_DEADLINE`; source là `COURSE_ASSIGNMENT`, unique `(user_id,type,source_type,source_id)` giữ thông báo bài mới/nhắc hạn không trùng.
+
 ## 4. Tài liệu và publication
 
 ### `documents`
@@ -91,6 +101,7 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 - Personal: owner Student, chỉ PDF có text layer cho AI.
 - Course Material: owner Teacher, chỉ PDF có text layer và được AI index theo trang.
 - Mọi document muốn dùng cho Tutor/Quiz hoặc public phải `READY`.
+- Migration `V7` tạo bảng `app.documents`, index owner/scope, soft-delete và giữ object key private. Course Material MVP kiểm tra text layer + page count trước khi đánh dấu `READY`; file không rời Object Storage qua API ngoại trừ stream có phân quyền.
 - Object key không trả browser.
 
 ### `document_publications`

@@ -5,9 +5,9 @@ import jakarta.servlet.http.Cookie;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,16 +33,22 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableConfigurationProperties(AuthProperties.class)
 public class SecurityConfig {
 
+    /**
+     * Args: framework security builder, JWT/session adapters, error handlers and configured CORS source.
+     * Input: trusted server configuration. Output: stateless API filter chain; no authorization bypass
+     * for actual requests. Errors: Spring configuration exceptions fail startup.
+     */
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             BearerTokenResolver tokenResolver,
             JwtAuthenticationConverter jwtAuthenticationConverter,
             RestAuthenticationEntryPoint authenticationEntryPoint,
-            RestAccessDeniedHandler accessDeniedHandler
+            RestAccessDeniedHandler accessDeniedHandler,
+            CorsConfigurationSource corsConfigurationSource
     ) throws Exception {
         return http
-                .cors(cors -> { })
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
@@ -69,28 +75,25 @@ public class SecurityConfig {
     }
 
     /**
-     * Defines browser access to the public Java API.
-     *
-     * @param allowedOrigins trusted Web origins supplied by configuration
-     * @return CORS rules allowing credential cookies and documented methods/headers
-     * @throws IllegalArgumentException when the configured origin list is invalid
+     * Args: optional comma-separated exact frontend origins; empty means no cross-origin access.
+     * Input: server-only studyflow.cors.allowed-origins. Output: credentialed API CORS policy,
+     * allowing preflight but retaining authentication/RBAC on actual requests.
+     * Errors: wildcard origins with credentials fail startup. No browser-supplied origin is trusted implicitly.
      */
     @Bean
     CorsConfigurationSource corsConfigurationSource(
-            @Value("${studyflow.cors.allowed-origins:http://localhost:3000}") List<String> allowedOrigins
-    ) {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(allowedOrigins);
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of(
-                "Authorization", "Content-Type", "Idempotency-Key", "X-Request-Id"
-        ));
-        configuration.setExposedHeaders(List.of("X-Request-Id"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
-
+            @Value("${studyflow.cors.allowed-origins:}") String configuredOrigins) {
+        CorsConfiguration policy = new CorsConfiguration();
+        policy.setAllowedOrigins(Arrays.stream(configuredOrigins.split(","))
+                .map(String::trim).filter(origin -> !origin.isEmpty()).toList());
+        policy.setAllowCredentials(true);
+        policy.validateAllowCredentials();
+        policy.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        policy.setAllowedHeaders(List.of("Content-Type", "Authorization", "Idempotency-Key", "X-Request-Id"));
+        policy.setExposedHeaders(List.of("Content-Disposition", "X-Request-Id"));
+        policy.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration);
+        source.registerCorsConfiguration("/api/v1/**", policy);
         return source;
     }
 
