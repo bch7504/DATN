@@ -92,7 +92,7 @@ class RealHttpApiTest {
         registry.add("spring.datasource.password", DATABASE::getPassword);
     }
 
-    private static final String PASSWORD = "QaSynthetic123!";
+    private static final String PASSWORD = "Qa12345678!";
     private static final String MISSING_ID = "00000000-0000-0000-0000-000000000001";
     @LocalServerPort private int port;
     @Autowired private UserAccountStore users;
@@ -233,6 +233,8 @@ class RealHttpApiTest {
         expect(send("PUT", "/api/v1/teacher/assignments/" + id, teacher, draft), 200);
         expect(send("GET", "/api/v1/teacher/course-offerings/" + offering + "/assignments", teacher, null), 200);
         expect(send("POST", "/api/v1/teacher/assignments/" + id + "/publish", teacher, null), 200);
+        assertThat(expect(send("GET", "/api/v1/teacher/notifications?size=100", teacher, null), 200)
+                .path("items").findValuesAsText("type")).contains("TEACHER_ASSIGNMENT_PUBLISHED");
         expect(send("GET", "/api/v1/student/assignments", student, null), 200);
         JsonNode before = expect(send("GET", "/api/v1/teacher/assignments/" + id + "/submissions", teacher, null), 200);
         assertThat(before.path("notSubmittedCount").asInt()).isEqualTo(1);
@@ -246,6 +248,8 @@ class RealHttpApiTest {
                 Map.of("score", 80)), 404);
         JsonNode notices = expect(send("GET", "/api/v1/student/notifications", student, null), 200);
         assertThat(notices.path("items").size()).isPositive();
+        assertThat(notices.path("items").findValuesAsText("type"))
+                .contains("ASSIGNMENT_PUBLISHED", "STUDENT_ASSIGNMENT_SUBMITTED");
         String notification = notices.path("items").get(0).path("id").asText();
         expect(send("PATCH", "/api/v1/student/notifications/" + notification + "/read", student, null), 200);
         expect(send("GET", "/api/v1/student/notifications?unreadOnly=true", student, null), 200);
@@ -329,11 +333,15 @@ class RealHttpApiTest {
         String offering = approvedCourse();
         byte[] pdf = syntheticPdf();
         String doc = expect(multipart("/api/v1/teacher/documents", teacher, "file", pdf, "Synthetic PDF"), 201).path("id").asText();
+        assertThat(expect(send("GET", "/api/v1/teacher/notifications?size=100", teacher, null), 200)
+                .path("items").findValuesAsText("type")).contains("TEACHER_MATERIAL_UPLOADED");
         expect(send("GET", "/api/v1/teacher/documents", teacher, null), 200);
         var own = send("GET", "/api/v1/teacher/documents/" + doc + "/download", teacher, null);
         assertThat(own.statusCode()).isEqualTo(200);
         assertThat(own.body()).isEqualTo(pdf);
         expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher, Map.of("courseOfferingIds", List.of(offering))), 204);
+        assertThat(expect(send("GET", "/api/v1/student/notifications?size=100", student, null), 200)
+                .path("items").findValuesAsText("type")).contains("STUDENT_MATERIAL_PUBLISHED");
         expect(send("GET", "/api/v1/student/materials", student, null), 200);
         JsonNode visible = expect(send("GET", "/api/v1/student/course-offerings/" + offering + "/materials", student, null), 200);
         assertThat(visible.path("items").size()).isEqualTo(1);
@@ -342,6 +350,8 @@ class RealHttpApiTest {
         assertThat(downloaded.body()).isEqualTo(pdf);
         assertThat(downloaded.headers().firstValue("content-disposition").orElse("")).startsWith("attachment");
         expect(send("DELETE", "/api/v1/teacher/documents/" + doc + "/publications?offeringId=" + offering, teacher, null), 204);
+        assertThat(expect(send("GET", "/api/v1/student/notifications?size=100", student, null), 200)
+                .path("items").findValuesAsText("type")).contains("STUDENT_MATERIAL_REVOKED");
         expect(send("GET", "/api/v1/student/materials/" + doc + "/download", student, null), 403);
     }
 

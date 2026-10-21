@@ -24,11 +24,13 @@ export interface CourseReviewSummary {
   courseName: string;
   teacherName?: string;
   isPersonal: boolean;
-  totalQuizzes: number;
-  totalAttempts: number;
-  reviewItemsCount: number; // số câu cần ôn lại
+  /** Null means the Quiz backend does not provide this metric yet; zero means it was queried and empty. */
+  totalQuizzes: number | null;
+  totalAttempts: number | null;
+  reviewItemsCount: number | null; // số câu cần ôn lại
   averageScore: number | null;
   latestAttemptAt?: string;
+  quizDataAvailable?: boolean;
 }
 
 export interface CourseReviewWorkspace {
@@ -36,6 +38,8 @@ export interface CourseReviewWorkspace {
   quizzes: Quiz[];
   attempts: QuizAttempt[];
   reviewItems: ReviewItem[];
+  /** False when the backend has no persisted Quiz workspace for this Student yet. */
+  quizDataAvailable?: boolean;
 }
 
 export interface DailyGoalConfig {

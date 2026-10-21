@@ -1,0 +1,68 @@
+@startuml
+' Palette: sequence; Visual Paradigm-style lifelines, activations and fragments.
+' Interaction: BE2-F03 - Kế hoạch và lịch học cá nhân
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam ParticipantBackgroundColor #7ACFF5
+skinparam ParticipantBorderColor #222222
+skinparam LifeLineBackgroundColor #7ACFF5
+skinparam LifeLineBorderColor #222222
+skinparam SequenceGroupBackgroundColor white
+skinparam SequenceGroupBodyBackgroundColor white
+skinparam SequenceGroupBorderColor #222222
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam roundcorner 10
+hide footbox
+autonumber
+autoactivate on
+
+actor "Sinh viên" as Student
+participant ":Web" as Web
+participant ":Java Backend" as Java
+database ":CSDL" as DB
+participant ":Nhắc lịch" as Reminder
+
+Student -> Web : Mở lịch tuần
+Web -> Java : Lấy đầu việc của mình
+Java -> DB : Đọc đầu việc chưa ẩn
+DB --> Java : Danh sách và trạng thái đã lưu
+Java -> Java : Tính Quá hạn khi hiển thị
+Java --> Web : Lịch tuần
+
+Student -> Web : Tạo đầu việc, hạn và mốc nhắc
+Web -> Java : Gửi yêu cầu tạo
+opt Gắn với lớp học phần
+  Java -> DB : Kiểm ghi danh APPROVED
+end
+Java -> DB : Lưu đầu việc Cần làm
+Java --> Web : Hiển thị đầu việc mới
+
+opt Sắp đến hạn và chưa hoàn thành
+  Reminder -> Java : Kiểm đầu việc cần nhắc
+  Java -> DB : Chống nhắc trùng; lưu thông báo
+  Java --> Reminder : Danh sách cần nhắc
+  Reminder -> Student : Gửi nhắc trước hạn
+end
+
+Student -> Web : Sửa, đổi lịch hoặc hủy
+Web -> Java : Yêu cầu cập nhật
+Java -> DB : Kiểm chủ sở hữu; lưu thay đổi
+Java --> Web : Lịch đã cập nhật
+
+alt Đánh dấu hoàn thành
+  Student -> Web : Chọn Đã hoàn thành
+  Web -> Java : Yêu cầu hoàn thành
+  Java -> DB : Ghi thời điểm một lần; ngừng nhắc
+else Ẩn khỏi lịch
+  Student -> Web : Chọn Ẩn
+  Web -> Java : Yêu cầu ẩn đầu việc
+  Java -> DB : Ẩn khỏi lịch, giữ lịch sử
+end
+Java --> Web : Trạng thái hiện tại
+@enduml

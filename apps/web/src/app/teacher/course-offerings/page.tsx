@@ -45,7 +45,12 @@ export default function TeacherCourseOfferingsPage() {
     actionType: "CREATE" | "REGENERATE";
   } | null>(null);
 
-  const loadData = async () => {
+  /**
+   * Args: none. Input: Teacher's offerings and the public subject/semester catalog.
+   * Output: Promise<void>; refreshes form/list state and prefills the first subject code.
+   * Errors: API failures are shown in errorMsg so the caller can retry.
+   */
+  const loadData = async (): Promise<void> => {
     try {
       const [offeringsData, subjectsData, semestersData] = await Promise.all([
         teacherApi.getOfferings(),
@@ -55,7 +60,10 @@ export default function TeacherCourseOfferingsPage() {
       setOfferings(offeringsData);
       setSubjects(subjectsData);
       setSemesters(semestersData);
-      if (subjectsData.length > 0) setSelectedSubjectId(subjectsData[0].id);
+      if (subjectsData.length > 0) {
+        setSelectedSubjectId(subjectsData[0].id);
+        setCustomCode(subjectsData[0].code);
+      }
       const activeSem = semestersData.find((s) => s.status === "ACTIVE");
       if (activeSem) setSelectedSemesterId(activeSem.id);
     } catch (err: unknown) {
@@ -72,6 +80,16 @@ export default function TeacherCourseOfferingsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  /**
+   * Args: subjectId (required catalog Subject ID). Input: loaded subject catalog.
+   * Output: void; selects the subject and prefills its code for the editable class code.
+   * Errors: an unknown ID leaves the code empty, allowing normal form validation.
+   */
+  const handleSubjectChange = (subjectId: string): void => {
+    setSelectedSubjectId(subjectId);
+    setCustomCode(subjects.find((subject) => subject.id === subjectId)?.code || "");
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -347,7 +365,9 @@ export default function TeacherCourseOfferingsPage() {
                 </label>
                 <select
                   value={selectedSubjectId}
-                  onChange={(e) => setSelectedSubjectId(e.target.value)}
+                  onChange={(event: React.ChangeEvent<HTMLSelectElement>): void =>
+                    handleSubjectChange(event.target.value)
+                  }
                   className="w-full p-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 bg-white"
                   required
                 >
@@ -381,15 +401,18 @@ export default function TeacherCourseOfferingsPage() {
 
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Mã lớp (Tùy chọn)
+                  Mã lớp
                 </label>
                 <input
                   type="text"
                   value={customCode}
                   onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
-                  placeholder="VD: INT1415-02"
+                  placeholder="Chọn môn học để tự điền mã"
                   className="w-full p-2.5 text-xs font-mono border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500"
                 />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Tự điền theo mã môn học; bạn có thể sửa để phân biệt các nhóm lớp.
+                </p>
               </div>
 
               <div>

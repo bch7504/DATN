@@ -4,7 +4,9 @@ import com.studyflow.auth.application.port.UserAccountStore;
 import com.studyflow.common.exception.ApiException;
 import com.studyflow.notification.application.port.NotificationStore;
 import com.studyflow.notification.domain.StudentNotification;
+import com.studyflow.notification.domain.NotificationType;
 import com.studyflow.study.application.PageResult;
+import com.studyflow.study.application.StudyExpiredCandidate;
 import com.studyflow.study.application.StudyReminderCandidate;
 import com.studyflow.study.application.port.StudyPlanItemStore;
 import com.studyflow.user.domain.UserRole;
@@ -68,6 +70,17 @@ public class NotificationService {
     }
 
     /**
+     * Args: active teacher ID, unreadOnly filter, zero-based page and size 1..100.
+     * Input: authenticated teacher account. Output: owner-scoped notification page.
+     * Errors: 403 ACCOUNT_UNAVAILABLE for another role/inactive account.
+     */
+    @Transactional(readOnly = true)
+    public PageResult<StudentNotification> listTeacher(UUID teacherId, boolean unreadOnly, int page, int size) {
+        requireActiveTeacher(teacherId);
+        return notifications.findOwned(teacherId, unreadOnly, page, size);
+    }
+
+    /**
      * Marks one owner-scoped notification as read idempotently.
      *
      * @param studentId authenticated Student identifier
@@ -78,7 +91,22 @@ public class NotificationService {
     @Transactional
     public StudentNotification markRead(UUID studentId, UUID notificationId) {
         requireActiveStudent(studentId);
-        StudentNotification current = notifications.findOwned(notificationId, studentId)
+        return markOwnedRead(studentId, notificationId);
+    }
+
+    /**
+     * Args: active teacher ID and required notification ID. Input: authenticated teacher account.
+     * Output: owner-scoped notification with readAt set once. Errors: 403 unavailable, 404 not owned.
+     */
+    @Transactional
+    public StudentNotification markTeacherRead(UUID teacherId, UUID notificationId) {
+        requireActiveTeacher(teacherId);
+        return markOwnedRead(teacherId, notificationId);
+    }
+
+    /** Args: validated owner and notification IDs. Input: owner-scoped store. Output: read notification; errors: 404 when absent/not owned. */
+    private StudentNotification markOwnedRead(UUID ownerId, UUID notificationId) {
+        StudentNotification current = notifications.findOwned(notificationId, ownerId)
                 .orElseThrow(() -> new ApiException(
                         HttpStatus.NOT_FOUND,
                         "NOTIFICATION_NOT_FOUND",
@@ -119,6 +147,31 @@ public class NotificationService {
         return inserted;
     }
 
+    /**
+     * Args: none. Input: at most 200 active study items whose deadline has passed and whose expiry
+     * event has not been stored. Output: number of newly inserted notices, from 0 to 200.
+     * Errors: database errors roll back the batch and the next scan retries. Each notice states
+     * whether the item was completed by its deadline; unique owner/type/source prevents duplicates.
+     */
+    @Transactional
+    public int generateExpiredStudyPlanNotifications() {
+        Instant now = clock.instant();
+        int inserted = 0;
+        for (StudyExpiredCandidate candidate : studyItems.findExpiredCandidates(now, REMINDER_BATCH_SIZE)) {
+            boolean completedOnTime = candidate.completedAt() != null
+                    && !candidate.completedAt().isAfter(candidate.dueAt());
+            String title = completedOnTime ? "Nhiệm vụ hết hạn · Đã hoàn thành" : "Nhiệm vụ hết hạn · Chưa hoàn thành";
+            String message = completedOnTime
+                    ? "Nhiệm vụ “" + candidate.itemTitle() + "” đã hoàn thành đúng hạn."
+                    : "Nhiệm vụ “" + candidate.itemTitle() + "” chưa hoàn thành tại thời điểm hết hạn.";
+            if (notifications.createEventIfAbsent(candidate.studentId(), NotificationType.STUDY_PLAN_ITEM_EXPIRED,
+                    title, message, "STUDY_PLAN_ITEM", candidate.itemId(), candidate.dueAt(), now, true)) {
+                inserted++;
+            }
+        }
+        return inserted;
+    }
+
     private void requireActiveStudent(UUID studentId) {
         users.findById(studentId)
                 .filter(account -> account.status() == UserStatus.ACTIVE)
@@ -127,6 +180,16 @@ public class NotificationService {
                         HttpStatus.FORBIDDEN,
                         "ACCOUNT_UNAVAILABLE",
                         "Tài khoản Student không tồn tại hoặc không khả dụng"
+                ));
+    }
+
+    /** Args: authenticated teacher ID. Input: account store. Output: void; errors: 403 when inactive/wrong role. */
+    private void requireActiveTeacher(UUID teacherId) {
+        users.findById(teacherId)
+                .filter(account -> account.status() == UserStatus.ACTIVE)
+                .filter(account -> account.role() == UserRole.TEACHER)
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.FORBIDDEN, "ACCOUNT_UNAVAILABLE", "Tài khoản Teacher không khả dụng"
                 ));
     }
 }

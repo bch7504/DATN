@@ -11,10 +11,14 @@ import com.studyflow.courseoffering.domain.CourseOfferingStatus;
 import com.studyflow.enrollment.domain.CourseEnrollment;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
+import com.studyflow.notification.application.port.NotificationStore;
+import com.studyflow.notification.domain.NotificationType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,13 +29,17 @@ public class CourseEnrollmentService {
 
     private final CourseEnrollmentRepository enrollmentRepository;
     private final CourseOfferingRepository offeringRepository;
+    private final NotificationStore notifications;
 
+    /** Args: enrollment/offering repositories and notification store. Input: Spring adapters. Output: service; errors: missing beans prevent startup. */
     public CourseEnrollmentService(CourseEnrollmentRepository enrollmentRepository,
-                                  CourseOfferingRepository offeringRepository) {
+                                  CourseOfferingRepository offeringRepository, NotificationStore notifications) {
         this.enrollmentRepository = enrollmentRepository;
         this.offeringRepository = offeringRepository;
+        this.notifications = notifications;
     }
 
+    /** Args: Student ID and join code. Input: active join-enabled class. Output: pending enrollment; errors: 404/409/422. Side effect: one teacher notice on a new request. */
     @Transactional
     public CourseEnrollment joinByCode(UUID studentId, String rawJoinCode) {
         String cleanCode = JoinCodeUtils.normalize(rawJoinCode);
@@ -64,12 +72,24 @@ public class CourseEnrollmentService {
             }
             if (existing.getStatus() == EnrollmentStatus.REJECTED || existing.getStatus() == EnrollmentStatus.REMOVED) {
                 existing.reapply();
-                return enrollmentRepository.save(existing);
+                CourseEnrollment reapplied = enrollmentRepository.save(existing);
+                notifications.createTeacherEnrollmentRequestedIfAbsent(offering.getTeacherId(), reapplied.getId(),
+                        offering.getName(), reapplied.getRequestedAt());
+                notifyStudent(reapplied, offering, NotificationType.STUDENT_ENROLLMENT_REQUESTED,
+                        "Đã gửi yêu cầu tham gia", "Yêu cầu vào lớp “" + offering.getName() + "” đang chờ giảng viên duyệt.",
+                        reapplied.getRequestedAt());
+                return reapplied;
             }
         }
 
         CourseEnrollment newEnrollment = new CourseEnrollment(UUID.randomUUID(), offering.getId(), studentId);
-        return enrollmentRepository.save(newEnrollment);
+        CourseEnrollment created = enrollmentRepository.save(newEnrollment);
+        notifications.createTeacherEnrollmentRequestedIfAbsent(offering.getTeacherId(), created.getId(),
+                offering.getName(), created.getRequestedAt());
+        notifyStudent(created, offering, NotificationType.STUDENT_ENROLLMENT_REQUESTED,
+                "Đã gửi yêu cầu tham gia", "Yêu cầu vào lớp “" + offering.getName() + "” đang chờ giảng viên duyệt.",
+                created.getRequestedAt());
+        return created;
     }
 
     @Transactional
@@ -89,7 +109,11 @@ public class CourseEnrollmentService {
         }
 
         enrollment.approve(teacherId);
-        return enrollmentRepository.save(enrollment);
+        CourseEnrollment approved = enrollmentRepository.save(enrollment);
+        notifyStudent(approved, offering, NotificationType.STUDENT_ENROLLMENT_APPROVED,
+                "Đã được duyệt vào lớp", "Bạn đã được duyệt vào lớp “" + offering.getName() + "”.",
+                approved.getDecidedAt());
+        return approved;
     }
 
     @Transactional
@@ -124,7 +148,13 @@ public class CourseEnrollmentService {
         }
 
         enrollments.forEach(enrollment -> enrollment.approve(teacherId));
-        return enrollmentRepository.saveAll(enrollments);
+        List<CourseEnrollment> approved = enrollmentRepository.saveAll(enrollments);
+        for (CourseEnrollment enrollment : approved) {
+            notifyStudent(enrollment, offering, NotificationType.STUDENT_ENROLLMENT_APPROVED,
+                    "Đã được duyệt vào lớp", "Bạn đã được duyệt vào lớp “" + offering.getName() + "”.",
+                    enrollment.getDecidedAt());
+        }
+        return approved;
     }
 
     @Transactional
@@ -140,7 +170,11 @@ public class CourseEnrollmentService {
         }
 
         enrollment.reject(teacherId, reason);
-        return enrollmentRepository.save(enrollment);
+        CourseEnrollment rejected = enrollmentRepository.save(enrollment);
+        notifyStudent(rejected, offering, NotificationType.STUDENT_ENROLLMENT_REJECTED,
+                "Yêu cầu tham gia bị từ chối", "Yêu cầu vào lớp “" + offering.getName() + "” chưa được duyệt.",
+                rejected.getDecidedAt());
+        return rejected;
     }
 
     @Transactional
@@ -156,7 +190,20 @@ public class CourseEnrollmentService {
         }
 
         enrollment.remove(teacherId, reason);
-        return enrollmentRepository.save(enrollment);
+        CourseEnrollment removed = enrollmentRepository.save(enrollment);
+        notifyStudent(removed, offering, NotificationType.STUDENT_ENROLLMENT_REMOVED,
+                "Đã rời khỏi lớp", "Bạn không còn là thành viên lớp “" + offering.getName() + "”.",
+                removed.getRemovedAt());
+        return removed;
+    }
+
+    /** Args: validated enrollment/offering, event type, bounded text and event instant. Input: current transaction. Output: void; adds one Student notice/email. Errors: persistence failure rolls back the decision. */
+    private void notifyStudent(CourseEnrollment enrollment, CourseOffering offering, NotificationType type,
+                               String title, String message, Instant occurredAt) {
+        UUID eventId = UUID.nameUUIDFromBytes((enrollment.getId() + ":" + type + ":" + occurredAt)
+                .getBytes(StandardCharsets.UTF_8));
+        notifications.createEventIfAbsent(enrollment.getStudentId(), type, title, message,
+                "COURSE_ENROLLMENT", eventId, null, occurredAt, true);
     }
 
     @Transactional(readOnly = true)

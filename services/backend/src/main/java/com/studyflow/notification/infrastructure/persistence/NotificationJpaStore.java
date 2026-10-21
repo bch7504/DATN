@@ -3,6 +3,7 @@ package com.studyflow.notification.infrastructure.persistence;
 import com.studyflow.notification.application.port.NotificationStore;
 import com.studyflow.notification.application.port.NotificationEmailOutbox;
 import com.studyflow.notification.domain.StudentNotification;
+import com.studyflow.notification.domain.NotificationType;
 import com.studyflow.study.application.PageResult;
 import java.time.Instant;
 import java.util.Optional;
@@ -26,6 +27,18 @@ public class NotificationJpaStore implements NotificationStore {
     public NotificationJpaStore(SpringDataNotificationRepository repository, NotificationEmailOutbox emailOutbox) {
         this.repository = repository;
         this.emailOutbox = emailOutbox;
+    }
+
+    /** Args/input/output/errors follow the typed NotificationStore event contract. */
+    @Override
+    public boolean createEventIfAbsent(UUID recipientId, NotificationType type, String title, String message,
+                                       String sourceType, UUID sourceId, Instant dueAt, Instant createdAt,
+                                       boolean emailStudent) {
+        UUID id = UUID.randomUUID();
+        boolean inserted = repository.insertEventIfAbsent(id, recipientId, type.name(), title, message,
+                sourceType, sourceId, dueAt, createdAt) == 1;
+        if (inserted && emailStudent) emailOutbox.enqueue(id, createdAt);
+        return inserted;
     }
 
     @Override
@@ -71,6 +84,24 @@ public class NotificationJpaStore implements NotificationStore {
             emailOutbox.enqueue(notificationId, createdAt);
         }
         return inserted;
+    }
+
+    /** Args: teacher/enrollment IDs, class name and timestamp. Input: pending join request. Output: true if inserted, no email side effect. Errors: database failure. */
+    @Override
+    public boolean createTeacherEnrollmentRequestedIfAbsent(
+            UUID teacherId, UUID enrollmentId, String className, Instant createdAt) {
+        String safeName = className == null ? "lớp học phần" : className;
+        return repository.insertTeacherEnrollmentRequestedIfAbsent(UUID.randomUUID(), teacherId, enrollmentId,
+                "Có sinh viên yêu cầu tham gia lớp “" + safeName + "”.", createdAt) == 1;
+    }
+
+    /** Args: teacher/submission IDs, assignment title and timestamp. Input: first submission. Output: true if inserted, no email side effect. Errors: database failure. */
+    @Override
+    public boolean createTeacherAssignmentSubmittedIfAbsent(
+            UUID teacherId, UUID submissionId, String assignmentTitle, Instant createdAt) {
+        String safeTitle = assignmentTitle == null ? "bài tập" : assignmentTitle;
+        return repository.insertTeacherAssignmentSubmittedIfAbsent(UUID.randomUUID(), teacherId, submissionId,
+                "Có bài nộp mới cho “" + safeTitle + "”.", createdAt) == 1;
     }
 
     @Override

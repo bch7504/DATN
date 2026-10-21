@@ -63,7 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    async function initSession() {
+    /** Args: none. Input: browser session cookie or a refreshable expired access token.
+     * Output: void; restores the current user or clears an invalid session.
+     * Errors: API failures are caught and leave the user unauthenticated.
+     */
+    async function initSession(): Promise<void> {
       try {
         const currentUser = await authApi.getMe();
         if (mounted) {
@@ -80,11 +84,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    initSession();
+    void initSession();
 
     return () => {
       mounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    /** Args: none. Input: an API request whose refresh token was rejected by Java.
+     * Output: void; clears the user so role guards return to login. Errors: none.
+     */
+    const onSessionExpired = (): void => { setUser(null); };
+    window.addEventListener("studyflow:session-expired", onSessionExpired);
+    return () => window.removeEventListener("studyflow:session-expired", onSessionExpired);
   }, []);
 
   const login = useCallback(

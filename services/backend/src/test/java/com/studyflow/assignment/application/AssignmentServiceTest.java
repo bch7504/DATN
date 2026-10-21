@@ -27,6 +27,7 @@ import com.studyflow.enrollment.domain.CourseEnrollment;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
 import com.studyflow.notification.application.port.NotificationStore;
+import com.studyflow.notification.domain.NotificationType;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -105,6 +106,8 @@ class AssignmentServiceTest {
         assertThat(published.getStatus()).isEqualTo(AssignmentStatus.PUBLISHED);
         verify(notifications).createAssignmentPublishedIfAbsent(approved.getStudentId(), ASSIGNMENT_ID,
                 "Bài 1", NOW.plusSeconds(3600), NOW);
+        verify(notifications).createEventIfAbsent(eq(TEACHER_ID), eq(NotificationType.TEACHER_ASSIGNMENT_PUBLISHED),
+                any(), any(), eq("COURSE_ASSIGNMENT"), eq(ASSIGNMENT_ID), eq(draft.getDueAt()), eq(NOW), eq(false));
     }
 
     @Test
@@ -131,6 +134,8 @@ class AssignmentServiceTest {
         assertThat(result.getStudentId()).isEqualTo(studentId);
         verify(attachmentStorage).put(any(String.class), eq("image/png"), any(InputStream.class), eq(image.getSize()));
         verify(attachments).save(any(AssignmentSubmissionAttachment.class));
+        verify(notifications).createTeacherAssignmentSubmittedIfAbsent(TEACHER_ID, result.getId(),
+                "Bài ảnh", NOW);
     }
 
     /** Args: none. Input: synthetic current submission with one old file. Output: latest text only; errors: assertions. */
@@ -157,6 +162,8 @@ class AssignmentServiceTest {
         assertThat(latest.getAnswerText()).isEqualTo("new answer");
         verify(attachments).deleteAll(java.util.List.of(oldFile));
         verify(attachmentCleanup).enqueue("assignment-submissions/old-key", NOW);
+        verify(notifications).createTeacherAssignmentSubmittedIfAbsent(TEACHER_ID, existing.getId(),
+                published.getTitle(), NOW);
     }
 
     /** Args: none. Input: synthetic old PDF and new PNG. Output: one current attachment; errors: assertions. */
@@ -314,6 +321,36 @@ class AssignmentServiceTest {
 
         verifyNoInteractions(notifications);
         assertThat(assignment.getReminderSentAt()).isEqualTo(NOW);
+    }
+
+    /** Args: none. Input: expired assignment with one submitted and one missing approved Student. Output: owner and missing Student notices once; errors: assertion failure. */
+    @Test
+    void expiryNotifiesTeacherAndOnlyMissingStudent() {
+        Instant dueAt = NOW.minusSeconds(1);
+        CourseAssignment assignment = new CourseAssignment(ASSIGNMENT_ID, OFFERING_ID, TEACHER_ID,
+                "Bài 1", "Nội dung", dueAt, dueAt.minusSeconds(86400), dueAt.minusSeconds(90000));
+        assignment.publish(dueAt.minusSeconds(3600));
+        UUID submittedId = UUID.randomUUID();
+        UUID missingId = UUID.randomUUID();
+        when(assignments.findByStatusAndDueAtLessThanEqualAndExpiryNotifiedAtIsNull(
+                AssignmentStatus.PUBLISHED, NOW)).thenReturn(java.util.List.of(assignment));
+        when(submissions.findByAssignmentId(ASSIGNMENT_ID)).thenReturn(java.util.List.of(
+                new AssignmentSubmission(UUID.randomUUID(), ASSIGNMENT_ID, submittedId, "done",
+                        dueAt.minusSeconds(5), com.studyflow.assignment.domain.SubmissionStatus.ON_TIME)));
+        when(enrollments.findByCourseOfferingIdAndStatus(OFFERING_ID, EnrollmentStatus.APPROVED))
+                .thenReturn(java.util.List.of(approvedEnrollment(submittedId), approvedEnrollment(missingId)));
+
+        assertThat(service.generateExpiryNotifications()).isEqualTo(1);
+
+        verify(notifications).createEventIfAbsent(eq(TEACHER_ID), eq(NotificationType.TEACHER_ASSIGNMENT_EXPIRED),
+                any(), org.mockito.ArgumentMatchers.contains("1 sinh viên"), eq("COURSE_ASSIGNMENT"),
+                eq(ASSIGNMENT_ID), eq(dueAt), eq(NOW), eq(false));
+        verify(notifications).createEventIfAbsent(eq(missingId), eq(NotificationType.STUDENT_ASSIGNMENT_EXPIRED),
+                any(), any(), eq("COURSE_ASSIGNMENT"), eq(ASSIGNMENT_ID), eq(dueAt), eq(NOW), eq(true));
+        verify(notifications, never()).createEventIfAbsent(eq(submittedId),
+                eq(NotificationType.STUDENT_ASSIGNMENT_EXPIRED), any(), any(), any(), any(), any(), any(),
+                org.mockito.ArgumentMatchers.anyBoolean());
+        assertThat(assignment.getExpiryNotifiedAt()).isEqualTo(NOW);
     }
 
     private static CourseAssignment publishedAssignment() {

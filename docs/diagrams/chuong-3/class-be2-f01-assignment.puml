@@ -1,0 +1,75 @@
+@startuml
+' Palette: class; Visual Paradigm-style UML compartments and dependencies.
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam NoteBackgroundColor #FFF9D9
+skinparam NoteBorderColor #555555
+skinparam ClassBackgroundColor #7ACFF5
+skinparam ClassBorderColor #222222
+skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam classAttributeIconSize 0
+skinparam roundcorner 10
+skinparam nodesep 35
+skinparam ranksep 45
+hide circle
+top to bottom direction
+
+class TeacherAssignmentController <<boundary>> {
+  +createDraft(request: AssignmentDraft): Assignment
+  +publish(id: UUID): Assignment
+  +summary(id: UUID): SubmissionSummary
+}
+class StudentAssignmentController <<boundary>> {
+  +list(offeringId: UUID): Assignment[]
+  +submit(id: UUID, body: Submission): Submission
+  +getMine(id: UUID): Submission
+}
+class AssignmentService <<control>> {
+  +checkOwner(offeringId: UUID): void
+  +publish(id: UUID): Assignment
+  +replace(id: UUID, studentId: UUID): Submission
+  +summary(id: UUID): SubmissionSummary
+}
+class AssignmentReminderJob <<scheduler>> {
+  +remindUnsubmitted(id: UUID): void
+}
+class CourseAssignment <<entity>> {
+  -id: UUID
+  -offeringId: UUID
+  -dueAt: Instant
+  -status: AssignmentStatus
+}
+class AssignmentSubmission <<entity>> {
+  -assignmentId: UUID
+  -studentId: UUID
+  -submittedAt: Instant
+  -late: boolean
+}
+class SubmissionAttachment <<entity>> {
+  -submissionId: UUID
+  -storageKey: String
+}
+class NotificationService <<control>> {
+  +notifyNew(id: UUID): void
+  +remindDue(id: UUID): void
+}
+
+TeacherAssignmentController --> AssignmentService
+StudentAssignmentController --> AssignmentService
+AssignmentReminderJob --> AssignmentService
+AssignmentService --> CourseAssignment
+AssignmentService --> AssignmentSubmission
+AssignmentService --> NotificationService
+CourseAssignment "1" -- "0..*" AssignmentSubmission
+AssignmentSubmission "1" -- "0..*" SubmissionAttachment
+
+note bottom of AssignmentSubmission
+Mỗi Sinh viên chỉ có một bài nộp hiện tại.
+Nộp lại thay nội dung và tệp cũ; không chấm bài.
+end note
+@enduml

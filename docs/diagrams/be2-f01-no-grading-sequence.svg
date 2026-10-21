@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1200" viewBox="0 0 1100 1200">
+  <defs>
+    <style>
+      text { font-family: Arial, 'DejaVu Sans', sans-serif; fill: #172f3e; }
+      .heading { font-size: 24px; font-weight: 700; }
+      .participant { font-size: 20px; font-weight: 700; }
+      .message { font-size: 17px; }
+      .hint { font-size: 17px; font-style: italic; }
+      .box { fill: #83c9e8; stroke: #315a71; stroke-width: 2; }
+      .frame { fill: none; stroke: #4a4a4a; stroke-width: 2; }
+      .life { stroke: #a5a5a5; stroke-width: 2; stroke-dasharray: 7 7; }
+      .arrow { stroke: #242424; stroke-width: 2.5; marker-end: url(#tip); }
+      .return { stroke: #555; stroke-width: 2; stroke-dasharray: 8 6; marker-end: url(#tip); }
+    </style>
+    <marker id="tip" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M1,1 L9,5 L1,9 Z" fill="#242424"/></marker>
+  </defs>
+  <rect x="1" y="1" width="1098" height="1198" fill="white"/>
+  <rect x="28" y="28" width="1044" height="1120" class="frame"/>
+  <text x="50" y="62" class="heading">sd BE2-F01 — Giao bài, nộp bài và theo dõi tình trạng</text>
+
+  <rect x="48" y="89" width="125" height="48" class="box"/>
+  <rect x="210" y="89" width="125" height="48" class="box"/>
+  <rect x="375" y="89" width="125" height="48" class="box"/>
+  <rect x="540" y="89" width="125" height="48" class="box"/>
+  <rect x="705" y="89" width="125" height="48" class="box"/>
+  <rect x="870" y="89" width="155" height="48" class="box"/>
+  <text x="110" y="120" text-anchor="middle" class="participant">Giảng viên</text>
+  <text x="272" y="120" text-anchor="middle" class="participant">Giao diện</text>
+  <text x="437" y="120" text-anchor="middle" class="participant">Hệ thống</text>
+  <text x="602" y="120" text-anchor="middle" class="participant">Dữ liệu</text>
+  <text x="767" y="120" text-anchor="middle" class="participant">Thông báo</text>
+  <text x="947" y="120" text-anchor="middle" class="participant">Sinh viên</text>
+
+  <line x1="110" y1="137" x2="110" y2="1108" class="life"/>
+  <line x1="272" y1="137" x2="272" y2="1108" class="life"/>
+  <line x1="437" y1="137" x2="437" y2="1108" class="life"/>
+  <line x1="602" y1="137" x2="602" y2="1108" class="life"/>
+  <line x1="767" y1="137" x2="767" y2="1108" class="life"/>
+  <line x1="947" y1="137" x2="947" y2="1108" class="life"/>
+
+  <text x="120" y="173" class="message">1. Nhập tiêu đề, hướng dẫn, hạn nộp</text>
+  <line x1="110" y1="183" x2="272" y2="183" class="arrow"/>
+  <text x="280" y="221" class="message">2. Tạo bản nháp trong lớp</text>
+  <line x1="272" y1="231" x2="437" y2="231" class="arrow"/>
+  <text x="443" y="269" class="message">3. Kiểm tra quyền; lưu DRAFT</text>
+  <line x1="437" y1="279" x2="602" y2="279" class="arrow"/>
+  <text x="120" y="317" class="message">4. Chọn công bố bài tập</text>
+  <line x1="110" y1="327" x2="272" y2="327" class="arrow"/>
+  <text x="280" y="365" class="message">5. Gửi yêu cầu công bố</text>
+  <line x1="272" y1="375" x2="437" y2="375" class="arrow"/>
+  <text x="443" y="413" class="message">6. Lưu PUBLISHED</text>
+  <line x1="437" y1="423" x2="602" y2="423" class="arrow"/>
+  <text x="455" y="461" class="message">7. Tạo thông báo bài mới</text>
+  <line x1="437" y1="471" x2="767" y2="471" class="arrow"/>
+  <text x="780" y="509" class="message">8. Gửi cho sinh viên đã duyệt</text>
+  <line x1="767" y1="519" x2="947" y2="519" class="arrow"/>
+
+  <rect x="44" y="550" width="1012" height="179" fill="none" stroke="#777" stroke-width="2"/>
+  <text x="62" y="574" class="hint">alt Nộp lần đầu hoặc nộp lại</text>
+  <text x="557" y="601" class="message">9. Gửi câu trả lời hoặc tệp</text>
+  <line x1="947" y1="611" x2="272" y2="611" class="arrow"/>
+  <text x="280" y="640" class="message">10. Kiểm tra quyền và bài đã công bố</text>
+  <line x1="272" y1="650" x2="437" y2="650" class="arrow"/>
+  <text x="443" y="679" class="message">11. Lưu bản hiện tại; thay tệp cũ</text>
+  <line x1="437" y1="689" x2="602" y2="689" class="arrow"/>
+  <text x="280" y="715" class="message">12. Báo đúng hạn hoặc nộp muộn</text>
+  <line x1="602" y1="724" x2="272" y2="724" class="return"/>
+
+  <rect x="44" y="754" width="1012" height="135" fill="none" stroke="#777" stroke-width="2"/>
+  <text x="62" y="779" class="hint">opt Khi sắp đến hạn</text>
+  <text x="455" y="809" class="message">13. Chọn người chưa nộp</text>
+  <line x1="437" y1="819" x2="767" y2="819" class="arrow"/>
+  <text x="780" y="855" class="message">14. Gửi lời nhắc trước hạn</text>
+  <line x1="767" y1="865" x2="947" y2="865" class="arrow"/>
+
+  <text x="120" y="924" class="message">15. Mở thống kê sau hạn</text>
+  <line x1="110" y1="934" x2="272" y2="934" class="arrow"/>
+  <text x="280" y="970" class="message">16. Yêu cầu tổng hợp bài nộp</text>
+  <line x1="272" y1="980" x2="437" y2="980" class="arrow"/>
+  <text x="443" y="1016" class="message">17. Đối chiếu danh sách lớp, bài nộp</text>
+  <line x1="437" y1="1026" x2="602" y2="1026" class="arrow"/>
+  <text x="280" y="1064" class="message">18. Trả số lượng và tên theo ba nhóm</text>
+  <line x1="602" y1="1074" x2="272" y2="1074" class="return"/>
+  <text x="545" y="1130" text-anchor="middle" class="hint">Kết quả thống kê: đúng hạn / nộp muộn / chưa nộp.</text>
+</svg>

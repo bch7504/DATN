@@ -1,0 +1,65 @@
+@startuml
+' Palette: sequence; Visual Paradigm-style lifelines, activations and fragments.
+' Interaction: BE2-F02 - Kho và công bố PDF
+skinparam defaultFontColor #111111
+skinparam ArrowColor #222222
+skinparam ActorBackgroundColor #7ACFF5
+skinparam ActorBorderColor #222222
+skinparam ParticipantBackgroundColor #7ACFF5
+skinparam ParticipantBorderColor #222222
+skinparam LifeLineBackgroundColor #7ACFF5
+skinparam LifeLineBorderColor #222222
+skinparam SequenceGroupBackgroundColor white
+skinparam SequenceGroupBodyBackgroundColor white
+skinparam SequenceGroupBorderColor #222222
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam roundcorner 10
+hide footbox
+autonumber
+autoactivate on
+
+actor "Giảng viên" as Teacher
+participant ":Web" as Web
+participant ":Java Backend" as Java
+database ":CSDL" as DB
+participant ":Kho tệp" as Storage
+actor "Sinh viên" as Student
+
+Teacher -> Web : Chọn PDF đưa vào kho học liệu
+Web -> Java : Tải PDF lên
+Java -> Java : Kiểm loại, dung lượng, lớp văn bản
+alt PDF không hợp lệ
+  Java --> Web : Báo lỗi, không tạo tài liệu
+else PDF hợp lệ
+  Java -> Storage : Lưu tệp trong kho
+  Storage --> Java : Khóa lưu trữ
+  Java -> DB : Lưu tài liệu READY
+  DB --> Java : Tài liệu trong kho
+  Java --> Web : Hiển thị tài liệu Sẵn sàng
+end
+
+Teacher -> Web : Chọn tài liệu và lớp học phần
+Web -> Java : Yêu cầu công bố
+Java -> DB : Kiểm chủ lớp; lưu PUBLISHED
+Java --> Web : Tài liệu xuất hiện trong lớp
+
+Student -> Web : Mở hoặc tải PDF của lớp
+Web -> Java : Yêu cầu truy cập
+Java -> DB : Kiểm APPROVED và PUBLISHED
+alt Không được phép
+  Java --> Web : Từ chối truy cập
+else Được phép
+  Java -> Storage : Đọc PDF được cấp quyền
+  Storage --> Java : Nội dung PDF
+  Java --> Web : Xem trên web hoặc tải về
+end
+
+Teacher -> Web : Thu hồi tài liệu khỏi lớp
+Web -> Java : Yêu cầu thu hồi
+Java -> DB : Lưu REVOKED, giữ tài liệu trong kho
+Java --> Web : Ngừng truy cập mới
+@enduml

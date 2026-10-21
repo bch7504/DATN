@@ -13,4 +13,8 @@ public class AssignmentReminderJob {
     /** Scans at the configured reminder interval; database uniqueness prevents duplicate notifications. */
     @Scheduled(fixedDelayString = "${studyflow.notifications.reminder-scan-delay:60000}")
     public void generateReminders() { assignments.generateDueReminders(); }
+
+    /** Args: none. Input: expired published assignments. Output: void; idempotent notices and expiry markers. Errors: persistence failure is retried on next scheduled run. */
+    @Scheduled(fixedDelayString = "${studyflow.notifications.reminder-scan-delay:60000}")
+    public void generateExpiryNotices() { assignments.generateExpiryNotifications(); }
 }

@@ -34,8 +34,8 @@ apps/web/
   - **Level 1:** Course Offering được phép và Quiz cá nhân, kèm số Quiz, điểm trung bình và số câu cần ôn.
   - **Level 2:** Quiz `READY`, attempt history không ghi đè và nội dung cần ôn từ câu sai kèm link nguồn.
   - Viewing progress chỉ xuất hiện trên Dashboard, không lặp lại trong Ôn tập.
-- **Kế hoạch & Lịch:** lịch tuần theo khung giờ giống mock, hỗ trợ chuyển tuần, thêm lịch bằng nút hoặc ô trống, thêm task và đánh dấu hoàn thành. Daily Goal/Streak vẫn ở Dashboard.
-- **Thông báo học tập:** route `/notifications` lấy nhắc hạn từ Java, lọc chưa đọc và đánh dấu đã đọc; không tự tính deadline ở trình duyệt.
+- **Kế hoạch & Lịch:** lịch tuần hiển thị mọi buổi học theo ngày và giờ đã chọn, không giới hạn ở khung giờ cố định; hỗ trợ chuyển tuần, thêm/sửa lịch, thêm task và đánh dấu hoàn thành. Daily Goal/Streak vẫn ở Dashboard.
+- **Thông báo học tập:** Student và Teacher đều có chuông bên cạnh nút Đăng xuất; mỗi vai trò chỉ lấy thông báo của chính mình từ Java, hiện số chưa đọc, lọc và đánh dấu đã đọc trong cửa sổ bật ra. Java phát thông báo học liệu, bài tập, ghi danh và hạn; browser chỉ hiển thị và dẫn tới đúng khu vực, không tự tính deadline. Route `/notifications` của Student vẫn truy cập trực tiếp được để tương thích liên kết cũ, nhưng không còn trong menu.
 
 ## Boundary bắt buộc
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   CalendarCheck,
   ChevronLeft,
@@ -17,16 +18,12 @@ import {
   StudyPlanItemRecord,
   StudyPlanRecord,
   SaveStudyPlanItemInput,
+  CourseAssignment,
+  assignmentApi,
+  studentApi,
   studyPlanApi,
 } from "@/lib/api-client";
-
-const TIME_SLOTS = [
-  { value: "07:00", label: "07:00 – 09:00", period: "Sáng" },
-  { value: "09:00", label: "09:00 – 11:00", period: "Sáng" },
-  { value: "13:00", label: "13:00 – 15:00", period: "Chiều" },
-  { value: "15:00", label: "15:00 – 17:00", period: "Chiều" },
-  { value: "19:00", label: "19:00 – 21:00", period: "Tối" },
-] as const;
+import { CourseOffering } from "@/types/course-offering";
 
 const WEEKDAY_NAMES = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
 
@@ -50,10 +47,6 @@ function dateInputValue(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function dateTimeToInstant(date: string, time: string): string {
-  return new Date(`${date}T${time}:00`).toISOString();
-}
-
 function formatDate(date: Date): string {
   return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
 }
@@ -74,16 +67,38 @@ function localTime(value: string | null): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-function sameLocalDate(left: string, right: Date): boolean {
-  return dateInputValue(new Date(left)) === dateInputValue(right);
+/** Args: one Java calendar item and the selected week's Monday. Input: an item returned for this week.
+ * Output: its scheduled day, deadline day, or Monday for a session spanning into this week.
+ * Errors: none; Java validates saved timestamps and calendar overlap before returning them.
+ */
+function displayDateInWeek(item: StudyPlanItemRecord, weekStart: Date): Date {
+  const weekEnd = addDays(weekStart, 7);
+  const scheduledStart = item.scheduledStart ? new Date(item.scheduledStart) : null;
+  if (scheduledStart && scheduledStart >= weekStart && scheduledStart < weekEnd) return scheduledStart;
+  const dueAt = item.dueAt ? new Date(item.dueAt) : null;
+  if (dueAt && dueAt >= weekStart && dueAt < weekEnd) return dueAt;
+  return weekStart;
 }
 
-function planDateRange(): { startDate: string; endDate: string } {
-  const today = new Date();
-  return {
-    startDate: `${today.getFullYear() - 1}-01-01`,
-    endDate: `${today.getFullYear() + 1}-12-31`,
-  };
+/** Args: published, approved-class assignment and week's local Monday. Input: Java-owned creation/deadline.
+ * Output: deadline day when due this week, otherwise creation day or Monday for a spanning assignment.
+ * Errors: none; assignments with invalid timestamps are filtered before this function is called.
+ */
+function assignmentDisplayDate(assignment: CourseAssignment, weekStart: Date): Date {
+  const weekEnd = addDays(weekStart, 7);
+  const due = new Date(assignment.dueAt);
+  if (due >= weekStart && due < weekEnd) return due;
+  const created = new Date(assignment.createdAt);
+  if (created >= weekStart && created < weekEnd) return created;
+  return weekStart;
+}
+
+/** Args: one Java-authorized assignment and current epoch milliseconds. Input: server submission/deadline.
+ * Output: student-facing submission status; no personal task is marked complete. Errors: none.
+ */
+function assignmentStateLabel(assignment: CourseAssignment, now: number): string {
+  if (assignment.submission) return assignment.submission.status === "LATE" ? "Đã nộp muộn" : "Đã nộp";
+  return Date.parse(assignment.dueAt) <= now ? "Quá hạn · Chưa nộp" : "Chưa nộp";
 }
 
 /** Args: none. Input: authenticated Student and Java plan/calendar DTOs. Output: personal planning page. Errors: API errors are shown without local fixture fallback. */
@@ -92,22 +107,26 @@ export default function StudentPlanPage() {
   const [plans, setPlans] = useState<StudyPlanRecord[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [newPlanTitle, setNewPlanTitle] = useState("Kế hoạch học tập cá nhân");
-  const [newPlanStart, setNewPlanStart] = useState(() => planDateRange().startDate);
-  const [newPlanEnd, setNewPlanEnd] = useState(() => planDateRange().endDate);
+  const [newPlanDate, setNewPlanDate] = useState(() => dateInputValue(new Date()));
   const [planTitle, setPlanTitle] = useState("");
-  const [planStart, setPlanStart] = useState("");
-  const [planEnd, setPlanEnd] = useState("");
+  const [planDate, setPlanDate] = useState("");
   const [items, setItems] = useState<StudyPlanItemRecord[]>([]);
+  const [assignments, setAssignments] = useState<CourseAssignment[]>([]);
+  const [now, setNow] = useState(() => Date.now());
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isScheduleModalOpen, setScheduleModalOpen] = useState(false);
-  const [scheduleDate, setScheduleDate] = useState(dateInputValue(new Date()));
-  const [scheduleStart, setScheduleStart] = useState("07:00");
+  const [isTaskModalOpen, setTaskModalOpen] = useState(false);
+  const [scheduleStartAt, setScheduleStartAt] = useState(() => `${dateInputValue(new Date())}T09:00`);
+  const [scheduleEndAt, setScheduleEndAt] = useState(() => `${dateInputValue(new Date())}T10:00`);
   const [scheduleType, setScheduleType] = useState<"STUDY_SESSION" | "QUIZ">("STUDY_SESSION");
   const [scheduleTitle, setScheduleTitle] = useState("");
-  const [scheduleDuration, setScheduleDuration] = useState(60);
+  const [availableClasses, setAvailableClasses] = useState<CourseOffering[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const [loadingClasses, setLoadingClasses] = useState(false);
+  const [classesError, setClassesError] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<StudyPlanItemRecord | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editStart, setEditStart] = useState("");
@@ -131,22 +150,39 @@ export default function StudentPlanPage() {
   );
 
   useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
+    /** Args: none. Input: active Student session, owned plans/calendar and approved-class assignments.
+     * Output: void; loads both personal and teacher-assigned items for the selected week.
+     * Errors: personal API failures show an error; assignment failures keep the personal calendar available.
+     */
     async function load(): Promise<void> {
       setLoading(true);
       setError(null);
       try {
-        const plans = await studyPlanApi.listPlans("ACTIVE");
+        const from = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
+        const to = addDays(from, 7);
+        const [plansResult, calendarResult, assignmentsResult] = await Promise.allSettled([
+          studyPlanApi.listPlans("ACTIVE"),
+          studyPlanApi.getCalendar(from.toISOString(), to.toISOString()),
+          assignmentApi.listForStudent(),
+        ]);
+        if (plansResult.status === "rejected") throw plansResult.reason;
+        if (calendarResult.status === "rejected") throw calendarResult.reason;
+        const plans = plansResult.value;
         const plan = plans.items.find((item) => item.id === selectedPlanId) ?? plans.items[0] ?? null;
         if (cancelled) return;
         setPlans(plans.items);
+        setItems(calendarResult.value.items);
+        setAssignments(assignmentsResult.status === "fulfilled" ? assignmentsResult.value : []);
+        if (assignmentsResult.status === "rejected") setError("Không tải được bài tập giáo viên giao. Vui lòng thử lại.");
         setActivePlan(plan);
         setPlanTitle(plan?.title ?? "");
-        setPlanStart(plan?.startDate ?? ""); setPlanEnd(plan?.endDate ?? "");
-        const from = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
-        const to = addDays(from, 7);
-        const calendar = await studyPlanApi.getCalendar(from.toISOString(), to.toISOString());
-        if (!cancelled) setItems(calendar.items);
+        setPlanDate(plan?.startDate ?? "");
       } catch (loadError: unknown) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : "Không tải được kế hoạch học tập.");
@@ -159,12 +195,42 @@ export default function StudentPlanPage() {
     return () => { cancelled = true; };
   }, [weekStart, reloadKey, selectedPlanId]);
 
-  const scheduledItems = items.filter(
-    (item) => item.status !== "CANCELLED" && item.scheduledStart && item.scheduledEnd
-  );
-  const taskItems = items.filter(
-    (item) => item.status !== "CANCELLED" && item.dueAt && item.type === "TASK"
-  );
+  useEffect(() => {
+    if (!isScheduleModalOpen) return;
+    let cancelled = false;
+    /** Args: none. Input: Student's Java-authorized APPROVED offerings.
+     * Output: void; updates the optional class-label choices without changing schedule data.
+     * Errors: a failed class request leaves personal scheduling available and shows a message.
+     */
+    async function loadClassLabels(): Promise<void> {
+      setLoadingClasses(true);
+      setClassesError(null);
+      try {
+        const offerings = await studentApi.getOfferings();
+        if (!cancelled) setAvailableClasses(offerings);
+      } catch {
+        if (!cancelled) {
+          setAvailableClasses([]);
+          setClassesError("Không tải được lớp học; bạn vẫn có thể lưu lịch cá nhân.");
+        }
+      } finally {
+        if (!cancelled) setLoadingClasses(false);
+      }
+    }
+    void loadClassLabels();
+    return () => { cancelled = true; };
+  }, [isScheduleModalOpen]);
+
+  const weekItems = items
+    .filter((item) => item.status !== "CANCELLED" && (item.scheduledStart || item.dueAt))
+    .sort((left, right) => Date.parse(left.scheduledStart ?? left.dueAt ?? "") - Date.parse(right.scheduledStart ?? right.dueAt ?? ""));
+  const weekEnd = addDays(weekStart, 7);
+  const weekAssignments = assignments.filter((assignment) => {
+    if (assignment.status !== "PUBLISHED" || !assignment.publishedAt) return false;
+    const created = Date.parse(assignment.createdAt);
+    const due = Date.parse(assignment.dueAt);
+    return Number.isFinite(created) && Number.isFinite(due) && created < weekEnd.getTime() && due >= weekStart.getTime();
+  });
 
   async function refreshCurrentWeek(): Promise<void> {
     const from = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
@@ -173,16 +239,26 @@ export default function StudentPlanPage() {
     setItems(calendar.items);
   }
 
+  /**
+   * Args: none. Input: entered title and one selected local calendar date (today by default).
+   * Output: void; creates a plan through Java and selects it on success.
+   * Errors: missing date or API errors are shown on the page without creating a plan.
+   */
   async function createPlan(): Promise<void> {
+    if (!newPlanDate) {
+      setError("Vui lòng chọn ngày kế hoạch.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       const plan = await studyPlanApi.createPlan({
         title: newPlanTitle.trim(),
         description: "Kế hoạch và lịch học do sinh viên tự quản lý.",
-        startDate: newPlanStart,
-        endDate: newPlanEnd,
+        startDate: newPlanDate,
+        endDate: newPlanDate,
       });
+      setNewPlanDate(dateInputValue(new Date()));
       setActivePlan(plan);
       setSelectedPlanId(plan.id);
       setReloadKey((value) => value + 1);
@@ -193,15 +269,16 @@ export default function StudentPlanPage() {
     }
   }
 
-  /** Args: form submit event. Input: selected active plan, title and inclusive date range.
-   * Output: void, persists fields via Java and refreshes list. Errors: shown in-page without losing input.
+  /** Args: form submit event. Input: selected active plan, title and one calendar date.
+   * Output: void, persists fields via Java and refreshes list; an unchanged date preserves older plans' original range.
+   * Errors: API errors are shown in-page without losing input.
    */
   async function renamePlan(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault(); if (!activePlan || saving || !planTitle.trim()) return;
+    event.preventDefault(); if (!activePlan || saving || !planTitle.trim() || !planDate) return;
     setSaving(true); setError(null);
     try {
       await studyPlanApi.updatePlan(activePlan.id, { title: planTitle.trim(), description: activePlan.description ?? undefined,
-        startDate: planStart, endDate: planEnd, status: "ACTIVE" });
+        startDate: planDate, endDate: planDate === activePlan.startDate ? activePlan.endDate : planDate, status: "ACTIVE" });
       setReloadKey((value) => value + 1);
     } catch (saveError: unknown) { setError(saveError instanceof Error ? saveError.message : "Không đổi được tên kế hoạch."); }
     finally { setSaving(false); }
@@ -220,31 +297,67 @@ export default function StudentPlanPage() {
     finally { setSaving(false); }
   }
 
-  function openSchedule(date: Date, time = "07:00"): void {
-    setScheduleDate(dateInputValue(date));
-    setScheduleStart(time);
+  /** Args: selected local calendar day. Input: a visible week day or today.
+   * Output: void; opens a draft with editable start/end date-times on that day. Errors: none.
+   */
+  function openSchedule(date: Date): void {
+    const day = dateInputValue(date);
+    setScheduleStartAt(`${day}T09:00`);
+    setScheduleEndAt(`${day}T10:00`);
     setScheduleTitle("");
+    setAvailableClasses([]);
+    setSelectedClassId("");
+    setError(null);
     setScheduleModalOpen(true);
   }
 
+  /** Args: none. Input: currently selected calendar week. Output: void; opens a task draft due in that week. Errors: none. */
+  function openTask(): void {
+    const today = new Date();
+    const dueDate = weekOffset === 0 ? today : weekStart;
+    setTaskTitle("");
+    setTaskDueAt(`${dateInputValue(dueDate)}T21:00`);
+    setError(null);
+    setTaskModalOpen(true);
+  }
+
+  /** Args: schedule form event. Input: owned plan, title, type and local start/end date-times.
+   * Output: void; saves through Java, refreshes the bell and shows the new schedule's week.
+   * Errors: invalid range or Java/API failures keep the dialog open and show an error.
+   */
   async function saveSchedule(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!activePlan || !scheduleTitle.trim()) return;
+    const startDate = new Date(scheduleStartAt);
+    const endDate = new Date(scheduleEndAt);
+    if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || endDate <= startDate) {
+      setError("Giờ kết thúc phải sau giờ bắt đầu.");
+      return;
+    }
+    const selectedClass = availableClasses.find((offering) => offering.id === selectedClassId);
+    if (selectedClassId && !selectedClass) {
+      setError("Lớp đã chọn không còn trong danh sách. Vui lòng chọn lại.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      const start = dateTimeToInstant(scheduleDate, scheduleStart);
-      const endDate = new Date(new Date(start).getTime() + scheduleDuration * 60 * 1000).toISOString();
       await studyPlanApi.createItem(activePlan.id, {
         title: scheduleTitle.trim(),
+        description: selectedClass ? `Nhãn lớp: ${selectedClass.code} · ${selectedClass.name}` : undefined,
         type: scheduleType,
-        scheduledStart: start,
-        scheduledEnd: endDate,
-        dueAt: endDate,
+        scheduledStart: startDate.toISOString(),
+        scheduledEnd: endDate.toISOString(),
+        dueAt: endDate.toISOString(),
         reminderMinutesBefore: 60,
       });
+      window.dispatchEvent(new Event("studyflow:notifications-updated"));
       setScheduleModalOpen(false);
-      await refreshCurrentWeek();
+      const selectedMonday = startOfWeek(startDate);
+      const currentMonday = startOfWeek(new Date());
+      const selectedWeekOffset = Math.round((selectedMonday.getTime() - currentMonday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+      if (selectedWeekOffset === weekOffset) await refreshCurrentWeek();
+      else setWeekOffset(selectedWeekOffset);
     } catch (saveError: unknown) {
       setError(saveError instanceof Error ? saveError.message : "Không lưu được lịch học.");
     } finally {
@@ -252,19 +365,34 @@ export default function StudentPlanPage() {
     }
   }
 
+  /** Args: task form submit event. Input: owned active plan, nonempty title and local due date-time.
+   * Output: void; creates a TASK via Java, refreshes the bell, closes the dialog and shows its week.
+   * Errors: invalid date or API failure keeps the dialog open and displays the error.
+   */
   async function addTask(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!activePlan || !taskTitle.trim() || !taskDueAt) return;
+    const dueDate = new Date(taskDueAt);
+    if (!Number.isFinite(dueDate.getTime())) {
+      setError("Hạn hoàn thành không hợp lệ.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       await studyPlanApi.createItem(activePlan.id, {
         title: taskTitle.trim(),
         type: "TASK",
-        dueAt: new Date(taskDueAt).toISOString(),
+        dueAt: dueDate.toISOString(),
       });
+      window.dispatchEvent(new Event("studyflow:notifications-updated"));
       setTaskTitle("");
-      await refreshCurrentWeek();
+      setTaskModalOpen(false);
+      const dueMonday = startOfWeek(dueDate);
+      const currentMonday = startOfWeek(new Date());
+      const dueWeekOffset = Math.round((dueMonday.getTime() - currentMonday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+      if (dueWeekOffset === weekOffset) await refreshCurrentWeek();
+      else setWeekOffset(dueWeekOffset);
     } catch (saveError: unknown) {
       setError(saveError instanceof Error ? saveError.message : "Không thêm được nhiệm vụ.");
     } finally {
@@ -272,8 +400,12 @@ export default function StudentPlanPage() {
     }
   }
 
+  /** Args: owned visible plan item. Input: current server status and lateCompleted flag.
+   * Output: void; updates status through Java, then refreshes calendar and bell.
+   * Errors: locked late completions are ignored; API errors are shown without changing local state.
+   */
   async function toggleTask(item: StudyPlanItemRecord): Promise<void> {
-    if (saving) return;
+    if (saving || item.lateCompleted) return;
     setSaving(true);
     setError(null);
     try {
@@ -282,18 +414,22 @@ export default function StudentPlanPage() {
         item.status === "COMPLETED" ? "TODO" : "COMPLETED",
         item.status === "COMPLETED" ? undefined : `study-plan-${item.id}-${crypto.randomUUID()}`
       );
+      window.dispatchEvent(new Event("studyflow:notifications-updated"));
       await refreshCurrentWeek();
     } catch (statusError: unknown) {
       setError(statusError instanceof Error ? statusError.message : "Không cập nhật được trạng thái.");
     } finally { setSaving(false); }
   }
 
+  /** Args: owned visible plan item. Input: user's confirmation and Java /remove contract.
+   * Output: void; hides the item but preserves its completion history. Errors: API failures remain visible.
+   */
   async function cancelItem(item: StudyPlanItemRecord): Promise<void> {
-    if (saving || !window.confirm(`Xóa "${item.title}" khỏi kế hoạch?`)) return;
+    if (saving || !window.confirm(`Ẩn "${item.title}" khỏi lịch? Lịch sử hoàn thành vẫn được giữ.`)) return;
     setSaving(true);
     setError(null);
     try {
-      await studyPlanApi.cancelItem(item.planId, item.id);
+      await studyPlanApi.removeItem(item.planId, item.id);
       await refreshCurrentWeek();
     } catch (cancelError: unknown) {
       setError(cancelError instanceof Error ? cancelError.message : "Không xóa được lịch hoặc nhiệm vụ.");
@@ -307,18 +443,22 @@ export default function StudentPlanPage() {
     return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   }
 
-  /** Args: owned item. Output: void; prefill edit dialog without writes, preserving schedule/deadline/reminder. */
+  /** Args: owned item. Input: Java lateCompleted flag. Output: void; prefills the edit dialog only
+   * for editable items, preserving schedule/deadline/reminder. Errors: locked items are ignored.
+   */
   function openEdit(item: StudyPlanItemRecord): void {
+    if (item.lateCompleted) return;
     setEditingItem(item); setEditTitle(item.title);
     setEditStart(toLocalInput(item.scheduledStart)); setEditEnd(toLocalInput(item.scheduledEnd)); setEditDue(toLocalInput(item.dueAt));
     setEditReminder(item.dueAt && item.reminderAt ? Math.round((Date.parse(item.dueAt) - Date.parse(item.reminderAt)) / 60000) : 1440);
   }
 
   /** Args: form submit event. Input: edited item and complete fields; Java enforces ownership and overlap rules.
-   * Output: void; persists changes and reloads calendar. Errors stay visible and keep the dialog open.
+   * Output: void; persists changes and reloads calendar. Errors: Java's late-completion lock and
+   * other API failures stay visible and keep the dialog open.
    */
   async function saveEdit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault(); if (!editingItem || saving) return;
+    event.preventDefault(); if (!editingItem || saving || editingItem.lateCompleted) return;
     setSaving(true); setError(null);
     try {
       const input: SaveStudyPlanItemInput = {
@@ -347,34 +487,36 @@ export default function StudentPlanPage() {
             <p className="mt-1 text-sm text-slate-500">Lịch và nhiệm vụ được lưu trong tài khoản của bạn.</p>
           </div>
         </div>
-        {activePlan && <button type="button" onClick={() => openSchedule(new Date())} className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800"><Plus className="h-4 w-4" />Thêm lịch học</button>}
+        {activePlan && <button type="button" onClick={() => openSchedule(weekOffset === 0 ? new Date() : weekDays[0].date)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800"><Plus className="h-4 w-4" />Thêm lịch học</button>}
       </header>
 
       {error && <ErrorAlert message={error} onRetry={() => setReloadKey((value) => value + 1)} />}
 
       {loading ? (
         <div className="flex justify-center py-16"><LoadingSpinner size="lg" text="Đang tải kế hoạch..." /></div>
-      ) : !activePlan ? (
+      ) : <>
+      {!activePlan && (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
           <CalendarCheck className="mx-auto h-10 w-10 text-slate-400" />
           <h2 className="mt-3 text-lg font-bold text-slate-900">Bạn chưa có kế hoạch học tập</h2>
           <p className="mx-auto mt-1 max-w-lg text-sm text-slate-500">Tạo kế hoạch cá nhân để lưu lịch tự học, lịch ôn Quiz và nhiệm vụ cần hoàn thành.</p>
           <label className="mx-auto mt-4 block max-w-sm text-left text-sm">Tên kế hoạch<input required maxLength={200} value={newPlanTitle} onChange={(event) => setNewPlanTitle(event.target.value)} className="mt-1 w-full rounded-xl border p-2" /></label>
-          <div className="mx-auto mt-3 flex max-w-sm gap-2"><label className="w-1/2 text-left text-sm">Từ ngày<input required type="date" value={newPlanStart} onChange={(event) => setNewPlanStart(event.target.value)} className="mt-1 w-full rounded-xl border p-2" /></label><label className="w-1/2 text-left text-sm">Đến ngày<input required type="date" min={newPlanStart} value={newPlanEnd} onChange={(event) => setNewPlanEnd(event.target.value)} className="mt-1 w-full rounded-xl border p-2" /></label></div>
-          <button type="button" disabled={saving || !newPlanTitle.trim() || !newPlanStart || newPlanEnd < newPlanStart} onClick={() => void createPlan()} className="mt-5 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{saving ? "Đang tạo..." : "Tạo kế hoạch cá nhân"}</button>
+          <label className="mx-auto mt-3 block max-w-sm text-left text-sm">Ngày kế hoạch<input required type="date" value={newPlanDate} onChange={(event) => setNewPlanDate(event.target.value)} className="mt-1 w-full rounded-xl border p-2" /></label>
+          <button type="button" disabled={saving || !newPlanTitle.trim() || !newPlanDate} onClick={() => void createPlan()} className="mt-5 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{saving ? "Đang tạo..." : "Tạo kế hoạch cá nhân"}</button>
         </section>
-      ) : (
-        <>
+      )}
+        {activePlan && (
           <section className="flex flex-wrap items-end gap-3 rounded-2xl border bg-white p-4">
             <label className="text-sm">Chọn kế hoạch<select disabled={saving} value={activePlan.id} onChange={(event) => setSelectedPlanId(event.target.value)} className="ml-2 rounded-xl border p-2">{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.title}</option>)}</select></label>
-            <form onSubmit={(event) => void renamePlan(event)} className="flex flex-wrap items-end gap-2"><label className="text-sm">Tên kế hoạch<input required maxLength={200} value={planTitle} onChange={(event) => setPlanTitle(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><label className="text-sm">Từ ngày<input required type="date" value={planStart} onChange={(event) => setPlanStart(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><label className="text-sm">Đến ngày<input required type="date" min={planStart} value={planEnd} onChange={(event) => setPlanEnd(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><button disabled={saving || !planTitle.trim() || !planStart || planEnd < planStart} className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50">Lưu kế hoạch</button></form>
+            <form onSubmit={(event) => void renamePlan(event)} className="flex flex-wrap items-end gap-2"><label className="text-sm">Tên kế hoạch<input required maxLength={200} value={planTitle} onChange={(event) => setPlanTitle(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><label className="text-sm">Ngày kế hoạch<input required type="date" value={planDate} onChange={(event) => setPlanDate(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><button disabled={saving || !planTitle.trim() || !planDate} className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50">Lưu kế hoạch</button></form>
             <button type="button" disabled={saving} onClick={() => void archivePlan()} className="rounded-xl border border-red-300 px-3 py-2 text-sm text-red-700 disabled:opacity-50">Lưu trữ</button>
-            <details className="text-sm"><summary className="cursor-pointer text-red-700">Tạo kế hoạch khác</summary><label className="mt-2 block">Tên kế hoạch<input required maxLength={200} value={newPlanTitle} onChange={(event) => setNewPlanTitle(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><label className="mt-2 block">Từ ngày<input required type="date" value={newPlanStart} onChange={(event) => setNewPlanStart(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><label className="mt-2 block">Đến ngày<input required type="date" min={newPlanStart} value={newPlanEnd} onChange={(event) => setNewPlanEnd(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><button type="button" disabled={saving || !newPlanTitle.trim() || !newPlanStart || newPlanEnd < newPlanStart} onClick={() => void createPlan()} className="mt-2 rounded-xl bg-red-700 px-3 py-2 text-white disabled:opacity-50">Tạo</button></details>
+            <details className="text-sm"><summary className="cursor-pointer text-red-700">Tạo kế hoạch khác</summary><label className="mt-2 block">Tên kế hoạch<input required maxLength={200} value={newPlanTitle} onChange={(event) => setNewPlanTitle(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><label className="mt-2 block">Ngày kế hoạch<input required type="date" value={newPlanDate} onChange={(event) => setNewPlanDate(event.target.value)} className="ml-2 rounded-xl border p-2" /></label><button type="button" disabled={saving || !newPlanTitle.trim() || !newPlanDate} onClick={() => void createPlan()} className="mt-2 rounded-xl bg-red-700 px-3 py-2 text-white disabled:opacity-50">Tạo</button></details>
           </section>
+        )}
           <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col justify-between gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:p-5">
               <div>
-                <h2 className="font-bold text-slate-900">{activePlan.title}</h2>
+                <h2 className="font-bold text-slate-900">{activePlan?.title ?? "Bài tập được giao"}</h2>
                 <p className="mt-1 text-xs text-slate-500">Tuần {weekLabel}</p>
               </div>
               <nav aria-label="Chuyển tuần" className="flex items-center gap-2">
@@ -384,65 +526,91 @@ export default function StudentPlanPage() {
               </nav>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] border-collapse text-left text-xs">
-                <thead><tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-                  <th className="w-32 border-r border-slate-200 p-3 text-center">Khung giờ</th>
-                  {weekDays.map(({ date, name }) => <th key={name} className="border-r border-slate-200 p-3 text-center last:border-0"><span className="block font-bold">{name}</span><span className="mt-1 block text-slate-400">{formatDate(date)}</span></th>)}
-                </tr></thead>
-                <tbody>{TIME_SLOTS.map((slot) => <tr key={slot.value} className="border-b border-slate-100 last:border-0">
-                  <th className="border-r border-slate-200 bg-slate-50/60 p-3 text-center font-medium text-slate-600"><span className="block">{slot.label}</span><span className="mt-1 inline-block rounded bg-slate-200 px-1.5 py-0.5 text-[10px]">{slot.period}</span></th>
-                  {weekDays.map(({ date, name }) => {
-                    const item = scheduledItems.find((candidate) => candidate.scheduledStart && sameLocalDate(candidate.scheduledStart, date) && localTime(candidate.scheduledStart) === slot.value);
-                    return <td key={name} className="h-24 border-r border-slate-100 p-2 align-top last:border-0">
-                      {item ? <article className={`group relative h-full rounded-xl border p-2.5 ${item.type === "QUIZ" ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
-                        <button type="button" onClick={() => void cancelItem(item)} className="absolute right-1 top-1 rounded p-1 text-slate-400 opacity-0 hover:text-red-600 group-hover:opacity-100" aria-label={`Xóa lịch ${item.title}`}><X className="h-3 w-3" /></button>
-                        <p className="pr-4 font-bold leading-snug text-slate-800">{item.title}</p><p className="mt-1 text-[10px] text-slate-500">{localTime(item.scheduledStart)}–{localTime(item.scheduledEnd)} · {item.type === "QUIZ" ? "Ôn Quiz" : "Tự học"}</p>
-                      </article> : <button type="button" onClick={() => openSchedule(date, slot.value)} className="flex h-full min-h-16 w-full items-center justify-center rounded-xl text-slate-300 hover:bg-red-50 hover:text-red-700">+ Thêm lịch</button>}
-                    </td>;
-                  })}
-                </tr>)}</tbody>
-              </table>
+            <p className="px-4 pt-3 text-xs text-slate-500">Chọn ngày và giờ bất kỳ khi thêm lịch. Lịch hiển thị theo múi giờ thiết bị.</p>
+            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
+              {weekDays.map(({ date, name }) => {
+                const dayItems = weekItems.filter((item) => dateInputValue(displayDateInWeek(item, weekStart)) === dateInputValue(date));
+                const dayAssignments = weekAssignments.filter((assignment) => dateInputValue(assignmentDisplayDate(assignment, weekStart)) === dateInputValue(date));
+                return <section key={name} className="flex min-h-48 flex-col rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
+                  <h3 className="font-bold text-slate-800">{name} <span className="font-normal text-slate-500">{formatDate(date)}</span></h3>
+                  <div className="mt-3 flex flex-1 flex-col gap-2">
+                    {dayItems.length === 0 && dayAssignments.length === 0 && <p className="py-4 text-center text-xs text-slate-400">Chưa có lịch</p>}
+                    {dayItems.map((item) => <article key={item.id} className={`rounded-xl border p-2.5 text-xs ${item.type === "QUIZ" ? "border-emerald-200 bg-emerald-50" : item.type === "TASK" ? "border-sky-200 bg-sky-50" : "border-amber-200 bg-amber-50"}`}>
+                      <p className="font-bold text-slate-800">{item.title}</p>
+                      {item.description && <p className="mt-1 text-slate-600">{item.description}</p>}
+                      <p className="mt-1 text-slate-600">{item.type === "TASK" ? `Hạn ${localTime(item.dueAt)} · Nhiệm vụ` : `${localTime(item.scheduledStart)}–${localTime(item.scheduledEnd)} · ${item.type === "QUIZ" ? "Ôn Quiz" : "Tự học"}`}</p>
+                      <p className="mt-1 text-slate-500">{item.lateCompleted ? "Hoàn thành muộn" : item.status === "COMPLETED" ? "Đã hoàn thành" : item.status === "OVERDUE" ? "Quá hạn · Chưa hoàn thành" : "Chưa hoàn thành"}</p>
+                    </article>)}
+                    {dayAssignments.map((assignment) => <article key={`assignment-${assignment.id}`} className="rounded-xl border border-violet-200 bg-violet-50 p-2.5 text-xs">
+                      <p className="font-bold text-slate-800">{assignment.title}</p>
+                      <p className="mt-1 text-violet-700">Bài tập giáo viên giao</p>
+                      <p className="mt-1 text-slate-600">Bắt đầu {formatDateTime(assignment.createdAt)}</p>
+                      <p className="mt-1 text-slate-600">Hạn nộp {formatDateTime(assignment.dueAt)}</p>
+                      <p className="mt-1 font-semibold text-slate-700">{assignmentStateLabel(assignment, now)}</p>
+                      <Link href="/assignments" className="mt-1 inline-block font-semibold text-violet-700 underline">Xem và nộp bài</Link>
+                    </article>)}
+                  </div>
+                  {activePlan && <button type="button" onClick={() => openSchedule(date)} className="mt-3 rounded-xl border border-dashed border-slate-300 px-2 py-2 text-xs font-semibold text-red-700 hover:border-red-300 hover:bg-red-50">+ Thêm lịch</button>}
+                </section>;
+              })}
             </div>
           </section>
 
-          <section className="space-y-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="font-bold">Tất cả lịch học trong tuần</h2>
-            <p className="text-xs text-slate-500">Hiển thị cả lịch ngoài khung giờ trong bảng. Giờ hiển thị theo múi giờ thiết bị. Lịch mới được nhắc trước giờ kết thúc 60 phút.</p>
-            {scheduledItems.length === 0 && <p className="text-sm text-slate-500">Chưa có lịch học trong tuần.</p>}
-            {scheduledItems.map((item) => <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"><div><p className="font-semibold">{item.title} · {item.status === "COMPLETED" ? "Đã hoàn thành" : "Chưa hoàn thành"}</p><p className="text-xs text-slate-500">{item.scheduledStart && formatDateTime(item.scheduledStart)} – {item.scheduledEnd && formatDateTime(item.scheduledEnd)}</p></div><div className="flex gap-3 text-sm"><button disabled={saving} onClick={() => openEdit(item)} className="text-red-700">Sửa lịch</button><button disabled={saving} onClick={() => void toggleTask(item)}>{item.status === "COMPLETED" ? "Bỏ hoàn thành" : "Hoàn thành"}</button><button disabled={saving} onClick={() => void cancelItem(item)} className="text-red-700">Xóa</button></div></article>)}
-          </section>
-
           <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div><h2 className="font-bold text-slate-900">Nhiệm vụ trong tuần ({taskItems.filter((item) => item.status === "COMPLETED").length}/{taskItems.length} hoàn thành)</h2><p className="mt-1 text-xs text-slate-500">Đánh dấu hoàn thành để lưu tiến độ vào hệ thống.</p></div>
-            <form onSubmit={(event) => void addTask(event)} className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
-              <input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} required maxLength={200} placeholder="Tên nhiệm vụ cần làm..." className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
-              <input type="datetime-local" value={taskDueAt} onChange={(event) => setTaskDueAt(event.target.value)} required className="rounded-xl border border-slate-300 px-3 py-2 text-sm" aria-label="Hạn hoàn thành" />
-              <button type="submit" disabled={saving || !taskTitle.trim()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><Plus className="h-4 w-4" />Thêm nhiệm vụ</button>
-            </form>
-            {taskItems.length === 0 ? <p className="rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">Tuần này chưa có nhiệm vụ. Thêm nhiệm vụ ở trên để lưu vào kế hoạch.</p> : <div className="grid gap-3 md:grid-cols-2">
-              {taskItems.map((item) => <article key={item.id} className={`flex items-start gap-3 rounded-2xl border p-3.5 ${item.status === "COMPLETED" ? "border-slate-200 bg-slate-50" : "border-slate-200 bg-white"}`}>
-                <input type="checkbox" disabled={saving} checked={item.status === "COMPLETED"} onChange={() => void toggleTask(item)} className="mt-1 h-4 w-4 accent-red-700" aria-label={`Đánh dấu ${item.title} ${item.status === "COMPLETED" ? "chưa hoàn thành" : "hoàn thành"}`} />
-                <div className="min-w-0 flex-1"><p className={`text-sm font-semibold ${item.status === "COMPLETED" ? "text-slate-400 line-through" : "text-slate-800"}`}>{item.title}</p><p className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500"><Clock className="h-3 w-3" />Hạn: {item.dueAt ? formatDateTime(item.dueAt) : "Chưa đặt"}</p></div>
-                <button type="button" disabled={saving} onClick={() => openEdit(item)} className="rounded p-1 text-slate-400 hover:text-red-700" aria-label={`Sửa nhiệm vụ ${item.title}`}><Pencil className="h-4 w-4" /></button>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="font-bold text-slate-900">Danh sách nhiệm vụ ({weekItems.filter((item) => item.status === "COMPLETED").length + weekAssignments.filter((assignment) => !!assignment.submission).length}/{weekItems.length + weekAssignments.length} hoàn thành)</h2><p className="mt-1 text-xs text-slate-500">Tuần {weekLabel} · Gồm lịch cá nhân và bài tập giáo viên giao.</p></div>
+              {activePlan && <button type="button" onClick={openTask} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"><Plus className="h-4 w-4" />Thêm nhiệm vụ</button>}
+            </div>
+            {weekItems.length === 0 && weekAssignments.length === 0 ? <p className="rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">Tuần này chưa có lịch học hoặc nhiệm vụ.</p> : <div className="grid gap-3 md:grid-cols-2">
+              {weekItems.map((item) => <article key={item.id} className={`flex items-start gap-3 rounded-2xl border p-3.5 ${item.status === "COMPLETED" ? "border-slate-200 bg-slate-50" : "border-slate-200 bg-white"}`}>
+                <input type="checkbox" disabled={saving || item.lateCompleted} checked={item.status === "COMPLETED"} onChange={() => void toggleTask(item)} className="mt-1 h-4 w-4 accent-red-700" aria-label={`Đánh dấu ${item.title} ${item.status === "COMPLETED" ? "chưa hoàn thành" : "hoàn thành"}`} />
+                <div className="min-w-0 flex-1"><p className={`text-sm font-semibold ${item.status === "COMPLETED" ? "text-slate-400 line-through" : "text-slate-800"}`}>{item.title}</p><p className="mt-1 text-xs text-slate-500">{item.type === "QUIZ" ? "Ôn Quiz" : item.type === "STUDY_SESSION" ? "Tự học" : "Nhiệm vụ"}{item.description ? ` · ${item.description}` : ""}</p><p className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500"><Clock className="h-3 w-3" />{item.scheduledStart ? "Bắt đầu" : "Hạn"}: {formatDateTime(item.scheduledStart ?? item.dueAt ?? "")}</p>{item.lateCompleted && <p className="mt-1 text-xs font-semibold text-amber-700">Hoàn thành muộn · chỉ có thể xóa</p>}{item.status === "OVERDUE" && <p className="mt-1 text-xs font-semibold text-red-700">Quá hạn · chưa hoàn thành</p>}</div>
+                {!item.lateCompleted && <button type="button" disabled={saving} onClick={() => openEdit(item)} className="rounded p-1 text-slate-400 hover:text-red-700" aria-label={`Sửa nhiệm vụ ${item.title}`}><Pencil className="h-4 w-4" /></button>}
                 <button type="button" disabled={saving} onClick={() => void cancelItem(item)} className="rounded p-1 text-slate-400 hover:text-red-700" aria-label={`Xóa nhiệm vụ ${item.title}`}><Trash2 className="h-4 w-4" /></button>
+              </article>)}
+              {weekAssignments.map((assignment) => <article key={`assignment-${assignment.id}`} className="rounded-2xl border border-violet-200 bg-violet-50 p-3.5">
+                <p className="text-sm font-semibold text-slate-800">{assignment.title}</p>
+                <p className="mt-1 text-xs font-semibold text-violet-700">Bài tập giáo viên giao · Chỉ xem</p>
+                {assignment.description && <p className="mt-1 text-xs text-slate-600">{assignment.description}</p>}
+                <p className="mt-1 text-xs text-slate-600">Bắt đầu: {formatDateTime(assignment.createdAt)}</p>
+                <p className="mt-1 text-xs text-slate-600">Hạn nộp: {formatDateTime(assignment.dueAt)}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-700">{assignmentStateLabel(assignment, now)}</p>
+                <Link href="/assignments" className="mt-2 inline-block text-xs font-semibold text-violet-700 underline">Xem và nộp bài</Link>
               </article>)}
             </div>}
           </section>
-        </>
-      )}
+      </>}
 
       {isScheduleModalOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
         <section role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title" className="w-full max-w-md space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
           <header className="flex items-center justify-between"><h2 id="schedule-modal-title" className="font-bold text-slate-900">Thêm lịch cá nhân</h2><button type="button" onClick={() => setScheduleModalOpen(false)} aria-label="Đóng" className="rounded p-1 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button></header>
           <form onSubmit={(event) => void saveSchedule(event)} className="space-y-3">
             {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-            <label className="block text-sm font-semibold text-slate-700">Thời lượng (phút)<input type="number" min={15} max={720} step={15} required value={scheduleDuration} onChange={(event) => setScheduleDuration(Number(event.target.value))} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" /></label>
-            <label className="block text-sm font-semibold text-slate-700">Ngày<input type="date" required value={scheduleDate} onChange={(event) => setScheduleDate(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" /></label>
-            <label className="block text-sm font-semibold text-slate-700">Khung giờ bắt đầu<select value={scheduleStart} onChange={(event) => setScheduleStart(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2">{TIME_SLOTS.map((slot) => <option key={slot.value} value={slot.value}>{slot.label}</option>)}</select></label>
+            <label className="block text-sm font-semibold text-slate-700">Bắt đầu<input type="datetime-local" required value={scheduleStartAt} onChange={(event) => setScheduleStartAt(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" /></label>
+            <label className="block text-sm font-semibold text-slate-700">Kết thúc<input type="datetime-local" required min={scheduleStartAt} value={scheduleEndAt} onChange={(event) => setScheduleEndAt(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" /></label>
+            {loadingClasses && <p className="text-xs text-slate-500">Đang tải các lớp đã tham gia...</p>}
+            {classesError && <p className="text-xs text-amber-700">{classesError}</p>}
+            {availableClasses.length > 0 && <label className="block text-sm font-semibold text-slate-700">Lớp học (tùy chọn)
+              <select value={selectedClassId} onChange={(event) => setSelectedClassId(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2">
+                <option value="">Lịch cá nhân, không chọn lớp</option>
+                {availableClasses.map((offering) => <option key={offering.id} value={offering.id}>{offering.code} · {offering.name}</option>)}
+              </select>
+              <span className="mt-1 block text-xs font-normal text-slate-500">Tên lớp chỉ được lưu như nhãn hiển thị trên lịch, chưa liên kết dữ liệu lớp.</span>
+            </label>}
             <fieldset><legend className="mb-1 text-sm font-semibold text-slate-700">Loại lịch</legend><div className="grid grid-cols-2 gap-2">{([{ id: "STUDY_SESSION", label: "Tự học" }, { id: "QUIZ", label: "Ôn Quiz" }] as const).map((option) => <button key={option.id} type="button" onClick={() => setScheduleType(option.id)} className={`rounded-xl border px-3 py-2 text-sm font-semibold ${scheduleType === option.id ? "border-red-300 bg-red-50 text-red-700" : "border-slate-200 text-slate-600"}`}>{option.label}</button>)}</div></fieldset>
             <label className="block text-sm font-semibold text-slate-700">Nội dung<input value={scheduleTitle} onChange={(event) => setScheduleTitle(event.target.value)} required maxLength={200} placeholder="Ví dụ: Ôn chương 2" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" /></label>
             <div className="flex justify-end gap-2 border-t border-slate-100 pt-3"><button type="button" onClick={() => setScheduleModalOpen(false)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Hủy</button><button type="submit" disabled={saving} className="rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{saving ? "Đang lưu..." : "Lưu lịch"}</button></div>
+          </form>
+        </section>
+      </div>}
+      {isTaskModalOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <section role="dialog" aria-modal="true" aria-labelledby="task-modal-title" className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <header className="flex items-center justify-between"><h2 id="task-modal-title" className="font-bold text-slate-900">Thêm nhiệm vụ</h2><button type="button" onClick={() => setTaskModalOpen(false)} aria-label="Đóng" className="rounded p-1 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button></header>
+          <form onSubmit={(event) => void addTask(event)} className="mt-4 space-y-3">
+            {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+            <label className="block text-sm font-semibold text-slate-700">Tên nhiệm vụ<input autoFocus value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} required maxLength={200} placeholder="Tên nhiệm vụ cần làm..." className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" /></label>
+            <label className="block text-sm font-semibold text-slate-700">Hạn hoàn thành<input type="datetime-local" value={taskDueAt} onChange={(event) => setTaskDueAt(event.target.value)} required className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" /></label>
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-3"><button type="button" onClick={() => setTaskModalOpen(false)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Hủy</button><button type="submit" disabled={saving || !taskTitle.trim()} className="rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{saving ? "Đang lưu..." : "Lưu nhiệm vụ"}</button></div>
           </form>
         </section>
       </div>}

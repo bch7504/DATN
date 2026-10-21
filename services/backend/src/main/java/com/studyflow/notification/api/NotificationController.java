@@ -24,7 +24,7 @@ public class NotificationController {
     private final NotificationService service;
 
     /**
-     * Creates the Student notification HTTP adapter.
+     * Creates the Student/Teacher notification HTTP adapter.
      *
      * @param service application service enforcing account and ownership rules
      */
@@ -56,6 +56,25 @@ public class NotificationController {
     }
 
     /**
+     * Args: verified teacher JWT, unread filter (default false), page (default 0) and size (default 20, 1..100).
+     * Input: authenticated TEACHER session. Output: HTTP 200 owner-scoped page; no side effects.
+     * Errors: 401 invalid session, 403 wrong/unavailable role, 422 invalid pagination.
+     */
+    @GetMapping("/api/v1/teacher/notifications")
+    public NotificationPageResponse listTeacher(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "false") boolean unreadOnly,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+    ) {
+        PageResult<StudentNotification> result = service.listTeacher(userId(jwt), unreadOnly, page, size);
+        return new NotificationPageResponse(
+                result.items().stream().map(NotificationResponse::from).toList(),
+                result.page(), result.size(), result.totalItems(), result.totalPages()
+        );
+    }
+
+    /**
      * Marks an owner-scoped notification as read idempotently.
      *
      * @param jwt verified JWT with UUID subject
@@ -70,6 +89,17 @@ public class NotificationController {
         return NotificationResponse.from(service.markRead(userId(jwt), notificationId));
     }
 
+    /**
+     * Args: verified teacher JWT and required notification UUID. Input: authenticated TEACHER session.
+     * Output: HTTP 200 updated safe notification. Errors: 401/403 or owner-safe 404.
+     */
+    @PatchMapping("/api/v1/teacher/notifications/{notificationId}/read")
+    public NotificationResponse markTeacherRead(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID notificationId) {
+        return NotificationResponse.from(service.markTeacherRead(userId(jwt), notificationId));
+    }
+
+    /** Args: verified JWT. Input: subject UUID claim. Output: user UUID; errors: 401 invalid session. */
     private static UUID userId(Jwt jwt) {
         if (jwt == null || jwt.getSubject() == null) {
             throw invalidSession();
@@ -81,6 +111,7 @@ public class NotificationController {
         }
     }
 
+    /** Args: none. Input: invalid session context. Output: 401 ApiException; errors: none. */
     private static ApiException invalidSession() {
         return new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_SESSION", "Phiên đăng nhập không hợp lệ");
     }

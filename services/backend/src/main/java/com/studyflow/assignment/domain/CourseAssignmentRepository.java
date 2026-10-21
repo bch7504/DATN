@@ -14,4 +14,7 @@ public interface CourseAssignmentRepository extends JpaRepository<CourseAssignme
             Collection<UUID> courseOfferingIds, AssignmentStatus status);
     List<CourseAssignment> findByStatusAndReminderAtLessThanEqualAndReminderSentAtIsNull(
             AssignmentStatus status, Instant now);
+    /** Args: published status and current instant. Input: unprocessed expired rows. Output: matching assignments; errors: persistence failure. */
+    List<CourseAssignment> findByStatusAndDueAtLessThanEqualAndExpiryNotifiedAtIsNull(
+            AssignmentStatus status, Instant now);
 }

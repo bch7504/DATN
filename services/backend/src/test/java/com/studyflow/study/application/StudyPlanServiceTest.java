@@ -14,6 +14,8 @@ import com.studyflow.common.exception.ApiException;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.CourseEnrollment;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
+import com.studyflow.notification.application.port.NotificationStore;
+import com.studyflow.notification.domain.NotificationType;
 import com.studyflow.study.application.port.LearningEventStore;
 import com.studyflow.study.application.port.StudyPlanItemStore;
 import com.studyflow.study.application.port.StudyPlanStore;
@@ -62,13 +64,16 @@ class StudyPlanServiceTest {
     @Mock
     private CourseEnrollmentRepository enrollments;
 
+    @Mock
+    private NotificationStore notifications;
+
     private StudyPlanService service;
     private StudyPlan plan;
 
     @BeforeEach
     void setUp() {
         service = new StudyPlanService(
-                plans, items, learningEvents, users, enrollments, Clock.fixed(NOW, ZoneOffset.UTC)
+                plans, items, learningEvents, users, enrollments, notifications, Clock.fixed(NOW, ZoneOffset.UTC)
         );
         plan = new StudyPlan(
                 PLAN_ID, STUDENT_ID, "Ôn thi học kỳ", null,
@@ -129,6 +134,7 @@ class StudyPlanServiceTest {
                     assertThat(error.status().value()).isEqualTo(409);
                     assertThat(error.code()).isEqualTo("STUDY_SCHEDULE_CONFLICT");
                 });
+        verifyNoInteractions(notifications);
     }
 
     @Test
@@ -149,6 +155,8 @@ class StudyPlanServiceTest {
         assertThat(result.dueAt()).isEqualTo(dueAt);
         assertThat(result.reminderAt()).isEqualTo(Instant.parse("2026-10-14T12:00:00Z"));
         assertThat(result.reminderSentAt()).isNull();
+        verify(notifications).createEventIfAbsent(eq(STUDENT_ID), eq(NotificationType.STUDY_PLAN_ITEM_CREATED),
+                any(), any(), eq("STUDY_PLAN_ITEM"), eq(result.id()), eq(dueAt), eq(NOW), eq(true));
     }
 
     /** Args: none. Input: approved synthetic enrollment. Output: saved class-linked item; errors: assertions. */
@@ -221,6 +229,72 @@ class StudyPlanServiceTest {
         verify(learningEvents).recordStudyTaskCompleted(
                 STUDENT_ID, ITEM_ID, "complete-123", NOW, LocalDate.of(2026, 10, 13)
         );
+        verifyNoInteractions(notifications);
+    }
+
+    /** Args: none. Input: TODO item completed after its deadline. Output: completion plus one late notice; errors: assertions. */
+    @Test
+    void completingAfterDeadlineNotifiesAndLocksFurtherChanges() {
+        StudyPlanItem overdue = new StudyPlanItem(ITEM_ID, PLAN_ID, "Đọc chương 1", null,
+                StudyPlanItemType.TASK, null, null, NOW.minusSeconds(60),
+                NOW.minusSeconds(120), null, StudyPlanItemStatus.TODO, null,
+                NOW.minusSeconds(3600), NOW.minusSeconds(3600));
+        when(items.findOwnedForUpdate(ITEM_ID, STUDENT_ID)).thenReturn(Optional.of(overdue));
+        when(plans.findOwned(PLAN_ID, STUDENT_ID)).thenReturn(Optional.of(plan));
+        when(items.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StudyPlanItem completed = service.changeItemStatus(STUDENT_ID, ITEM_ID,
+                StudyPlanItemStatus.COMPLETED, "complete-late-123");
+
+        assertThat(completed.completedAt()).isEqualTo(NOW);
+        verify(notifications).createEventIfAbsent(eq(STUDENT_ID),
+                eq(NotificationType.STUDY_PLAN_ITEM_LATE_COMPLETED), any(), any(),
+                eq("STUDY_PLAN_ITEM"), eq(ITEM_ID), eq(overdue.dueAt()), eq(NOW), eq(true));
+
+        when(items.findOwnedForUpdate(ITEM_ID, STUDENT_ID)).thenReturn(Optional.of(completed));
+        assertThatThrownBy(() -> service.updateItem(STUDENT_ID, PLAN_ID, ITEM_ID,
+                new SaveStudyPlanItemCommand("Đổi tên", null, StudyPlanItemType.TASK,
+                        null, null, NOW.plusSeconds(3600), null)))
+                .isInstanceOfSatisfying(ApiException.class, error -> {
+                    assertThat(error.status().value()).isEqualTo(409);
+                    assertThat(error.code()).isEqualTo("STUDY_PLAN_ITEM_LATE_COMPLETED_LOCKED");
+                });
+        assertThatThrownBy(() -> service.changeItemStatus(STUDENT_ID, ITEM_ID,
+                StudyPlanItemStatus.TODO, null))
+                .isInstanceOfSatisfying(ApiException.class, error ->
+                        assertThat(error.code()).isEqualTo("STUDY_PLAN_ITEM_LATE_COMPLETED_LOCKED"));
+        assertThat(service.changeItemStatus(STUDENT_ID, ITEM_ID, StudyPlanItemStatus.COMPLETED, null))
+                .isEqualTo(completed);
+        assertThatThrownBy(() -> service.cancelItem(STUDENT_ID, PLAN_ID, ITEM_ID))
+                .isInstanceOfSatisfying(ApiException.class, error ->
+                        assertThat(error.code()).isEqualTo("STUDY_PLAN_ITEM_LATE_COMPLETED_LOCKED"));
+
+        service.deleteItem(STUDENT_ID, PLAN_ID, ITEM_ID);
+        ArgumentCaptor<StudyPlanItem> saved = ArgumentCaptor.forClass(StudyPlanItem.class);
+        verify(items, org.mockito.Mockito.times(2)).save(saved.capture());
+        assertThat(saved.getAllValues().get(1).status()).isEqualTo(StudyPlanItemStatus.DELETED);
+        assertThat(saved.getAllValues().get(1).completedAt()).isEqualTo(NOW);
+    }
+
+    /** Args: none. Input: on-time completed item with an unchanged past deadline. Output: editable title; errors: assertions. */
+    @Test
+    void onTimeCompletedItemCanStillBeEditedAfterItsDeadline() {
+        Instant dueAt = NOW.minusSeconds(60);
+        StudyPlanItem completed = new StudyPlanItem(ITEM_ID, PLAN_ID, "Ôn cũ", null,
+                StudyPlanItemType.TASK, null, null, dueAt, NOW.minusSeconds(3600), null,
+                StudyPlanItemStatus.COMPLETED, dueAt.minusSeconds(60),
+                NOW.minusSeconds(7200), NOW.minusSeconds(7200));
+        when(plans.findOwned(PLAN_ID, STUDENT_ID)).thenReturn(Optional.of(plan));
+        when(items.findOwnedForUpdate(ITEM_ID, STUDENT_ID)).thenReturn(Optional.of(completed));
+        when(items.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StudyPlanItem updated = service.updateItem(STUDENT_ID, PLAN_ID, ITEM_ID,
+                new SaveStudyPlanItemCommand("Ôn mới", null, StudyPlanItemType.TASK,
+                        null, null, dueAt, 1440));
+
+        assertThat(updated.title()).isEqualTo("Ôn mới");
+        assertThat(updated.completedAt()).isEqualTo(completed.completedAt());
+        assertThat(updated.reminderAt()).isEqualTo(completed.reminderAt());
     }
 
     @Test

@@ -164,6 +164,7 @@ class StudyPlanControllerTest {
                         .queryParam("to", "2020-01-08T00:00:00Z"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].status").value("OVERDUE"))
+                .andExpect(jsonPath("$.items[0].lateCompleted").value(false))
                 .andExpect(jsonPath("$.items[0].courseOfferingId").value(COURSE_ID.toString()));
     }
 

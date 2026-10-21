@@ -20,6 +20,7 @@ class StudyPlanItemResponseTest {
         StudyPlanItemResponse response = StudyPlanItemResponse.from(item, NOW);
 
         assertThat(response.status()).isEqualTo(StudyPlanItemViewStatus.OVERDUE);
+        assertThat(response.lateCompleted()).isFalse();
         assertThat(item.status()).isEqualTo(StudyPlanItemStatus.TODO);
     }
 
@@ -32,6 +33,16 @@ class StudyPlanItemResponseTest {
 
         assertThat(response.status()).isEqualTo(StudyPlanItemViewStatus.COMPLETED);
         assertThat(response.completedAt()).isEqualTo(NOW.minusSeconds(7200));
+        assertThat(response.lateCompleted()).isFalse();
+    }
+
+    /** Args: none. Input: completion after dueAt. Output: lateCompleted=true with COMPLETED status. Errors: assertions. */
+    @Test
+    void completedAfterDeadlineIsMarkedLate() {
+        StudyPlanItemResponse response = StudyPlanItemResponse.from(
+                item(StudyPlanItemStatus.COMPLETED, NOW.minusSeconds(60)), NOW);
+        assertThat(response.status()).isEqualTo(StudyPlanItemViewStatus.COMPLETED);
+        assertThat(response.lateCompleted()).isTrue();
     }
 
     /** Args: persisted state and optional completion time. Output: synthetic item with earlier dueAt. */
