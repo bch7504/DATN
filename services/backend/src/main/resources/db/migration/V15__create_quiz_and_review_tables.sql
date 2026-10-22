@@ -1,8 +1,6 @@
 -- StudyFlow Database Migration V15: Quiz, Attempt, and Review Schema
 -- Schema owner: app (Java Spring Boot)
 
-CREATE SCHEMA IF NOT EXISTS app;
-
 -- 1. Table quizzes
 CREATE TABLE app.quizzes (
     id UUID PRIMARY KEY,
