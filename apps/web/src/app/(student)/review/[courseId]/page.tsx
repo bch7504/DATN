@@ -62,6 +62,8 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
 
   // Take Quiz Modal State
   const [activeQuizToTake, setActiveQuizToTake] = useState<Quiz | null>(null);
+  const [activeAttemptId, setActiveAttemptId] = useState<string | null>(null);
+  const [isStartingQuiz, setIsStartingQuiz] = useState<string | null>(null);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [isSubmittingAttempt, setIsSubmittingAttempt] = useState<boolean>(false);
   const [latestAttemptResult, setLatestAttemptResult] = useState<QuizAttempt | null>(null);
@@ -96,11 +98,41 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
 
-  // Handle Taking Quiz
-  const handleStartQuiz = (quiz: Quiz) => {
-    setActiveQuizToTake(quiz);
-    setUserAnswers({});
-    setLatestAttemptResult(null);
+  // Handle Taking Quiz via real Java Backend anti-cheat flow
+  const handleStartQuiz = async (quiz: Quiz) => {
+    setIsStartingQuiz(quiz.id);
+    try {
+      const attemptData = await quizApi.startAttempt(quiz.id);
+      setActiveAttemptId(attemptData.attemptId);
+
+      const optionLetters = ["A", "B", "C", "D"];
+      const questionsMapped: QuizQuestion[] = attemptData.questions.map((q) => ({
+        id: q.id,
+        questionText: q.questionText,
+        type: "MCQ_SINGLE",
+        options: q.options.map((opt) => ({
+          id: optionLetters[opt.index] || String(opt.index),
+          text: opt.text,
+        })),
+        correctOptionId: "",
+        explanation: "",
+      }));
+
+      setActiveQuizToTake({
+        ...quiz,
+        questions: questionsMapped,
+      });
+      setUserAnswers({});
+      setLatestAttemptResult(null);
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError) {
+        alert(err.message);
+      } else {
+        alert("Không thể bắt đầu lượt làm bài quiz.");
+      }
+    } finally {
+      setIsStartingQuiz(null);
+    }
   };
 
   const handleSelectAnswer = (questionId: string, optionId: string) => {
@@ -111,23 +143,34 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
   };
 
   const handleSubmitQuiz = async () => {
-    if (!activeQuizToTake) return;
+    if (!activeQuizToTake || !activeAttemptId) return;
     setIsSubmittingAttempt(true);
     try {
-      const answersPayload = activeQuizToTake.questions.map((q) => ({
-        questionId: q.id,
-        selectedOptionId: userAnswers[q.id] || "",
-      }));
+      const letterToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
+      const answersPayload: Record<string, number> = {};
+      for (const [qId, optLetter] of Object.entries(userAnswers)) {
+        answersPayload[qId] = optLetter in letterToIndex ? letterToIndex[optLetter] : (parseInt(optLetter, 10) || 0);
+      }
 
-      const result = await quizApi.submitAttempt({
-        quizId: activeQuizToTake.id,
-        answers: answersPayload,
-      });
+      const result = await quizApi.submitAttemptToBackend(activeAttemptId, answersPayload);
 
-      setLatestAttemptResult(result);
-      // Refresh attempts & review items
+      const newAttempt: QuizAttempt = {
+        id: result.attemptId,
+        quizId: result.quizId,
+        quizTitle: activeQuizToTake.title,
+        attemptNumber: attempts.length + 1,
+        score: result.correctAnswersCount,
+        maxScore: result.totalQuestionsCount,
+        percentage: Math.round((result.correctAnswersCount / result.totalQuestionsCount) * 100),
+        completedAt: result.completedAt,
+        answers: [],
+      };
+
+      setLatestAttemptResult(newAttempt);
+      setAttempts((prev) => [newAttempt, ...prev]);
+
+      // Refresh attempts & review items with citations
       const workspace = await reviewApi.getCourseWorkspace(courseId);
-      setAttempts(workspace.attempts);
       setReviewItems(workspace.reviewItems);
     } catch (err: unknown) {
       if (err instanceof ApiClientError) {
@@ -268,7 +311,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-2">
                             <span className="px-2 py-0.5 rounded bg-red-50 text-ptit-red text-[11px] font-bold">
-                              {quiz.questions.length} câu trắc nghiệm
+                              {quiz.questionCount || quiz.questions.length} câu trắc nghiệm
                             </span>
                             <span className="text-[11px] text-slate-400">
                               Tạo ngày: {new Date(quiz.createdAt).toLocaleDateString("vi-VN")}
@@ -285,9 +328,15 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                           </span>
                           <button
                             onClick={() => handleStartQuiz(quiz)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                            disabled={isStartingQuiz === quiz.id}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-ptit-red text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer disabled:opacity-50"
                           >
-                            <Play className="w-3.5 h-3.5" /> Làm bài thi
+                            {isStartingQuiz === quiz.id ? (
+                              <LoadingSpinner size="sm" />
+                            ) : (
+                              <Play className="w-3.5 h-3.5" />
+                            )}
+                            <span>Làm bài thi</span>
                           </button>
                         </div>
                       </div>
@@ -458,6 +507,11 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                         )}
                       </div>
                     )}
+                    {item.citation?.excerpt && (
+                      <div className="p-2.5 bg-amber-50/70 rounded-xl border border-amber-200/60 text-[11px] text-amber-900 italic">
+                        &ldquo;{item.citation.excerpt}&rdquo;
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -482,7 +536,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                 </h3>
               </div>
               <button
-                onClick={() => setActiveQuizToTake(null)}
+                onClick={() => { setActiveQuizToTake(null); setActiveAttemptId(null); setLatestAttemptResult(null); }}
                 className="text-slate-400  text-base font-bold p-1 cursor-pointer"
               >
                 ✕
@@ -504,7 +558,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                     Lượt làm thứ {latestAttemptResult.attemptNumber} đã được ghi lại vào Lịch sử làm bài. Mọi câu trả lời sai đã tự động được bổ sung vào mục &quot;Nội dung cần ôn lại&quot;.
                   </p>
                   <button
-                    onClick={() => setActiveQuizToTake(null)}
+                    onClick={() => { setActiveQuizToTake(null); setActiveAttemptId(null); setLatestAttemptResult(null); }}
                     className="px-6 py-2.5 bg-ptit-red  text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer"
                   >
                     Đóng và xem kết quả
@@ -558,7 +612,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                 </span>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setActiveQuizToTake(null)}
+                    onClick={() => { setActiveQuizToTake(null); setActiveAttemptId(null); setLatestAttemptResult(null); }}
                     className="px-4 py-2 text-xs font-semibold text-slate-600  rounded-xl transition"
                   >
                     Hủy

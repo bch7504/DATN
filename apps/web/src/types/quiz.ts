@@ -46,6 +46,8 @@ export interface Quiz {
   questions: QuizQuestion[];
   createdAt: string;
   acceptedAt?: string;
+  attemptCount?: number;
+  highestScore?: number | null;
 }
 
 export interface QuizAttemptAnswer {
@@ -82,4 +84,34 @@ export interface SubmitQuizAttemptRequest {
     questionId: string;
     selectedOptionId: string;
   }[];
+}
+
+export interface TakingOptionDTO {
+  index: number;
+  text: string;
+}
+
+export interface TakingQuestionDTO {
+  id: string;
+  questionOrder: number;
+  questionText: string;
+  options: TakingOptionDTO[];
+}
+
+export interface StartQuizAttemptResponse {
+  attemptId: string;
+  quizId: string;
+  quizTitle: string;
+  startedAt: string;
+  totalQuestions: number;
+  questions: TakingQuestionDTO[];
+}
+
+export interface SubmitAttemptResponse {
+  attemptId: string;
+  quizId: string;
+  score: number;
+  correctAnswersCount: number;
+  totalQuestionsCount: number;
+  completedAt: string;
 }

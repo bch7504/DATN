@@ -82,9 +82,11 @@ export default function StudentReviewLevel1Page(): React.ReactElement {
         )}
       </div>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
-        Danh sách môn học lấy từ các lớp bạn đã được duyệt. Backend hiện chưa lưu Quiz, lịch sử làm bài hoặc câu cần ôn, nên các số liệu này sẽ chưa hiển thị.
-      </div>
+      {summaries.length > 0 && !summaries.some((summary) => summary.quizDataAvailable) && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          Danh sách môn học lấy từ các lớp bạn đã được duyệt. Backend hiện chưa lưu Quiz, lịch sử làm bài hoặc câu cần ôn, nên các số liệu này sẽ chưa hiển thị.
+        </div>
+      )}
 
       {loadError && (
         <ErrorAlert
