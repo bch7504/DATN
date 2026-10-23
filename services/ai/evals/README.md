@@ -10,6 +10,10 @@ Thư mục này chứa khung đánh giá offline cho ba nhóm:
 
 `uv run python -m evals --synthetic` chạy fixture kiểm tra công thức, **không phải đo chất lượng model thật**.
 
+`datasets/ky-thuat-so-v1.json` là bộ 12 câu tiếng Việt đã khóa theo trang của bốn PDF Kỹ thuật số: 9 câu có bằng chứng và 3 câu phải từ chối. Chạy thật bằng `uv run python -m evals --live-vietnamese --k 8` sau khi **tiến trình** đã được cấp `AI_DATABASE_URL` và `OPENROUTER_API_KEY`. Lệnh không tự đọc `.env`.
+
+Báo cáo live tự động tính retrieval recall, độ chính xác vị trí citation và khả năng trả `NO_EVIDENCE`. Factual correctness/groundedness vẫn phải do người đánh giá từng phát biểu; không dùng chính LLM để tự chấm mình.
+
 `metrics.py` tách riêng:
 
 - Retrieval recall@k: tỉ lệ các trang nguồn kỳ vọng tìm được trong top-k.

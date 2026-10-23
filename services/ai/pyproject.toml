@@ -7,6 +7,7 @@ dependencies = [
     "alembic>=1.15,<2.0",
     "fastapi>=0.115,<1.0",
     "httpx>=0.28,<1.0",
+    "langchain-core>=1.0,<2.0",
     "openai>=1.75,<3.0",
     "pgvector>=0.4,<1.0",
     "psycopg[binary]>=3.2,<4.0",

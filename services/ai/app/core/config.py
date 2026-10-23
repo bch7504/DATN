@@ -60,6 +60,30 @@ class Settings(BaseSettings):
         le=1024,
         validation_alias="EMBEDDING_DIMENSIONS",
     )
+    retrieval_candidate_limit: int = Field(
+        default=32,
+        ge=8,
+        le=100,
+        validation_alias="AI_RETRIEVAL_CANDIDATE_LIMIT",
+    )
+    retrieval_minimum_relevance: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        validation_alias="AI_RETRIEVAL_MINIMUM_RELEVANCE",
+    )
+    retrieval_rrf_k: int = Field(
+        default=60,
+        ge=1,
+        le=200,
+        validation_alias="AI_RETRIEVAL_RRF_K",
+    )
+    rerank_diversity_penalty: float = Field(
+        default=0.15,
+        ge=0.0,
+        le=0.5,
+        validation_alias="AI_RERANK_DIVERSITY_PENALTY",
+    )
     storage_endpoint: AnyHttpUrl | None = Field(default=None, validation_alias="STORAGE_ENDPOINT")
     allow_insecure_local_storage_url: bool = Field(
         default=False,

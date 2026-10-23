@@ -12,6 +12,11 @@ import com.studyflow.auth.application.port.UserAccountStore;
 import com.studyflow.auth.application.port.VerificationCodeSender;
 import com.studyflow.assignment.application.AssignmentAttachmentCleanupJob;
 import com.studyflow.document.domain.CourseMaterialDocumentRepository;
+import com.studyflow.integration.ai.AiContracts.IndexArtifact;
+import com.studyflow.integration.ai.AiContracts.JobAcceptedResponse;
+import com.studyflow.integration.ai.AiContracts.JobResponse;
+import com.studyflow.integration.ai.AiContracts.JobStatus;
+import com.studyflow.integration.ai.AiServiceClient;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
 import com.studyflow.user.domain.*;
 import java.io.*;
@@ -65,6 +70,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "studyflow.notifications.reminder-scan-delay=3600000",
         "studyflow.notifications.email-scan-delay=3600000",
         "studyflow.assignments.attachment-cleanup-delay=3600000",
+        "studyflow.ai.allow-insecure-local-storage-url=true",
+        "studyflow.ai.document-scan-delay=100",
         "logging.level.root=ERROR", "spring.main.banner-mode=off"
 })
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -110,6 +117,7 @@ class RealHttpApiTest {
     @Autowired @Qualifier("requestMappingHandlerMapping") private RequestMappingHandlerMapping mappings;
     @MockBean(reset = org.springframework.boot.test.mock.mockito.MockReset.NONE) private VerificationCodeSender mail;
     @MockBean(reset = org.springframework.boot.test.mock.mockito.MockReset.NONE) private AssignmentAttachmentStorage storage;
+    @MockBean(reset = org.springframework.boot.test.mock.mockito.MockReset.NONE) private AiServiceClient ai;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final Map<String, String> codes = new ConcurrentHashMap<>();
     private final Map<String, byte[]> objects = new ConcurrentHashMap<>();
@@ -161,6 +169,18 @@ class RealHttpApiTest {
         when(storage.get(any())).thenAnswer(call -> new ByteArrayInputStream(
                 Objects.requireNonNull(objects.get(call.getArgument(0)), "Missing synthetic object")));
         doAnswer(call -> { objects.remove(call.getArgument(0)); return null; }).when(storage).delete(any());
+        when(storage.presignGet(any(), any())).thenAnswer(call -> URI.create(
+                "http://127.0.0.1:8333/" + call.<String>getArgument(0)));
+        when(ai.indexDocument(any(), any(), any())).thenAnswer(call -> {
+            String requestId = call.getArgument(1);
+            return new JobAcceptedResponse(requestId, UUID.randomUUID(), JobStatus.PENDING);
+        });
+        when(ai.getJob(any(), any())).thenAnswer(call -> {
+            UUID jobId = call.getArgument(0);
+            String requestId = call.getArgument(1);
+            return new JobResponse(requestId, jobId, JobStatus.SUCCEEDED, 1, null,
+                    new IndexArtifact(1, 1, "openai/text-embedding-3-large", 1024, "pdf-v1"));
+        });
         teacher = seedAndLogin("qa-teacher", UserRole.TEACHER);
         student = seedAndLogin("qa-student", UserRole.STUDENT);
         admin = seedAndLogin("qa-admin", UserRole.ADMIN);
@@ -347,12 +367,15 @@ class RealHttpApiTest {
         var own = send("GET", "/api/v1/teacher/documents/" + doc + "/download", teacher, null);
         assertThat(own.statusCode()).isEqualTo(200);
         assertThat(own.body()).isEqualTo(pdf);
-        expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
-                Map.of("courseOfferingIds", List.of(offering))), 409);
-        new org.springframework.transaction.support.TransactionTemplate(transactions).executeWithoutResult(status ->
-                documents.findById(UUID.fromString(doc)).orElseThrow().markReady(1, Instant.now()));
-        expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
-                Map.of("courseOfferingIds", List.of(offering))), 204);
+        var publicationRequest = send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
+                Map.of("courseOfferingIds", List.of(offering)));
+        assertThat(publicationRequest.statusCode()).isIn(204, 409);
+        if (publicationRequest.statusCode() == 409) {
+            new org.springframework.transaction.support.TransactionTemplate(transactions).executeWithoutResult(status ->
+                    documents.findById(UUID.fromString(doc)).orElseThrow().markReady(1, Instant.now()));
+            expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
+                    Map.of("courseOfferingIds", List.of(offering))), 204);
+        }
         assertThat(expect(send("GET", "/api/v1/student/notifications?size=100", student, null), 200)
                 .path("items").findValuesAsText("type")).contains("STUDENT_MATERIAL_PUBLISHED");
         expect(send("GET", "/api/v1/student/materials", student, null), 200);

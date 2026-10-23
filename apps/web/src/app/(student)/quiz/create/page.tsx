@@ -272,7 +272,7 @@ export default function StudentQuizCreatePage(): React.JSX.Element {
                 id="quiz-prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Ví dụ: Tạo 5 câu hỏi mức độ vận dụng về phép kết nối trong SQL, tập trung vào LEFT JOIN và EXISTS..."
+                placeholder="Ví dụ: Tạo 5 câu hỏi mức độ vận dụng về hệ nhị phân và chuyển đổi cơ số..."
                 rows={4}
                 maxLength={500}
                 className="w-full p-3.5 text-xs sm:text-sm border border-slate-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white"
@@ -291,7 +291,7 @@ export default function StudentQuizCreatePage(): React.JSX.Element {
               </div>
               <div className="space-y-1.5">
                 {[
-                  "Tập trung vào câu hỏi định nghĩa và điều kiện dạng chuẩn 2NF, 3NF, BCNF",
+                  "Tập trung vào hệ nhị phân, mã số và quy tắc chuyển đổi cơ số",
                   "Tạo các câu hỏi trắc nghiệm tính toán hoặc phân tích bài toán thực tế",
                   "Các câu hỏi phân biệt sự khác nhau giữa các giải thuật và cấu trúc",
                 ].map((sug, idx) => (

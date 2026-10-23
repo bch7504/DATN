@@ -458,7 +458,7 @@ export default function TeacherCourseOfferingsPage() {
                   type="text"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                  placeholder="VD: Trí tuệ nhân tạo - Nhóm 02"
+                  placeholder="VD: Kỹ thuật số - Nhóm 01"
                   className="w-full p-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500"
                 />
               </div>

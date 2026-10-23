@@ -8,10 +8,8 @@ test("FE-M0: Environment configuration & validation", async (t) => {
     assert.ok(rawUrl.includes("/api/v1"));
   });
 
-  await t.test("should default NEXT_PUBLIC_DEMO_MODE to false if not set", () => {
-    const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE ?? "false";
-    const isDemo = demoMode === "true" || demoMode === "1";
-    assert.equal(isDemo, false);
+  await t.test("should not expose a runtime demo-mode switch", () => {
+    assert.equal("NEXT_PUBLIC_DEMO_MODE" in process.env, false);
   });
 
   await t.test("should only permit NEXT_PUBLIC_ prefixed variables on client", () => {

@@ -469,7 +469,7 @@ Quy tắc `signedUrl` của endpoint index:
 - Index/deindex trả `202 {requestId,jobId,status}` sau khi nhận job, không giữ request chờ xử lý xong. Java poll `GET /internal/v1/jobs/{jobId}` với backoff; cập nhật document `READY` khi index thành công hoặc `FAILED` với safe error code khi thất bại. Browser chỉ poll trạng thái document qua Java.
 - Contract trên là schema version mới thay cho hai endpoint `personal-rag/ask` và `slides/ask`. Contract test Java/Python phải bao phủ tool routing, scope của hai chế độ Quiz, output 4 options và vòng đời job.
 
-- Retrieval filter được đẩy xuống repository theo document/version/owner/source; filter lại sau retrieval để defense in depth.
+- Retrieval dùng hai nhánh trong cùng authorized scope: pgvector cosine và PostgreSQL full-text search. Kết quả được hợp nhất bằng RRF, LangChain rerank theo độ liên quan/trang hiện tại/độ đa dạng, rồi filter lại document/version/owner/source/page để defense in depth.
 - Citation được dựng từ retrieved chunk, deduplicate và validate document/location/excerpt bằng code.
 - Document content được delimit và xem là untrusted evidence, không phải instruction.
 - Khi evidence thiếu, trả `NO_EVIDENCE` mà không gọi model để bịa.

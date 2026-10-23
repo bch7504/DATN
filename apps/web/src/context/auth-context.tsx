@@ -18,22 +18,18 @@ import {
   ResendVerificationRequest,
 } from "@/types/auth";
 import { authApi } from "@/lib/api-client";
-import { isDemoMode } from "@/lib/env";
-import { DEMO_USERS } from "@/lib/demo-data";
 
 export interface AuthContextType {
   user: User | null;
   role: UserRole | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  isDemo: boolean;
   error: string | null;
   login: (credentials: LoginRequest) => Promise<User>;
   register: (data: RegisterRequest) => Promise<RegistrationStatusResponse>;
   verifyRegistration: (data: VerifyRegistrationRequest) => Promise<void>;
   resendVerification: (data: ResendVerificationRequest) => Promise<RegistrationStatusResponse>;
   logout: () => Promise<void>;
-  switchDemoRole: (targetRole: UserRole) => void;
   clearError: () => void;
 }
 
@@ -57,7 +53,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDemo] = useState<boolean>(() => isDemoMode());
 
   // Initialize session on mount
   useEffect(() => {
@@ -173,15 +168,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const switchDemoRole = useCallback((targetRole: UserRole): void => {
-    if (targetRole === "TEACHER") return;
-    const targetUser = DEMO_USERS[targetRole];
-    if (targetUser) {
-      authApi.setDemoUser(targetUser);
-      setUser(targetUser);
-    }
-  }, []);
-
   const clearError = useCallback(() => {
     setError(null);
   }, []);
@@ -191,14 +177,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: user?.role ?? null,
     isAuthenticated: !!user,
     isLoading,
-    isDemo: isDemo && user?.role !== "TEACHER",
     error,
     login,
     register,
     verifyRegistration,
     resendVerification,
     logout,
-    switchDemoRole,
     clearError,
   };
 
