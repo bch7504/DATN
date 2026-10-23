@@ -16,9 +16,7 @@ import com.studyflow.review.application.SubmitQuizAttemptCommand;
 import com.studyflow.review.application.SubmitQuizAttemptResult;
 import com.studyflow.review.application.WrongAnswerReviewItemDTO;
 import com.studyflow.review.domain.QuizStatus;
-import com.studyflow.review.dto.AcceptQuizRequest;
 import com.studyflow.review.dto.CourseOfferingReviewSummaryDTO;
-import com.studyflow.review.dto.RejectQuizRequest;
 import com.studyflow.review.dto.SubmitQuizAttemptRequest;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -111,53 +109,6 @@ class StudentQuizReviewControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setMessageConverters(converter)
                 .build();
-    }
-
-    @Test
-    @DisplayName("POST /quizzes/{id}/accept with COURSE_OFFERING links quiz and returns 200")
-    void acceptQuizCourseOfferingSuccess() throws Exception {
-        AcceptQuizRequest request = new AcceptQuizRequest("COURSE_OFFERING", OFFERING_ID);
-
-        mockMvc.perform(post("/api/v1/review/quizzes/{id}/accept", QUIZ_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.quizId").value(QUIZ_ID.toString()))
-                .andExpect(jsonPath("$.status").value("READY"))
-                .andExpect(jsonPath("$.courseOfferingId").value(OFFERING_ID.toString()));
-
-        verify(quizReviewService).acceptQuiz(QUIZ_ID, STUDENT_ID, OFFERING_ID);
-    }
-
-    @Test
-    @DisplayName("POST /quizzes/{id}/accept with PERSONAL keeps courseOfferingId null and returns 200")
-    void acceptQuizPersonalSuccess() throws Exception {
-        AcceptQuizRequest request = new AcceptQuizRequest("PERSONAL", null);
-
-        mockMvc.perform(post("/api/v1/review/quizzes/{id}/accept", QUIZ_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.quizId").value(QUIZ_ID.toString()))
-                .andExpect(jsonPath("$.status").value("READY"))
-                .andExpect(jsonPath("$.courseOfferingId").doesNotExist());
-
-        verify(quizReviewService).acceptQuiz(QUIZ_ID, STUDENT_ID, null);
-    }
-
-    @Test
-    @DisplayName("POST /quizzes/{id}/reject marks quiz rejected and returns 200")
-    void rejectQuizSuccess() throws Exception {
-        RejectQuizRequest request = new RejectQuizRequest("Không thích hợp");
-
-        mockMvc.perform(post("/api/v1/review/quizzes/{id}/reject", QUIZ_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.quizId").value(QUIZ_ID.toString()))
-                .andExpect(jsonPath("$.status").value("REJECTED"));
-
-        verify(quizReviewService).rejectQuiz(QUIZ_ID, STUDENT_ID);
     }
 
     @Test

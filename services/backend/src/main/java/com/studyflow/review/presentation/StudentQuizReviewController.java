@@ -8,12 +8,8 @@ import com.studyflow.review.application.StartQuizAttemptResult;
 import com.studyflow.review.application.SubmitQuizAttemptCommand;
 import com.studyflow.review.application.SubmitQuizAttemptResult;
 import com.studyflow.review.application.WrongAnswerReviewItemDTO;
-import com.studyflow.review.dto.AcceptQuizRequest;
-import com.studyflow.review.dto.AcceptQuizResponse;
 import com.studyflow.review.dto.CourseOfferingReviewOverviewResponse;
 import com.studyflow.review.dto.CourseOfferingReviewSummaryDTO;
-import com.studyflow.review.dto.RejectQuizRequest;
-import com.studyflow.review.dto.RejectQuizResponse;
 import com.studyflow.review.dto.SubmitQuizAttemptRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -56,41 +52,6 @@ public class StudentQuizReviewController {
         } catch (IllegalArgumentException exception) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_SESSION", "Phiên đăng nhập không hợp lệ");
         }
-    }
-
-    /**
-     * Accepts a generated Quiz into student's personal review space or links to an approved Course Offering.
-     */
-    @PostMapping("/quizzes/{id}/accept")
-    public ResponseEntity<AcceptQuizResponse> acceptQuiz(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable("id") UUID quizId,
-            @Valid @RequestBody AcceptQuizRequest request
-    ) {
-        UUID studentId = userId(jwt);
-        UUID targetOfferingId = "COURSE_OFFERING".equalsIgnoreCase(request.destinationType())
-                ? request.courseOfferingId()
-                : null;
-        if ("COURSE_OFFERING".equalsIgnoreCase(request.destinationType()) && targetOfferingId == null) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "INVALID_DESTINATION", "Mã lớp học phần là bắt buộc");
-        }
-
-        quizReviewService.acceptQuiz(quizId, studentId, targetOfferingId);
-        return ResponseEntity.ok(new AcceptQuizResponse(quizId, "READY", targetOfferingId));
-    }
-
-    /**
-     * Rejects a generated Quiz without starting an attempt.
-     */
-    @PostMapping("/quizzes/{id}/reject")
-    public ResponseEntity<RejectQuizResponse> rejectQuiz(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable("id") UUID quizId,
-            @RequestBody(required = false) RejectQuizRequest request
-    ) {
-        UUID studentId = userId(jwt);
-        quizReviewService.rejectQuiz(quizId, studentId);
-        return ResponseEntity.ok(new RejectQuizResponse(quizId, "REJECTED"));
     }
 
     /**
