@@ -20,6 +20,7 @@ spring:
     create-schemas: true
     default-schema: app
     schemas: app
+    out-of-order: true
   mail:
     host: ${MAIL_HOST}
     port: ${MAIL_PORT:587}

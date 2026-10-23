@@ -48,8 +48,11 @@ import {
   CreateQuizDraftRequest,
   AcceptQuizRequest,
   SubmitQuizAttemptRequest,
+  StartQuizAttemptResponse,
+  SubmitAttemptResponse,
 } from "@/types/quiz";
 import {
+  ReviewItem,
   CourseReviewSummary,
   CourseReviewWorkspace,
   DailyGoalProgress,
@@ -1609,6 +1612,21 @@ export const quizApi = {
     }
   },
 
+  /** Starts an attempt for a quiz via Java backend; returns questions without answer keys. */
+  async startAttempt(quizId: string): Promise<StartQuizAttemptResponse> {
+    return apiFetch<StartQuizAttemptResponse>(`/review/quizzes/${encodeURIComponent(quizId)}/attempts`, {
+      method: "POST",
+    });
+  },
+
+  /** Submits answers to Java backend for an active attempt; returns scored result & citations. */
+  async submitAttemptToBackend(attemptId: string, answers: Record<string, number>): Promise<SubmitAttemptResponse> {
+    return apiFetch<SubmitAttemptResponse>(`/review/attempts/${encodeURIComponent(attemptId)}/submit`, {
+      method: "POST",
+      body: JSON.stringify({ answers }),
+    });
+  },
+
   async submitAttempt(req: SubmitQuizAttemptRequest): Promise<QuizAttempt> {
     try {
       return await apiFetch<QuizAttempt>(`/review/quizzes/${req.quizId}/attempts`, {
@@ -1703,27 +1721,55 @@ export const reviewApi = {
    */
   async getCourseSummaries(): Promise<CourseReviewSummary[]> {
     try {
-      const offerings = await studentApi.getOfferings();
-      return offerings.map((offering): CourseReviewSummary => ({
-        courseOfferingId: offering.id,
-        courseCode: offering.code,
-        courseName: offering.name,
-        teacherName: offering.teacherName,
-        isPersonal: false,
-        totalQuizzes: null,
-        totalAttempts: null,
-        reviewItemsCount: null,
-        averageScore: null,
-        quizDataAvailable: false,
-      }));
+      const [offerings, backendSummaries] = await Promise.all([
+        studentApi.getOfferings(),
+        apiFetch<Array<{ courseOfferingId: string; quizCount: number; averageScore: number | null; latestAttemptAt: string | null }>>("/review/course-offerings").catch(() => []),
+      ]);
+      const summaryMap = new Map(backendSummaries.map((s) => [s.courseOfferingId, s]));
+
+      const list: CourseReviewSummary[] = offerings.map((offering): CourseReviewSummary => {
+        const bs = summaryMap.get(offering.id);
+        return {
+          courseOfferingId: offering.id,
+          courseCode: offering.code,
+          courseName: offering.name,
+          teacherName: offering.teacherName,
+          isPersonal: false,
+          totalQuizzes: bs ? bs.quizCount : 0,
+          totalAttempts: bs && bs.latestAttemptAt ? 1 : 0,
+          reviewItemsCount: 0,
+          averageScore: bs ? bs.averageScore : null,
+          latestAttemptAt: bs?.latestAttemptAt || undefined,
+          quizDataAvailable: true,
+        };
+      });
+
+      try {
+        const personalQuizzes = await apiFetch<Array<{ id: string }>>("/review/personal-quizzes");
+        list.unshift({
+          courseOfferingId: "PERSONAL",
+          courseCode: "PERSONAL",
+          courseName: "Kho Quiz & Ôn tập cá nhân",
+          isPersonal: true,
+          totalQuizzes: personalQuizzes.length,
+          totalAttempts: 0,
+          reviewItemsCount: 0,
+          averageScore: null,
+          quizDataAvailable: true,
+        });
+      } catch {
+        // ignore if personal quizzes fails
+      }
+
+      return list;
     } catch (err) {
       if (isDemoMode()) {
         const summaries: CourseReviewSummary[] = [
           {
             courseOfferingId: "offering_01",
             courseCode: "INT1340_01",
-            courseName: "TrÃ­ tuá»‡ nhÃ¢n táº¡o",
-            teacherName: "TS. Tráº§n Thá»‹ Giáº£ng ViÃªn",
+            courseName: "Trí tuệ nhân tạo",
+            teacherName: "TS. Trần Thị Giảng Viên",
             isPersonal: false,
             totalQuizzes: 1,
             totalAttempts: 2,
@@ -1734,8 +1780,8 @@ export const reviewApi = {
           {
             courseOfferingId: "offering_02",
             courseCode: "DBI202_K21",
-            courseName: "CÆ¡ sá»Ÿ dá»¯ liá»‡u",
-            teacherName: "TS. Nguyá»…n VÄƒn B",
+            courseName: "Cơ sở dữ liệu",
+            teacherName: "TS. Nguyễn Văn B",
             isPersonal: false,
             totalQuizzes: 1,
             totalAttempts: 1,
@@ -1746,7 +1792,7 @@ export const reviewApi = {
           {
             courseOfferingId: "PERSONAL",
             courseCode: "PERSONAL",
-            courseName: "Kho Quiz & Ã”n táº­p cÃ¡ nhÃ¢n",
+            courseName: "Kho Quiz & Ôn tập cá nhân",
             isPersonal: true,
             totalQuizzes: demoQuizzes.filter((q) => q.isPersonal).length,
             totalAttempts: 0,
@@ -1761,8 +1807,7 @@ export const reviewApi = {
   },
 
   /** Args: courseOfferingId is a Course Offering UUID or "PERSONAL". Input: authenticated Student session.
-   * Output: authorized empty workspace marked unavailable until Java implements Quiz persistence.
-   * Errors: ApiClientError for a missing/unapproved Course Offering or backend failure; demo mode returns fixtures.
+   * Output: authorized workspace with quizzes and wrong-answer review items from Java backend.
    */
   async getCourseWorkspace(courseOfferingId: string): Promise<CourseReviewWorkspace> {
     if (isDemoMode()) {
@@ -1780,23 +1825,106 @@ export const reviewApi = {
     }
     try {
       if (courseOfferingId === "PERSONAL") {
+        const quizzesRaw = await apiFetch<Array<{
+          id: string;
+          title: string;
+          description: string;
+          status: string;
+          questionCount: number;
+          createdAt: string;
+          attemptCount: number;
+          highestScore: number | null;
+        }>>("/review/personal-quizzes");
+
+        const quizzes: Quiz[] = quizzesRaw.map((q) => ({
+          id: q.id,
+          title: q.title,
+          courseOfferingId: undefined,
+          isPersonal: true,
+          questionCount: q.questionCount,
+          questions: [],
+          createdAt: q.createdAt,
+          attemptCount: q.attemptCount,
+          highestScore: q.highestScore,
+        }));
+
         return {
-          courseOfferingId,
-          quizzes: [],
+          courseOfferingId: "PERSONAL",
+          quizzes,
           attempts: [],
           reviewItems: [],
-          quizDataAvailable: false,
+          quizDataAvailable: true,
         };
       }
-      // This call both verifies approved enrollment and avoids calling a review endpoint
-      // which Java has not implemented yet. The Quiz workspace is explicitly unavailable.
-      await studentApi.getOfferingDetail(courseOfferingId);
+
+      const data = await apiFetch<{
+        courseOfferingId: string;
+        quizzes: Array<{
+          id: string;
+          title: string;
+          description: string;
+          status: string;
+          courseOfferingId: string;
+          questionCount: number;
+          createdAt: string;
+          attemptCount: number;
+          highestScore: number | null;
+        }>;
+        reviewItems: Array<{
+          questionId: string;
+          questionText: string;
+          studentSelectedOptionIndex: number | null;
+          studentSelectedOptionText: string | null;
+          correctOptionIndex: number;
+          correctOptionText: string;
+          explanation: string;
+          citations: Array<{
+            documentId: string;
+            documentTitle?: string;
+            pageNumber: number;
+            excerpt: string;
+          }>;
+          lastAttemptedAt: string;
+        }>;
+      }>(`/review/course-offerings/${encodeURIComponent(courseOfferingId)}`);
+
+      const quizzes: Quiz[] = data.quizzes.map((q) => ({
+        id: q.id,
+        title: q.title,
+        courseOfferingId: q.courseOfferingId,
+        isPersonal: false,
+        questionCount: q.questionCount,
+        questions: [],
+        createdAt: q.createdAt,
+        attemptCount: q.attemptCount,
+        highestScore: q.highestScore,
+      }));
+
+      const reviewItems: ReviewItem[] = data.reviewItems.map((r) => ({
+        id: `rev_${r.questionId}`,
+        quizId: "",
+        quizTitle: "Lớp học phần",
+        questionId: r.questionId,
+        questionText: r.questionText,
+        wrongOptionText: r.studentSelectedOptionText || "Chưa chọn",
+        correctOptionText: r.correctOptionText,
+        explanation: r.explanation,
+        citation: r.citations && r.citations.length > 0 ? {
+          documentId: r.citations[0].documentId,
+          documentName: r.citations[0].documentTitle || "Giáo trình CSDL",
+          pageNumber: r.citations[0].pageNumber,
+          excerpt: r.citations[0].excerpt,
+        } : undefined,
+        lastAttemptAt: r.lastAttemptedAt,
+        timesWrong: 1,
+      }));
+
       return {
         courseOfferingId,
-        quizzes: [],
+        quizzes,
         attempts: [],
-        reviewItems: [],
-        quizDataAvailable: false,
+        reviewItems,
+        quizDataAvailable: true,
       };
     } catch (err) {
       if (isDemoMode()) {
