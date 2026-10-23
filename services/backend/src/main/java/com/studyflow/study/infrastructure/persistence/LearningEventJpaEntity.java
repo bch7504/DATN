@@ -36,6 +36,9 @@ class LearningEventJpaEntity {
     @Column(name = "activity_date", nullable = false)
     private LocalDate activityDate;
 
+    @Column(name = "quantity", nullable = false)
+    private int quantity = 1;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -58,6 +61,7 @@ class LearningEventJpaEntity {
         entity.idempotencyKey = idempotencyKey;
         entity.occurredAt = occurredAt;
         entity.activityDate = activityDate;
+        entity.quantity = 1;
         entity.createdAt = occurredAt;
         return entity;
     }
