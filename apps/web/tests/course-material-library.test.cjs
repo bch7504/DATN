@@ -22,13 +22,16 @@ test("Course Material library uses persisted Java files without fixtures", async
     assert.doesNotMatch(client, /demoTeacherDocs|DEMO_MATERIAL_PAGES|demoPageNotes/);
   });
 
-  await t.test("Student sees and opens only materials from the real Java API", () => {
+  await t.test("Student sees PDFs and asks the Python-backed Tutor through Java", () => {
     assert.match(client, /\/student\/course-offerings\/\$\{offeringId\}\/materials/);
     assert.match(client, /\/student\/materials\/\$\{encodeURIComponent\(documentId\)\}\/download/);
     assert.match(studentPage, /materialApi\.getMaterials/);
     assert.match(viewerPage, /materialApi\.getDownloadUrl/);
-    assert.match(viewerPage, /Mở trong trình duyệt/);
-    assert.doesNotMatch(`${studentPage}\n${viewerPage}`, /Hỏi AI|Ghi chú theo trang|Tutor/);
+    assert.match(client, /askTutor\(documentId: string, pageNumber: number, question: string\)/);
+    assert.match(client, /\/student\/materials\/\$\{encodeURIComponent\(documentId\)\}\/pages\/\$\{pageNumber\}\/tutor/);
+    assert.match(viewerPage, /materialApi\.askTutor/);
+    assert.match(viewerPage, /AI Tutor/);
+    assert.match(viewerPage, /<iframe/);
   });
 
   await t.test("Backend validates PDF text and rechecks ownership and enrollment", () => {

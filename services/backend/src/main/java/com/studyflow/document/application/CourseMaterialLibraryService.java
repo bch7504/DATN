@@ -160,7 +160,8 @@ public class CourseMaterialLibraryService {
     /** Args: authenticated teacherId. Input: none. Output: owned non-deleted documents with active publications. Errors: storage-independent repository failure. */
     @Transactional(readOnly = true)
     public List<TeacherDocumentResponse> listTeacher(UUID teacherId) {
-        return documents.findByOwnerIdAndDeletedAtIsNullOrderByCreatedAtDesc(teacherId).stream()
+        return documents.findByOwnerIdAndDocumentScopeAndDeletedAtIsNullOrderByCreatedAtDesc(
+                        teacherId, "COURSE_MATERIAL").stream()
                 .map(document -> response(document, publications.findByDocumentIdAndStatus(document.getId(), "PUBLISHED")))
                 .toList();
     }
@@ -175,6 +176,10 @@ public class CourseMaterialLibraryService {
     @Transactional
     public void setPublications(UUID teacherId, UUID documentId, List<UUID> selectedOfferingIds) {
         CourseMaterialDocument document = requireOwned(teacherId, documentId);
+        if (!"READY".equals(document.getProcessingStatus())) {
+            throw new ApiException(HttpStatus.CONFLICT, "DOCUMENT_NOT_READY",
+                    "Học liệu chưa sẵn sàng để công bố.");
+        }
         if (selectedOfferingIds == null || selectedOfferingIds.size() > 100 || selectedOfferingIds.stream().anyMatch(java.util.Objects::isNull)) {
             throw new ValidationException("INVALID_OFFERING_SELECTION", "Danh sách lớp phải có tối đa 100 mã lớp hợp lệ.");
         }
@@ -313,6 +318,39 @@ public class CourseMaterialLibraryService {
         return download(document);
     }
 
+    /**
+     * Args: authenticated Student, published document and 1-based current page.
+     * Input: an existing READY PDF with an active publication in one APPROVED, non-locked class.
+     * Output: immutable minimum scope for Course Material Tutor. Errors: 403 missing access,
+     * 404 missing PDF, 409 non-ready PDF, 422 page outside the original document.
+     */
+    @Transactional(readOnly = true)
+    public TutorScope authorizeTutor(UUID studentId, UUID documentId, int pageNumber) {
+        CourseMaterialDocument document = documents.findByIdAndDeletedAtIsNull(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("DOCUMENT_NOT_FOUND", "Không tìm thấy học liệu."));
+        if (!"READY".equals(document.getProcessingStatus())) {
+            throw new ApiException(HttpStatus.CONFLICT, "DOCUMENT_NOT_READY", "Học liệu chưa sẵn sàng để hỏi đáp.");
+        }
+        if (pageNumber < 1 || pageNumber > document.getPageCount()) {
+            throw new ValidationException("INVALID_PAGE", "Trang tài liệu không hợp lệ.");
+        }
+        Set<UUID> approved = new LinkedHashSet<>(enrollments
+                .findByStudentIdAndStatus(studentId, EnrollmentStatus.APPROVED).stream()
+                .map(item -> item.getCourseOfferingId()).toList());
+        UUID offeringId = publications.findByDocumentIdAndStatus(documentId, "PUBLISHED").stream()
+                .map(DocumentPublication::getCourseOfferingId)
+                .filter(approved::contains)
+                .sorted()
+                .filter(id -> offerings.findById(id)
+                        .map(offering -> offering.getStatus() == CourseOfferingStatus.ACTIVE)
+                        .orElse(false))
+                .findFirst()
+                .orElseThrow(() -> new ForbiddenException(
+                        "ENROLLMENT_REQUIRED", "Bạn không có quyền hỏi đáp học liệu này."));
+        return new TutorScope(document.getId(), document.getDocumentVersion(), document.getOwnerId(),
+                document.getDisplayName(), document.getPageCount(), offeringId);
+    }
+
     private Download download(CourseMaterialDocument document) {
         InputStream content = requireStorage().get(document.getStorageKey());
         return new Download(document.getFileName(), document.getMimeType(), document.getFileSize(), content);
@@ -327,7 +365,12 @@ public class CourseMaterialLibraryService {
     private CourseMaterialDocument requireOwned(UUID teacherId, UUID documentId) {
         CourseMaterialDocument document = documents.findByIdAndDeletedAtIsNull(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("DOCUMENT_NOT_FOUND", "Không tìm thấy học liệu."));
-        if (!document.getOwnerId().equals(teacherId)) throw new ForbiddenException("FORBIDDEN", "Bạn không sở hữu học liệu này.");
+        if (!document.getOwnerId().equals(teacherId)) {
+            throw new ForbiddenException("FORBIDDEN", "Bạn không sở hữu học liệu này.");
+        }
+        if (!"COURSE_MATERIAL".equals(document.getDocumentScope())) {
+            throw new ResourceNotFoundException("DOCUMENT_NOT_FOUND", "Không tìm thấy học liệu.");
+        }
         return document;
     }
 
@@ -347,4 +390,8 @@ public class CourseMaterialLibraryService {
 
     /** Download result returned only after authorization. */
     public record Download(String fileName, String contentType, long sizeBytes, InputStream content) { }
+
+    /** Authorized immutable values used to call Python without exposing storage metadata. */
+    public record TutorScope(UUID documentId, int documentVersion, UUID ownerId, String documentName,
+                             int pageCount, UUID courseOfferingId) { }
 }

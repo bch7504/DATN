@@ -11,6 +11,7 @@ import com.studyflow.academic.domain.*;
 import com.studyflow.auth.application.port.UserAccountStore;
 import com.studyflow.auth.application.port.VerificationCodeSender;
 import com.studyflow.assignment.application.AssignmentAttachmentCleanupJob;
+import com.studyflow.document.domain.CourseMaterialDocumentRepository;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
 import com.studyflow.user.domain.*;
 import java.io.*;
@@ -103,6 +104,8 @@ class RealHttpApiTest {
     @Autowired private com.studyflow.notification.application.port.NotificationStore notifications;
     @Autowired private org.springframework.transaction.PlatformTransactionManager transactions;
     @Autowired private AssignmentAttachmentCleanupJob attachmentCleanupJob;
+    @Autowired private CourseMaterialDocumentRepository documents;
+    @Autowired private javax.sql.DataSource dataSource;
     @Autowired private ObjectMapper json;
     @Autowired @Qualifier("requestMappingHandlerMapping") private RequestMappingHandlerMapping mappings;
     @MockBean(reset = org.springframework.boot.test.mock.mockito.MockReset.NONE) private VerificationCodeSender mail;
@@ -144,6 +147,10 @@ class RealHttpApiTest {
     /** No args; seeds isolated accounts/catalog and external adapter doubles. Output void; errors abort setup. */
     @BeforeAll
     void prepareIsolatedFixtures() throws Exception {
+        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                new org.springframework.core.io.ClassPathResource(
+                        "db/migration/V15__create_personal_assistant_and_ai_quiz_tables.sql"))
+                .execute(dataSource);
         doAnswer(call -> { codes.put(call.getArgument(0), call.getArgument(2)); return null; })
                 .when(mail).send(any(), any(), any(), any());
         doAnswer(call -> {
@@ -340,7 +347,12 @@ class RealHttpApiTest {
         var own = send("GET", "/api/v1/teacher/documents/" + doc + "/download", teacher, null);
         assertThat(own.statusCode()).isEqualTo(200);
         assertThat(own.body()).isEqualTo(pdf);
-        expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher, Map.of("courseOfferingIds", List.of(offering))), 204);
+        expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
+                Map.of("courseOfferingIds", List.of(offering))), 409);
+        new org.springframework.transaction.support.TransactionTemplate(transactions).executeWithoutResult(status ->
+                documents.findById(UUID.fromString(doc)).orElseThrow().markReady(1, Instant.now()));
+        expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
+                Map.of("courseOfferingIds", List.of(offering))), 204);
         assertThat(expect(send("GET", "/api/v1/student/notifications?size=100", student, null), 200)
                 .path("items").findValuesAsText("type")).contains("STUDENT_MATERIAL_PUBLISHED");
         expect(send("GET", "/api/v1/student/materials", student, null), 200);

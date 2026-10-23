@@ -9,10 +9,27 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session
 
 from app.clients.structured_schema import provider_schema
+from app.core.config import Settings
 from app.repositories.chunk_repository import PgVectorChunkRepository
 from app.repositories.models import SourceType
 from app.schemas.grounding import AuthorizedDocument, AuthorizedScope, GeneratedQuiz
 from app.schemas.orchestration import IntentDecision
+
+
+def test_embedding_dimensions_accepts_environment_string_and_remains_fixed() -> None:
+    """Environment text must parse to the single supported vector dimension."""
+
+    settings = Settings(
+        INTERNAL_SERVICE_TOKEN="test-service-token-123456789",
+        EMBEDDING_DIMENSIONS="1024",
+    )
+    assert settings.embedding_dimensions == 1024
+
+    with pytest.raises(ValidationError):
+        Settings(
+            INTERNAL_SERVICE_TOKEN="test-service-token-123456789",
+            EMBEDDING_DIMENSIONS="1536",
+        )
 
 
 def test_page_filter_keeps_document_owner_version_and_embedding_model() -> None:

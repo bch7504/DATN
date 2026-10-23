@@ -1,6 +1,6 @@
 # Kiểm tra tích hợp AI trước khi demo thật
 
-Đây là checklist **chưa thực hiện**, không phải biên bản nghiệm thu. Các test hiện tại chạy offline bằng dữ liệu tổng hợp. Không đọc `.env`, không dùng tài liệu cá nhân thật; chuẩn bị môi trường thử nghiệm riêng qua cấu hình tiến trình.
+Đây là checklist tích hợp, không phải biên bản nghiệm thu dữ liệu thật. Các test hiện tại dùng dữ liệu tổng hợp; kho S3-compatible local đã qua smoke test ghi/đọc/xóa và signed URL từ Java. Chưa gọi OpenRouter hoặc chạy tài liệu thật. Không đọc `.env`, không dùng tài liệu cá nhân thật; chuẩn bị môi trường thử nghiệm riêng qua cấu hình tiến trình.
 
 ## 1. PostgreSQL/pgvector và migration
 
@@ -29,7 +29,7 @@ Khóa advisory áp dụng theo document/version trước row lock; chạy với 
 
 ## 3. Object Storage
 
-- Cấu hình HTTPS origin được phép qua `STORAGE_ENDPOINT`.
+- Cấu hình origin được phép qua `STORAGE_ENDPOINT`; production dùng HTTPS, local HTTP chỉ bật bằng `AI_ALLOW_INSECURE_LOCAL_STORAGE_URL=true` trên literal loopback.
 - Dùng signed URL của PDF tổng hợp; thử URL hết hạn, quá kích thước, redirect khác origin, PDF mã hóa và PDF không có text layer.
 - Đối chiếu `pageCount` kể cả trang trắng; citation phải dùng đúng số trang PDF gốc.
 - Không ghi signed URL, bytes PDF hoặc nội dung trang vào log.
@@ -43,7 +43,7 @@ Khóa advisory áp dụng theo document/version trước row lock; chạy với 
 
 ## 5. Java ↔ Python
 
-- Đối chiếu `CONTRACT_V3.md` với `docs/api-plan.md` và DTO phía Java; AI agent chưa sửa các file ngoài service.
+- Đối chiếu `CONTRACT_V3.md` với `docs/api-plan.md` và DTO phía Java; thay đổi contract phải có test ở cả hai phía.
 - Java xác thực vai trò, enrollment/publication, document/version/page; Python không tự truy vấn các bảng nghiệp vụ đó.
 - Thử hỏi đáp, tóm tắt và tạo Quiz trong Personal Documents; thử Student Tutor và Teacher Quiz. Teacher không được mở Personal Assistant hoặc Tutor chỉ nhờ đổi payload FE.
 - Java validate citation/output và kiểm lại quyền sau khi Python trả kết quả. Câu hỏi/Quiz đang sinh lúc tài liệu bị thu hồi không được lọt ra FE.

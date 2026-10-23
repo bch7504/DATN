@@ -26,7 +26,7 @@ Python AI Service xử lý PDF, hỏi đáp có nguồn, tóm tắt, Course Mate
 - Kết quả bị cắt ngắn hoặc bị nhà cung cấp từ chối được coi là lỗi, không giả thành `NO_EVIDENCE`; chỉ mã truy vết đúng định dạng mới được trả lại trong response.
 - Đếm request và latency theo route cố định trong bộ nhớ; không ghi prompt, URL tài liệu hoặc nội dung PDF.
 
-Đã kiểm tra migration, index lặp và retrieval có giới hạn quyền với PostgreSQL/pgvector local bằng PDF tổng hợp. Chưa nghiệm thu Object Storage thật, Java hoặc OpenRouter thật. `health.readiness` hiện phản ánh **đủ cấu hình**, không phải kết quả kiểm tra kết nối từng dịch vụ. Chưa khẳng định model mặc định khả dụng hoặc đạt KPI đánh giá chất lượng.
+Đã kiểm tra migration, index lặp và retrieval có giới hạn quyền với PostgreSQL/pgvector local bằng PDF tổng hợp. Kho Object Storage local đã được kiểm tra ghi/đọc/xóa qua Java bằng tệp tổng hợp; chưa chạy lập chỉ mục end-to-end hoặc OpenRouter với tài liệu thật. `health.readiness` hiện phản ánh **đủ cấu hình**, không phải kết quả kiểm tra kết nối từng dịch vụ. Chưa khẳng định model mặc định khả dụng hoặc đạt KPI đánh giá chất lượng.
 
 Chi tiết giao tiếp Python hiện thực nằm tại [CONTRACT_V3.md](CONTRACT_V3.md); các việc còn lại và trạng thái từng nhóm mốc nằm tại [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
@@ -52,7 +52,8 @@ Chỉ chạy `health` cần `INTERNAL_SERVICE_TOKEN`. Các luồng AI đầy đ�
 | `OPENROUTER_BASE_URL` | Mặc định `https://openrouter.ai/api/v1` |
 | `OPENROUTER_CHAT_MODEL` | ID theo cấu hình; mặc định theo plan hiện có, cần kiểm chứng trên tài khoản trước demo thật |
 | `OPENROUTER_EMBEDDING_MODEL` | Mặc định `openai/text-embedding-3-large`, query và tài liệu phải cùng model |
-| `STORAGE_ENDPOINT` | HTTPS origin cho phép tải signed URL; worker không theo redirect sang origin khác |
+| `STORAGE_ENDPOINT` | Origin kho tệp cho phép tải signed URL; production dùng HTTPS, worker không theo redirect sang origin khác |
+| `AI_ALLOW_INSECURE_LOCAL_STORAGE_URL` | Mặc định `false`; chỉ bật local để chấp nhận HTTP trên `localhost`, `127.0.0.1` hoặc `::1` |
 | `AI_JOB_MAX_ATTEMPTS` | Số lần xử lý tối đa, mặc định 3 |
 | `AI_JOB_RETRY_BASE_SECONDS` | Backoff gốc, mặc định 2 giây, tăng dần và chặn ở 60 giây |
 | `AI_WORKER_POLL_SECONDS` | Khoảng chờ khi hàng đợi trống, mặc định 2 giây |

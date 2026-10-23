@@ -96,7 +96,7 @@ async def test_downloader_rejects_non_https_url_before_transport() -> None:
         allowed_origin="https://storage.invalid", client=http_client
     )
 
-    with pytest.raises(ValueError, match="absolute HTTPS URL"):
+    with pytest.raises(ValueError, match="must use HTTPS"):
         await downloader.download(
             signed_url="http://storage.invalid/document.pdf",
             max_bytes=1024,
@@ -104,6 +104,36 @@ async def test_downloader_rejects_non_https_url_before_transport() -> None:
 
     assert call_count == 0
     await http_client.aclose()
+
+
+@pytest.mark.anyio
+async def test_downloader_allows_loopback_http_only_with_explicit_opt_in() -> None:
+    """Allow local S3 development without permitting arbitrary plain HTTP origins."""
+
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(_response))
+    downloader = HttpDocumentDownloadClient(
+        allowed_origin="http://127.0.0.1:8333",
+        client=http_client,
+        allow_insecure_local_http=True,
+    )
+
+    content = await downloader.download(
+        signed_url="http://127.0.0.1:8333/studyflow-documents/test.pdf?signature=fake",
+        max_bytes=1024,
+    )
+
+    assert content == b"%PDF-synthetic"
+    await http_client.aclose()
+
+
+def test_downloader_never_allows_remote_plain_http() -> None:
+    """Keep the development opt-in restricted to literal loopback hostnames."""
+
+    with pytest.raises(ValueError, match="must use HTTPS"):
+        HttpDocumentDownloadClient(
+            allowed_origin="http://storage.internal:8333",
+            allow_insecure_local_http=True,
+        )
 
 
 @pytest.mark.anyio

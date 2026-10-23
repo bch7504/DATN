@@ -36,6 +36,11 @@ Java chỉ gửi document/version mà actor hiện tại được dùng. `PERSON
 }
 ```
 
+`signedUrl` bắt buộc dùng HTTPS ở staging/production. Local development chỉ được dùng HTTP khi
+`AI_ALLOW_INSECURE_LOCAL_STORAGE_URL=true`, host là literal loopback và origin khớp chính xác
+`STORAGE_ENDPOINT`. Worker không theo redirect sang origin khác. Cấu hình storage thiếu trả
+`503 STORAGE_NOT_READY`; URL sai chính sách trả `422 INVALID_SIGNED_URL`.
+
 `POST /documents/deindex` nhận `documentId`, `documentVersion`, `pipelineVersion`. Index/deindex trả `202 {requestId, jobId, status}` sau khi ghi nhận job. Deindex vô hiệu hóa chỉ mục và hủy job index đang chờ/chạy ngay khi nhận; worker dọn chunks sau. Muốn dựng lại chỉ mục đã thu hồi phải dùng phiên bản phù hợp mới, không tái sử dụng operation cũ.
 
 `GET /jobs/{jobId}` trả:
