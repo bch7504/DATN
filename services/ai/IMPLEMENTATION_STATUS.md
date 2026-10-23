@@ -1,14 +1,14 @@
-# Trạng thái triển khai AI Service — 20/10/2026
+# Trạng thái triển khai AI Service — 23/10/2026
 
-Phạm vi: `AI_AGENT`, chỉ code và tài liệu trong `services/ai`. Tài liệu này ghi nhận phần đã hiện thực và kiểm tra; không thay thế tiêu chí nghiệm thu tích hợp của kế hoạch toàn dự án.
+Phạm vi: Python AI Service và trạng thái tích hợp Java/Object Storage liên quan. Tài liệu này ghi nhận phần đã hiện thực và kiểm tra; không thay thế tiêu chí nghiệm thu bằng dữ liệu thật của kế hoạch toàn dự án.
 
 | Nhóm mốc | Đã hiện thực trong Python | Còn thiếu để nghiệm thu |
 |---|---|---|
 | M0 — Nền tảng | FastAPI, service auth, cấu hình, model/repository, 5 migration, OpenRouter adapter, dependency injection; migration và role isolation đã kiểm tra trên PostgreSQL/pgvector local | Đối chiếu cấu hình môi trường triển khai thực tế |
-| M1 — Contract/vận hành nền | Schema v3, camelCase, error envelope, request ID, counters và latency không chứa dữ liệu nhạy cảm | Đối chiếu DTO và chạy contract test phía Java; export metrics vào hệ thống giám sát nếu cần |
-| M2 — Tài liệu | PDF parser, chunking không mất chữ, embedding batch, index/deindex API, hàng đợi, worker lease/retry/fencing, lưu vector, chống trùng; đã test index lặp và retrieval có giới hạn trang trên pgvector local | Integration test cạnh tranh nhiều worker/revoke; thử signed URL từ Storage của dự án |
+| M1 — Contract/vận hành nền | Schema v3, camelCase, error envelope, request ID, counters, DTO Java và contract test hai phía | Export metrics vào hệ thống giám sát nếu cần |
+| M2 — Tài liệu | PDF parser, chunking không mất chữ, embedding batch, index/deindex API, hàng đợi, worker lease/retry/fencing, lưu vector, chống trùng; đã test index/retrieval trên pgvector và signed URL từ Object Storage local bằng dữ liệu tổng hợp | Integration test cạnh tranh nhiều worker/revoke; chạy worker end-to-end với provider thật sau khi được phép |
 | M3 — Hỏi đáp/tóm tắt/Tutor | Lọc quyền hai lớp, ưu tiên trang hiện tại, citation, NO_EVIDENCE, hỏi đáp và tóm tắt trong Personal Assistant, lịch sử hội thoại có giới hạn | Đánh giá tiếng Việt với mô hình thật; điều chỉnh ngưỡng retrieval; thử thu hồi quyền trong luồng Java → Python |
-| M4 — Quiz | Student/Teacher scope, đúng 4 phương án, một đáp án, số câu, nguồn, replay theo key; chat cũng chống chạy trùng theo request ID | Tích hợp Java lưu bản nháp/duyệt/công bố; kiểm thử provider và cạnh tranh request trên DB thật |
+| M4 — Quiz | Student/Teacher scope, đúng 4 phương án, một đáp án, số câu, nguồn, replay theo key; Java đã có lưu bản nháp, duyệt/công bố và validate output | Kiểm thử provider thật và cạnh tranh request trên DB thật |
 | M5 — Quan sát/đánh giá | Metadata an toàn, safe error, kiểm tra input/output, bộ tính recall/citation/abstention, điểm grounding chỉ dùng khi có nhãn người đánh giá | Chuẩn bị tập kiểm chứng tiếng Việt đủ đại diện; latency dưới tải, theo dõi lỗi thật |
 | M6 — Hoàn thiện | Test hồi quy offline cho phân quyền, nguồn, PDF, vector, retry, schema và migration | Demo end-to-end, đánh giá chất lượng thật, kiểm thử tải và hoàn thiện triển khai |
 
@@ -17,7 +17,7 @@ Phạm vi: `AI_AGENT`, chỉ code và tài liệu trong `services/ai`. Tài li�
 ### Kiểm tra offline mới nhất
 
 - `uv run --offline ruff check .` và `uv run --offline ruff format --check .`.
-- `pytest`: 76 ca offline đạt và một ca PostgreSQL/pgvector chạy opt-in đạt bằng PDF tổng hợp.
+- `pytest`: 79 ca đạt, một ca PostgreSQL/pgvector opt-in được bỏ qua trong lượt offline; test tích hợp trước đó đã đạt bằng PDF tổng hợp.
 - Migration đã chạy bằng role `studyflow_ai`; kiểm tra `vector(1024)`, chỉ mục HNSW cosine, chống chunk trùng và role không có quyền dùng schema `app` đều đạt.
 - `uv run --offline python -m app.workers.documents --help`: CLI worker nạp được; không khởi chạy worker hoặc kết nối database.
 - `uv run --offline python -m evals --synthetic`: kiểm tra công thức đánh giá; không phải số đo chất lượng mô hình thật.
@@ -27,7 +27,7 @@ Phạm vi: `AI_AGENT`, chỉ code và tài liệu trong `services/ai`. Tài li�
 ### Các giới hạn cần nghiệm thu tiếp
 
 - Chưa gọi API AI thật hoặc sử dụng tài liệu người dùng; chưa đo độ chính xác trả lời hay chất lượng câu hỏi của model.
-- Đã chạy PostgreSQL/pgvector bằng Docker local và kiểm tra luồng index/retrieval thật. Chưa tích hợp Object Storage thật, chưa kiểm tra cạnh tranh nhiều worker hoặc thu hồi tài liệu đồng thời.
+- Đã chạy PostgreSQL/pgvector và Object Storage bằng Docker local. Java đã ghi/đọc/xóa tệp tổng hợp và tải được signed URL; chưa chạy Python worker với OpenRouter hoặc tài liệu thật, chưa kiểm tra cạnh tranh nhiều worker/thu hồi đồng thời.
 - Python không tự truy vấn dữ liệu enrollment/publication; Java phải dựng scope và kiểm tra lại quyền trước khi trả nội dung hoặc lưu Quiz.
 - ID model chat mặc định giữ theo cấu hình kế hoạch; chưa xác minh model đó có trên tài khoản OpenRouter hoặc hỗ trợ toàn bộ schema hiện dùng.
 - `health.readiness` mới kiểm tra sự hiện diện của cấu hình. Một giá trị `READY` không chứng minh kết nối provider/database hoạt động.
@@ -37,12 +37,12 @@ Phạm vi: `AI_AGENT`, chỉ code và tài liệu trong `services/ai`. Tài li�
 - Structured output/citation validation kiểm tra hình dạng và nguồn hợp lệ; không chứng minh mọi phát biểu đều đúng về ngữ nghĩa. Cần đánh giá groundedness độc lập.
 - Counters trong bộ nhớ mất khi restart và không tổng hợp xuyên nhiều process.
 
-## Bàn giao contract cho phía Java
+## Trạng thái contract Java ↔ Python
 
-Xem [CONTRACT_V3.md](CONTRACT_V3.md). Chưa sửa source Java, FE hoặc tài liệu ngoài quyền `AI_AGENT`.
+Xem [CONTRACT_V3.md](CONTRACT_V3.md). DTO Java, policy signed URL và `docs/api-plan.md` đã được đồng bộ với schema v3.
 
 Danh sách nghiệm thu còn lại: [INTEGRATION_CHECKLIST.md](INTEGRATION_CHECKLIST.md).
 
-Cần cập nhật/đối chiếu `docs/api-plan.md` với các field cụ thể trong file contract này và bổ sung contract test Java trước khi ghép end-to-end. Đặc biệt lưu ý wrapper `result`, `generationArgs`, lỗi `409`, scope theo trang, API index trả `202`, polling và `pipelineVersion`.
+Contract test hiện đã bao phủ wrapper `result`, `generationArgs`, scope theo trang, API index trả `202`, polling, `pipelineVersion` và chính sách URL local/production. Việc còn lại là nghiệm thu end-to-end với provider thật và bộ dữ liệu được phép sử dụng.
 
 Không có commit/push trong task triển khai hiện tại.

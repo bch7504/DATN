@@ -69,3 +69,30 @@ test("network failures show an actionable error and do not retry mutations", asy
   await assert.rejects(client.assignmentApi.publish("test"), { status: 0, code: "NETWORK_UNAVAILABLE" });
   assert.equal(calls, 1);
 });
+
+test("Course Material Tutor validates the page and sends the question only to Java", async () => {
+  const calls = [];
+  const client = loadClient(async (url, options) => {
+    calls.push({ url, options });
+    return Response.json({
+      status: "ANSWERED",
+      answer: "Synthetic grounded answer",
+      citations: [{ documentId: "doc-1", pageNumber: 2, excerpt: "Synthetic excerpt" }],
+      traceId: "req-test-001",
+    });
+  }, "http://java.test/api/v1");
+
+  assert.throws(() => client.materialApi.askTutor("doc-1", 0, "Question"), {
+    code: "INVALID_PAGE_NUMBER",
+  });
+  assert.throws(() => client.materialApi.askTutor("doc-1", 1, "   "), {
+    code: "INVALID_QUESTION",
+  });
+  const result = await client.materialApi.askTutor("doc-1", 2, "  Explain this page  ");
+
+  assert.equal(result.status, "ANSWERED");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "http://java.test/api/v1/student/materials/doc-1/pages/2/tutor");
+  assert.equal(calls[0].options.method, "POST");
+  assert.deepEqual(JSON.parse(calls[0].options.body), { question: "Explain this page" });
+});

@@ -25,7 +25,7 @@ export interface QuizQuestion {
   citation?: QuizCitation;
 }
 
-export type QuizDraftStatus = "GENERATING" | "REVIEW_REQUIRED" | "READY" | "REJECTED" | "GENERATION_FAILED";
+export type QuizDraftStatus = "GENERATING" | "REVIEW_REQUIRED" | "READY" | "PUBLISHED" | "REJECTED" | "GENERATION_FAILED";
 
 export interface QuizDraft {
   id: string;

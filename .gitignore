@@ -30,6 +30,7 @@ dist/
 
 # Runtime
 logs/
+.runtime/
 uploads/
 qdrant_storage/
 services/backend/data/

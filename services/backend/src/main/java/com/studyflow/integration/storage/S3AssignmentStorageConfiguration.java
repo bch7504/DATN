@@ -14,6 +14,7 @@ import software.amazon.awssdk.core.checksums.ResponseChecksumValidation;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 
 @Configuration
@@ -46,10 +47,31 @@ public class S3AssignmentStorageConfiguration {
                 .build();
     }
 
+    /**
+     * Builds the matching server-side presigner used only for short-lived Python indexing URLs.
+     * Args: storage endpoint, region and credentials. Input: same private bucket origin as S3Client.
+     * Output: closeable S3Presigner. Errors: invalid deployment configuration fails startup.
+     */
+    @Bean(destroyMethod = "close")
+    public S3Presigner assignmentS3Presigner(
+            @Value("${studyflow.storage.endpoint}") String endpoint,
+            @Value("${studyflow.storage.region}") String region,
+            @Value("${studyflow.storage.access-key}") String accessKey,
+            @Value("${studyflow.storage.secret-key}") String secretKey) {
+        return S3Presigner.builder()
+                .endpointOverride(URI.create(endpoint))
+                .region(Region.of(region))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
+                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
+                .build();
+    }
+
     /** Wires the private S3 bucket adapter; bucket is never exposed to a client. */
     @Bean
     public AssignmentAttachmentStorage assignmentAttachmentStorage(
-            S3Client assignmentS3Client, @Value("${studyflow.storage.bucket}") String bucket) {
-        return new S3AssignmentAttachmentStorage(assignmentS3Client, bucket);
+            S3Client assignmentS3Client,
+            S3Presigner assignmentS3Presigner,
+            @Value("${studyflow.storage.bucket}") String bucket) {
+        return new S3AssignmentAttachmentStorage(assignmentS3Client, assignmentS3Presigner, bucket);
     }
 }

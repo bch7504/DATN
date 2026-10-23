@@ -20,7 +20,7 @@ Next.js Web → Java Spring Boot → Python FastAPI
 
 - Frontend Next.js đã có giao diện Student, Teacher và Admin; Auth/OTP cùng một phần API nghiệp vụ đã kết nối Java.
 - Java đã có Auth, hồ sơ, Course Offering, Enrollment, Study Plan, Calendar và Notification.
-- Python AI Service đã có 7 internal endpoint và kiểm thử offline; chưa nghiệm thu đầy đủ với Java, Object Storage và OpenRouter thật.
+- Python AI Service đã có 7 internal endpoint và kiểm thử offline; Object Storage local đã qua test Java bằng tệp tổng hợp, còn lập chỉ mục/OpenRouter với tài liệu thật chưa được nghiệm thu.
 - PostgreSQL 17 + pgvector và Mailpit có thể chạy local bằng Docker.
 
 ## Chức năng MVP
@@ -76,12 +76,19 @@ uv --version
 | Java Backend | `http://localhost:8088` |
 | Python AI Service | `http://127.0.0.1:8001` |
 | PostgreSQL | `127.0.0.1:5433` |
+| Object Storage | `http://127.0.0.1:8333` |
 | Mailpit SMTP | `127.0.0.1:1025` |
 | Mailpit Web | `http://127.0.0.1:8025` |
 
 ## Chạy nhanh Frontend + Java + PostgreSQL
 
 Các lệnh dưới đây dành cho PowerShell trên Windows. Không cần đọc hoặc dùng `.env` của người khác.
+
+### Trạng thái cách chạy
+
+Dự án chưa dùng launcher `start-all`; mỗi service được chạy riêng để dễ thấy lỗi và trạng thái API.
+Các script không tự đọc hoặc in secret trong `.env`. Khi toàn bộ service có Dockerfile ổn định, dự án mới
+bổ sung Docker Compose thống nhất.
 
 ### 1. Clone repository
 
@@ -112,7 +119,17 @@ docker compose --env-file infrastructure/docker/database.defaults `
 
 Mở `http://127.0.0.1:8025` để xem email OTP khi đăng ký tài khoản local.
 
-### 4. Chạy Java Backend
+### 4. Khởi động Object Storage cho PDF
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\storage.ps1 start
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\storage.ps1 status
+```
+
+Kho local bind tại `127.0.0.1:8333`, dùng bucket `studyflow-documents` và giữ tệp trong
+named volume `studyflow-object-data`. Dừng bằng `storage.ps1 stop` không xóa dữ liệu.
+
+### 5. Chạy Java Backend
 
 Mở một PowerShell mới tại root:
 
@@ -123,6 +140,16 @@ $env:DATABASE_USERNAME = "studyflow_app"
 $env:DATABASE_PASSWORD = "studyflow_app_local_only"
 $env:JWT_SECRET = "studyflow-local-jwt-secret-minimum-32-characters"
 $env:MAIL_FROM = "no-reply@studyflow.local"
+$env:AI_SERVICE_ENABLED = "true"
+$env:AI_SERVICE_URL = "http://127.0.0.1:8001"
+$env:AI_SERVICE_TOKEN = "studyflow-local-ai-token"
+$env:AI_ALLOW_INSECURE_LOCAL_STORAGE_URL = "true"
+$env:STORAGE_ENABLED = "true"
+$env:STORAGE_ENDPOINT = "http://127.0.0.1:8333"
+$env:STORAGE_REGION = "us-east-1"
+$env:STORAGE_BUCKET = "studyflow-documents"
+$env:STORAGE_ACCESS_KEY = "studyflow_storage_local_access"
+$env:STORAGE_SECRET_KEY = "studyflow_storage_local_secret"
 
 Set-Location services/backend
 .\mvnw.cmd -s maven-settings.xml spring-boot:run
@@ -136,17 +163,7 @@ Invoke-RestMethod http://127.0.0.1:8088/actuator/health
 
 Kết quả mong đợi có `status: UP`.
 
-Nếu Maven gặp lỗi do đường dẫn repository có ký tự Unicode, có thể tạo ổ tạm rồi chạy lại:
-
-```powershell
-subst S: "E:\ĐATN"
-Set-Location S:\services\backend
-.\mvnw.cmd -s maven-settings.xml spring-boot:run
-```
-
-Thay `E:\ĐATN` bằng đường dẫn repository trên máy đang chạy.
-
-### 5. Cấu hình Frontend
+### 6. Cấu hình Frontend
 
 Tạo file `apps/web/.env.local` với đúng hai biến public:
 
@@ -157,7 +174,7 @@ NEXT_PUBLIC_DEMO_MODE=false
 
 Không đặt database password, AI key hoặc service token trong biến `NEXT_PUBLIC_*`.
 
-### 6. Chạy Frontend
+### 7. Chạy Frontend
 
 Mở PowerShell mới:
 
@@ -202,6 +219,10 @@ $env:OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 $env:OPENROUTER_CHAT_MODEL = "openai/gpt-5.6-luna"
 $env:OPENROUTER_EMBEDDING_MODEL = "openai/text-embedding-3-large"
 $env:EMBEDDING_DIMENSIONS = "1024"
+$env:STORAGE_ENDPOINT = "http://127.0.0.1:8333"
+$env:AI_ALLOW_INSECURE_LOCAL_STORAGE_URL = "true"
+# Chỉ đặt key thật trong terminal/môi trường local; không commit giá trị này.
+$env:OPENROUTER_API_KEY = "<openrouter-key>"
 
 uv run uvicorn app.asgi:app --host 127.0.0.1 --port 8001 --no-access-log
 ```
@@ -224,7 +245,10 @@ Set-Location services/ai
 uv run python -m app.workers.documents
 ```
 
-Không commit `OPENROUTER_API_KEY`. Các luồng index/RAG/Quiz thật còn cần Object Storage, API key hợp lệ và Java adapter tương ứng; health chạy được không có nghĩa toàn bộ AI end-to-end đã hoàn tất.
+Không commit `OPENROUTER_API_KEY`. Khi chạy worker với key thật, nội dung các đoạn PDF cần lập chỉ mục
+sẽ được gửi đến nhà cung cấp embedding và phần bằng chứng liên quan có thể được gửi đến mô hình tạo nội dung;
+chỉ dùng tài liệu mà người vận hành có quyền xử lý. Health `READY` chỉ xác nhận đủ cấu hình, không thay thế
+kiểm thử chất lượng trên bộ dữ liệu đánh giá.
 
 ## Kiểm thử
 

@@ -69,3 +69,17 @@ test("Student class details have a reversible browser-history step", () => {
   assert.match(page, /window\.history\.back\(\)/);
   assert.match(page, /onClick=\{\(\) => navigateToOffering\(offering\.id\)\}/);
 });
+
+/** Args: none. Input: Student class route source. Output: void; asserts semester grouping. Errors: AssertionError on regression. */
+test("Student Course Offerings are grouped by semester", () => {
+  const page = fs.readFileSync(
+    path.join(__dirname, "../src/app/(student)/course-offerings/page.tsx"),
+    "utf8"
+  );
+
+  assert.match(page, /approvedSemesterGroups/);
+  assert.match(page, /toggleSemester/);
+  assert.match(page, /aria-expanded=\{!isCollapsed\}/);
+  assert.match(page, /môn học trong học kỳ/);
+  assert.match(page, /materialCounts\[offering\.id\]/);
+});

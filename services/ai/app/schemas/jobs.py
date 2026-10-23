@@ -27,8 +27,10 @@ class IndexRequest(WireModel):
         """Validate scope. Args: self. Returns: self. Raises: ValueError on invalid source."""
         if self.source_type is SourceType.PERSONAL_PDF and self.owner_id is None:
             raise ValueError("Personal PDF requires an owner")
-        if self.signed_url.scheme != "https":
-            raise ValueError("signed URL must use HTTPS")
+        if self.signed_url.scheme not in {"http", "https"}:
+            raise ValueError("signed URL must use HTTP(S)")
+        if self.signed_url.username or self.signed_url.password or self.signed_url.fragment:
+            raise ValueError("signed URL cannot include userinfo or a fragment")
         return self
 
 

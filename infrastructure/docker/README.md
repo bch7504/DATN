@@ -33,3 +33,19 @@ Quyền sở hữu được tách rõ:
 
 Compose không có thao tác xóa volume. Nếu cần xóa toàn bộ database local, phải
 xác nhận riêng và thao tác thủ công để tránh mất dữ liệu ngoài ý muốn.
+
+## Object Storage cho PDF local
+
+Kho tệp S3-compatible dùng SeaweedFS và chỉ bind vào loopback:
+
+```powershell
+.\scripts\storage.ps1 start
+.\scripts\storage.ps1 status
+.\scripts\storage.ps1 stop
+```
+
+Tệp được giữ trong named volume `studyflow-object-data`; lệnh `stop` không xóa dữ liệu.
+Các giá trị trong `database.defaults` chỉ là thông tin phát triển local đã công khai. Khi dùng
+môi trường khác, truyền access key/secret key riêng và không commit chúng. Java và Python chỉ
+được chấp nhận HTTP local khi `AI_ALLOW_INSECURE_LOCAL_STORAGE_URL=true`; production bắt buộc
+HTTPS và để cờ này là `false`.
