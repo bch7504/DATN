@@ -42,7 +42,11 @@ public class AiServiceConfiguration {
         RestClient restClient = builder.baseUrl(baseUrl.toString())
                 .requestFactory(requestFactory)
                 .build();
-        return new HttpAiServiceClient(restClient, objectMapper, token);
+        return new HttpAiServiceClient(
+                restClient,
+                objectMapper,
+                token,
+                properties.allowInsecureLocalStorageUrl());
     }
 
     private static Duration requirePositive(Duration value, String name) {

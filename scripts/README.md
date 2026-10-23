@@ -14,6 +14,7 @@ hình Docker sau này phải chạy được từ mọi đường dẫn hợp l�
 ## Script hiện có
 
 - `database.ps1`: quản lý PostgreSQL/pgvector phục vụ phát triển local.
+- `storage.ps1`: quản lý kho PDF S3-compatible local trên `127.0.0.1:8333`; dừng service không xóa named volume.
 - `backend-e2e.ps1`: chạy kiểm thử end-to-end của Java Backend theo contract được
   mô tả trong chính script.
 

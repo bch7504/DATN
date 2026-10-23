@@ -43,15 +43,30 @@ public final class HttpAiServiceClient implements AiServiceClient {
     private final RestClient client;
     private final ObjectMapper objectMapper;
     private final String serviceToken;
+    private final boolean allowInsecureLocalStorageUrl;
 
     /**
      * Args: configured RestClient, application ObjectMapper and non-blank service token.
      * Input: trusted server configuration. Output: reusable client. Errors: IllegalArgumentException.
      */
     public HttpAiServiceClient(RestClient client, ObjectMapper objectMapper, String serviceToken) {
+        this(client, objectMapper, serviceToken, false);
+    }
+
+    /**
+     * Args: configured RestClient, ObjectMapper, service token and local-storage HTTP opt-in.
+     * Input: trusted server configuration. Output: reusable client. Errors: IllegalArgumentException.
+     */
+    public HttpAiServiceClient(
+            RestClient client,
+            ObjectMapper objectMapper,
+            String serviceToken,
+            boolean allowInsecureLocalStorageUrl
+    ) {
         this.client = Objects.requireNonNull(client, "client");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
         this.serviceToken = requireText(serviceToken, 16, 4096, "serviceToken");
+        this.allowInsecureLocalStorageUrl = allowInsecureLocalStorageUrl;
     }
 
     @Override
@@ -206,16 +221,14 @@ public final class HttpAiServiceClient implements AiServiceClient {
         return new AiServiceException(502, "AI_INVALID_RESPONSE", message, requestId, null);
     }
 
-    private static void validateIndexRequest(IndexDocumentRequest request) {
+    private void validateIndexRequest(IndexDocumentRequest request) {
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(request.documentId(), "documentId");
         Objects.requireNonNull(request.sourceType(), "sourceType");
         if (request.documentVersion() < 1) throw new IllegalArgumentException("documentVersion must be positive");
         requireText(request.pipelineVersion(), 1, 64, "pipelineVersion");
         URI url = Objects.requireNonNull(request.signedUrl(), "signedUrl");
-        if (!url.isAbsolute() || !"https".equalsIgnoreCase(url.getScheme())) {
-            throw new IllegalArgumentException("signedUrl must be absolute HTTPS");
-        }
+        AiDocumentUrlPolicy.requireAllowed(url, allowInsecureLocalStorageUrl);
         if (!"application/pdf".equals(request.mimeType())) throw new IllegalArgumentException("mimeType must be application/pdf");
         if (request.sourceType() == AiContracts.SourceType.PERSONAL_PDF && request.ownerId() == null) {
             throw new IllegalArgumentException("Personal PDF requires ownerId");

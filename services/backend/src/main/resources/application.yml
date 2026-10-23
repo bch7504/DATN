@@ -58,6 +58,8 @@ studyflow:
     service-token: ${AI_SERVICE_TOKEN:}
     connect-timeout: ${AI_CONNECT_TIMEOUT:3s}
     read-timeout: ${AI_READ_TIMEOUT:45s}
+    allow-insecure-local-storage-url: ${AI_ALLOW_INSECURE_LOCAL_STORAGE_URL:false}
+    document-scan-delay: ${AI_DOCUMENT_SCAN_DELAY:10000}
   assignments:
     attachment-cleanup-delay: ${STUDYFLOW_ASSIGNMENT_ATTACHMENT_CLEANUP_DELAY:60000}
   dev:

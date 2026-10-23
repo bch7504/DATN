@@ -61,6 +61,7 @@ class CourseMaterialAccessTest {
                 Clock.fixed(now, ZoneOffset.UTC));
         document = new CourseMaterialDocument(UUID.randomUUID(), teacher, "lesson.pdf", "Lesson",
                 "synthetic-key", 8, 1, now);
+        document.markReady(1, now);
         offering = new CourseOffering(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), teacher,
                 "TEST-01", "Synthetic course", "synthetic-hash", "0001");
         publication = new DocumentPublication(UUID.randomUUID(), document.getId(), offering.getId(), teacher,

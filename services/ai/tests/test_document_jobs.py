@@ -62,9 +62,16 @@ async def test_document_job_acceptance_validation_and_safe_polling(
             headers=headers,
             json={**payload, "mimeType": "application/vnd.ms-powerpoint"},
         )
+        insecure_remote = await client.post(
+            "/internal/v1/documents/index",
+            headers=headers,
+            json={**payload, "signedUrl": "http://storage.invalid/test.pdf"},
+        )
     assert poll.status_code == 200
     assert "signature" not in poll.text and "signedUrl" not in poll.text
     assert invalid.status_code == 422
+    assert insecure_remote.status_code == 422
+    assert insecure_remote.json()["error"]["code"] == "INVALID_SIGNED_URL"
 
 
 def test_worker_with_expired_or_replaced_claim_cannot_persist() -> None:

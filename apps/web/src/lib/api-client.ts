@@ -1130,49 +1130,56 @@ export const teacherApi = {
  */
 export const adminApi = {
   async getCourseOfferings(): Promise<CourseOffering[]> {
-    try {
-      const res = await apiFetch<PaginatedList<CourseOffering>>(
-        "/admin/course-offerings"
-      );
-      return res.items;
-    } catch (err) {
-      if (isDemoMode()) return demoOfferings;
-      throw err;
-    }
+    const res = await apiFetch<PaginatedList<CourseOffering>>(
+      "/admin/course-offerings"
+    );
+    return res.items;
   },
 
   async lockOffering(offeringId: string): Promise<void> {
-    try {
-      await apiFetch<void>(`/admin/course-offerings/${offeringId}/lock`, {
-        method: "POST",
-      });
-    } catch (err) {
-      if (isDemoMode()) {
-        const offering = demoOfferings.find((o) => o.id === offeringId);
-        if (offering) offering.status = "LOCKED";
-        return;
-      }
-      throw err;
-    }
+    await apiFetch<void>(`/admin/course-offerings/${offeringId}/lock`, {
+      method: "POST",
+    });
   },
 
   async archiveOffering(offeringId: string): Promise<void> {
-    try {
-      await apiFetch<void>(`/admin/course-offerings/${offeringId}/archive`, {
-        method: "POST",
-      });
-    } catch (err) {
-      if (isDemoMode()) {
-        const offering = demoOfferings.find((o) => o.id === offeringId);
-        if (offering) offering.status = "ARCHIVED";
-        return;
-      }
-      throw err;
-    }
+    await apiFetch<void>(`/admin/course-offerings/${offeringId}/archive`, {
+      method: "POST",
+    });
   },
 };
 
 export const teacherDocApi = teacherApi;
+
+export interface TeacherQuizGenerationRequest {
+  documentIds: string[];
+  courseOfferingId: string;
+  instruction: string;
+  questionCount: number;
+  difficulty: "EASY" | "MEDIUM" | "HARD" | "MIXED";
+  topic?: string;
+  pageFrom: number;
+  pageTo: number;
+}
+
+/** Teacher AI Quiz API. Browser calls Java only; Java authorizes scope before Python. */
+export const teacherQuizApi = {
+  /** Required owned READY PDFs, active offering and explicit controls; returns REVIEW_REQUIRED draft. */
+  generate(request: TeacherQuizGenerationRequest): Promise<QuizDraft> {
+    return apiFetch<QuizDraft>("/teacher/quizzes/generations", {
+      method: "POST",
+      headers: { "Idempotency-Key": crypto.randomUUID() },
+      body: JSON.stringify(request),
+    });
+  },
+
+  /** Required owner draft ID; Java revalidates class ownership/status before publication. */
+  publish(quizId: string): Promise<QuizDraft> {
+    return apiFetch<QuizDraft>(`/teacher/quizzes/${encodeURIComponent(quizId)}/publish`, {
+      method: "POST",
+    });
+  },
+};
 
 /**
  * Personal RAG Chat API (docs/api-plan.md Section 4.5)

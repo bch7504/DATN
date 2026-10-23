@@ -98,6 +98,10 @@ DATN/
 └── scripts/
 ```
 
+Script hạ tầng local hiện có: `database.ps1` cho PostgreSQL/pgvector, `storage.ps1` cho Object
+Storage S3-compatible và `backend-e2e.ps1` cho kiểm thử Backend. Repository chưa dùng launcher
+chạy toàn hệ thống; mỗi service được khởi động riêng cho đến khi có Docker Compose thống nhất.
+
 ## Ranh giới
 
 | Vùng | Trách nhiệm |

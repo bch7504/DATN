@@ -23,7 +23,10 @@ class Settings(BaseSettings):
 
     app_name: str = "StudyFlow AI Service"
     app_version: str = "0.1.0"
-    app_environment: Literal["development", "test", "production"] = "development"
+    app_environment: Literal["development", "test", "production"] = Field(
+        default="development",
+        validation_alias="APP_ENVIRONMENT",
+    )
     internal_service_token: SecretStr = Field(
         validation_alias="INTERNAL_SERVICE_TOKEN",
         min_length=16,
@@ -58,6 +61,10 @@ class Settings(BaseSettings):
         validation_alias="EMBEDDING_DIMENSIONS",
     )
     storage_endpoint: AnyHttpUrl | None = Field(default=None, validation_alias="STORAGE_ENDPOINT")
+    allow_insecure_local_storage_url: bool = Field(
+        default=False,
+        validation_alias="AI_ALLOW_INSECURE_LOCAL_STORAGE_URL",
+    )
     job_max_attempts: int = Field(default=3, ge=1, le=10, validation_alias="AI_JOB_MAX_ATTEMPTS")
     job_retry_base_seconds: float = Field(
         default=2, ge=0.1, le=60, validation_alias="AI_JOB_RETRY_BASE_SECONDS"
@@ -116,6 +123,8 @@ class Settings(BaseSettings):
             missing.append("AI_DATABASE_URL")
         if self.openrouter_api_key is None:
             missing.append("OPENROUTER_API_KEY")
+        if self.storage_endpoint is None:
+            missing.append("STORAGE_ENDPOINT")
         return tuple(missing)
 
 

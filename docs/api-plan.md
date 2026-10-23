@@ -133,7 +133,7 @@ Thiếu evidence trả `status=NO_EVIDENCE`, `answer=null`, `citations=[]`. Java
 | GET | `/api/v1/personal-documents/{id}/status` | Poll processing |
 | DELETE | `/api/v1/personal-documents/{id}` | Owner delete lifecycle |
 
-- Chỉ PDF có text layer. DOCX/PPTX trả `415`; scan/no text → job `FAILED/PDF_TEXT_REQUIRED`; encrypted → `PDF_ENCRYPTED`.
+- Chỉ PDF có text layer. DOCX/PPTX trả `415`; PDF scan/không có text hoặc bị mã hóa bị từ chối trước khi lưu. Upload hợp lệ trả `201` với `PENDING_PROCESSING`; Java worker gửi signed URL sang Python và poll job đến `READY|FAILED`. Production bắt buộc HTTPS; local development chỉ được dùng HTTP khi bật `AI_ALLOW_INSECURE_LOCAL_STORAGE_URL=true` và host là literal loopback (`localhost`, `127.0.0.1`, `::1`).
 - Status `UPLOADING|PENDING_PROCESSING|PROCESSING|READY|FAILED|DELETING`.
 
 ### 4.5 Personal Document Assistant
@@ -144,14 +144,9 @@ UX và contract lấy cảm hứng từ evidence-scoped workspace của repo tha
 
 - Input: `{selectedDocumentIds:[...]}` gồm 1–10 ID duy nhất.
 - Preconditions: mọi document thuộc current Student, PDF, `READY` và cùng embedding index version hợp lệ.
-- Output `201`: `{conversationId,title,selectedDocuments,createdAt}`.
+- Output `201`: `{id,title,selectedDocumentIds,messages:[],createdAt,updatedAt}`.
 - Errors: `404 DOCUMENT_NOT_FOUND`; `409 DOCUMENT_NOT_READY|EMBEDDING_VERSION_MISMATCH`; `422 INVALID_DOCUMENT_SCOPE`.
 - Side effect: Java lưu snapshot `conversation_documents`; client không tự thêm ID ở message request.
-
-#### `PATCH /api/v1/student/chat/conversations/{id}`
-
-- Input cho phép `{title?}` hoặc `{selectedDocumentIds?}`.
-- Thay scope phải revalidate toàn bộ owner/READY và chỉ ảnh hưởng message tiếp theo.
 
 #### `POST /api/v1/student/chat/conversations/{id}/messages`
 
@@ -160,10 +155,11 @@ UX và contract lấy cảm hứng từ evidence-scoped workspace của repo tha
 
 ```json
 {
-  "messageId":"msg_...",
+  "id":"msg_...",
+  "role":"assistant",
   "status":"ANSWERED",
   "capability":"ASK_DOCUMENT",
-  "answer":"...",
+  "content":"...",
   "citations":[
     {
       "documentId":"doc_...",
@@ -172,7 +168,7 @@ UX và contract lấy cảm hứng từ evidence-scoped workspace của repo tha
       "excerpt":"..."
     }
   ],
-  "traceId":"req_..."
+  "createdAt":"2026-10-22T00:00:00Z"
 }
 ```
 
@@ -201,12 +197,12 @@ History chỉ owner đọc; response có selected source metadata và messages/c
 
 - Nút **Sinh đề thi trắc nghiệm AI** trong Ôn tập mở form riêng, không redirect sang hỏi đáp.
 - `POST /api/v1/quizzes`: input `{selectedDocumentIds:string[],prompt:string}`; 1–10 ID duy nhất, PDF `READY` thuộc Student, prompt trim 1–500 ký tự. Số câu/độ khó/chủ đề được Student diễn đạt trong prompt; Java/Python phải validate, không coi prompt là system instruction.
-- Header `Idempotency-Key` cho mỗi lần gửi chủ động; retry cùng thao tác phải giữ key.
-- Output `202 {quizId,status:"GENERATING"}`; FE lấy trạng thái qua `GET /api/v1/review/quizzes/{id}`. Adapter cũng hỗ trợ response bản nháp đầy đủ khi generation hoàn tất đồng bộ.
-- `GET /api/v1/review/quizzes/{id}`: owner-only, output `200 QuizDraft` gồm `{id,prompt,sourceDocumentIds,status,questions,createdAt}`. `questions` rỗng khi `GENERATING`; khi `REVIEW_REQUIRED`, mỗi câu có `{id,type:"MCQ_SINGLE",questionText,options:[{id,text}],correctOptionId,explanation,citation:{documentId,documentName,pageNumber,excerpt}}`, đúng 4 options và đúng một ID đáp án thuộc options.
+- Header `Idempotency-Key` cho mỗi lần gửi chủ động; retry cùng thao tác phải giữ key. Java tạo cùng một Quiz ID từ actor + request đã chuẩn hóa + key, nên retry trả lại draft đã lưu và không gọi Python lần hai.
+- Java gọi Python đồng bộ trong request này. Output `200 QuizDraft` ở trạng thái `REVIEW_REQUIRED`; nếu không đủ bằng chứng trả `422 NO_EVIDENCE` và không lưu draft giả.
+- `GET /api/v1/review/quizzes/{id}`: owner-only, output `200 QuizDraft` gồm `{id,prompt,sourceDocumentIds,status,questions,createdAt}`. Luồng hiện tại sinh đồng bộ nên draft được lưu trực tiếp ở `REVIEW_REQUIRED`; mỗi câu có `{id,type:"MCQ_SINGLE",questionText,options:[{id,text}],correctOptionId,explanation,citation:{documentId,documentName,pageNumber,excerpt}}`, đúng 4 options và đúng một ID đáp án thuộc options.
 - Errors dùng error envelope chung: `401`, `404 QUIZ_NOT_FOUND`, `409 DOCUMENT_NOT_READY|DOCUMENT_SCOPE_CHANGED`, `422 INVALID_QUIZ_PROMPT|INVALID_DOCUMENT_SELECTION|NO_EVIDENCE`, `503 AI_SERVICE_UNAVAILABLE`. FE giữ input và cho thử lại; không tự tạo câu trả lời production.
 - Java dựng scope và gọi pipeline sinh Quiz nội bộ; không tạo conversation. Cùng lifecycle review/accept/attempt với Quiz sinh từ hỏi đáp. Regenerate trả ID mới, FE tiếp tục theo dõi ID đó.
-- Phạm vi lần cập nhật này: FE và tài liệu contract. Implementation/contract test Java–Python còn phải được xác nhận trong task tích hợp; không xem demo là API đã vận hành.
+- Java đã triển khai owner scope, revalidate citation, lưu conversation/Quiz và gọi đúng internal Python API; fixture demo vẫn chỉ dùng khi `NEXT_PUBLIC_DEMO_MODE=true`.
 
 ### 4.6 Dashboard, Study Streak và Daily Goal
 
@@ -318,17 +314,17 @@ Response kế hoạch: `{id,title,description,startDate,endDate,status,createdAt
 #### Quiz review và workspace ôn tập
 
 - `POST /api/v1/review/quizzes/{id}/regenerate`
-  - Input `{prompt,selectedDocumentIds?}` mới; Quiz hiện tại thuộc Student và ở trạng thái cho phép tạo lại.
-  - Output `202 {quizId,status:"GENERATING",regeneratedFromQuizId}`; không ghi đè draft/attempt cũ.
-  - Errors: `404 QUIZ_NOT_FOUND`; `409 INVALID_QUIZ_STATE|GENERATION_IN_PROGRESS`; `422 INVALID_QUIZ_PROMPT`.
+  - Input `{prompt}` mới; giữ nguyên snapshot nguồn của Quiz Student hiện tại.
+  - Output `200 QuizDraft` mới ở `REVIEW_REQUIRED`; không ghi đè draft/attempt cũ.
+  - Errors: `404 QUIZ_NOT_FOUND`; `422 INVALID_QUIZ_PROMPT|NO_EVIDENCE`; `503 AI_SERVICE_UNAVAILABLE`.
 - `POST /api/v1/review/quizzes/{id}/reject`
-  - Input `{reason?}`; Quiz hiện tại thuộc Student và ở `REVIEW_REQUIRED`.
-  - Output `200 {quizId,status:"REJECTED"}`; giữ generation/draft để audit, không tạo attempt.
-  - Errors: `404 QUIZ_NOT_FOUND`; `409 INVALID_QUIZ_STATE`; `422 INVALID_REJECT_REASON`.
+  - Không nhận body; Quiz hiện tại thuộc owner và ở `REVIEW_REQUIRED`.
+  - Output `204`; giữ draft để audit, không tạo attempt.
+  - Errors: `404 QUIZ_NOT_FOUND`; `409 QUIZ_NOT_REVIEWABLE`.
 - `POST /api/v1/review/quizzes/{id}/accept`
   - Input `{destinationType:"COURSE_OFFERING"|"PERSONAL",courseOfferingId?}`.
   - `COURSE_OFFERING` yêu cầu enrollment `APPROVED`; `PERSONAL` yêu cầu `courseOfferingId=null`.
-  - Output `200 {quizId,status:"READY",courseOfferingId}`; errors `404`, `409 INVALID_QUIZ_STATE`, `422 INVALID_DESTINATION`.
+  - Output `200 AcceptedQuiz` với `status` được Java lưu là `READY`; errors `404`, `409 QUIZ_NOT_REVIEWABLE|ENROLLMENT_REQUIRED`, `422 INVALID_DESTINATION`.
 - `GET /api/v1/review/course-offerings`: danh sách Course Offering được phép cùng `quizCount`, `averageScore`, `latestAttemptAt`.
 - `GET /api/v1/review/course-offerings/{id}`: overview, Quiz READY/history, attempt history và review items từ câu sai.
 - `GET /api/v1/review/personal-quizzes`: Quiz có `courseOfferingId=null` của current Student.
@@ -374,21 +370,21 @@ Student list chỉ trả account metadata tối thiểu; không trả Personal D
 - `POST /api/v1/teacher/documents/{id}/publications` — `{courseOfferingIds:[...]}`; chọn danh sách đồng nghĩa gỡ khỏi lớp đã bỏ chọn; lớp phải ACTIVE và thuộc Teacher.
 - `DELETE /api/v1/teacher/documents/{id}/publications?offeringId=...` — gỡ một publication, thao tác lặp idempotent.
 
-Teacher document response: `{id,title,fileName,fileType:"PDF",fileSize,status:"READY",totalPages,publishedOfferings:[{offeringId,offeringCode,offeringName,publishedAt}],createdAt}`. Student response dùng cùng metadata nhưng chỉ liệt kê publication nằm trong các lớp Student đã được duyệt. Download trả `application/pdf` với `Content-Disposition: inline`; Student có thể truyền `?download=true` để nhận `attachment`.
+Teacher document response: `{id,title,fileName,fileType:"PDF",fileSize,status,totalPages,publishedOfferings:[{offeringId,offeringCode,offeringName,publishedAt}],createdAt}`; `status` đi qua `PENDING_PROCESSING → PROCESSING → READY|FAILED`. Student response dùng cùng metadata nhưng chỉ liệt kê publication nằm trong các lớp Student đã được duyệt. Download trả `application/pdf` với `Content-Disposition: inline`; Student có thể truyền `?download=true` để nhận `attachment`.
 
-Bản hiện tại trả toàn bộ học liệu trong một page metadata (`page=0`, `totalPages=0|1`). Frontend duyệt theo `totalPages` thay vì giả định chỉ có một trang, áp dụng cả danh sách lớp. Upload hoàn thành đồng bộ với trạng thái `READY`; không có bước chờ xử lý AI trong chức năng quản lý file này. Publish/revoke thành công trả `204` không body.
+Bản hiện tại trả toàn bộ học liệu trong một page metadata (`page=0`, `totalPages=0|1`). Frontend duyệt theo `totalPages` thay vì giả định chỉ có một trang, áp dụng cả danh sách lớp. Upload trả `PENDING_PROCESSING`; worker Java gửi PDF sang Python để lập chỉ mục và chỉ cho phép publish/Tutor khi `READY`. Publish/revoke thành công trả `204` không body.
 
 Chỉ nhận PDF có text layer. Hệ thống kiểm document owner và ownership/trạng thái của mọi lớp; publication được lưu theo lớp và re-public kích hoạt lại row cũ. Student `APPROVED` mới xem/tải được PDF. Upload thành công tạo thông báo kho riêng cho Teacher; chỉ lần công bố/re-public mới thông báo Student đã duyệt trong lớp, thao tác giữ nguyên selection không phát lại. Thu hồi phát thông báo mất quyền truy cập mới. Tệp nằm trong private Object Storage; object key không xuất hiện trong response. Storage chưa cấu hình trả `503`, không tạo fixture.
 
 ### 5.4 Teacher AI Quiz Generator
 
 - `POST /api/v1/teacher/quizzes/generations`
-  - Input `{documentId,courseOfferingId,questionCount:5..30,difficulty,topic?,pageFrom,pageTo,instructions?}`.
+  - Input `{documentIds:[...],courseOfferingId,questionCount:1..30,difficulty,topic?,pageFrom,pageTo,instruction}`.
   - Java kiểm Teacher sở hữu document và Course Offering, PDF `READY`, page range hợp lệ; gửi structured request sang Python.
-  - Output `202 {quizId,status:"GENERATING"}`; mutation bắt buộc có `Idempotency-Key`.
-- `GET /api/v1/teacher/quizzes/{quizId}` trả draft/status cho đúng Teacher owner.
-- `PATCH /api/v1/teacher/quizzes/{quizId}` cho phép sửa title/question/options/đáp án/giải thích trong `REVIEW_REQUIRED`.
-- `POST /api/v1/teacher/quizzes/{quizId}/publish` chuyển Quiz đã duyệt sang `PUBLISHED` và gắn Course Offering nguồn.
+  - Java kiểm lại kết quả trước khi lưu: đúng `MCQ_SINGLE`, đúng số câu đã chọn, mỗi câu đúng 4 phương án khác nhau, chỉ một đáp án đúng và mọi citation đều nằm trong đúng tài liệu/phiên bản/khoảng trang Teacher đã cấp.
+  - Output `200 QuizDraft` với `REVIEW_REQUIRED`; mutation bắt buộc có `Idempotency-Key`.
+- `GET /api/v1/review/quizzes/{quizId}` trả draft/status cho đúng Teacher owner.
+- `POST /api/v1/teacher/quizzes/{quizId}/publish` revalidate Teacher/lớp, chuyển draft sang `PUBLISHED` và trả `200 QuizDraft`.
 - Teacher không có Personal Document chatbot và không gọi Course Material AI Tutor.
 
 ### 5.5 Giao và nộp bài tập theo lớp
@@ -458,6 +454,14 @@ Idempotency-Key: ...   # index/deindex/Quiz generation
 | POST `/internal/v1/course-materials/ask` | user/document/current page/allowed page scope/question | `ANSWERED|NO_EVIDENCE` + page citations |
 | POST `/internal/v1/quizzes/generate` | actorId, mode `PERSONAL_STUDENT|COURSE_TEACHER`, authorized document/version/page scope, structured generation args | Structured `MCQ_SINGLE` draft; mỗi câu đúng 4 options, một correctOptionIndex và page citation |
 | GET `/internal/v1/health` | common headers | Liveness/readiness |
+
+Quy tắc `signedUrl` của endpoint index:
+
+- URL phải tuyệt đối, không chứa user info hoặc fragment. Query của chữ ký tạm thời được phép.
+- Staging/production chỉ chấp nhận HTTPS.
+- Local development có thể chấp nhận HTTP khi cả Java và Python cùng bật `AI_ALLOW_INSECURE_LOCAL_STORAGE_URL=true`; host bắt buộc là literal loopback, không phân giải DNS để suy đoán loopback.
+- Python còn đối chiếu scheme/host/port của URL với `STORAGE_ENDPOINT`, không theo redirect sang origin khác.
+- Cấu hình kho tệp chưa sẵn sàng trả `503 STORAGE_NOT_READY`; URL sai chính sách trả `422 INVALID_SIGNED_URL` từ Python hoặc bị Java chặn trước khi gửi.
 
 ### Grounding contract
 

@@ -11,5 +11,6 @@ public record AiServiceProperties(
         URI baseUrl,
         String serviceToken,
         Duration connectTimeout,
-        Duration readTimeout
+        Duration readTimeout,
+        boolean allowInsecureLocalStorageUrl
 ) { }

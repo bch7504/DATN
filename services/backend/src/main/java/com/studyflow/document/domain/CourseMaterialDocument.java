@@ -24,6 +24,10 @@ public class CourseMaterialDocument {
     @Column(name = "processing_status", nullable = false) private String processingStatus;
     @Column(name = "document_version", nullable = false) private int documentVersion;
     @Column(name = "page_count", nullable = false) private int pageCount;
+    @Column(name = "ai_job_id") private UUID aiJobId;
+    @Column(name = "ai_error_code", length = 80) private String aiErrorCode;
+    @Column(name = "indexed_at") private Instant indexedAt;
+    @Column(name = "sha256", length = 64) private String sha256;
     @Column(name = "created_at", nullable = false) private Instant createdAt;
     @Column(name = "updated_at", nullable = false) private Instant updatedAt;
     @Column(name = "deleted_at") private Instant deletedAt;
@@ -34,7 +38,7 @@ public class CourseMaterialDocument {
      * Creates an immutable version-1 Course Material record.
      * Args: generated ID, owner, safe filename/title, fixed PDF metadata, private storage key,
      * byte/page counts and timestamp. Input: validated authenticated Teacher upload.
-     * Output: new READY record. Errors: none. Side effect: none until repository save.
+     * Output: new PENDING_PROCESSING record. Errors: none. Side effect: none until repository save.
      */
     public CourseMaterialDocument(UUID id, UUID ownerId, String fileName, String displayName,
                                  String storageKey, long fileSize, int pageCount, Instant now) {
@@ -48,11 +52,36 @@ public class CourseMaterialDocument {
         this.mimeType = "application/pdf";
         this.fileSize = fileSize;
         this.storageKey = storageKey;
-        this.processingStatus = "READY";
+        this.processingStatus = "PENDING_PROCESSING";
         this.documentVersion = 1;
         this.pageCount = pageCount;
         this.createdAt = now;
         this.updatedAt = now;
+    }
+
+    /**
+     * Creates a Student-owned Personal PDF pending Python indexing.
+     * Args: IDs, safe file metadata, private object key, byte/page counts, SHA-256 and timestamp.
+     * Input: validated text-layer PDF owned by the authenticated Student.
+     * Output: version-1 PERSONAL document. Errors: none; persistence constraints validate required data.
+     */
+    public static CourseMaterialDocument personal(
+            UUID id,
+            UUID ownerId,
+            String fileName,
+            String displayName,
+            String storageKey,
+            long fileSize,
+            int pageCount,
+            String sha256,
+            Instant now
+    ) {
+        CourseMaterialDocument document = new CourseMaterialDocument(
+                id, ownerId, fileName, displayName, storageKey, fileSize, pageCount, now);
+        document.ownerRole = "STUDENT";
+        document.documentScope = "PERSONAL";
+        document.sha256 = sha256;
+        return document;
     }
 
     public UUID getId() { return id; }
@@ -65,7 +94,48 @@ public class CourseMaterialDocument {
     public String getProcessingStatus() { return processingStatus; }
     public int getDocumentVersion() { return documentVersion; }
     public int getPageCount() { return pageCount; }
+    public UUID getAiJobId() { return aiJobId; }
+    public String getAiErrorCode() { return aiErrorCode; }
+    public Instant getIndexedAt() { return indexedAt; }
+    public String getSha256() { return sha256; }
+    public String getDocumentScope() { return documentScope; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getDeletedAt() { return deletedAt; }
+
+    /** Args: Python job identity and current time. Output: void; marks PROCESSING. Errors: invalid null job. */
+    public void markProcessing(UUID jobId, Instant now) {
+        if (jobId == null) throw new IllegalArgumentException("jobId is required");
+        processingStatus = "PROCESSING";
+        aiJobId = jobId;
+        aiErrorCode = null;
+        updatedAt = now;
+    }
+
+    /** Args: positive extracted page count and time. Output: void; marks READY. Errors: invalid page count. */
+    public void markReady(int extractedPageCount, Instant now) {
+        if (extractedPageCount < 1) throw new IllegalArgumentException("pageCount must be positive");
+        processingStatus = "READY";
+        pageCount = extractedPageCount;
+        aiErrorCode = null;
+        indexedAt = now;
+        updatedAt = now;
+    }
+
+    /** Args: safe nonblank error code and current time. Output: void; marks FAILED without raw provider detail. */
+    public void markFailed(String errorCode, Instant now) {
+        if (errorCode == null || errorCode.isBlank() || errorCode.length() > 80) {
+            throw new IllegalArgumentException("errorCode is invalid");
+        }
+        processingStatus = "FAILED";
+        aiErrorCode = errorCode;
+        updatedAt = now;
+    }
+
+    /** Args: current time. Output: void; marks DELETING before vector/object cleanup. */
+    public void markDeleting(Instant now) {
+        processingStatus = "DELETING";
+        updatedAt = now;
+    }
+
     public void softDelete(Instant now) { deletedAt = now; updatedAt = now; }
 }

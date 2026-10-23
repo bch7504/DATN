@@ -160,7 +160,8 @@ public class CourseMaterialLibraryService {
     /** Args: authenticated teacherId. Input: none. Output: owned non-deleted documents with active publications. Errors: storage-independent repository failure. */
     @Transactional(readOnly = true)
     public List<TeacherDocumentResponse> listTeacher(UUID teacherId) {
-        return documents.findByOwnerIdAndDeletedAtIsNullOrderByCreatedAtDesc(teacherId).stream()
+        return documents.findByOwnerIdAndDocumentScopeAndDeletedAtIsNullOrderByCreatedAtDesc(
+                        teacherId, "COURSE_MATERIAL").stream()
                 .map(document -> response(document, publications.findByDocumentIdAndStatus(document.getId(), "PUBLISHED")))
                 .toList();
     }
@@ -175,6 +176,10 @@ public class CourseMaterialLibraryService {
     @Transactional
     public void setPublications(UUID teacherId, UUID documentId, List<UUID> selectedOfferingIds) {
         CourseMaterialDocument document = requireOwned(teacherId, documentId);
+        if (!"READY".equals(document.getProcessingStatus())) {
+            throw new ApiException(HttpStatus.CONFLICT, "DOCUMENT_NOT_READY",
+                    "Học liệu chưa sẵn sàng để công bố.");
+        }
         if (selectedOfferingIds == null || selectedOfferingIds.size() > 100 || selectedOfferingIds.stream().anyMatch(java.util.Objects::isNull)) {
             throw new ValidationException("INVALID_OFFERING_SELECTION", "Danh sách lớp phải có tối đa 100 mã lớp hợp lệ.");
         }
@@ -360,7 +365,12 @@ public class CourseMaterialLibraryService {
     private CourseMaterialDocument requireOwned(UUID teacherId, UUID documentId) {
         CourseMaterialDocument document = documents.findByIdAndDeletedAtIsNull(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("DOCUMENT_NOT_FOUND", "Không tìm thấy học liệu."));
-        if (!document.getOwnerId().equals(teacherId)) throw new ForbiddenException("FORBIDDEN", "Bạn không sở hữu học liệu này.");
+        if (!document.getOwnerId().equals(teacherId)) {
+            throw new ForbiddenException("FORBIDDEN", "Bạn không sở hữu học liệu này.");
+        }
+        if (!"COURSE_MATERIAL".equals(document.getDocumentScope())) {
+            throw new ResourceNotFoundException("DOCUMENT_NOT_FOUND", "Không tìm thấy học liệu.");
+        }
         return document;
     }
 

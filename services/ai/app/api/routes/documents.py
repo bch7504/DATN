@@ -6,7 +6,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_database_session
+from app.api.dependencies import get_database_session, get_request_settings
+from app.clients.http_document_download import validate_storage_url
+from app.core.config import Settings
+from app.core.errors import ServiceError
 from app.core.security import RequestContext, require_internal_request
 from app.repositories.job_repository import JobRepository
 from app.schemas.jobs import DeindexRequest, IndexRequest, JobAcceptedResponse, JobResponse
@@ -27,6 +30,7 @@ def index_document(
     context: InternalContext,
     idempotency_key: JobKey,
     repository: Annotated[JobRepository, Depends(get_job_repository)],
+    settings: Annotated[Settings, Depends(get_request_settings)],
 ) -> JobAcceptedResponse:
     """Queue a PDF index operation.
 
@@ -35,6 +39,24 @@ def index_document(
     Returns: 202 acceptance envelope after commit.
     Raises: ServiceError for authentication/key conflict; validation errors; database errors.
     """
+    if settings.storage_endpoint is None:
+        raise ServiceError(
+            status_code=503,
+            code="STORAGE_NOT_READY",
+            message="Object Storage is not configured",
+        )
+    try:
+        validate_storage_url(
+            url=str(payload.signed_url),
+            allowed_origin=str(settings.storage_endpoint),
+            allow_insecure_local_http=settings.allow_insecure_local_storage_url,
+        )
+    except ValueError as error:
+        raise ServiceError(
+            status_code=422,
+            code="INVALID_SIGNED_URL",
+            message="Signed document URL is not allowed",
+        ) from error
     job = repository.enqueue(
         payload=payload, request_id=context.request_id, idempotency_key=idempotency_key
     )

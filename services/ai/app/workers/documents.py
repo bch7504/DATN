@@ -64,7 +64,10 @@ async def run_worker(*, once: bool, poll_seconds: float | None = None) -> None:
     engine = build_engine(settings)
     factory = build_session_factory(engine)
     provider = OpenRouterClient.from_settings(settings)
-    downloader = HttpDocumentDownloadClient(allowed_origin=str(settings.storage_endpoint))
+    downloader = HttpDocumentDownloadClient(
+        allowed_origin=str(settings.storage_endpoint),
+        allow_insecure_local_http=settings.allow_insecure_local_storage_url,
+    )
     try:
         while True:
             with factory() as session:

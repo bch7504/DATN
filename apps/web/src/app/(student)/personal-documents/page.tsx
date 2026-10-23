@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { personalDocApi } from "@/lib/api-client";
 import { PersonalDocument } from "@/types/material";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -43,7 +43,7 @@ export default function StudentPersonalDocumentsPage(): React.JSX.Element {
     setAssistantOpen(false);
   };
 
-  const loadDocs = async () => {
+  const loadDocs = useCallback(async (): Promise<void> => {
     try {
       const data = await personalDocApi.getDocuments();
       setDocuments(data);
@@ -56,11 +56,20 @@ export default function StudentPersonalDocumentsPage(): React.JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadDocs();
-  }, []);
+    void loadDocs();
+  }, [loadDocs]);
+
+  useEffect(() => {
+    const hasActiveJob = documents.some((document) =>
+      document.status === "PENDING_PROCESSING" || document.status === "PROCESSING"
+    );
+    if (!hasActiveJob) return;
+    const timer = window.setInterval(() => { void loadDocs(); }, 4000);
+    return () => window.clearInterval(timer);
+  }, [documents, loadDocs]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

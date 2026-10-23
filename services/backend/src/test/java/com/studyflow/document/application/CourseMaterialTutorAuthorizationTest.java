@@ -63,6 +63,7 @@ class CourseMaterialTutorAuthorizationTest {
         CourseMaterialDocument document = new CourseMaterialDocument(
                 documentId, teacherId, "lesson.pdf", "Lesson", "private-key", 100, 9,
                 Instant.parse("2026-10-21T00:00:00Z"));
+        document.markReady(9, Instant.parse("2026-10-21T00:00:00Z"));
         DocumentPublication publication = new DocumentPublication(
                 UUID.randomUUID(), documentId, offeringId, teacherId, Instant.parse("2026-10-21T00:00:00Z"));
         CourseEnrollment enrollment = new CourseEnrollment(UUID.randomUUID(), offeringId, studentId);
@@ -95,6 +96,7 @@ class CourseMaterialTutorAuthorizationTest {
         CourseMaterialDocument document = new CourseMaterialDocument(
                 documentId, teacherId, "lesson.pdf", "Lesson", "private-key", 100, 3,
                 Instant.parse("2026-10-21T00:00:00Z"));
+        document.markReady(3, Instant.parse("2026-10-21T00:00:00Z"));
         DocumentPublication publication = new DocumentPublication(
                 UUID.randomUUID(), documentId, offeringId, teacherId, Instant.parse("2026-10-21T00:00:00Z"));
         CourseEnrollment enrollment = new CourseEnrollment(UUID.randomUUID(), offeringId, studentId);
