@@ -1,6 +1,6 @@
 # Kiểm tra tích hợp AI trước khi demo thật
 
-Đây là checklist tích hợp, không phải biên bản nghiệm thu cuối. Kho S3-compatible local đã qua smoke test và bốn PDF Kỹ thuật số đã được lập chỉ mục bằng OpenRouter trước bản Hybrid RAG. Kiểm thử tự động vẫn dùng dữ liệu tổng hợp. Không đọc `.env`; mọi lần chạy provider thật phải được cấp cấu hình vào tiến trình.
+Đây là checklist tích hợp, không phải biên bản nghiệm thu cuối. Kho S3-compatible local đã qua smoke test và bốn PDF Kỹ thuật số đã chạy Hybrid RAG live. Kiểm thử tự động vẫn dùng dữ liệu tổng hợp và tắt nạp `.env`; chỉ runtime/evaluator local tự nạp `.env` ở root. Biến môi trường do Docker/deployment cấp có ưu tiên cao hơn.
 
 ## 1. PostgreSQL/pgvector và migration
 

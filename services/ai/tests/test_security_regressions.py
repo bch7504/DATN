@@ -20,6 +20,7 @@ def test_embedding_dimensions_accepts_environment_string_and_remains_fixed() -> 
     """Environment text must parse to the single supported vector dimension."""
 
     settings = Settings(
+        _env_file=None,
         INTERNAL_SERVICE_TOKEN="test-service-token-123456789",
         EMBEDDING_DIMENSIONS="1024",
     )
@@ -27,6 +28,7 @@ def test_embedding_dimensions_accepts_environment_string_and_remains_fixed() -> 
 
     with pytest.raises(ValidationError):
         Settings(
+            _env_file=None,
             INTERNAL_SERVICE_TOKEN="test-service-token-123456789",
             EMBEDDING_DIMENSIONS="1536",
         )

@@ -1,21 +1,21 @@
-"""Validated process-environment configuration.
-
-The service deliberately does not load a local .env file. Deployment tooling
-must inject environment variables explicitly.
-"""
+"""Validated configuration from the repository .env and process environment."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import AnyHttpUrl, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+REPOSITORY_ENV_FILE = Path(__file__).resolve().parents[4] / ".env"
 
 
 class Settings(BaseSettings):
     """Immutable runtime settings for one AI service process."""
 
     model_config = SettingsConfigDict(
-        env_file=None,
+        env_file=REPOSITORY_ENV_FILE,
+        env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
         frozen=True,
@@ -154,7 +154,7 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Load and cache settings from process environment variables.
+    """Load and cache settings from root .env with process values taking precedence.
 
     Returns:
         A validated immutable Settings instance.
@@ -162,6 +162,7 @@ def get_settings() -> Settings:
     Raises:
         pydantic.ValidationError: If required configuration is missing or
             invalid.
+        OSError: If an existing environment file cannot be read.
     """
 
     return Settings()

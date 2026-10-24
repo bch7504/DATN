@@ -18,8 +18,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     Args:
         settings: Optional validated settings. When omitted, values are loaded
-            from process environment variables. Local .env files are never read
-            automatically.
+            from the repository-root .env and then overridden by process
+            environment variables when the same key is present.
 
     Returns:
         A configured FastAPI application with internal routes and safe error

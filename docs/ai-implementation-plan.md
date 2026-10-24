@@ -1,6 +1,6 @@
 # StudyFlow — Kế hoạch thay đổi và triển khai AI Service
 
-**Trạng thái cập nhật 23/10/2026:** Python AI Service đã có Hybrid RAG, LangChain rerank và guardrails, với 85/85 kiểm thử mặc định đạt, một ca PostgreSQL/pgvector tích hợp opt-in đạt. Bốn PDF môn Kỹ thuật số đã được lập chỉ mục thật; bộ đánh giá tiếng Việt khóa có 12 ca. Lần gọi OpenRouter sau nâng cấp Hybrid RAG còn chờ key được cấp vào tiến trình, không tự đọc `.env`.
+**Trạng thái cập nhật 23/10/2026:** Python AI Service đã có Hybrid RAG, LangChain rerank và guardrails, với 88/88 kiểm thử mặc định đạt, một ca PostgreSQL/pgvector tích hợp opt-in đạt. Bốn PDF môn Kỹ thuật số đã được lập chỉ mục thật; 12 ca live đạt retrieval recall@8 = 100% và `NO_EVIDENCE` = 100%, nhưng citation location precision mới đạt 64,29%. Local AI Service tự nạp `.env` ở root, trong khi biến môi trường tiến trình vẫn có ưu tiên cao hơn.
 **Phạm vi:** Python AI Service và các contract Java ↔ Python liên quan đến Personal PDF Assistant, Course Material AI Tutor và AI Quiz Generator.
 
 ## 0. Trạng thái hiện tại và kế hoạch làm tiếp
@@ -14,7 +14,7 @@
 | Personal Assistant | Đã có bộ điều phối một agent để chọn hỏi đáp, tóm tắt hoặc tạo Quiz; có hỏi lại khi thiếu thông tin |
 | Retrieval/Grounding | Đã có vector search + full-text search, RRF, LangChain rerank, giới hạn phạm vi tài liệu, `NO_EVIDENCE`, citation theo trang và kiểm tra lại nguồn |
 | Quiz | Đã kiểm tra đúng `MCQ_SINGLE`, bốn phương án, một đáp án đúng, citation và chống tạo trùng |
-| Kiểm thử | Có 85 ca mặc định đạt; migration hybrid và pgvector integration test đã đạt trên PostgreSQL local; bộ 12 câu tiếng Việt đã được khóa schema/trang nguồn |
+| Kiểm thử | Có 88 ca mặc định đạt; migration hybrid và pgvector integration test đã đạt trên PostgreSQL local; bộ 12 câu tiếng Việt đã chạy live |
 
 ### 0.2. Thứ tự triển khai tiếp theo
 
@@ -25,13 +25,13 @@
 | 3 | AI-N3 — Java contract v3 | **Đã đối chiếu:** DTO, credential, request ID, schema version, timeout và idempotency | Duy trì contract test hai phía khi schema thay đổi |
 | 4 | AI-N4 — E2E Personal Assistant | **Đã có luồng và test phân quyền:** hỏi đáp, tóm tắt, tạo Quiz | Chạy lại provider thật sau Hybrid RAG |
 | 5 | AI-N5 — E2E Course AI | **Đã có luồng và contract:** Tutor Student, Quiz Teacher, scope enrollment/publication | Chạy lại provider thật sau Hybrid RAG |
-| 6 | AI-N6 — Provider thật | Bốn PDF đã từng chạy Java → Python → OpenRouter trước nâng cấp Hybrid | **Đang chờ:** cấp `OPENROUTER_API_KEY` vào tiến trình để chạy lại Hybrid end-to-end |
-| 7 | AI-N7 — Evaluation | **Đã tạo:** 12 ca tiếng Việt theo trang (9 answerable, 3 `NO_EVIDENCE`) và live evaluator | Chạy live, sau đó người đánh giá chấm groundedness/factual correctness |
+| 6 | AI-N6 — Provider thật | **Đã chạy lại:** Hybrid RAG dùng `openai/gpt-5.6-luna` và `openai/text-embedding-3-large` | Tiếp tục theo dõi timeout/refusal/chi phí trên nhiều tài liệu hơn |
+| 7 | AI-N7 — Evaluation | **Đã chạy:** 12 ca tiếng Việt, recall@8 100%, `NO_EVIDENCE` 100%, citation location 64,29% | Cải thiện citation, tách final holdout và người đánh giá chấm groundedness/factual correctness |
 | 8 | AI-N8 — Hoàn thiện | Kiểm thử tải, crash recovery, metrics, retention, Docker và hướng dẫn demo | Demo end-to-end lặp lại được; có báo cáo latency/lỗi/chi phí và checklist vận hành |
 
 ### 0.3. Phạm vi của đợt triển khai gần nhất
 
-Mốc gần nhất là hoàn tất `AI-N6 → AI-N7`: cấp key vào tiến trình chạy, chạy 12 ca tiếng Việt trên bốn chỉ mục Kỹ thuật số, lưu các chỉ số retrieval/citation/abstention và tổ chức chấm groundedness độc lập. Unit test vẫn không gọi OpenRouter và không dùng tài liệu người dùng.
+Mốc gần nhất là hiệu chỉnh `AI-N7`: phân tích các citation sai trang, điều chỉnh ranking/citation selection trên development set, sau đó đánh giá lại bằng final holdout và chấm groundedness độc lập. Unit test vẫn không gọi OpenRouter và không dùng tài liệu người dùng.
 
 ## 1. Quyết định đã chốt
 

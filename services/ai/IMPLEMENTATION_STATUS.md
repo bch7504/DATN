@@ -7,9 +7,9 @@ Phạm vi: Python AI Service và trạng thái tích hợp Java/Object Storage l
 | M0 — Nền tảng | FastAPI, service auth, cấu hình, model/repository, 6 migration, OpenRouter adapter, LangChain Core và dependency injection; migration và role isolation đã kiểm tra trên PostgreSQL/pgvector local | Đối chiếu cấu hình môi trường triển khai thực tế |
 | M1 — Contract/vận hành nền | Schema v3, camelCase, error envelope, request ID, counters, DTO Java và contract test hai phía | Export metrics vào hệ thống giám sát nếu cần |
 | M2 — Tài liệu | PDF parser, chunking không mất chữ, embedding batch, index/deindex API, hàng đợi, worker lease/retry/fencing, lưu vector, chống trùng; đã test index/retrieval trên pgvector và signed URL từ Object Storage local bằng dữ liệu tổng hợp | Integration test cạnh tranh nhiều worker/revoke; chạy worker end-to-end với provider thật sau khi được phép |
-| M3 — Hỏi đáp/tóm tắt/Tutor | Hybrid search (cosine + full-text), RRF, LangChain rerank có giảm trùng lặp, lọc quyền hai lớp, ưu tiên trang hiện tại, citation, NO_EVIDENCE, hỏi đáp và tóm tắt trong Personal Assistant | Đánh giá tiếng Việt trên bộ câu hỏi khóa; điều chỉnh ngưỡng/weight; thử thu hồi quyền trong luồng Java → Python |
+| M3 — Hỏi đáp/tóm tắt/Tutor | Hybrid search (cosine + full-text), RRF, LangChain rerank có giảm trùng lặp, lọc quyền hai lớp, ưu tiên trang hiện tại, citation, NO_EVIDENCE, hỏi đáp và tóm tắt trong Personal Assistant | Citation location live mới đạt 64,29%; cần phân tích sai trang, điều chỉnh ranking và thử thu hồi quyền Java → Python |
 | M4 — Quiz | Student/Teacher scope, đúng 4 phương án, một đáp án, số câu, nguồn, replay theo key; Java đã có lưu bản nháp, duyệt/công bố và validate output | Kiểm thử provider thật và cạnh tranh request trên DB thật |
-| M5 — Quan sát/đánh giá | Metadata an toàn, safe error, kiểm tra input/output, bộ tính recall/citation/abstention; đã khóa 12 ca tiếng Việt theo trang cho Kỹ thuật số | Chạy live evaluator khi key được cấp vào tiến trình; groundedness vẫn do người chấm |
+| M5 — Quan sát/đánh giá | Metadata an toàn, safe error, kiểm tra input/output; 12 ca live: recall@8 100%, citation location 64,29%, `NO_EVIDENCE` 100% | Tách final holdout và người đánh giá chấm groundedness/factual correctness |
 | M6 — Hoàn thiện | Test hồi quy offline cho phân quyền, nguồn, PDF, vector, retry, schema và migration; E2E Java/Frontend 21 ca đạt | Hybrid RAG live sau nâng cấp, kiểm thử tải và hoàn thiện triển khai |
 
 ## Giới hạn hiện tại
@@ -17,17 +17,17 @@ Phạm vi: Python AI Service và trạng thái tích hợp Java/Object Storage l
 ### Kiểm tra offline mới nhất
 
 - `uv run --offline ruff check .` và `uv run --offline ruff format --check .`.
-- `pytest`: 85 ca đạt; một ca PostgreSQL/pgvector opt-in được bỏ qua trong lượt mặc định và đã chạy đạt riêng trên database local.
+- `pytest`: 88 ca đạt; một ca PostgreSQL/pgvector opt-in được bỏ qua trong lượt mặc định và đã chạy đạt riêng trên database local.
 - Migration hybrid search đã chạy bằng role `studyflow_ai`; kiểm tra `vector(1024)`, HNSW cosine, generated `tsvector`, GIN, chống chunk trùng và retrieval tích hợp đều đạt.
 - `uv run --offline python -m app.workers.documents --help`: CLI worker nạp được; không khởi chạy worker hoặc kết nối database.
 - `python -m evals --synthetic`: kiểm tra công thức đánh giá; không phải số đo chất lượng mô hình thật.
-- `python -m evals --live-vietnamese --k 8`: evaluator và dataset đã validate; lần chạy hiện tại dừng an toàn vì tiến trình chưa có `OPENROUTER_API_KEY`.
+- `python -m evals --live-vietnamese --k 8`: 12 ca đã chạy thật với GPT-5.6 Luna và Text Embedding 3 Large; recall@8 = 1,0, citation location precision = 0,6429, `NO_EVIDENCE` accuracy = 1,0; human groundedness chưa chấm.
 
 Đã bổ sung khóa giao dịch theo document/version trước khi nhận job, thu hồi và ghi chỉ mục; test offline xác nhận câu SQL/thứ tự khóa, **chưa chứng minh concurrency trên PostgreSQL thật**. Hủy yêu cầu sinh Quiz có ghi trạng thái thất bại; output bị provider cắt ngắn/refusal bị chặn. Không thay endpoint/schema thành công trong đợt củng cố này; error response bỏ `requestId` nếu header không đúng định dạng.
 
 ### Các giới hạn cần nghiệm thu tiếp
 
-- Bốn Course Material PDF môn Kỹ thuật số đã từng chạy Java → Python → OpenRouter và có citation trước khi nâng cấp Hybrid RAG. Sau nâng cấp, database integration đã đạt nhưng provider live chưa chạy lại vì key chưa có trong tiến trình. Chưa chạy đủ 56 PDF của bảy môn.
+- Bốn Course Material PDF môn Kỹ thuật số đã chạy Hybrid RAG live sau nâng cấp. Chưa chạy đủ 56 PDF của bảy môn.
 - Đã chạy PostgreSQL/pgvector và Object Storage bằng Docker local; chưa kiểm tra cạnh tranh nhiều worker/thu hồi đồng thời.
 - Python không tự truy vấn dữ liệu enrollment/publication; Java phải dựng scope và kiểm tra lại quyền trước khi trả nội dung hoặc lưu Quiz.
 - ID model chat mặc định giữ theo cấu hình kế hoạch; chưa xác minh model đó có trên tài khoản OpenRouter hoặc hỗ trợ toàn bộ schema hiện dùng.

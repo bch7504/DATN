@@ -10,9 +10,11 @@ Thư mục này chứa khung đánh giá offline cho ba nhóm:
 
 `uv run python -m evals --synthetic` chạy fixture kiểm tra công thức, **không phải đo chất lượng model thật**.
 
-`datasets/ky-thuat-so-v1.json` là bộ 12 câu tiếng Việt đã khóa theo trang của bốn PDF Kỹ thuật số: 9 câu có bằng chứng và 3 câu phải từ chối. Chạy thật bằng `uv run python -m evals --live-vietnamese --k 8` sau khi **tiến trình** đã được cấp `AI_DATABASE_URL` và `OPENROUTER_API_KEY`. Lệnh không tự đọc `.env`.
+`datasets/ky-thuat-so-v1.json` là bộ 12 câu tiếng Việt đã khóa theo trang của bốn PDF Kỹ thuật số: 9 câu có bằng chứng và 3 câu phải từ chối. Chạy thật bằng `uv run python -m evals --live-vietnamese --k 8`. Local AI Service tự nạp `AI_DATABASE_URL` và `OPENROUTER_API_KEY` từ `.env` ở root; biến được cấp trực tiếp cho tiến trình sẽ ghi đè file.
 
 Báo cáo live tự động tính retrieval recall, độ chính xác vị trí citation và khả năng trả `NO_EVIDENCE`. Factual correctness/groundedness vẫn phải do người đánh giá từng phát biểu; không dùng chính LLM để tự chấm mình.
+
+Kết quả baseline ngày 23/10/2026 với `k=8`: 12 ca, retrieval recall 100%, citation location precision 64,29%, `NO_EVIDENCE` accuracy 100%. Đây là development baseline; chưa phải KPI cuối vì human groundedness còn trống và chưa có final holdout.
 
 `metrics.py` tách riêng:
 

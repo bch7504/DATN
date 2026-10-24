@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -35,7 +36,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("SYNTHETIC FIXTURE RESULTS — NOT LIVE MODEL QUALITY")
         print(evaluate(synthetic_cases(), k=args.k).model_dump_json(indent=2))
         return 0
-    result = asyncio.run(run_live_evaluation(dataset_path=args.dataset, retrieval_limit=args.k))
+    try:
+        result = asyncio.run(run_live_evaluation(dataset_path=args.dataset, retrieval_limit=args.k))
+    except Exception as error:  # noqa: BLE001 - CLI boundary must not expose provider/DB details.
+        print(
+            f"LIVE_EVALUATION_FAILED: {type(error).__name__}",
+            file=sys.stderr,
+        )
+        return 1
     print("LIVE VIETNAMESE HYBRID RAG RESULTS — HUMAN GROUNDEDNESS STILL REQUIRED")
     print(result.model_dump_json(indent=2))
     return 0

@@ -1,6 +1,5 @@
 """Locked Vietnamese validation dataset and live Hybrid RAG evaluation runner."""
 
-import os
 from pathlib import Path
 from uuid import UUID
 
@@ -132,14 +131,13 @@ async def run_live_evaluation(
 
     if not 1 <= retrieval_limit <= 50:
         raise ValueError("retrieval_limit must be between 1 and 50")
-    if not os.environ.get("AI_DATABASE_URL", "").strip():
-        raise ValueError("AI_DATABASE_URL must be injected into the evaluation process")
-    if not os.environ.get("OPENROUTER_API_KEY", "").strip():
-        raise ValueError("OPENROUTER_API_KEY must be injected into the evaluation process")
-
     settings = Settings(
         INTERNAL_SERVICE_TOKEN="live-evaluation-only-token",
     )
+    if settings.ai_database_url is None:
+        raise ValueError("AI_DATABASE_URL must be configured in root .env or the process")
+    if settings.openrouter_api_key is None:
+        raise ValueError("OPENROUTER_API_KEY must be configured in root .env or the process")
     dataset = load_dataset(dataset_path)
     provider = OpenRouterClient.from_settings(settings)
     engine = build_engine(settings)

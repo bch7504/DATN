@@ -24,6 +24,7 @@ def application() -> FastAPI:
     """
 
     settings = Settings(
+        _env_file=None,
         INTERNAL_SERVICE_TOKEN=TEST_SERVICE_TOKEN,
         AI_DATABASE_URL="postgresql+psycopg://test:test@localhost:5432/studyflow",
         OPENROUTER_API_KEY="test-openrouter-key",
