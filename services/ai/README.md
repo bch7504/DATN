@@ -11,22 +11,24 @@ Python AI Service xử lý PDF, hỏi đáp có nguồn, tóm tắt, Course Mate
 - Bắt buộc X-Request-Id và X-Schema-Version: 3.
 - Error envelope có cấu trúc, không trả secret hoặc chi tiết nội bộ.
 - Unit/contract test dùng dữ liệu tổng hợp.
-- Cấu hình chỉ đọc từ process environment; ứng dụng không tự đọc file .env.
-- Alembic với 5 migration tiến; bảng và version table đều thuộc schema `ai`.
+- Khi chạy local, cấu hình tự đọc file `.env` ở root repository; biến môi trường của tiến trình luôn ưu tiên cao hơn.
+- Alembic với 6 migration tiến; bảng và version table đều thuộc schema `ai`.
 - PDF có text layer → chia đoạn theo trang → embedding 1024 chiều → pgvector.
 - Hàng đợi PostgreSQL, worker lease/fencing, retry có giới hạn và deindex.
 - Khóa giao dịch theo tài liệu/phiên bản để tuần tự hóa index–deindex, kể cả khi chưa có bản ghi index; mọi pipeline cùng phiên bản dùng chung khóa.
-- Truy xuất lọc document/version/owner/source/page trước khi xếp hạng và kiểm tra lại sau truy xuất.
+- Truy xuất hybrid kết hợp pgvector cosine và PostgreSQL full-text search, hợp nhất bằng Reciprocal Rank Fusion (RRF), sau đó dùng LangChain rerank theo độ liên quan, trang hiện tại và độ đa dạng.
+- Truy xuất lọc document/version/owner/source/page trước cả hai nhánh tìm kiếm và kiểm tra lại sau rerank.
 - Một Orchestrator chọn hỏi đáp, tóm tắt hoặc sinh Quiz; phạm vi tài liệu luôn do Java cấp.
 - Tóm tắt đọc toàn bộ phạm vi trang trong giới hạn 50 chunks; yêu cầu thu hẹp phạm vi nếu vượt giới hạn.
 - Citation dựng từ nguồn đã truy xuất; có thể trả `NO_EVIDENCE` trước hoặc sau bước tạo nội dung.
+- Guardrails chặn mở rộng scope từ prompt, tách system rule khỏi prompt/PDF không đáng tin, giới hạn input/context, bắt buộc structured output và kiểm tra lại citation bằng code.
 - Quiz đúng 4 lựa chọn, 1 đáp án đúng, đúng số câu và nguồn; cache kết quả theo khóa yêu cầu.
 - Trợ lý cá nhân chống chạy trùng theo `X-Request-Id`, kể cả khi công cụ được chọn là sinh Quiz.
 - OpenRouter adapter kiểm tra cấu trúc JSON, vector và thứ tự embedding; test dùng HTTP transport giả.
 - Kết quả bị cắt ngắn hoặc bị nhà cung cấp từ chối được coi là lỗi, không giả thành `NO_EVIDENCE`; chỉ mã truy vết đúng định dạng mới được trả lại trong response.
 - Đếm request và latency theo route cố định trong bộ nhớ; không ghi prompt, URL tài liệu hoặc nội dung PDF.
 
-Đã kiểm tra migration, index lặp và retrieval có giới hạn quyền với PostgreSQL/pgvector local bằng PDF tổng hợp. Kho Object Storage local đã được kiểm tra ghi/đọc/xóa qua Java bằng tệp tổng hợp; chưa chạy lập chỉ mục end-to-end hoặc OpenRouter với tài liệu thật. `health.readiness` hiện phản ánh **đủ cấu hình**, không phải kết quả kiểm tra kết nối từng dịch vụ. Chưa khẳng định model mặc định khả dụng hoặc đạt KPI đánh giá chất lượng.
+Đã kiểm tra migration, index lặp và Hybrid retrieval có giới hạn quyền với PostgreSQL/pgvector local. Bốn PDF môn Kỹ thuật số đã chạy live sau nâng cấp Hybrid RAG. Trên 12 ca tiếng Việt: retrieval recall@8 = 100%, citation location precision = 64,29% và `NO_EVIDENCE` accuracy = 100%; groundedness còn chờ người đánh giá. `health.readiness` phản ánh **đủ cấu hình**, không phải kết quả kiểm tra kết nối từng dịch vụ.
 
 Chi tiết giao tiếp Python hiện thực nằm tại [CONTRACT_V3.md](CONTRACT_V3.md); các việc còn lại và trạng thái từng nhóm mốc nằm tại [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
@@ -36,7 +38,7 @@ Yêu cầu uv. uv sẽ quản lý Python 3.12 và dependency trong môi trườn
 
 1. Chuyển vào thư mục services/ai.
 2. Chạy uv sync --dev.
-3. Cấp các biến môi trường bên dưới bằng công cụ triển khai; không có cơ chế tự đọc `.env`.
+3. Local: sao chép `.env.example` thành `.env` ở root và điền cấu hình. Deployment/Docker có thể cấp biến môi trường trực tiếp; giá trị này sẽ ghi đè giá trị trong file.
 4. Trên database dành cho dự án, chạy `uv run alembic upgrade head`. Database role cần quyền tạo schema `ai`; extension `vector` cần được quản trị cấp quyền/cài trước khi dùng role hạn chế.
 5. Chạy API: `uv run uvicorn app.asgi:app --host 127.0.0.1 --port 8001 --no-access-log`.
 6. Chạy worker bằng tiến trình riêng: `uv run python -m app.workers.documents`.
@@ -52,6 +54,10 @@ Chỉ chạy `health` cần `INTERNAL_SERVICE_TOKEN`. Các luồng AI đầy đ�
 | `OPENROUTER_BASE_URL` | Mặc định `https://openrouter.ai/api/v1` |
 | `OPENROUTER_CHAT_MODEL` | ID theo cấu hình; mặc định theo plan hiện có, cần kiểm chứng trên tài khoản trước demo thật |
 | `OPENROUTER_EMBEDDING_MODEL` | Mặc định `openai/text-embedding-3-large`, query và tài liệu phải cùng model |
+| `AI_RETRIEVAL_CANDIDATE_LIMIT` | Số ứng viên hybrid trước rerank, mặc định 32 |
+| `AI_RETRIEVAL_MINIMUM_RELEVANCE` | Ngưỡng bằng chứng tối thiểu, mặc định 0.3 |
+| `AI_RETRIEVAL_RRF_K` | Hằng số làm mượt Reciprocal Rank Fusion, mặc định 60 |
+| `AI_RERANK_DIVERSITY_PENALTY` | Mức giảm điểm đoạn gần trùng nhau, mặc định 0.15 |
 | `STORAGE_ENDPOINT` | Origin kho tệp cho phép tải signed URL; production dùng HTTPS, worker không theo redirect sang origin khác |
 | `AI_ALLOW_INSECURE_LOCAL_STORAGE_URL` | Mặc định `false`; chỉ bật local để chấp nhận HTTP trên `localhost`, `127.0.0.1` hoặc `::1` |
 | `AI_JOB_MAX_ATTEMPTS` | Số lần xử lý tối đa, mặc định 3 |
@@ -62,7 +68,7 @@ Embedding hiện cố định 1024 chiều. Thay model hoặc cấu hình chỉ 
 
 Worker có `--once` để xử lý tối đa một job; `--poll-seconds` ghi đè khoảng chờ. Mỗi job có lease 600 giây; job cũ mất lease hoặc bị thu hồi không được ghi kết quả. Lỗi PDF không hợp lệ/không có text layer không retry. Chỉ lỗi tải file/embedding tạm thời mới retry, không áp dụng retry này cho sinh câu trả lời/Quiz.
 
-Chạy kiểm tra: `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest`. Chạy kiểm tra công thức đánh giá: `uv run python -m evals --synthetic`. Kết quả synthetic không phải điểm chất lượng mô hình.
+Chạy kiểm tra: `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest`. Kiểm tra công thức: `uv run python -m evals --synthetic`. Đánh giá thật: `uv run python -m evals --live-vietnamese --k 8`; local tự đọc cấu hình từ `.env` ở root. Kết quả synthetic không phải điểm chất lượng mô hình.
 
 Kiểm thử tích hợp pgvector là opt-in: đặt `STUDYFLOW_RUN_POSTGRES_INTEGRATION=1` cùng `AI_DATABASE_URL`, rồi chạy `pytest tests/test_postgres_pgvector_integration.py`. Test tự tạo PDF có lớp văn bản trong bộ nhớ, dùng embedding xác định và tự xóa dữ liệu kiểm thử; không đọc tài liệu thật hoặc gọi OpenRouter.
 

@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, FileText, ListChecks, Loader2, Sparkles } from "lucide-react";
 import { teacherApi, teacherDocApi, teacherQuizApi } from "@/lib/api-client";
-import { useAuth } from "@/context/auth-context";
 import type { TeacherDocument } from "@/types/material";
 import type { CourseOffering } from "@/types/course-offering";
 import type { QuizDraft } from "@/types/quiz";
@@ -26,7 +25,6 @@ interface TeacherQuizForm {
 
 /** Teacher UI for requesting a grounded MCQ_SINGLE draft from an owned Course Material PDF. */
 export default function TeacherQuizStudioPage(): React.JSX.Element {
-  const { isDemo } = useAuth();
   const [documents, setDocuments] = useState<TeacherDocument[]>([]);
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,7 +32,6 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
   const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<QuizDraft | null>(null);
-  const [demoGenerated, setDemoGenerated] = useState(false);
   const [form, setForm] = useState<TeacherQuizForm>({
     documentId: "",
     courseOfferingId: "",
@@ -88,14 +85,12 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
     const document = documents.find((item) => item.id === documentId);
     setForm((current) => ({ ...current, documentId, pageFrom: 1, pageTo: document?.totalPages ?? 1 }));
     setDraft(null);
-    setDemoGenerated(false);
   }
 
   /** Required form event; validates controls and calls only the Java public API. */
   async function handleGenerate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setDraft(null);
-    setDemoGenerated(false);
     if (!selectedDocument) {
       setError("Hãy chọn một Course Material PDF ở trạng thái READY.");
       return;
@@ -115,11 +110,6 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
     setError(null);
     setIsGenerating(true);
     try {
-      if (isDemo) {
-        await new Promise((resolve) => window.setTimeout(resolve, 400));
-        setDemoGenerated(true);
-        return;
-      }
       const created = await teacherQuizApi.generate({
         documentIds: [form.documentId],
         courseOfferingId: form.courseOfferingId,
@@ -156,7 +146,7 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
     return <div className="flex min-h-[60vh] items-center justify-center"><LoadingSpinner size="lg" text="Đang tải AI Quiz Studio..." /></div>;
   }
 
-  const generated = draft !== null || demoGenerated;
+  const generated = draft !== null;
 
   return (
     <div className="space-y-6">
@@ -169,7 +159,6 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
         </div>
       </div>
 
-      {isDemo && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">Dữ liệu demo · không gọi mô hình thật.</div>}
       {error && <ErrorAlert message={error} onRetry={() => setError(null)} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -198,7 +187,7 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
               <label className="text-xs font-bold text-slate-700">Từ trang<input type="number" min={1} max={selectedDocument?.totalPages ?? 1} value={form.pageFrom} onChange={(event) => setForm((current) => ({ ...current, pageFrom: Number(event.target.value) }))} className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-red-400" /></label>
               <label className="text-xs font-bold text-slate-700">Đến trang<input type="number" min={1} max={selectedDocument?.totalPages ?? 1} value={form.pageTo} onChange={(event) => setForm((current) => ({ ...current, pageTo: Number(event.target.value) }))} className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-red-400" /></label>
             </div>
-            <label className="mt-4 block text-xs font-bold text-slate-700">Chủ đề trọng tâm (tùy chọn)<input value={form.topic} onChange={(event) => setForm((current) => ({ ...current, topic: event.target.value }))} placeholder="Ví dụ: ACID và Isolation Level" className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-red-400" /></label>
+            <label className="mt-4 block text-xs font-bold text-slate-700">Chủ đề trọng tâm (tùy chọn)<input value={form.topic} onChange={(event) => setForm((current) => ({ ...current, topic: event.target.value }))} placeholder="Ví dụ: Hệ đếm và chuyển đổi cơ số" className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-red-400" /></label>
             <label className="mt-4 block text-xs font-bold text-slate-700">Yêu cầu bổ sung (tùy chọn)<textarea rows={3} value={form.instructions} onChange={(event) => setForm((current) => ({ ...current, instructions: event.target.value }))} placeholder="Nêu yêu cầu sư phạm; không thể thay quy tắc hệ thống hoặc phạm vi nguồn." className="mt-1 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-red-400" /></label>
           </section>
 

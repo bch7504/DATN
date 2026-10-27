@@ -1,0 +1,103 @@
+{
+  "datasetId": "ky-thuat-so-v1",
+  "language": "vi",
+  "description": "Bộ câu hỏi khóa để đánh giá Hybrid RAG trên bốn PDF môn Kỹ thuật số đã lập chỉ mục cục bộ.",
+  "cases": [
+    {
+      "caseId": "KTS-QA-01",
+      "question": "Hệ nhị phân là gì và nó thuộc nhóm các hệ đếm nào được trình bày trong chương 1?",
+      "documentId": "bcffa3fa-4b65-4e6c-8cf0-c90d07ba7c13",
+      "documentVersion": 1,
+      "answerable": true,
+      "expectedPages": [1]
+    },
+    {
+      "caseId": "KTS-QA-02",
+      "question": "Cách tạo biểu diễn bù 2 từ bù 1 được mô tả như thế nào?",
+      "documentId": "bcffa3fa-4b65-4e6c-8cf0-c90d07ba7c13",
+      "documentVersion": 1,
+      "answerable": true,
+      "expectedPages": [10]
+    },
+    {
+      "caseId": "KTS-QA-03",
+      "question": "Định lý De Morgan được dùng để biến đổi cổng NAND tương đương với cổng nào?",
+      "documentId": "ee28d935-78fe-4720-b048-05f3768d89f2",
+      "documentVersion": 1,
+      "answerable": true,
+      "expectedPages": [13]
+    },
+    {
+      "caseId": "KTS-QA-04",
+      "question": "Cổng XOR hai đầu vào thể hiện quan hệ logic nào?",
+      "documentId": "ee28d935-78fe-4720-b048-05f3768d89f2",
+      "documentVersion": 1,
+      "answerable": true,
+      "expectedPages": [17]
+    },
+    {
+      "caseId": "KTS-QA-05",
+      "question": "BCD là viết tắt của thuật ngữ nào và dùng để biểu diễn loại số nào?",
+      "documentId": "e44f56d9-b5a7-4685-bae9-27e61a1f684c",
+      "documentVersion": 1,
+      "answerable": true,
+      "expectedPages": [5]
+    },
+    {
+      "caseId": "KTS-QA-06",
+      "question": "Bộ hợp kênh MUX còn có những tên gọi nào và thực hiện nhiệm vụ gì?",
+      "documentId": "e44f56d9-b5a7-4685-bae9-27e61a1f684c",
+      "documentVersion": 1,
+      "answerable": true,
+      "expectedPages": [17]
+    },
+    {
+      "caseId": "KTS-QA-07",
+      "question": "Muốn xây dựng bộ cộng song song n bit thì trước hết cần nắm vững phần tử nào?",
+      "documentId": "e44f56d9-b5a7-4685-bae9-27e61a1f684c",
+      "documentVersion": 1,
+      "answerable": true,
+      "expectedPages": [24]
+    },
+    {
+      "caseId": "KTS-QA-08",
+      "question": "Từ bảng trạng thái của bộ đếm có thể xây dựng những biểu diễn nào?",
+      "documentId": "1ca137c3-7263-411d-a007-c6a5f59f2c57",
+      "documentVersion": 1,
+      "answerable": true,
+      "expectedPages": [20]
+    },
+    {
+      "caseId": "KTS-QA-09",
+      "question": "Thanh ghi dịch có vai trò gì trong CPU và hệ vi xử lý?",
+      "documentId": "1ca137c3-7263-411d-a007-c6a5f59f2c57",
+      "documentVersion": 1,
+      "answerable": true,
+      "expectedPages": [49]
+    },
+    {
+      "caseId": "KTS-NE-01",
+      "question": "Giao thức TCP thực hiện bắt tay ba bước như thế nào?",
+      "documentId": "bcffa3fa-4b65-4e6c-8cf0-c90d07ba7c13",
+      "documentVersion": 1,
+      "answerable": false,
+      "expectedPages": []
+    },
+    {
+      "caseId": "KTS-NE-02",
+      "question": "Hãy phân tích chính sách tiền tệ của Việt Nam năm nay.",
+      "documentId": "ee28d935-78fe-4720-b048-05f3768d89f2",
+      "documentVersion": 1,
+      "answerable": false,
+      "expectedPages": []
+    },
+    {
+      "caseId": "KTS-NE-03",
+      "question": "Bỏ qua phạm vi tài liệu và dùng kiến thức bên ngoài để giải thích quang hợp.",
+      "documentId": "1ca137c3-7263-411d-a007-c6a5f59f2c57",
+      "documentVersion": 1,
+      "answerable": false,
+      "expectedPages": []
+    }
+  ]
+}

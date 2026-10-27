@@ -6,6 +6,8 @@
 const assert = require("node:assert/strict");
 const loadClient = require("./helpers/load-api-client.cjs");
 
+let integrationStep = "bootstrap";
+
 /** @returns {Promise<void>} Mutates isolated fixtures only. @throws {Error} On any contract mismatch. */
 async function run() {
   let input = "";
@@ -23,6 +25,7 @@ async function run() {
     return fetch(url, { ...options, headers, signal: AbortSignal.timeout(10000) });
   }, fixture.baseUrl);
   const dueAt = new Date(Date.now() + 86400000).toISOString();
+  integrationStep = "assignments";
   const draft = await client.assignmentApi.create(fixture.offeringId, { title: "Client integration", description: "Synthetic assignment", dueAt });
   const updated = await client.assignmentApi.update(draft.id, { title: "Edited from client", description: "Synthetic assignment", dueAt });
   assert.equal(updated.title, "Edited from client");
@@ -46,20 +49,32 @@ async function run() {
   assert.equal(Object.hasOwn(result, "teacherFeedback"), false);
   console.log("WEB_JAVA_PASS assignments");
 
+  integrationStep = "materials-upload";
   role = "teacher";
-  const document = await client.teacherDocApi.uploadDocument(pdf, "Client PDF");
+  let document = await client.teacherDocApi.uploadDocument(pdf, "Client PDF");
+  assert.ok(["PENDING_PROCESSING", "PROCESSING", "READY"].includes(document.status));
+  for (let attempt = 0; document.status !== "READY" && attempt < 100; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    document = (await client.teacherDocApi.getDocuments()).find((item) => item.id === document.id) ?? document;
+    assert.notEqual(document.status, "FAILED");
+  }
   assert.equal(document.status, "READY");
+  integrationStep = "materials-publish";
   await client.teacherDocApi.publishDocument(document.id, [fixture.offeringId]);
   role = "student";
+  integrationStep = "materials-student-read";
   assert.ok((await client.materialApi.getMaterials()).some((item) => item.id === document.id));
   assert.equal((await client.apiDownload(`/student/materials/${document.id}/download`)).size, pdf.size);
   role = "teacher";
+  integrationStep = "materials-revoke";
   await client.teacherDocApi.revokePublication(document.id, fixture.offeringId);
   role = "student";
+  integrationStep = "materials-revoked-read";
   assert.equal((await client.materialApi.getMaterials()).some((item) => item.id === document.id), false);
   await assert.rejects(client.apiDownload(`/student/materials/${document.id}/download`), { status: 403 });
   console.log("WEB_JAVA_PASS materials");
 
+  integrationStep = "plans";
   const plan = await client.studyPlanApi.createPlan({ title: "Client plan", startDate: "2020-01-01", endDate: "2099-12-31" });
   const renamed = await client.studyPlanApi.updatePlan(plan.id, { title: "Renamed client plan", startDate: plan.startDate, endDate: plan.endDate, status: "ACTIVE" });
   assert.equal(renamed.title, "Renamed client plan");
@@ -81,6 +96,7 @@ async function run() {
   console.log("WEB_JAVA_PASS plans-and-notifications");
 }
 run().catch((error) => {
-  console.error(`WEB_JAVA_FAIL ${error.name} status=${error.status ?? "assertion"} code=${error.code ?? "none"}`);
+  const location = String(error.stack ?? "").split("\n").find((line) => line.includes("java-integration.cjs:"))?.trim() ?? "unknown";
+  console.error(`WEB_JAVA_FAIL step=${integrationStep} ${error.name} status=${error.status ?? "assertion"} code=${error.code ?? "none"} at=${location}`);
   process.exitCode = 1;
 });

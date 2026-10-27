@@ -19,8 +19,7 @@ function loadClient(fetchStub) {
   vm.runInNewContext(compiled, {
     exports, Headers, FormData, fetch: fetchStub,
     require(name) {
-      if (name === "./env") return { getApiUrl: () => "https://java.test/api/v1", isDemoMode: () => false };
-      if (name === "./demo-data") return { DEMO_USERS: { STUDENT: { id: "synthetic-student" } } };
+      if (name === "./env") return { getApiUrl: () => "https://java.test/api/v1" };
       throw new Error(`Unexpected import: ${name}`);
     },
   });

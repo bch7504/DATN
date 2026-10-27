@@ -35,7 +35,7 @@ const SUGGESTIONS = [
   {
     icon: FileQuestion,
     title: "Hỏi đáp tài liệu",
-    prompt: "Giải thích ACID dựa trên các tài liệu đã chọn.",
+    prompt: "Giải thích hệ nhị phân dựa trên các tài liệu đã chọn.",
   },
   {
     icon: FileText,

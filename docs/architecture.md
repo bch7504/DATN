@@ -44,7 +44,7 @@ Ranh giới bắt buộc:
 |---|---|
 | Next.js | UI ba role, PDF Viewer/Note/Tutor, Personal Assistant, Teacher AI Quiz Studio, Review, Dashboard, Kế hoạch & Lịch |
 | Spring Boot | Auth/RBAC, Course Offering/Enrollment, Document/Publication, Note, conversation, Quiz lifecycle/scoring, Dashboard/Streak/Daily Goal, Plan và audit |
-| FastAPI | PDF parsing/chunk/embed, retrieval, Single Orchestrator Agent, Course Material Tutor, Quiz generation, citation và evaluation |
+| FastAPI | PDF parsing/chunk/embed, Hybrid RAG (vector + full-text + RRF + LangChain rerank), Single Orchestrator Agent, Course Material Tutor, Quiz generation, citation và evaluation |
 | PostgreSQL + pgvector | Schema nghiệp vụ `app`; job/index/chunk/vector/agent run ở schema `ai` |
 | Object Storage | PDF gốc và preview/page artifact cần thiết |
 | OpenRouter | Model chat và embedding; credential chỉ tồn tại ở Python runtime |

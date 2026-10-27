@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { PtitLogo } from "@/components/ui/ptit-logo";
 import { NotificationBell } from "@/components/layout/student-notification-bell";
+import { SemesterScopeBar } from "@/components/layout/semester-scope-bar";
 import {
   LayoutDashboard,
   GraduationCap,
@@ -24,7 +25,6 @@ import {
   UserCheck,
   FolderKanban,
   FileClock,
-  Sparkles,
   ListChecks,
   PanelLeftClose,
   PanelLeftOpen,
@@ -69,7 +69,7 @@ const ADMIN_NAV: NavItem[] = [
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, role, logout, isDemo, switchDemoRole } = useAuth();
+  const { user, role, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -172,11 +172,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className={desktopSidebarCollapsed ? "lg:hidden" : ""}>{roleTitle}</span>
               <span className={`hidden ${desktopSidebarCollapsed ? "lg:inline" : ""}`}>{roleTitle.slice(0, 2)}</span>
             </span>
-            {isDemo && !desktopSidebarCollapsed && (
-              <span className="text-[10px] font-medium text-amber-700 bg-amber-100/70 px-1.5 py-0.5 rounded flex items-center gap-1">
-                <Sparkles className="w-2.5 h-2.5" /> Demo
-              </span>
-            )}
           </div>
 
           {/* Navigation Links */}
@@ -347,13 +342,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="flex items-center gap-3">
-              {isDemo && (
-                <div className="hidden sm:flex items-center gap-1.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span>Dữ liệu demo</span>
-                </div>
-              )}
-
               {(role === "STUDENT" || role === "TEACHER") && user?.id && (
                 <NotificationBell key={`${role}:${user.id}`} userId={user.id} role={role} />
               )}
@@ -368,6 +356,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
           </header>
+
+          <SemesterScopeBar />
 
           {/* Page Body */}
           <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto">

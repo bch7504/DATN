@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/auth-context";
-import { DemoBanner } from "@/components/ui/demo-banner";
 
 export const metadata: Metadata = {
   title: "StudyFlow · Học viện Công nghệ Bưu chính Viễn thông",
@@ -18,7 +17,6 @@ export default function RootLayout({
     <html lang="vi">
       <body className="min-h-screen bg-[#f6f7f9] text-[#172033] flex flex-col font-sans">
         <AuthProvider>
-          <DemoBanner />
           <div className="flex-1 flex flex-col">{children}</div>
         </AuthProvider>
       </body>

@@ -87,6 +87,7 @@ class FakeChunkRepository:
     def search(
         self,
         *,
+        query_text: str,
         query_embedding: tuple[float, ...],
         scope: AuthorizedScope,
         limit: int,
@@ -105,8 +106,8 @@ class FakeChunkRepository:
             ValueError: If input vector or scope is unexpectedly empty.
         """
 
-        if not query_embedding or not scope.documents:
-            raise ValueError("query embedding and scope are required")
+        if not query_text.strip() or not query_embedding or not scope.documents:
+            raise ValueError("query text, embedding, and scope are required")
         return self._evidence[:limit]
 
     def collect(self, *, scope: AuthorizedScope, limit: int) -> tuple[RetrievedEvidence, ...]:

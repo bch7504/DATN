@@ -170,6 +170,7 @@ async def test_real_pgvector_index_is_idempotent_and_scope_filtered() -> None:
                 current_page_number=1,
             )
             evidence = PgVectorChunkRepository(session).search(
+                query_text="Trang mot",
                 query_embedding=query_vector,
                 scope=scope,
                 limit=5,

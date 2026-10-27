@@ -20,6 +20,7 @@ def test_embedding_dimensions_accepts_environment_string_and_remains_fixed() -> 
     """Environment text must parse to the single supported vector dimension."""
 
     settings = Settings(
+        _env_file=None,
         INTERNAL_SERVICE_TOKEN="test-service-token-123456789",
         EMBEDDING_DIMENSIONS="1024",
     )
@@ -27,6 +28,7 @@ def test_embedding_dimensions_accepts_environment_string_and_remains_fixed() -> 
 
     with pytest.raises(ValidationError):
         Settings(
+            _env_file=None,
             INTERNAL_SERVICE_TOKEN="test-service-token-123456789",
             EMBEDDING_DIMENSIONS="1536",
         )
@@ -50,23 +52,30 @@ def test_page_filter_keeps_document_owner_version_and_embedding_model() -> None:
             ),
         ),
     )
-    repository.search(query_embedding=(0.1,) * 1024, scope=scope, limit=8)
-    statement = session.execute.call_args.args[0]
-    compiled = statement.compile(dialect=postgresql.dialect())
-    where_clause = str(compiled).split("WHERE", 1)[1].split("ORDER BY", 1)[0]
-    for required in (
-        "document_id",
-        "document_version",
-        "owner_id",
-        "source_type",
-        "page_number",
-        "embedding_model",
-        "embedding_dimensions",
-        "status",
-    ):
-        assert required in where_clause
-    assert owner_id in compiled.params.values()
-    assert document_id in compiled.params.values()
+    repository.search(
+        query_text="authorized query",
+        query_embedding=(0.1,) * 1024,
+        scope=scope,
+        limit=8,
+    )
+    assert session.execute.call_count == 2
+    for call in session.execute.call_args_list:
+        statement = call.args[0]
+        compiled = statement.compile(dialect=postgresql.dialect())
+        where_clause = str(compiled).split("WHERE", 1)[1].split("ORDER BY", 1)[0]
+        for required in (
+            "document_id",
+            "document_version",
+            "owner_id",
+            "source_type",
+            "page_number",
+            "embedding_model",
+            "embedding_dimensions",
+            "status",
+        ):
+            assert required in where_clause
+        assert owner_id in compiled.params.values()
+        assert document_id in compiled.params.values()
 
 
 def test_personal_document_scope_requires_matching_owner() -> None:

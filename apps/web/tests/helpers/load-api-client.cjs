@@ -19,8 +19,7 @@ module.exports = function loadApiClient(transport, baseUrl) {
   vm.runInNewContext(compiled, {
     exports, Headers, FormData, URLSearchParams, crypto: webcrypto, fetch: transport,
     require(name) {
-      if (name === "./env") return { getApiUrl: () => baseUrl, isDemoMode: () => false };
-      if (name === "./demo-data") return { DEMO_USERS: { STUDENT: { id: "test-only" } } };
+      if (name === "./env") return { getApiUrl: () => baseUrl };
       throw new Error(`Unexpected runtime import: ${name}`);
     },
   });

@@ -1,12 +1,12 @@
 # Kiểm tra tích hợp AI trước khi demo thật
 
-Đây là checklist tích hợp, không phải biên bản nghiệm thu dữ liệu thật. Các test hiện tại dùng dữ liệu tổng hợp; kho S3-compatible local đã qua smoke test ghi/đọc/xóa và signed URL từ Java. Chưa gọi OpenRouter hoặc chạy tài liệu thật. Không đọc `.env`, không dùng tài liệu cá nhân thật; chuẩn bị môi trường thử nghiệm riêng qua cấu hình tiến trình.
+Đây là checklist tích hợp, không phải biên bản nghiệm thu cuối. Kho S3-compatible local đã qua smoke test và bốn PDF Kỹ thuật số đã chạy Hybrid RAG live. Kiểm thử tự động vẫn dùng dữ liệu tổng hợp và tắt nạp `.env`; chỉ runtime/evaluator local tự nạp `.env` ở root. Biến môi trường do Docker/deployment cấp có ưu tiên cao hơn.
 
 ## 1. PostgreSQL/pgvector và migration
 
 - Người quản trị cấp database thử nghiệm và role chỉ sở hữu schema `ai`; cài extension `vector` bằng quyền phù hợp.
 - Xem trước migration và xác nhận database đích trước khi `uv run alembic upgrade head`. Không chạy trên database production hoặc database chưa được phép thay đổi.
-- Xác nhận cả 5 migration chạy được, version table nằm trong `ai`, vector 1024 chiều và index cosine tồn tại.
+- Xác nhận cả 6 migration chạy được, version table nằm trong `ai`, vector 1024 chiều, HNSW cosine, generated `tsvector` và GIN index tồn tại. **Đã đạt trên PostgreSQL local.**
 - Dùng chính role AI thử truy cập bảng nghiệp vụ mẫu thuộc schema `app`: phải bị từ chối. Không thử trên bảng chứa dữ liệu người dùng thật.
 - Ghi/query embedding tổng hợp; xác nhận document/query khác model không được dùng chung index.
 
@@ -52,7 +52,7 @@ Khóa advisory áp dụng theo document/version trước row lock; chạy với 
 
 ## 6. Đánh giá và vận hành
 
-- Lập tập câu hỏi tiếng Việt tổng hợp có đáp án/nguồn tham chiếu, ca không có đáp án và ca cố vượt quyền.
+- Bộ `evals/datasets/ky-thuat-so-v1.json` đã có 12 câu tiếng Việt: 9 ca có trang nguồn và 3 ca `NO_EVIDENCE`/prompt injection. Cần tách thêm final holdout trước khi công bố KPI.
 - Tách tập phát triển và tập đánh giá cuối; báo cáo recall, citation location, abstention và đánh giá bám nguồn do người kiểm tra gán nhãn.
 - Đo thời gian xử lý, tỷ lệ lỗi, token/chi phí và tải đồng thời trên môi trường thử nghiệm; không sử dụng kết quả fixture như KPI của mô hình.
 - Kiểm tra timeout, restart và đối soát AI run còn `RUNNING`; không tự gọi lại model vô hạn sau crash.

@@ -1,7 +1,7 @@
 # StudyFlow — Kế hoạch triển khai Frontend
 
 **Người phụ trách:** Chủ dự án, thực hiện theo boundary `FRONTEND_AGENT`.
-**Trạng thái cập nhật 20/10/2026:** FE-M0 đã hoàn thành; build, lint và 54 kiểm thử đạt. Auth/OTP đã gọi Java; `/plan` đã dùng Study Plan/Calendar API khi tắt demo mode, hỗ trợ lịch tuần, thêm task/lịch, hoàn tất và hủy mục. Các màn PDF, AI, Quiz, Review và Dashboard vẫn cần thay fixture/local state bằng API production.
+**Trạng thái cập nhật 23/10/2026:** Frontend đã bỏ hoàn toàn chế độ demo lúc chạy và chỉ gọi Java `/api/v1`. Build, lint và 91 kiểm thử đạt. Bộ E2E HTTP dùng frontend client thật qua Java đạt 21/21 ca cho Student, Teacher và Admin. MVP hiện cố định một học kỳ hoạt động với 7 môn.
 
 ## 0. Trạng thái hiện tại và kế hoạch làm tiếp
 
@@ -10,18 +10,18 @@
 | Mốc | Trạng thái | Phần còn thiếu |
 |---|---|---|
 | FE-M0 | Hoàn thành | Duy trì build/lint/test trong mọi thay đổi |
-| FE-M1 | Gần hoàn thành | Kiểm thử phiên hết hạn, refresh cookie, forbidden và responsive bằng trình duyệt thật |
-| FE-M2 | Một phần | Nối và kiểm thử đầy đủ UI tạo/join/duyệt lớp; loại fixture khỏi production mode |
-| FE-M3 | Chưa nghiệm thu | Cần public Java API cho upload, trạng thái xử lý, viewer, note và Personal PDF |
-| FE-M4 | Chưa nghiệm thu | Giao diện đã có khung nhưng cần Java API cho Personal Assistant và Course Material Tutor |
-| FE-M5 | Một phần | `/plan` đã nối Study Plan/Calendar API; Quiz/Review/Dashboard chưa nối đủ API thật |
-| FE-M6 | Chưa bắt đầu | Cần accessibility audit và E2E ba vai trò trên hệ thống tích hợp |
+| FE-M1 | Hoàn thành mức code | Auth/OTP, refresh cookie, role guard và forbidden đã dùng Java; còn kiểm tra accessibility/responsive bằng trình duyệt thật |
+| FE-M2 | Hoàn thành mức code | UI tạo/join/duyệt lớp và danh mục 1 học kỳ, 7 môn dùng dữ liệu Java |
+| FE-M3 | Một phần | Course Material và Personal PDF đã dùng API thật; Note theo trang còn chờ contract Java |
+| FE-M4 | Hoàn thành mức tích hợp | Personal Assistant và Course Material Tutor đã nối Java → Python và hiển thị citation/NO_EVIDENCE |
+| FE-M5 | Một phần | `/plan`, Dashboard và luồng sinh Quiz đã dùng API thật; Review/attempt còn phụ thuộc các endpoint Java chưa hoàn chỉnh |
+| FE-M6 | Một phần | E2E HTTP ba vai trò đã đạt 21/21; còn accessibility/responsive và browser E2E trên build production |
 
 ### 0.2. Thứ tự triển khai tiếp theo
 
 | Ưu tiên | Mốc tiếp theo | Công việc | Điều kiện hoàn thành |
 |---|---|---|---|
-| 1 | FE-N1 — Core Java API | Nối màn Auth, Course Offering, Enrollment, Study Plan và Calendar với Java; thay local state/fixture khi demo mode tắt | Refresh trang không mất dữ liệu; loading/empty/error/forbidden đúng; browser không gọi Python |
+| 1 | FE-N1 — Core Java API | **Đã hoàn thành mức code:** Auth, Course Offering, Enrollment, Study Plan và Calendar chỉ dùng Java | Refresh trang không mất dữ liệu; loading/empty/error/forbidden đúng; browser không gọi Python |
 | 2 | FE-N2 — Plan theo mock | **Đã hoàn thành ở mức code và test:** lịch tuần Thứ 2–Chủ nhật, thêm task/lịch, chuyển tuần, hoàn tất và hủy item bằng API Java | Còn nghiệm thu bằng trình duyệt với Java đang chạy và tài khoản Student thật |
 | 3 | FE-N3 — PDF Library | Nối Teacher Course Material và Student Personal Documents: upload PDF, theo dõi processing, public/revoke và danh sách `READY` | Chỉ nhận PDF; trạng thái job hiển thị đúng; không lộ object key hoặc signed URL lâu dài |
 | 4 | FE-N4 — Viewer và Tutor | Nối PDF viewer, note theo trang và Course Material Tutor cho Student được duyệt | Citation mở đúng trang; `NO_EVIDENCE`, revoked và forbidden được thể hiện rõ |
@@ -33,14 +33,14 @@
 ### 0.3. Quy tắc triển khai
 
 - Chỉ bắt đầu màn AI khi public Java API tương ứng đã có trong `docs/api-plan.md` và contract test đạt.
-- Mỗi route chuyển sang production API phải bỏ fallback fixture âm thầm; fixture chỉ chạy khi `NEXT_PUBLIC_DEMO_MODE=true` và phải hiện nhãn “Dữ liệu demo”.
+- Không có fallback fixture trong runtime. Khi Java hoặc Python lỗi, UI phải hiển thị loading/error/empty/forbidden tương ứng và không thay bằng dữ liệu giả.
 - Đợt gần nhất ưu tiên `FE-N1 → FE-N2`. Song song với `AI-N1 → AI-N3`, Frontend chỉ hoàn thiện component/state cho AI, chưa tự gọi Python hoặc tạo mock giả production.
 
 ## 1. Nguyên tắc
 
 - Next.js chỉ gọi Java `/api/v1`; không gọi Python, database, Object Storage hoặc OpenRouter.
 - Production không tự tính score, progress, Streak, quyền hoặc Quiz lifecycle.
-- Fixture chỉ hoạt động khi `NEXT_PUBLIC_DEMO_MODE=true` và phải hiện “Dữ liệu demo”.
+- Fixtures tổng hợp chỉ được phép nằm trong test; ứng dụng chạy thật không có biến hoặc công tắc demo.
 - Giao diện PTIT đỏ–trắng, responsive từ 360px, keyboard/focus visible và đủ loading/empty/error/forbidden/processing.
 - `AGENTS.md`, `specification.md` và `api-plan.md` là nguồn nghiệp vụ chuẩn; không tạo workflow production khi contract chưa có.
 

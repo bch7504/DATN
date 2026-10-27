@@ -1,6 +1,6 @@
 # StudyFlow Web
 
-Frontend Next.js hiện là baseline giao diện đã chốt cho ba vai trò. Fixture chỉ hoạt động khi demo mode được bật; route/chức năng được mô tả tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md).
+Frontend Next.js là giao diện thật cho ba vai trò và chỉ lấy dữ liệu qua Java `/api/v1`; không có chế độ demo lúc chạy. Route/chức năng được mô tả tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md).
 
 ## Cấu trúc mục tiêu
 
@@ -46,7 +46,7 @@ apps/web/
 - Không tính score, progress, Streak hoặc Daily Goal actual ở client.
 - Dashboard hiển thị aggregate và tiến độ từng Course Offering; không có màn Progress riêng.
 - Student quản lý Personal PDF, hỏi đáp, tóm tắt và tạo Quiz ngay trên cùng trang Tài liệu cá nhân. Teacher tạo Quiz từ Course Material PDF qua AI Quiz Studio riêng; cả hai đều qua Java và ở trạng thái review trước khi sử dụng/công bố.
-- Fixture demo không được xem là implementation production hoặc dữ liệu thật.
+- Dữ liệu tổng hợp chỉ được dùng trong test; giao diện đang chạy không fallback sang học liệu, lớp hoặc Quiz giả khi API lỗi.
 
 Kế hoạch triển khai nằm tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md).
 

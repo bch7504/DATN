@@ -7,10 +7,10 @@ Tài liệu này thay thế `ai-ui-redesign-brief.md`, không chỉ mô tả cá
 
 Đây là bản chốt bố cục/điều hướng để đối chiếu trước khi sửa FE. Không phải bằng chứng mọi chức năng đã tích hợp production. Nghiệp vụ theo [specification.md](specification.md) và [AGENTS.md](../AGENTS.md); API theo [api-plan.md](api-plan.md); tiến độ triển khai theo [frontend-implementation-plan.md](frontend-implementation-plan.md).
 
-- **UI:** đã có màn hoặc thành phần tương ứng trong Next.js; có thể đang dùng fixture.
+- **UI:** đã có màn hoặc thành phần tương ứng trong Next.js; dữ liệu runtime chỉ lấy từ Java.
 - **TK:** khung mục tiêu đã mô tả để triển khai; chưa khẳng định có tương tác/API hoàn chỉnh.
 - **Phụ:** panel/modal/trạng thái bên trong route cha, không tạo thêm menu.
-- Các khung là wireframe chức năng, không quy định số liệu demo hoặc kích thước pixel tuyệt đối.
+- Các khung là wireframe chức năng, không quy định số liệu cố định hoặc kích thước pixel tuyệt đối.
 - Giữ ID màn ổn định. Khi thay đổi: sửa khung + nút/đích đến + trạng thái + bản ghi ở mục 12 trong cùng task.
 - Không tự tách/gộp menu, đổi tên chức năng hoặc redirect sang chức năng khác. Nếu nghiệp vụ thay đổi, cập nhật cả plan/API/spec liên quan; không chỉ sửa một hình.
 - Mock HTML là tham khảo bố cục; quy tắc PDF-only, Teacher Quiz và luồng mới trong tài liệu này thay thế các phần mock cũ còn dùng PPTX/chat riêng.
@@ -24,7 +24,7 @@ G01 desktop: sidebar có thể thu/mở; nội dung không bị che khi thu side
 ┌──────────────────┬─────────────────────────────────────────────────┐
 │ Logo PTIT tròn    │ Breadcrumb / tên khu vực       Tài khoản • Role │
 │ StudyFlow [Thu]   ├─────────────────────────────────────────────────┤
-│                  │ [Dữ liệu demo — chỉ khi bật demo mode]           │
+│                  │ [Học kỳ hiện tại · 7 môn] [Thu/Mở phạm vi]       │
 │ Menu theo role   │ Tiêu đề trang                  [CTA chính đỏ]   │
 │                  │ Mô tả ngắn / thông báo                           │
 │ Mục đang chọn    ├─────────────────────────────────────────────────┤
@@ -84,7 +84,6 @@ Admin có route giám sát lớp từ khu vực Tổng quan, không phải Teach
 │ [Thông báo validation / sai thông tin]       │
 │                 [Đăng nhập]                  │
 │ Chưa có tài khoản? [Đăng ký sinh viên]        │
-│ [Chọn role demo — chỉ trong demo mode]        │
 └──────────────────────────────────────────────┘
 ```
 
@@ -190,7 +189,7 @@ Route hỗ trợ truy cập học liệu; không tạo một nguồn tài liệu
 └─────────────┴───────────────────────────┴─────────────────────────┘
 ```
 
-S04a — tab Ghi chú (Phụ, UI): thay nội dung panel phải bằng tiêu đề “Ghi chú cá nhân · Trang n”, textarea, trạng thái lưu và nút **Lưu ghi chú**. Tutor không biến thành Personal Assistant; Teacher không có panel này. Production cần artifact PDF thực, không coi trang fixture là trình render PDF hoàn chỉnh.
+S04a — tab Ghi chú (Phụ, UI): thay nội dung panel phải bằng tiêu đề “Ghi chú cá nhân · Trang n”, textarea, trạng thái lưu và nút **Lưu ghi chú**. Tutor không biến thành Personal Assistant; Teacher không có panel này. Viewer phải dùng artifact PDF thật do Java cấp quyền.
 
 ### S05 — Kho tài liệu cá nhân (UI) — `/personal-documents`
 
@@ -265,7 +264,7 @@ S06a — kết quả AI (Phụ, UI; semantics production phụ thuộc Java/Pyth
 └──────────────────────────────────────────────────┘
 ```
 
-Các ô trên là các dạng kết quả thay thế nhau, không bắt buộc xuất hiện đồng thời. Không làm Quiz ngay trong bubble. Việc gắn đúng draft từ chat sang màn duyệt cần API lưu draft; không coi thẻ demo là Quiz đã được lưu thật.
+Các ô trên là các dạng kết quả thay thế nhau, không bắt buộc xuất hiện đồng thời. Không làm Quiz ngay trong bubble. Chỉ hiển thị Quiz đã lưu khi Java trả về mã bản nháp và trạng thái `REVIEW_REQUIRED`.
 
 ### S07 — Ôn tập tầng 1 (UI) — `/review`
 
@@ -519,7 +518,7 @@ Hai modal riêng. PROCESSING/FAILED không được coi là nguồn sẵn sàng.
 └───────────────────────────────────┴──────────────────────────┘
 ```
 
-Teacher tự chọn số câu, không cố định 15; UI hiện 5–30 theo plan/contract. Một PDF READY, trang hợp lệ, lớp đích thuộc Teacher. Form hiện có fixture; chưa coi nút “Mở màn duyệt (demo)” là workflow hoàn tất.
+Teacher tự chọn số câu, không cố định 15; UI hiện 5–30 theo plan/contract. Một PDF READY, trang hợp lệ, lớp đích thuộc Teacher. Form gọi Java để sinh bản nháp thật và chỉ cho công bố sau bước duyệt.
 
 T05a/T05b — review và publish (Phụ, TK; chưa tạo route mới ngầm định):
 
@@ -552,7 +551,7 @@ Không tự thêm “tạo lại một câu”, tải đề hay đặt giờ m�
 └──────────────────────────────┴───────────────────────────────┘
 ```
 
-### D02 — Người dùng & Vai trò (UI khung/demo) — `/admin/users`
+### D02 — Người dùng & Vai trò (UI khung, chờ API đầy đủ) — `/admin/users`
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
@@ -566,7 +565,7 @@ Không tự thêm “tạo lại một câu”, tải đề hay đặt giờ m�
 
 D02a — thêm/sửa tài khoản (Phụ, TK): họ tên, email, role, trạng thái, thông báo validate, **Hủy/Lưu**. Các thao tác role/lock phải qua Java; button placeholder không chứng minh đã có API quản trị.
 
-### D03 — Môn học & Học kỳ (UI khung/demo) — `/admin/catalog`
+### D03 — Môn học & Học kỳ (UI khung, dữ liệu đọc từ Java) — `/admin/catalog`
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
@@ -595,7 +594,7 @@ D03a — danh mục (Phụ, TK): chọn Subject/Semester, mã/tên, trường ri
 
 D04a — xác nhận (Phụ): tên lớp, hành động, tác động, **Hủy/Xác nhận**. Không mở nội dung học tập cá nhân.
 
-### D05 — Feedback & Reports (UI khung/demo) — `/admin/feedback`
+### D05 — Feedback & Reports (UI khung, chờ API đầy đủ) — `/admin/feedback`
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
@@ -608,7 +607,7 @@ D04a — xác nhận (Phụ): tên lớp, hành động, tác động, **Hủy/X
 
 Chi tiết/xử lý phản hồi nếu triển khai phải qua contract riêng; không hiển thị prompt hoặc PDF cá nhân cho Admin chỉ vì có báo lỗi.
 
-### D06 — Logs & Audit (UI khung/demo) — `/admin/audit`
+### D06 — Logs & Audit (UI khung, chờ API đầy đủ) — `/admin/audit`
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
@@ -621,13 +620,13 @@ Chi tiết/xử lý phản hồi nếu triển khai phải qua contract riêng; 
 
 Chỉ audit metadata, không secret/token/raw provider response hoặc nội dung hội thoại.
 
-### D07 — Cấu hình (UI demo) — `/admin/settings`
+### D07 — Cấu hình (UI khung, chờ API) — `/admin/settings`
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
 │ Cài đặt hệ thống                                             │
 │ Hiển thị thông báo bảo trì                     [Bật / Tắt]  │
-│ Dữ liệu demo — chưa gửi thay đổi tới Java                    │
+│ Chưa có API lưu cấu hình — khóa thao tác thay đổi            │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -682,7 +681,7 @@ Các trạng thái chuẩn trên là yêu cầu cho từng màn, không tuyên b
 | Student Quiz | generating, review required, generation failed, rejected, ready, accepting, attempt/result |
 | Teacher Quiz | invalid PDF/range/count, generating, review/edit, publish success/failure |
 | Plan | empty week, loading, invalid schedule, saving/error, completed task |
-| Admin | loading/empty/error/forbidden và nhãn demo cho thao tác chưa tích hợp |
+| Admin | loading/empty/error/forbidden và trạng thái khóa rõ ràng cho thao tác chưa có API |
 
 Không hiển thị các bước “đã retrieval/đã kiểm chứng” nếu API không cung cấp trạng thái thực. Error không làm mất input cần sửa.
 
@@ -760,8 +759,8 @@ Các đường dẫn source tương đối dưới `apps/web/src/app/`. Panel d�
 - Course Material và Personal Document chỉ PDF có text layer; không PPTX/DOCX/OCR.
 - Teacher chỉ AI Quiz Generator, không Personal Chatbot/AI Tutor.
 - Java sở hữu scoring, lifecycle, enrollment, progress, Streak và Daily Goal actual.
-- Các màn Admin khung/demo, Teacher review/publish, persist draft từ chat, render artifact PDF và các workflow chưa nối Java phải được triển khai/kiểm thử riêng. Không coi đầy đủ wireframe là đầy đủ code.
-- Luồng form Quiz riêng hiện có UI gọi Java và fixture; contract test Java/Python và kiểm thử tích hợp production còn phải hoàn tất.
+- Các màn Admin còn thiếu API, persist draft từ chat, Note theo trang và các workflow chưa nối Java phải được triển khai/kiểm thử riêng. Không coi đầy đủ wireframe là đầy đủ code.
+- Luồng form Quiz riêng gọi Java thật; contract test Java/Python và kiểm thử tích hợp vẫn phải được duy trì.
 - Không triển khai thêm API hoặc code cho toàn bộ khung TK chỉ vì đưa chúng vào tài liệu này.
 
 ## 12. Nhật ký và checklist cập nhật
@@ -778,7 +777,7 @@ Mỗi lần sửa UI phải ghi thêm dòng (ngày, ID khung, cũ → mới, rou
 - [ ] Đã xác định ID khung và vai trò bị ảnh hưởng.
 - [ ] Đã sửa cả wireframe, nút bấm, đích đến và trạng thái liên quan.
 - [ ] Không tạo menu/route ngoài baseline mà chưa được chốt.
-- [ ] Đã phân biệt UI thực, fixture và khung TK.
+- [ ] Đã phân biệt UI đã nối API thật và khung TK đang chờ contract.
 - [ ] Đã đối chiếu API/spec/plan nếu thay đổi dữ liệu hoặc workflow.
 - [ ] Đã test điều hướng, quyền, empty/error và desktop/mobile.
 - [ ] Đã ghi nhật ký và báo phần chưa hoàn tất.
