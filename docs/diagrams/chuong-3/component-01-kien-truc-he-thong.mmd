@@ -1,13 +1,13 @@
-flowchart LR
-  U["Student / Teacher / Admin"] --> W["Next.js Web"]
-  W -->|Public API /api/v1| J["Java Spring Boot<br/>Auth / business rules / lifecycle / scoring"]
-  J -->|Authorized scope + service auth| P["Python FastAPI<br/>PDF intelligence / Single Agent / RAG / Quiz"]
-  subgraph PG["Một PostgreSQL cluster — tách schema và role"]
-    APP[("app: dữ liệu nghiệp vụ")]
-    AI[("ai + pgvector: jobs / indexes / chunks / agent runs")]
+flowchart TB
+  U["Student / Teacher / Admin"] --> W["Next.js"]
+  W -->|Public API /api/v1| J["Spring Boot"]
+  J -->|Authorized scope + service auth| P["FastAPI"]
+  subgraph PG["Data layer"]
+    APP[("PostgreSQL")]
+    AI[("PostgreSQL + pgvector")]
   end
   J --> APP
   P --> AI
-  J --> O[("Object Storage: Personal PDF / Course Material PDF")]
+  J --> O[("Object Storage")]
   P -->|Đọc PDF theo scope| O
-  P --> L["LLM / Embedding Provider"]
+  P --> L["OpenRouter"]

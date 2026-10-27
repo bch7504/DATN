@@ -1,10 +1,11 @@
 @startuml
 ' Palette: architecture; layered platform form based on the supplied reference.
+' Monochrome: true
 skinparam backgroundColor white
 skinparam defaultFontName Arial
 skinparam defaultFontSize 15
-skinparam defaultFontColor #111111
-skinparam ArrowColor #334155
+skinparam defaultFontColor #000000
+skinparam ArrowColor #000000
 skinparam shadowing false
 skinparam linetype ortho
 skinparam nodesep 45
@@ -12,46 +13,50 @@ skinparam ranksep 55
 skinparam roundcorner 12
 skinparam PackageStyle rectangle
 skinparam PackagePadding 34
-skinparam RectangleBorderColor #64748B
-skinparam RectangleBackgroundColor #F8FAFC
-skinparam ComponentBorderColor #64748B
-skinparam ComponentBackgroundColor #E8F4FB
-skinparam DatabaseBorderColor #64748B
-skinparam DatabaseBackgroundColor #EEF5DF
-skinparam StorageBorderColor #64748B
-skinparam StorageBackgroundColor #FFF3D6
-skinparam CloudBorderColor #8064A2
-skinparam CloudBackgroundColor #F2EAFB
-skinparam ActorBackgroundColor #7ACFF5
-skinparam ActorBorderColor #222222
-left to right direction
+skinparam RectangleBorderColor #000000
+skinparam RectangleBackgroundColor #FFFFFF
+skinparam ComponentBorderColor #000000
+skinparam ComponentBackgroundColor #FFFFFF
+skinparam DatabaseBorderColor #000000
+skinparam DatabaseBackgroundColor #FFFFFF
+skinparam StorageBorderColor #000000
+skinparam StorageBackgroundColor #FFFFFF
+skinparam CloudBorderColor #000000
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorBorderColor #000000
+top to bottom direction
 
 actor "Student / Teacher / Admin" as user
 
 rectangle "StudyFlow Platform" as platform {
-  component "Next.js Web\nGiao diện và route guard" as web
+  component "Next.js" as web
 
   rectangle "Backend services" as backend {
-    component "Java Spring Boot\nAuth · RBAC · nghiệp vụ\nQuiz lifecycle · progress" as java
-    component "Python FastAPI\nPDF intelligence · RAG · citation\nSingle Agent · sinh Quiz · evaluation" as ai
+    component "Spring Boot" as java
+    component "FastAPI" as ai
   }
 
   rectangle "Platform data & file storage" as data {
-    database "PostgreSQL\nschema app\nJava sở hữu" as appdb
-    database "PostgreSQL + pgvector\nschema ai\nPython sở hữu" as aidb
-    storage "Object Storage\nPersonal PDF · Course Material PDF" as storage
+    database "PostgreSQL" as appdb
+    database "PostgreSQL + pgvector" as aidb
+    storage "Object Storage" as storage
   }
 
-  web --> java : REST /api/v1
-  java --> ai : Internal API\nauthorized scope
-  java --> appdb
-  ai --> aidb
-  java --> storage : metadata / signed URL
-  ai --> storage : đọc PDF theo scope
+  web -down-> java : REST /api/v1
+  java -down-> ai : Internal API\nauthorized scope
+  java -down-> appdb
+  ai -down-> aidb
+  java -down-> storage : metadata / signed URL
+  ai -down-> storage : đọc PDF theo scope
+
+  appdb -[hidden]right-> aidb
+  aidb -[hidden]right-> storage
 }
 
-cloud "Model Provider\nChat model · Embedding model" as model
+cloud "OpenRouter" as model
 
-user --> web
-model -down-> ai : HTTPS
+user -down-> web
+storage -[hidden]down-> model
+ai -down-> model : HTTPS
 @enduml
