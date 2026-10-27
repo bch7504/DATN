@@ -1,13 +1,13 @@
 @startuml
 ' Palette: class; based on the Visual Paradigm guide samples (see README).
-skinparam defaultFontColor #111111
-skinparam ArrowColor #222222
-skinparam NoteBackgroundColor #FFF9D9
-skinparam NoteBorderColor #555555
+skinparam defaultFontColor #000000
+skinparam ArrowColor #000000
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #000000
 hide circle
-skinparam ClassBackgroundColor #7ACFF5
-skinparam ClassBorderColor #222222
-skinparam ClassHeaderBackgroundColor #7ACFF5
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #000000
+skinparam ClassHeaderBackgroundColor #FFFFFF
 skinparam shadowing false
 skinparam linetype ortho
 skinparam backgroundColor white

@@ -1,19 +1,26 @@
 @startuml
 ' Palette: sequence; based on the Visual Paradigm guide samples (see README).
+' Monochrome: true
 ' Interaction: Trợ lý tài liệu cá nhân
-skinparam defaultFontColor #111111
-skinparam ArrowColor #222222
-skinparam ActorBackgroundColor #7ACFF5
-skinparam ActorBorderColor #222222
-skinparam NoteBackgroundColor #FFF9D9
-skinparam NoteBorderColor #555555
-skinparam ParticipantBackgroundColor #7ACFF5
-skinparam ParticipantBorderColor #222222
-skinparam LifeLineBackgroundColor #7ACFF5
-skinparam LifeLineBorderColor #222222
+skinparam defaultFontColor #000000
+skinparam ArrowColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorBorderColor #000000
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantBorderColor #000000
+skinparam LifeLineBackgroundColor #FFFFFF
+skinparam LifeLineBorderColor #000000
+skinparam SequenceLifeLineBackgroundColor #FFFFFF
+skinparam SequenceLifeLineBorderColor #000000
+skinparam sequence {
+  LifeLineBackgroundColor #FFFFFF
+  LifeLineBorderColor #000000
+}
 skinparam SequenceGroupBackgroundColor white
 skinparam SequenceGroupBodyBackgroundColor white
-skinparam SequenceGroupBorderColor #222222
+skinparam SequenceGroupBorderColor #000000
 skinparam shadowing false
 skinparam linetype ortho
 skinparam backgroundColor white

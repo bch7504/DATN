@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="StudyFlow exporter" version="24.7.17">
+  <diagram id="studyflow" name="Page-1">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1310" pageHeight="1860" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="sequence 12 quiz" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Arial;fontSize=22;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="100" y="45" width="1110" height="40" as="geometry"/></mxCell>
+        <mxCell id="source" value="Nguồn đồng bộ: chuong-3/sequence-12-quiz.puml · Bố cục layer từ trên xuống" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Arial;fontSize=11;fontColor=#64748B;" vertex="1" parent="1"><mxGeometry x="100" y="88" width="1110" height="24" as="geometry"/></mxCell>
+        <mxCell id="2" value="Web" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#7ACFF5;strokeColor=#1F2937;fontFamily=Arial;fontSize=13;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="140" y="120" width="150" height="54" as="geometry"/></mxCell>
+        <mxCell id="3" value="" style="shape=line;html=1;strokeColor=#1F2937;dashed=1;direction=south;" vertex="1" parent="1"><mxGeometry x="214" y="174" width="1" height="1610" as="geometry"/></mxCell>
+        <mxCell id="4" value="Java" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#7ACFF5;strokeColor=#1F2937;fontFamily=Arial;fontSize=13;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="350" y="120" width="150" height="54" as="geometry"/></mxCell>
+        <mxCell id="5" value="" style="shape=line;html=1;strokeColor=#1F2937;dashed=1;direction=south;" vertex="1" parent="1"><mxGeometry x="424" y="174" width="1" height="1610" as="geometry"/></mxCell>
+        <mxCell id="6" value="AI" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#7ACFF5;strokeColor=#1F2937;fontFamily=Arial;fontSize=13;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="560" y="120" width="150" height="54" as="geometry"/></mxCell>
+        <mxCell id="7" value="" style="shape=line;html=1;strokeColor=#1F2937;dashed=1;direction=south;" vertex="1" parent="1"><mxGeometry x="634" y="174" width="1" height="1610" as="geometry"/></mxCell>
+        <mxCell id="8" value="LLM" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#7ACFF5;strokeColor=#1F2937;fontFamily=Arial;fontSize=13;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="770" y="120" width="150" height="54" as="geometry"/></mxCell>
+        <mxCell id="9" value="" style="shape=line;html=1;strokeColor=#1F2937;dashed=1;direction=south;" vertex="1" parent="1"><mxGeometry x="844" y="174" width="1" height="1610" as="geometry"/></mxCell>
+        <mxCell id="10" value="DB" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#7ACFF5;strokeColor=#1F2937;fontFamily=Arial;fontSize=13;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="980" y="120" width="150" height="54" as="geometry"/></mxCell>
+        <mxCell id="11" value="" style="shape=line;html=1;strokeColor=#1F2937;dashed=1;direction=south;" vertex="1" parent="1"><mxGeometry x="1054" y="174" width="1" height="1610" as="geometry"/></mxCell>
+        <mxCell id="12" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="213" y="220" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="13" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="220" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="14" value="Tạo Quiz {mode, source, constraints}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="12" target="13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="15" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="298" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="16" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="298" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="17" value="Kiểm owner / READY / Course Offering; snapshot nguồn" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="15" target="16"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="18" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="376" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="19" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="1053" y="376" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="20" value="Tạo Quiz GENERATING và run identity" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="18" target="19"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="21" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="454" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="22" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="213" y="454" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="23" value="202 {quizId, status}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="21" target="22"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="24" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="532" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="25" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="633" y="532" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="26" value="POST /internal/v1/quizzes/generate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="24" target="25"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="27" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="633" y="610" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="28" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="633" y="610" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="29" value="Retrieval có scope, evidence gate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="27" target="28"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="30" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="633" y="688" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="31" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="688" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="32" value="NO_EVIDENCE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="30" target="31"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="33" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="633" y="766" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="34" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="843" y="766" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="35" value="JSON Schema MCQ_SINGLE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="33" target="34"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="36" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="843" y="844" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="37" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="633" y="844" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="38" value="Structured draft" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="36" target="37"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="39" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="633" y="922" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="40" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="633" y="922" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="41" value="Đúng 4 options, 1 đáp án, grounding; repair tối đa 1 lần" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="39" target="40"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="42" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="633" y="1000" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="43" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="1000" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="44" value="QuizDraft hoặc lỗi" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="42" target="43"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="45" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="1078" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="46" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="1053" y="1078" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="47" value="Lưu batch; REVIEW_REQUIRED" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="45" target="46"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="48" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="1156" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="49" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="1053" y="1156" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="50" value="GENERATION_FAILED; không lưu câu hỏi lỗi" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="48" target="49"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="51" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="213" y="1234" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="52" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="1234" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="53" value="GET trạng thái Quiz" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="51" target="52"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="54" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="1312" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="55" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="213" y="1312" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="56" value="Trạng thái / bản nháp" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="54" target="55"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="57" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="213" y="1390" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="58" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="1390" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="59" value="Chuyển trạng thái Quiz cá nhân" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="57" target="58"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="60" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="1468" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="61" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="1053" y="1468" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="62" value="READY hoặc REJECTED" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="60" target="61"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="63" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="213" y="1546" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="64" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="1546" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="65" value="Publish Quiz cho Course Offering" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="63" target="64"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="66" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="1624" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="67" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="1053" y="1624" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="68" value="PUBLISHED hoặc REJECTED" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="66" target="67"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="69" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="423" y="1702" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="70" value="" style="opacity=0;" vertex="1" parent="1"><mxGeometry x="213" y="1702" width="2" height="2" as="geometry"/></mxCell>
+        <mxCell id="71" value="Trạng thái cuối" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#1F2937;fontFamily=Arial;fontSize=12;" edge="1" parent="1" source="69" target="70"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
