@@ -1,12 +1,14 @@
 import { DocumentStatus } from "./api";
 
 export type DocumentType = "PDF";
+export type CourseMaterialType = "SLIDE_PDF" | "REFERENCE_PDF";
 
 export interface TeacherDocument {
   id: string;
   title: string;
   fileName: string;
   fileType: DocumentType;
+  materialType: CourseMaterialType;
   fileSize: number;
   status: DocumentStatus;
   totalPages: number;

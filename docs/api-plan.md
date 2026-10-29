@@ -85,9 +85,9 @@ Business/error:
 |---|---|---|
 | GET | `/api/v1/student/materials` | Trả `{items,page,size,totalItems,totalPages}` gồm PDF đã công bố cho lớp Student được duyệt |
 | GET | `/api/v1/student/course-offerings/{offeringId}/materials` | Enrollment `APPROVED`; chỉ publication active trong lớp đó |
-| GET | `/api/v1/student/materials/{documentId}/download` | Stream inline sau khi kiểm enrollment + publication; `?download=true` dùng attachment; không trả storage key/URL |
+| GET | `/api/v1/student/materials/{documentId}/download` | `SLIDE_PDF` được stream inline cho Viewer; `REFERENCE_PDF` chỉ cho tải attachment; không trả storage key/URL |
 
-Course Material MVP hiện hỗ trợ quản lý file PDF, công bố/gỡ công bố theo lớp, xem/tải PDF và hỏi đáp bằng AI Tutor qua Java → Python. Page metadata, ghi chú theo trang và ghi nhận lượt xem chưa được nối; không hiển thị dữ liệu giả thay cho các phần đó.
+Course Material chỉ nhận tệp PDF có text layer nhưng bắt buộc phân loại `SLIDE_PDF|REFERENCE_PDF`. `SLIDE_PDF` được xem từng trang như slide, ghi nhận trang và hỏi đáp bằng AI Tutor; `REFERENCE_PDF` chỉ được tải xuống và không được lập chỉ mục hoặc gửi sang Tutor. Response học liệu luôn có `materialType` để Frontend không tự suy đoán quyền từ tên tệp.
 
 Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ khi offering `ARCHIVED`, trừ khi `LOCKED`, publication revoked hoặc policy retention chặn.
 
@@ -97,7 +97,7 @@ Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ k
 - `POST /api/v1/student/materials/{documentId}/pages/{number}/view-events` với `Idempotency-Key`
 - `POST /api/v1/student/materials/{documentId}/pages/{number}/tutor`
 
-Trạng thái triển khai: endpoint Tutor đã có ở Java. Frontend chỉ gọi endpoint Java này; Java xác thực Student, enrollment `APPROVED`, publication và trạng thái Course Offering trước khi chuyển phạm vi tài liệu tối thiểu sang Python `/internal/v1/course-materials/ask`. Java kiểm tra lại `documentId`, `documentVersion` và `pageNumber` của mọi citation trước khi trả về trình duyệt.
+Endpoint Tutor chỉ chấp nhận tài liệu `SLIDE_PDF`. Frontend chỉ gọi endpoint Java này; Java xác thực Student, enrollment `APPROVED`, publication, trạng thái Course Offering và `materialType` trước khi chuyển phạm vi tài liệu tối thiểu sang Python `/internal/v1/course-materials/ask`. Java kiểm tra lại `documentId`, `documentVersion` và `pageNumber` của mọi citation trước khi trả về trình duyệt. Gọi Tutor cho `REFERENCE_PDF` trả `409 MATERIAL_NOT_TUTORABLE`.
 
 Tutor request:
 
@@ -365,15 +365,15 @@ Student list chỉ trả account metadata tối thiểu; không trả Personal D
 
 ### 5.3 Teacher Course Material PDF và publication
 
-- `POST /api/v1/teacher/documents` — multipart `{file,title}`, PDF text-layer tối đa 20 MiB → `201 TeacherDocument`; kiểm định cấu trúc, số trang và nội dung text trước khi lưu; lỗi `413 FILE_TOO_LARGE`, `415 UNSUPPORTED_MEDIA_TYPE`, `422 INVALID_PDF|PDF_TEXT_REQUIRED|INVALID_TITLE`, `502 DOCUMENT_STORAGE_FAILED`, `503 STORAGE_NOT_CONFIGURED`.
+- `POST /api/v1/teacher/documents` — multipart `{file,title,materialType}`, trong đó `materialType=SLIDE_PDF|REFERENCE_PDF`; chỉ nhận PDF text-layer tối đa 20 MiB → `201 TeacherDocument`. `SLIDE_PDF` đi qua pipeline index; `REFERENCE_PDF` sẵn sàng sau khi lưu và không gửi sang Python. Lỗi `413 FILE_TOO_LARGE`, `415 UNSUPPORTED_MEDIA_TYPE`, `422 INVALID_PDF|PDF_TEXT_REQUIRED|INVALID_TITLE|INVALID_MATERIAL_TYPE`, `502 DOCUMENT_STORAGE_FAILED`, `503 STORAGE_NOT_CONFIGURED`.
 - `GET /api/v1/teacher/documents` — `{items,page,size,totalItems,totalPages}` theo owner; mỗi item có danh sách publication đang hiệu lực.
 - `GET /api/v1/teacher/documents/{id}/download` — stream PDF cho Teacher owner.
 - `POST /api/v1/teacher/documents/{id}/publications` — `{courseOfferingIds:[...]}`; chọn danh sách đồng nghĩa gỡ khỏi lớp đã bỏ chọn; lớp phải ACTIVE và thuộc Teacher.
 - `DELETE /api/v1/teacher/documents/{id}/publications?offeringId=...` — gỡ một publication, thao tác lặp idempotent.
 
-Teacher document response: `{id,title,fileName,fileType:"PDF",fileSize,status,totalPages,publishedOfferings:[{offeringId,offeringCode,offeringName,publishedAt}],createdAt}`; `status` đi qua `PENDING_PROCESSING → PROCESSING → READY|FAILED`. Student response dùng cùng metadata nhưng chỉ liệt kê publication nằm trong các lớp Student đã được duyệt. Download trả `application/pdf` với `Content-Disposition: inline`; Student có thể truyền `?download=true` để nhận `attachment`.
+Teacher document response: `{id,title,fileName,fileType:"PDF",materialType:"SLIDE_PDF|REFERENCE_PDF",fileSize,status,totalPages,publishedOfferings:[{offeringId,offeringCode,offeringName,publishedAt}],createdAt}`. `SLIDE_PDF` đi qua `PENDING_PROCESSING → PROCESSING → READY|FAILED`; `REFERENCE_PDF` chuyển `READY` sau khi Java kiểm tra và lưu tệp. Student response dùng cùng metadata nhưng chỉ liệt kê publication nằm trong các lớp Student đã được duyệt. Download trả `application/pdf`; chỉ `SLIDE_PDF` được trả `inline`, còn `REFERENCE_PDF` luôn trả `attachment` kể cả client không truyền query.
 
-Bản hiện tại trả toàn bộ học liệu trong một page metadata (`page=0`, `totalPages=0|1`). Frontend duyệt theo `totalPages` thay vì giả định chỉ có một trang, áp dụng cả danh sách lớp. Upload trả `PENDING_PROCESSING`; worker Java gửi PDF sang Python để lập chỉ mục và chỉ cho phép publish/Tutor khi `READY`. Publish/revoke thành công trả `204` không body.
+Bản hiện tại trả toàn bộ học liệu trong một page metadata (`page=0`, `totalPages=0|1`). Frontend duyệt theo `totalPages` thay vì giả định chỉ có một trang, áp dụng cả danh sách lớp. Upload `SLIDE_PDF` trả `PENDING_PROCESSING`; worker Java gửi PDF sang Python để lập chỉ mục và chỉ cho phép Tutor khi `READY`. `REFERENCE_PDF` không có AI job. Cả hai loại chỉ được công bố khi `READY`; publish/revoke thành công trả `204` không body.
 
 Chỉ nhận PDF có text layer. Hệ thống kiểm document owner và ownership/trạng thái của mọi lớp; publication được lưu theo lớp và re-public kích hoạt lại row cũ. Student `APPROVED` mới xem/tải được PDF. Upload thành công tạo thông báo kho riêng cho Teacher; chỉ lần công bố/re-public mới thông báo Student đã duyệt trong lớp, thao tác giữ nguyên selection không phát lại. Thu hồi phát thông báo mất quyền truy cập mới. Tệp nằm trong private Object Storage; object key không xuất hiện trong response. Storage chưa cấu hình trả `503`, không tạo fixture.
 
@@ -381,7 +381,7 @@ Chỉ nhận PDF có text layer. Hệ thống kiểm document owner và ownershi
 
 - `POST /api/v1/teacher/quizzes/generations`
   - Input `{documentIds:[...],courseOfferingId,questionCount:1..30,difficulty,topic?,pageFrom,pageTo,instruction}`.
-  - Java kiểm Teacher sở hữu document và Course Offering, PDF `READY`, page range hợp lệ; gửi structured request sang Python.
+  - Java kiểm Teacher sở hữu document và Course Offering, tài liệu `SLIDE_PDF` ở trạng thái `READY`, page range hợp lệ; `REFERENCE_PDF` không được dùng làm nguồn sinh Quiz AI.
   - Java kiểm lại kết quả trước khi lưu: đúng `MCQ_SINGLE`, đúng số câu đã chọn, mỗi câu đúng 4 phương án khác nhau, chỉ một đáp án đúng và mọi citation đều nằm trong đúng tài liệu/phiên bản/khoảng trang Teacher đã cấp.
   - Output `200 QuizDraft` với `REVIEW_REQUIRED`; mutation bắt buộc có `Idempotency-Key`.
 - `GET /api/v1/review/quizzes/{quizId}` trả draft/status cho đúng Teacher owner.

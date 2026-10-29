@@ -92,6 +92,6 @@ Kiểm thử tích hợp pgvector là opt-in: đặt `STUDYFLOW_RUN_POSTGRES_INT
 - Thiếu bằng chứng phải trả NO_EVIDENCE.
 - Mọi câu trả lời, tóm tắt và câu hỏi phải có nguồn theo documentId và pageNumber.
 - Quiz là MCQ_SINGLE: đúng bốn lựa chọn và một đáp án đúng.
-- Chỉ nhận Personal PDF và Course Material PDF có text layer; không OCR, PPTX hoặc DOCX trong MVP.
+- Chỉ nhận Personal PDF và Course Material `SLIDE_PDF` có text layer từ Java; `REFERENCE_PDF` không được gửi sang Python để lập chỉ mục/Tutor/Quiz. Không OCR, PPTX hoặc DOCX trong MVP.
 - Không chấm Quiz, cập nhật progress, Study Plan, Streak hoặc Daily Goal.
 - Không log document content, prompt, token, signed URL hoặc secret.

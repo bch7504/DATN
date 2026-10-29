@@ -6,6 +6,7 @@ import com.studyflow.courseoffering.domain.CourseOfferingStatus;
 import com.studyflow.document.api.TeacherDocumentResponse;
 import com.studyflow.document.domain.CourseMaterialDocument;
 import com.studyflow.document.domain.CourseMaterialDocumentRepository;
+import com.studyflow.document.domain.CourseMaterialType;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
 import com.studyflow.common.exception.ApiException;
@@ -74,13 +75,32 @@ public class CourseMaterialLibraryService {
 
     /**
      * Args: authenticated teacherId, uploaded PDF, and display title (1–200 chars).
-     * Input: PDF <=20 MiB with a readable text layer and at least one page. Output: saved READY metadata.
+     * Input: PDF <=20 MiB with a readable text layer and at least one page.
+     * Output: saved SLIDE_PDF metadata in PENDING_PROCESSING; compatibility overload for tests/callers.
      * Errors: 413 oversized, 422 invalid/title/scan PDF, 502 storage failure, 503 storage unavailable.
      * Side effect: stores a private object and inserts its metadata; confirmed transaction rollback
      * attempts object cleanup, including failures during commit. Cleanup failure never hides the DB error.
      */
     @Transactional
     public CourseMaterialDocument upload(UUID teacherId, MultipartFile file, String title) {
+        return upload(teacherId, file, title, CourseMaterialType.SLIDE_PDF.name());
+    }
+
+    /**
+     * Args: authenticated Teacher, text-layer PDF, title and SLIDE_PDF|REFERENCE_PDF.
+     * Input: bounded multipart upload.
+     * Output: persisted metadata; SLIDE_PDF starts PENDING_PROCESSING, REFERENCE_PDF starts READY.
+     * Errors: validation/media/storage errors; REFERENCE_PDF never creates an AI job.
+     */
+    @Transactional
+    public CourseMaterialDocument upload(UUID teacherId, MultipartFile file, String title, String materialType) {
+        CourseMaterialType parsedMaterialType;
+        try {
+            parsedMaterialType = CourseMaterialType.parse(materialType);
+        } catch (IllegalArgumentException exception) {
+            throw new ValidationException("INVALID_MATERIAL_TYPE",
+                    "Loại học liệu phải là SLIDE_PDF hoặc REFERENCE_PDF.");
+        }
         if (file == null || file.isEmpty()) throw new ValidationException("INVALID_FILE", "Vui lòng chọn tệp PDF.");
         if (file.getSize() > MAX_BYTES) throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "PDF vượt giới hạn 20 MB.");
         if (file.getOriginalFilename() == null || !file.getOriginalFilename().toLowerCase(Locale.ROOT).endsWith(".pdf")) {
@@ -115,7 +135,8 @@ public class CourseMaterialLibraryService {
         boolean cleanupRegistered = registerRollbackCleanup(storage, objectKey);
         Instant now = clock.instant();
         CourseMaterialDocument document = new CourseMaterialDocument(id, teacherId,
-                sanitizeFileName(file.getOriginalFilename()), cleanTitle, objectKey, content.length, pageCount, now);
+                sanitizeFileName(file.getOriginalFilename()), cleanTitle, objectKey, content.length, pageCount,
+                parsedMaterialType, now);
         try {
             CourseMaterialDocument saved = documents.save(document);
             notifications.createEventIfAbsent(teacherId, NotificationType.TEACHER_MATERIAL_UPLOADED,
@@ -294,7 +315,9 @@ public class CourseMaterialLibraryService {
         return results.stream().collect(java.util.stream.Collectors.toMap(TeacherDocumentResponse::id, item -> item, (first, next) -> {
             List<TeacherDocumentResponse.PublishedOffering> combined = new ArrayList<>(first.publishedOfferings());
             combined.addAll(next.publishedOfferings());
-            return new TeacherDocumentResponse(first.id(), first.title(), first.fileName(), first.fileType(), first.fileSize(), first.status(), first.totalPages(), combined, first.createdAt());
+            return new TeacherDocumentResponse(first.id(), first.title(), first.fileName(), first.fileType(),
+                    first.materialType(), first.fileSize(), first.status(), first.totalPages(), combined,
+                    first.createdAt());
         }, java.util.LinkedHashMap::new)).values().stream().toList();
     }
 
@@ -331,6 +354,10 @@ public class CourseMaterialLibraryService {
         if (!"READY".equals(document.getProcessingStatus())) {
             throw new ApiException(HttpStatus.CONFLICT, "DOCUMENT_NOT_READY", "Học liệu chưa sẵn sàng để hỏi đáp.");
         }
+        if (!document.isSlidePdf()) {
+            throw new ApiException(HttpStatus.CONFLICT, "MATERIAL_NOT_TUTORABLE",
+                    "Tài liệu tham khảo chỉ được tải xuống, không hỗ trợ AI Tutor.");
+        }
         if (pageNumber < 1 || pageNumber > document.getPageCount()) {
             throw new ValidationException("INVALID_PAGE", "Trang tài liệu không hợp lệ.");
         }
@@ -353,7 +380,8 @@ public class CourseMaterialLibraryService {
 
     private Download download(CourseMaterialDocument document) {
         InputStream content = requireStorage().get(document.getStorageKey());
-        return new Download(document.getFileName(), document.getMimeType(), document.getFileSize(), content);
+        return new Download(document.getFileName(), document.getMimeType(), document.getFileSize(),
+                document.isSlidePdf(), content);
     }
 
     private AssignmentAttachmentStorage requireStorage() {
@@ -380,7 +408,8 @@ public class CourseMaterialLibraryService {
             return offering == null ? null : new TeacherDocumentResponse.PublishedOffering(offering.getId(), offering.getCode(), offering.getName(), publication.getPublishedAt());
         }).filter(java.util.Objects::nonNull).toList();
         return new TeacherDocumentResponse(document.getId(), document.getDisplayName(), document.getFileName(), "PDF",
-                document.getFileSize(), document.getProcessingStatus(), document.getPageCount(), offeringDtos, document.getCreatedAt());
+                document.getMaterialType(), document.getFileSize(), document.getProcessingStatus(),
+                document.getPageCount(), offeringDtos, document.getCreatedAt());
     }
 
     private static String sanitizeFileName(String input) {
@@ -389,7 +418,8 @@ public class CourseMaterialLibraryService {
     }
 
     /** Download result returned only after authorization. */
-    public record Download(String fileName, String contentType, long sizeBytes, InputStream content) { }
+    public record Download(String fileName, String contentType, long sizeBytes, boolean inlineAllowed,
+                           InputStream content) { }
 
     /** Authorized immutable values used to call Python without exposing storage metadata. */
     public record TutorScope(UUID documentId, int documentVersion, UUID ownerId, String documentName,

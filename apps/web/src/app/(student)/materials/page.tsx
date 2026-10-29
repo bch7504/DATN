@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, ChevronRight, FileText, Info } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronRight, Download, FileText, Info } from "lucide-react";
 import { materialApi, studentApi } from "@/lib/api-client";
 import { TeacherDocument } from "@/types/material";
 import { CourseOffering } from "@/types/course-offering";
@@ -88,7 +88,7 @@ export default function StudentMaterialsPage() {
       <div className="flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-slate-700">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
         <p>
-          <strong className="text-slate-900">Quyền truy cập:</strong> chỉ tài liệu PDF được công bố cho lớp có enrollment <code>APPROVED</code> mới hiển thị và mở được.
+          <strong className="text-slate-900">Quyền truy cập:</strong> Slide PDF được xem theo từng trang và hỏi AI; tài liệu tham khảo chỉ được tải xuống. Cả hai chỉ hiển thị khi đã được công bố cho lớp có enrollment <code>APPROVED</code>.
         </p>
       </div>
 
@@ -127,7 +127,7 @@ export default function StudentMaterialsPage() {
                   <div>
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
-                        <FileText className="h-3.5 w-3.5" /> PDF
+                        <FileText className="h-3.5 w-3.5" /> {document.materialType === "SLIDE_PDF" ? "Slide PDF" : "Tài liệu tham khảo"}
                       </span>
                       <StatusBadge status={document.status} size="sm" />
                     </div>
@@ -146,12 +146,21 @@ export default function StudentMaterialsPage() {
                   </div>
                   <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                     <span className="text-[11px] text-slate-400">{selectedOffering.code}</span>
-                    <Link
-                      href={`/materials/${document.id}/viewer`}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
-                    >
-                      <BookOpen className="h-4 w-4" /> Mở tài liệu
-                    </Link>
+                    {document.materialType === "SLIDE_PDF" ? (
+                      <Link
+                        href={`/materials/${document.id}/viewer`}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                      >
+                        <BookOpen className="h-4 w-4" /> Xem slide & hỏi AI
+                      </Link>
+                    ) : (
+                      <a
+                        href={materialApi.getDownloadUrl(document.id, true)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                      >
+                        <Download className="h-4 w-4" /> Tải tài liệu
+                      </a>
+                    )}
                   </div>
                 </article>
               ))}

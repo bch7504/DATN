@@ -56,7 +56,9 @@ public class StudentCourseMaterialController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType(file.contentType()));
         headers.setContentLength(file.sizeBytes());
-        ContentDisposition.Builder disposition = download ? ContentDisposition.attachment() : ContentDisposition.inline();
+        ContentDisposition.Builder disposition = download || !file.inlineAllowed()
+                ? ContentDisposition.attachment()
+                : ContentDisposition.inline();
         headers.setContentDisposition(disposition.filename(file.fileName(), StandardCharsets.UTF_8).build());
         headers.set("X-Content-Type-Options", "nosniff");
         return new ResponseEntity<>(body, headers, HttpStatus.OK);

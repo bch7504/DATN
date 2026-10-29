@@ -288,18 +288,29 @@ class JobRepository:
             .values(status=IndexStatus.DELETED.value)
         )
 
-    def retry(self, claim: ClaimedJob, *, max_attempts: int, base_seconds: float) -> None:
+    def retry(
+        self,
+        claim: ClaimedJob,
+        *,
+        max_attempts: int,
+        base_seconds: float,
+        terminal_error_code: str = "INDEX_RETRIES_EXHAUSTED",
+    ) -> None:
         """Schedule a safe download/embedding retry with bounded exponential backoff.
 
-        Args: claim: active lease; max_attempts: total try cap; base_seconds: positive delay.
+        Args:
+            claim: Active lease.
+            max_attempts: Total try cap.
+            base_seconds: Positive exponential-backoff base.
+            terminal_error_code: Safe stable code stored after the final attempt.
         Returns: None; commits PENDING or terminal FAILED state.
-        Raises: ValueError for limits; RuntimeError for stale lease; database errors.
+        Raises: ValueError for invalid limits/code; RuntimeError for stale lease; database errors.
         """
-        if max_attempts < 1 or base_seconds <= 0:
+        if max_attempts < 1 or base_seconds <= 0 or not terminal_error_code.strip():
             raise ValueError("retry limits must be positive")
         job = self.guard(claim)
         if job.attempt >= max_attempts:
-            self.finish(claim, error_code="INDEX_RETRIES_EXHAUSTED")
+            self.finish(claim, error_code=terminal_error_code)
             return
         job.status = JobStatus.PENDING.value
         job.claim_token = None

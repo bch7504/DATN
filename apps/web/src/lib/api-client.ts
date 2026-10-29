@@ -2,7 +2,7 @@ import { getApiUrl } from "./env";
 import { User, LoginRequest, RegisterRequest, RegistrationStatusResponse, VerifyRegistrationRequest, ResendVerificationRequest, } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
 import { Subject, Semester, CourseOffering, CourseEnrollment, CreateOfferingRequest, } from "@/types/course-offering";
-import { TeacherDocument, PersonalDocument, CourseMaterialTutorResponse, } from "@/types/material";
+import { TeacherDocument, PersonalDocument, CourseMaterialTutorResponse, CourseMaterialType, } from "@/types/material";
 import { ChatConversation, ChatMessage, CreateConversationRequest, SendMessageRequest, } from "@/types/chat";
 import { Quiz, QuizDraft, QuizAttempt, CreateQuizDraftRequest, AcceptQuizRequest, SubmitQuizAttemptRequest, StartQuizAttemptResponse, SubmitAttemptResponse, } from "@/types/quiz";
 import { ReviewItem, CourseReviewSummary, CourseReviewWorkspace, DailyGoalProgress, DailyGoalConfig, StudyStreak, } from "@/types/review";
@@ -731,7 +731,7 @@ export const teacherApi = {
     getDocumentDownloadUrl(documentId: string): string {
         return `${getApiUrl()}/teacher/documents/${encodeURIComponent(documentId)}/download`;
     },
-    async uploadDocument(file: File, title: string): Promise<TeacherDocument> {
+    async uploadDocument(file: File, title: string, materialType: CourseMaterialType): Promise<TeacherDocument> {
         const isPdf = file.name.toLowerCase().endsWith(".pdf");
         if (!isPdf) {
             throw new ApiClientError(415, {
@@ -745,6 +745,7 @@ export const teacherApi = {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("title", title);
+        formData.append("materialType", materialType);
         return apiFetch<TeacherDocument>("/teacher/documents", {
             method: "POST",
             body: formData

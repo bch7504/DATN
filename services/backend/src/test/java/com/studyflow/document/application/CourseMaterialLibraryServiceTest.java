@@ -14,6 +14,7 @@ import com.studyflow.common.exception.ValidationException;
 import com.studyflow.courseoffering.domain.CourseOfferingRepository;
 import com.studyflow.document.domain.CourseMaterialDocument;
 import com.studyflow.document.domain.CourseMaterialDocumentRepository;
+import com.studyflow.document.domain.CourseMaterialType;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
 import com.studyflow.publication.domain.DocumentPublicationRepository;
@@ -67,6 +68,8 @@ class CourseMaterialLibraryServiceTest {
 
         assertEquals("Lesson 1", saved.getDisplayName());
         assertEquals(1, saved.getPageCount());
+        assertEquals(CourseMaterialType.SLIDE_PDF.name(), saved.getMaterialType());
+        assertEquals("PENDING_PROCESSING", saved.getProcessingStatus());
         verify(storage).put(eq("course-materials/" + teacherId + "/" + saved.getId() + ".pdf"),
                 eq("application/pdf"), any(), eq((long) pdfBytes.length));
         verify(notifications).createEventIfAbsent(eq(teacherId),
@@ -75,6 +78,37 @@ class CourseMaterialLibraryServiceTest {
         verify(notifications, never()).createEventIfAbsent(any(),
                 eq(com.studyflow.notification.domain.NotificationType.STUDENT_MATERIAL_PUBLISHED),
                 any(), any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    /** A reference PDF is ready for download immediately and never enters the AI indexing queue. */
+    @Test
+    void storesReferencePdfAsDownloadOnlyReadyMaterial() throws Exception {
+        UUID teacherId = UUID.randomUUID();
+        byte[] pdfBytes = pdfWithText("Reference handout");
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "reference.pdf", "application/pdf", pdfBytes);
+        when(documents.save(any(CourseMaterialDocument.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseMaterialDocument saved = service.upload(
+                teacherId, file, "Reference", CourseMaterialType.REFERENCE_PDF.name());
+
+        assertEquals(CourseMaterialType.REFERENCE_PDF.name(), saved.getMaterialType());
+        assertEquals("READY", saved.getProcessingStatus());
+        assertEquals(1, saved.getPageCount());
+    }
+
+    /** Unsupported material types fail before writing the object or document metadata. */
+    @Test
+    void rejectsUnsupportedMaterialTypeBeforeStorageWrite() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "lesson.pdf", "application/pdf", pdfWithText("Lesson"));
+
+        ValidationException error = assertThrows(ValidationException.class,
+                () -> service.upload(UUID.randomUUID(), file, "Lesson", "PPTX"));
+
+        assertEquals("INVALID_MATERIAL_TYPE", error.getCode());
+        verify(storage, never()).put(any(), any(), any(), any(Long.class));
     }
 
     @Test

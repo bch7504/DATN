@@ -52,7 +52,9 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
           teacherApi.getOfferings(),
         ]);
         if (!active) return;
-        const ready = documentItems.filter((document) => document.status === "READY");
+        const ready = documentItems.filter(
+          (document) => document.status === "READY" && document.materialType === "SLIDE_PDF",
+        );
         const activeOfferings = offeringItems.filter((offering) => offering.status === "ACTIVE");
         const requestedId = new URLSearchParams(window.location.search).get("documentId");
         const selected = ready.find((document) => document.id === requestedId) ?? ready[0];
@@ -92,7 +94,7 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
     event.preventDefault();
     setDraft(null);
     if (!selectedDocument) {
-      setError("Hãy chọn một Course Material PDF ở trạng thái READY.");
+      setError("Hãy chọn một Slide PDF ở trạng thái READY.");
       return;
     }
     if (!form.courseOfferingId) {
@@ -173,7 +175,7 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
             </label>
             <label className="mt-4 block text-xs font-bold text-slate-700">Course Material PDF
               <select value={form.documentId} onChange={(event) => handleDocumentChange(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm font-normal outline-none focus:border-red-400">
-                {documents.length === 0 && <option value="">Không có PDF READY</option>}
+                {documents.length === 0 && <option value="">Không có Slide PDF READY</option>}
                 {documents.map((document) => <option key={document.id} value={document.id}>{document.title} · {document.totalPages} trang</option>)}
               </select>
             </label>

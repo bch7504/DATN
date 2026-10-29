@@ -18,6 +18,8 @@ test("Student PDF library lists approved classes before class-specific materials
   await t.test("Student materials are filtered to the selected approved class", () => {
     assert.match(page, /materials\.filter\(\(material\) => material\.publishedOfferings\.some\(\(publication\) => publication\.offeringId === selectedOffering\.id\)\)/);
     assert.match(page, /Tài liệu giảng viên đã công bố cho lớp/);
-    assert.match(page, /Mở tài liệu/);
+    assert.match(page, /materialType === "SLIDE_PDF"/);
+    assert.match(page, /Xem slide/);
+    assert.match(page, /Tải tài liệu/);
   });
 });

@@ -13,8 +13,8 @@ Semester ┘          │
 ```
 
 - Admin quản lý account/role, Subject, Semester và giám sát; không phân công từng lớp trong MVP.
-- Teacher tạo Course Offering, quản lý join code, duyệt Student, upload/public Course Material PDF và tạo Quiz AI từ PDF mình sở hữu.
-- Student `APPROVED` xem PDF theo trang, lưu Note, dùng Course Material AI Tutor và theo dõi tiến độ ở Dashboard.
+- Teacher tạo Course Offering, quản lý join code, duyệt Student, upload/public Course Material PDF theo loại `SLIDE_PDF|REFERENCE_PDF` và tạo Quiz AI từ slide mình sở hữu.
+- Student `APPROVED` xem `SLIDE_PDF` theo từng trang, dùng Course Material AI Tutor; `REFERENCE_PDF` chỉ tải xuống.
 - Personal PDF thuộc Student, chỉ dùng trong Personal Document Assistant và Quiz cá nhân.
 
 ## 2. Kiến trúc hệ thống
@@ -61,12 +61,12 @@ Ranh giới bắt buộc:
 
 ### 5.1 Course Material PDF
 
-1. Teacher upload PDF có text layer; Java kiểm owner, MIME/signature/kích thước và lưu Object Storage.
-2. Java gửi job index sang Python bằng signed URL và authorized source metadata.
-3. Python extract theo trang, chunk, embed và activate index version; OCR/PPTX/DOCX ngoài MVP.
+1. Teacher upload PDF có text layer và chọn `SLIDE_PDF` hoặc `REFERENCE_PDF`; Java kiểm owner, MIME/signature/kích thước và lưu Object Storage.
+2. Chỉ `SLIDE_PDF` được Java gửi job index sang Python bằng signed URL và authorized source metadata. `REFERENCE_PDF` không rời Java/Object Storage để phục vụ AI.
+3. Python extract slide PDF theo trang, chunk, embed và activate index version; OCR/PPTX/DOCX ngoài MVP.
 4. Teacher public tài liệu `READY` vào Course Offering mình sở hữu.
-5. Student `APPROVED` xem PDF, ghi Note theo `pageNumber` và dùng Course Material AI Tutor.
-6. Teacher không có chatbot hoặc AI Tutor trên tài liệu; Teacher chỉ dùng tài liệu làm nguồn cho AI Quiz Generator.
+5. Student `APPROVED` xem từng trang `SLIDE_PDF` và dùng Course Material AI Tutor; với `REFERENCE_PDF`, Student chỉ có thao tác tải xuống.
+6. Teacher không có chatbot hoặc AI Tutor; Teacher chỉ dùng `SLIDE_PDF` làm nguồn cho AI Quiz Generator.
 
 ### 5.2 Personal PDF
 
@@ -103,7 +103,7 @@ Conversation hỗ trợ Agent hiểu ngữ cảnh, nhưng không được mở r
 ## 7. Course Material AI Tutor
 
 1. Java kiểm Student, enrollment `APPROVED`, publication, document/version và page scope.
-2. Python retrieval chỉ dùng chunk `COURSE_MATERIAL_PDF` được cấp quyền, ưu tiên trang hiện tại và có thể mở rộng trong cùng document khi contract cho phép.
+2. Java chỉ cấp `SLIDE_PDF`; Python retrieval dùng chunk `COURSE_MATERIAL_PDF` nội bộ tương ứng, ưu tiên trang hiện tại và có thể mở rộng trong cùng document khi contract cho phép. `REFERENCE_PDF` không được index nên không thể xuất hiện trong retrieval.
 3. Python trả `ANSWERED` cùng page citations hoặc `NO_EVIDENCE`.
 4. Java đối chiếu document/version/page lần cuối rồi mới trả Browser.
 

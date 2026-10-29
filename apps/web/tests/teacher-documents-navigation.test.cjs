@@ -22,7 +22,9 @@ test("Teacher PDF library lists owned classes before class-specific materials", 
   });
 
   await t.test("A new class PDF is uploaded privately and publication requires confirmation", () => {
-    assert.match(page, /teacherDocApi\.uploadDocument\(selectedFile, uploadTitle\.trim\(\)\)/);
+    assert.match(page, /teacherDocApi\.uploadDocument\(selectedFile, uploadTitle\.trim\(\), uploadMaterialType\)/);
+    assert.match(page, /setUploadMaterialType\("SLIDE_PDF"\)/);
+    assert.match(page, /value="REFERENCE_PDF"/);
     assert.match(page, /openPublishModal\(uploadedDocument, selectedOffering\.id\)/);
     assert.match(page, /Bấm “Lưu công bố” nếu muốn chia sẻ với sinh viên lớp/);
     assert.doesNotMatch(page, /publishDocument\(uploadedDocument\.id, \[selectedOffering\.id\]\)/);

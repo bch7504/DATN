@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { teacherDocApi, teacherApi } from "@/lib/api-client";
-import { TeacherDocument } from "@/types/material";
+import { CourseMaterialType, TeacherDocument } from "@/types/material";
 import { CourseOffering } from "@/types/course-offering";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorAlert } from "@/components/ui/error-states";
@@ -32,6 +32,7 @@ export default function TeacherDocumentsPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadMaterialType, setUploadMaterialType] = useState<CourseMaterialType>("SLIDE_PDF");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [publishDoc, setPublishDoc] = useState<TeacherDocument | null>(null);
@@ -120,9 +121,10 @@ export default function TeacherDocumentsPage() {
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
-      const uploadedDocument = await teacherDocApi.uploadDocument(selectedFile, uploadTitle.trim());
+      const uploadedDocument = await teacherDocApi.uploadDocument(selectedFile, uploadTitle.trim(), uploadMaterialType);
       setIsUploadModalOpen(false);
       setUploadTitle("");
+      setUploadMaterialType("SLIDE_PDF");
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
@@ -263,7 +265,7 @@ export default function TeacherDocumentsPage() {
                   <article key={document.id} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700"><FileText className="h-3.5 w-3.5" /> PDF · {document.totalPages} trang</span>
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700"><FileText className="h-3.5 w-3.5" /> {document.materialType === "SLIDE_PDF" ? "Slide PDF" : "Tài liệu tham khảo"} · {document.totalPages} trang</span>
                         <StatusBadge status={document.status} size="sm" />
                       </div>
                       <h3 className="mt-3 text-base font-bold text-slate-900">{document.title}</h3>
@@ -274,7 +276,7 @@ export default function TeacherDocumentsPage() {
                     </div>
                     <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
                       <a href={teacherDocApi.getDocumentDownloadUrl(document.id)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
-                        <ExternalLink className="h-3.5 w-3.5" /> Mở PDF
+                        <ExternalLink className="h-3.5 w-3.5" /> {document.materialType === "SLIDE_PDF" ? "Mở slide" : "Tải PDF"}
                       </a>
                       <button type="button" onClick={() => openPublishModal(document)} className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700">
                         <Share2 className="h-3.5 w-3.5" /> Quản lý công bố
@@ -370,6 +372,13 @@ export default function TeacherDocumentsPage() {
               <label className="block text-xs font-bold uppercase text-slate-700">
                 Tiêu đề
                 <input required maxLength={200} value={uploadTitle} onChange={(event) => setUploadTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 p-2.5 text-sm font-normal outline-none focus:border-red-400" placeholder="Bài giảng Chương 2" />
+              </label>
+              <label className="block text-xs font-bold uppercase text-slate-700">
+                Loại học liệu
+                <select value={uploadMaterialType} onChange={(event) => setUploadMaterialType(event.target.value as CourseMaterialType)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm font-normal outline-none focus:border-red-400">
+                  <option value="SLIDE_PDF">Slide PDF — xem từng trang và dùng AI Tutor</option>
+                  <option value="REFERENCE_PDF">Tài liệu tham khảo — chỉ tải xuống</option>
+                </select>
               </label>
               <label className="block text-xs font-bold uppercase text-slate-700">
                 Tệp PDF có lớp văn bản

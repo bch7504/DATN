@@ -10,6 +10,7 @@ from app.schemas.documents import ExtractedPage, ParsedPdf
 
 WHITESPACE_PATTERN = re.compile(r"[ \t\f\v]+")
 MULTIPLE_NEWLINES_PATTERN = re.compile(r"\n{3,}")
+UNSUPPORTED_CONTROL_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 class PdfProcessingError(Exception):
@@ -49,9 +50,10 @@ def _normalize_text(text: str) -> str:
         None.
     """
 
+    safe_text = UNSUPPORTED_CONTROL_PATTERN.sub(" ", text)
     normalized_lines = [
         WHITESPACE_PATTERN.sub(" ", line).strip()
-        for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        for line in safe_text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     ]
     joined = "\n".join(normalized_lines)
     return MULTIPLE_NEWLINES_PATTERN.sub("\n\n", joined).strip()

@@ -96,11 +96,11 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 ### `documents`
 
-`id`, `owner_id`, `owner_role`, `document_scope (COURSE_MATERIAL|PERSONAL)`, `file_name`, `display_name`, `file_type=PDF`, `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, timestamps, soft-delete fields.
+`id`, `owner_id`, `owner_role`, `document_scope (COURSE_MATERIAL|PERSONAL)`, `material_type (SLIDE_PDF|REFERENCE_PDF, chỉ áp dụng Course Material)`, `file_name`, `display_name`, `file_type=PDF`, `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, timestamps, soft-delete fields.
 
 - Personal: owner Student, chỉ PDF có text layer cho AI.
-- Course Material: owner Teacher, chỉ PDF có text layer và được AI index theo trang.
-- Mọi document muốn dùng cho Tutor/Quiz hoặc public phải `READY`.
+- Course Material: owner Teacher và chỉ nhận PDF có text layer. `SLIDE_PDF` được AI index theo trang; `REFERENCE_PDF` chỉ tải xuống và không có vector/chunk AI.
+- Mọi document muốn public phải `READY`; chỉ `SLIDE_PDF READY` được dùng cho Viewer/Tutor/AI Quiz.
 - Migration `V7` tạo bảng `app.documents`, index owner/scope, soft-delete và giữ object key private. Course Material MVP kiểm tra text layer + page count trước khi đánh dấu `READY`; file không rời Object Storage qua API ngoại trừ stream có phân quyền.
 - Object key không trả browser.
 

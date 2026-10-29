@@ -9,7 +9,8 @@
 
 ```text
 Semester → Course Offering → Enrollment → Course Material PDF
-                                  └→ PDF Viewer + Page Note + Student AI Tutor
+                                  ├→ SLIDE_PDF → Slide Viewer + Page Note + Student AI Tutor
+                                  └→ REFERENCE_PDF → Download only
 
 Student → Personal PDF → Single Agent → Ask | Summarize | Create Quiz
 Teacher → Course Material PDF → AI Quiz Generator → Review → Publish
@@ -28,8 +29,8 @@ Giá trị cốt lõi:
 
 | Actor | Trách nhiệm | Phạm vi dữ liệu |
 |---|---|---|
-| Student | Join lớp, đọc PDF, Note/Tutor, Personal Assistant, Quiz, Dashboard và Plan | Course Offering `APPROVED` và dữ liệu cá nhân |
-| Teacher | Tạo lớp, duyệt enrollment, upload/public PDF, tạo/review/publish Quiz AI | Lớp và Course Material do mình sở hữu |
+| Student | Join lớp, xem Slide PDF, tải PDF tham khảo, Note/Tutor, Personal Assistant, Quiz, Dashboard và Plan | Course Offering `APPROVED` và dữ liệu cá nhân |
+| Teacher | Tạo lớp, duyệt enrollment, upload/public PDF theo loại, tạo/review/publish Quiz AI từ Slide PDF | Lớp và Course Material do mình sở hữu |
 | Admin | User/role, Subject, Semester, monitoring, feedback/audit/settings | Metadata quản trị; không mặc định đọc dữ liệu học cá nhân |
 | Java Backend | System of record và public API | RBAC, ownership, transaction, state và scoring |
 | Python AI Service | PDF index/retrieval/generation/evaluation | Authorized scope tối thiểu do Java cấp |
@@ -38,10 +39,10 @@ Giá trị cốt lõi:
 
 - Auth/profile/RBAC `STUDENT|TEACHER|ADMIN`.
 - Subject/Semester; Course Offering/join code; Enrollment approval.
-- Teacher Course Material PDF: upload, processing, public/revoke.
-- Student PDF Viewer, Page Note, Course Material AI Tutor và page progress.
+- Teacher Course Material PDF: upload, chọn `SLIDE_PDF|REFERENCE_PDF`, public/revoke.
+- Student xem từng trang, Page Note, Course Material AI Tutor và page progress với `SLIDE_PDF`; `REFERENCE_PDF` chỉ tải xuống.
 - Student Personal PDF, conversation history và Single Agent cho hỏi đáp/tóm tắt/tạo Quiz.
-- Teacher AI Quiz Generator từ PDF theo số câu, độ khó, chủ đề và khoảng trang.
+- Teacher AI Quiz Generator từ `SLIDE_PDF` theo số câu, độ khó, chủ đề và khoảng trang.
 - Quiz `MCQ_SINGLE`: đúng 4 options, một đáp án đúng, explanation và page citation; review trước khi dùng/publish.
 - Review Hub, attempt history, wrong-answer review; Java scoring.
 - Dashboard đầy đủ progress/Streak/Daily Goal; Kế hoạch & Lịch tuần theo mock.
@@ -51,10 +52,10 @@ Ngoài MVP: PPTX/DOCX/OCR, Teacher chatbot/Tutor, multi-agent, Topic Mastery, Ex
 
 ## 4. Quy tắc nghiệp vụ
 
-- Chỉ enrollment `APPROVED` được xem Course Material PDF, Note, Tutor và progress.
+- Chỉ enrollment `APPROVED` được truy cập Course Material. `SLIDE_PDF` có Viewer, Note, Tutor và progress; `REFERENCE_PDF` chỉ tải xuống.
 - Course Material và Personal Document chỉ nhận PDF có text layer; PDF scan/no text trả `PDF_TEXT_REQUIRED`, PDF mã hóa trả `PDF_ENCRYPTED`.
 - Personal Document thuộc owner; Teacher/Admin không mặc định đọc hoặc dùng làm Official Content.
-- Teacher chỉ public/tạo Quiz từ PDF và Course Offering mình sở hữu.
+- Teacher chỉ public PDF và Course Offering mình sở hữu; chỉ `SLIDE_PDF` `READY` được dùng tạo Quiz.
 - Teacher không có Personal Chatbot và không có Course Material AI Tutor.
 - Student Personal Assistant dùng một Single Orchestrator Agent, chỉ được gọi `ask_document`, `summarize_document`, `generate_quiz`.
 - Thiếu tham số quan trọng trả `NEEDS_CLARIFICATION`; thiếu bằng chứng trả `NO_EVIDENCE`.
@@ -65,7 +66,8 @@ Ngoài MVP: PPTX/DOCX/OCR, Teacher chatbot/Tutor, multi-agent, Topic Mastery, Ex
 
 | Nguồn | Người sử dụng | Chức năng AI | Citation |
 |---|---|---|---|
-| Course Material PDF | Student `APPROVED` | Tutor; Teacher dùng làm nguồn Quiz | `documentId + pageNumber + excerpt` |
+| Course Material `SLIDE_PDF` | Student `APPROVED` | Slide Viewer/Tutor; Teacher dùng làm nguồn Quiz | `documentId + pageNumber + excerpt` |
+| Course Material `REFERENCE_PDF` | Student `APPROVED` | Chỉ tải xuống; không lập chỉ mục, Tutor hoặc Quiz | Không có citation AI |
 | Personal PDF | Student owner | Ask, Summary, Personal Quiz | `documentId + pageNumber + excerpt` |
 
 Publication bị revoke hoặc enrollment mất quyền phải có hiệu lực ở request kế tiếp. Query/document chunk luôn dùng cùng model, dimensions và index version.
@@ -80,7 +82,7 @@ Publication bị revoke hoặc enrollment mất quyền phải có hiệu lực 
 
 ### Teacher Course Quiz
 
-- Teacher cấu hình PDF/Course Offering/số câu/độ khó/chủ đề/trang.
+- Teacher cấu hình `SLIDE_PDF`/Course Offering/số câu/độ khó/chủ đề/trang.
 - Java kiểm ownership; Python sinh structured draft; Teacher review/sửa rồi publish.
 - State: `GENERATING → REVIEW_REQUIRED → PUBLISHED|REJECTED`; lỗi → `GENERATION_FAILED`.
 
@@ -89,7 +91,7 @@ Mỗi attempt được lưu riêng. “Nội dung cần ôn lại” chỉ lấy
 ## 7. Dashboard, Streak, Daily Goal và Plan
 
 - Không có màn Progress độc lập; Dashboard hiển thị aggregate và từng Course Offering.
-- Page progress chỉ phản ánh trang Course Material đã xem, không suy luận mức hiểu.
+- Page progress chỉ phản ánh trang `SLIDE_PDF` đã xem, không tính lượt tải `REFERENCE_PDF` và không suy luận mức hiểu.
 - Streak chỉ tính ngày có `VIEW_PAGE`, `STUDY_TASK_COMPLETED` hoặc `QUIZ_COMPLETED`; login, Note và `ASK_AI` không tính.
 - Daily Goal gồm `pageTarget`, `quizQuestionTarget`, `taskTarget`; Java tính actual theo ngày/timezone.
 - Student chủ động quản lý task/lịch tuần; recommendation tự động ngoài MVP.

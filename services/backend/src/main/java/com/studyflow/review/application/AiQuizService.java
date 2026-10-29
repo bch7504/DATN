@@ -350,6 +350,12 @@ public class AiQuizService {
                         .findByIdAndOwnerIdAndDocumentScopeAndDeletedAtIsNull(id, ownerId, "COURSE_MATERIAL")
                         .orElseThrow(() -> new ResourceNotFoundException("DOCUMENT_NOT_FOUND", "Không tìm thấy học liệu.")))
                 .peek(AiQuizService::requireReady)
+                .peek(document -> {
+                    if (!document.isSlidePdf()) {
+                        throw new ValidationException("INVALID_MATERIAL_TYPE",
+                                "Chỉ SLIDE_PDF được dùng để sinh Quiz AI.");
+                    }
+                })
                 .toList();
     }
 

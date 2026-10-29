@@ -703,6 +703,10 @@ class RealHttpApiTest {
         String boundary = "qa-" + UUID.randomUUID();
         ByteArrayOutputStream body = new ByteArrayOutputStream();
         if (title != null) body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\n" + title + "\r\n").getBytes(StandardCharsets.UTF_8));
+        if (path.equals("/api/v1/teacher/documents")) {
+            body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"materialType\"\r\n\r\nSLIDE_PDF\r\n")
+                    .getBytes(StandardCharsets.UTF_8));
+        }
         body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + field + "\"; filename=\"synthetic.pdf\"\r\nContent-Type: application/pdf\r\n\r\n").getBytes(StandardCharsets.UTF_8));
         body.write(bytes);
         body.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));

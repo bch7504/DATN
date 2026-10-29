@@ -37,8 +37,9 @@ public class TeacherCourseMaterialController {
     /** Input: authenticated Teacher JWT and multipart PDF/title. Output: HTTP 201 safe metadata. Errors: 401/403/413/415/422/502/503. */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<TeacherDocumentResponse> upload(@AuthenticationPrincipal Jwt jwt,
-            @RequestPart("file") MultipartFile file, @RequestParam("title") String title) {
-        CourseMaterialDocument document = service.upload(userId(jwt), file, title);
+            @RequestPart("file") MultipartFile file, @RequestParam("title") String title,
+            @RequestParam("materialType") String materialType) {
+        CourseMaterialDocument document = service.upload(userId(jwt), file, title, materialType);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.listTeacher(userId(jwt)).stream()
                 .filter(item -> item.id().equals(document.getId())).findFirst().orElseThrow());
     }
@@ -80,7 +81,10 @@ public class TeacherCourseMaterialController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType(file.contentType()));
         headers.setContentLength(file.sizeBytes());
-        headers.setContentDisposition(ContentDisposition.inline().filename(file.fileName(), StandardCharsets.UTF_8).build());
+        ContentDisposition.Builder disposition = file.inlineAllowed()
+                ? ContentDisposition.inline()
+                : ContentDisposition.attachment();
+        headers.setContentDisposition(disposition.filename(file.fileName(), StandardCharsets.UTF_8).build());
         headers.set("X-Content-Type-Options", "nosniff");
         return new ResponseEntity<>(body, headers, HttpStatus.OK);
     }
