@@ -1,10 +1,13 @@
 package com.studyflow.auth.infrastructure;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.studyflow.auth.application.port.UserAccountStore;
+import com.studyflow.user.domain.UserStatus;
 import jakarta.servlet.http.Cookie;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -20,6 +23,12 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
@@ -117,10 +126,31 @@ public class SecurityConfig {
     }
 
     @Bean
-    JwtDecoder jwtDecoder(SecretKey secretKey) {
-        return NimbusJwtDecoder.withSecretKey(secretKey)
+    /** Args: signing key, issuer policy and current account store. Input: signed access JWT.
+     * Output: decoder enforcing signature, time, issuer and live account role/status.
+     * Errors: invalid/old-role/locked tokens become authentication failures; DB failures propagate closed. */
+    JwtDecoder jwtDecoder(SecretKey secretKey, AuthProperties properties, UserAccountStore users) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(secretKey)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
+        OAuth2TokenValidator<Jwt> currentAccount = token -> {
+            UUID id;
+            try { id = UUID.fromString(token.getSubject()); }
+            catch (RuntimeException exception) { return invalidAccountToken(); }
+            String role = token.getClaimAsString("role");
+            return users.findById(id).filter(account -> account.status() == UserStatus.ACTIVE
+                            && account.role().name().equals(role))
+                    .map(account -> OAuth2TokenValidatorResult.success())
+                    .orElseGet(SecurityConfig::invalidAccountToken);
+        };
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(properties.jwtIssuer()), currentAccount));
+        return decoder;
+    }
+
+    /** Args: none. Output: standard invalid-token result without account details. Errors: none. */
+    private static OAuth2TokenValidatorResult invalidAccountToken() {
+        return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Account unavailable", null));
     }
 
     /**

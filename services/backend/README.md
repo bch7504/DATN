@@ -44,11 +44,11 @@ Các tài khoản có tên `Sinh viên mẫu …`, email `@example.invalid` (kh�
 | `courseoffering` | Teacher tự tạo lớp, join-code lifecycle, lock/archive |
 | `enrollment` | Student request, Teacher approve/reject, access policy |
 | `document`, `publication` | Teacher/Personal metadata, upload, public/revoke theo Course Offering |
-| `slide`, `note` | Slide artifact access, view event và Note |
+| `material` | Ghi chú trang PDF và view event đã xác thực |
 | `conversation` | Personal RAG conversation/history và citation record |
 | `review` | Free-prompt Quiz, destination, draft review/regenerate, attempt, wrong-answer source và Java scoring |
 | `progress`, `study` | Dashboard aggregate, Content Progress, Study Streak, Daily Goal và Study Plan/Calendar |
-| `feedback`, `audit`, `settings` | Admin operation và operational metadata |
+| `admin` | Quản trị danh mục, tài khoản, phản hồi, audit và runtime setting |
 | `integration.ai`, `integration.storage` | Outbound adapters; không chứa business rule |
 
 Mỗi business module triển khai theo `api → application → domain → infrastructure`. DTO/JPA entity không đi xuyên boundary; public/application method phải có typed contract và Javadoc theo `AGENTS.md`.
@@ -79,7 +79,8 @@ Study Plan vẫn hoạt động độc lập khi không chọn lớp học phầ
 - Teacher hợp lệ tự tạo Course Offering từ Subject + Semester active; Admin quản lý catalog và giám sát, không phân công từng lớp.
 - Teacher owner quản lý join code, duyệt Enrollment và public document vào lớp mình sở hữu.
 - Student chỉ truy cập materials/Tutor khi Enrollment `APPROVED` hoặc historical policy cho phép.
-- Course Material: Teacher upload/public PDF text-layer; Student `APPROVED` xem/tải và dùng AI Tutor qua Java. Page Note và view event vẫn là phần chưa nối trong module hiện tại.
+- Course Material: Teacher upload/public PDF text-layer; Student `APPROVED` xem/tải và dùng AI Tutor qua Java. Student lưu ghi chú theo trang và ghi nhận một lượt xem cho mỗi trang/ngày địa phương qua Java; Dashboard tổng hợp tiến độ trang, nhiệm vụ và Quiz từ dữ liệu thật.
+- Admin: API quản lý tài khoản, danh mục, lớp học phần, phản hồi, audit và cờ cho phép đăng ký. Đổi vai trò/khóa tài khoản thu hồi refresh token và access JWT cũ bị kiểm lại theo trạng thái/role hiện hành.
 - Personal Document: PDF text-layer thuộc Student owner; Personal Assistant/RAG đã đi qua Java và tách khỏi Teacher materials.
 - Java xác minh scope trước khi gọi Python, kiểm lại citation/Quiz output và sở hữu Quiz lifecycle/scoring/progress.
 - Java không đọc/ghi schema `ai` hoặc vector.

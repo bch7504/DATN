@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.studyflow.auth.infrastructure.RestAccessDeniedHandler;
 import com.studyflow.auth.infrastructure.RestAuthenticationEntryPoint;
 import com.studyflow.auth.infrastructure.SecurityConfig;
+import com.studyflow.auth.application.port.UserAccountStore;
 import com.studyflow.auth.infrastructure.SecurityErrorResponder;
 import com.studyflow.common.config.TimeConfig;
 import com.studyflow.study.application.StudyPlanService;
@@ -70,6 +71,8 @@ class StudyPlanControllerTest {
 
     @MockBean
     private StudyPlanService service;
+    @MockBean
+    private UserAccountStore userAccountStore;
 
     @Test
     void createPlanReturnsCreatedContract() throws Exception {

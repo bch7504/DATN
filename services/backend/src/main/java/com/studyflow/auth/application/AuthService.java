@@ -1,5 +1,6 @@
 package com.studyflow.auth.application;
 
+import com.studyflow.admin.infrastructure.AdminJdbcStore;
 import com.studyflow.auth.application.port.RefreshSessionStore;
 import com.studyflow.auth.application.port.RegistrationChallengeStore;
 import com.studyflow.auth.application.port.SecretHasher;
@@ -32,7 +33,10 @@ public class AuthService {
     private final VerificationCodeGenerator codeGenerator;
     private final AuthProperties properties;
     private final Clock clock;
+    private final AdminJdbcStore adminSettings;
 
+    /** Args: account/challenge/session ports, OTP/hash/token services, server auth policy, clock and runtime settings.
+     * Input: Spring managed dependencies. Output: authentication service. Errors: configuration failures at startup. */
     public AuthService(
             UserAccountStore users,
             RegistrationChallengeStore challenges,
@@ -42,7 +46,8 @@ public class AuthService {
             SessionTokenIssuer tokenIssuer,
             VerificationCodeGenerator codeGenerator,
             AuthProperties properties,
-            Clock clock
+            Clock clock,
+            AdminJdbcStore adminSettings
     ) {
         this.users = users;
         this.challenges = challenges;
@@ -53,6 +58,7 @@ public class AuthService {
         this.codeGenerator = codeGenerator;
         this.properties = properties;
         this.clock = clock;
+        this.adminSettings = adminSettings;
     }
 
     /**
@@ -65,6 +71,9 @@ public class AuthService {
      */
     @Transactional
     public RegistrationStatus startRegistration(StartRegistrationCommand command) {
+        if (!adminSettings.registrationEnabled()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "REGISTRATION_DISABLED", "Đăng ký tài khoản hiện đang tạm dừng");
+        }
         Instant now = clock.instant();
         String email = normalizeAndValidatePtitEmail(command.email());
         if (users.existsByEmail(email)) {

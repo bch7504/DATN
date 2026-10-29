@@ -326,6 +326,22 @@ public class CourseMaterialLibraryService {
      */
     @Transactional(readOnly = true)
     public TutorScope authorizeTutor(UUID studentId, UUID documentId, int pageNumber) {
+        TutorScope scope = authorizePage(studentId, documentId, pageNumber);
+        if (offerings.findById(scope.courseOfferingId())
+                .map(offering -> offering.getStatus() != CourseOfferingStatus.ACTIVE).orElse(true)) {
+            throw new ForbiddenException("ENROLLMENT_REQUIRED", "Lớp học phần không còn hoạt động để hỏi đáp.");
+        }
+        return scope;
+    }
+
+    /**
+     * Args: authenticated studentId, course-material documentId and 1-based pageNumber.
+     * Input: a READY PDF with a current publication in an APPROVED, non-locked offering.
+     * Output: authorized document, owner, page and offering scope; no file content is read.
+     * Errors: 404 unknown PDF, 403 missing access, 409 non-ready PDF, 422 invalid page.
+     */
+    @Transactional(readOnly = true)
+    public TutorScope authorizePage(UUID studentId, UUID documentId, int pageNumber) {
         CourseMaterialDocument document = documents.findByIdAndDeletedAtIsNull(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("DOCUMENT_NOT_FOUND", "Không tìm thấy học liệu."));
         if (!"READY".equals(document.getProcessingStatus())) {
@@ -342,7 +358,7 @@ public class CourseMaterialLibraryService {
                 .filter(approved::contains)
                 .sorted()
                 .filter(id -> offerings.findById(id)
-                        .map(offering -> offering.getStatus() == CourseOfferingStatus.ACTIVE)
+                        .map(offering -> offering.getStatus() != CourseOfferingStatus.LOCKED)
                         .orElse(false))
                 .findFirst()
                 .orElseThrow(() -> new ForbiddenException(

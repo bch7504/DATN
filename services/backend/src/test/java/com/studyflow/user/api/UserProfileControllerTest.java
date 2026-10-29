@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.studyflow.auth.infrastructure.RestAccessDeniedHandler;
 import com.studyflow.auth.infrastructure.RestAuthenticationEntryPoint;
 import com.studyflow.auth.infrastructure.SecurityConfig;
+import com.studyflow.auth.application.port.UserAccountStore;
 import com.studyflow.auth.infrastructure.SecurityErrorResponder;
 import com.studyflow.user.application.UserProfile;
 import com.studyflow.user.application.UserProfileService;
@@ -55,6 +56,9 @@ class UserProfileControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockBean
+    private UserAccountStore userAccountStore;
 
     @MockBean
     private UserProfileService profiles;

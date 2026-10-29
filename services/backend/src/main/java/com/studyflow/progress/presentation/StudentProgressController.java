@@ -5,11 +5,9 @@ import com.studyflow.progress.application.ConfigureDailyGoalCommand;
 import com.studyflow.progress.application.DailyGoalProgressDTO;
 import com.studyflow.progress.application.DailyGoalService;
 import com.studyflow.progress.application.LearningEventService;
-import com.studyflow.progress.application.RecordLearningEventCommand;
 import com.studyflow.progress.application.StudyMetricsService;
 import com.studyflow.progress.application.StudyStreakCalculator;
 import com.studyflow.progress.domain.LearningEventRepository;
-import com.studyflow.progress.dto.RecordLearningEventRequest;
 import com.studyflow.progress.dto.StudentDailyGoalRequest;
 import com.studyflow.progress.dto.StudentDailyGoalResponse;
 import com.studyflow.progress.dto.StudentStreakResponse;
@@ -28,7 +26,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -146,29 +143,6 @@ public class StudentProgressController {
         );
         DailyGoalProgressDTO progress = dailyGoalService.configure(studentId, command);
         return ResponseEntity.ok(toResponse(progress));
-    }
-
-    /**
-     * Args: jwt, req.
-     * Input: authenticated Student session and event details.
-     * Output: 201 CREATED.
-     */
-    @PostMapping("/learning-events")
-    public ResponseEntity<Void> recordLearningEvent(
-            @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody RecordLearningEventRequest req
-    ) {
-        UUID studentId = userId(jwt);
-        RecordLearningEventCommand command = new RecordLearningEventCommand(
-                studentId,
-                req.eventType(),
-                req.sourceType(),
-                req.sourceId(),
-                req.quantity(),
-                req.idempotencyKey()
-        );
-        learningEventService.recordEvent(command);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     private static StudentDailyGoalResponse toResponse(DailyGoalProgressDTO dto) {
