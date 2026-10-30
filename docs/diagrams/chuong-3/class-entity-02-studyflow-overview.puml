@@ -1,0 +1,249 @@
+@startuml
+' Hình 3.2 - Biểu đồ lớp thực thể tổng quan StudyFlow.
+' Đồng bộ với ERD vật lý; vai trò Student/Teacher/Admin được biểu diễn bằng thuộc tính role của User.
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam defaultFontColor #111111
+skinparam shadowing false
+skinparam linetype ortho
+skinparam ArrowColor #000000
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #000000
+skinparam ClassHeaderBackgroundColor #FFFFFF
+skinparam ClassFontColor #111111
+skinparam ClassAttributeFontColor #111111
+skinparam classAttributeIconSize 0
+skinparam roundcorner 0
+skinparam nodesep 12
+skinparam ranksep 26
+hide circle
+top to bottom direction
+
+class User <<entity>> {
+  -id: UUID
+  -email: String
+  -role: UserRole
+  -status: UserStatus
+}
+class RefreshToken <<entity>> {
+  -id: UUID
+  -tokenHash: String
+}
+
+class Subject <<entity>> {
+  -id: UUID
+  -code: String
+  -name: String
+}
+class Semester <<entity>> {
+  -id: UUID
+  -code: String
+  -startDate: Date
+  -endDate: Date
+}
+class CourseOffering <<entity>> {
+  -id: UUID
+  -code: String
+  -name: String
+  -status: OfferingStatus
+}
+class CourseEnrollment <<entity>> {
+  -id: UUID
+  -status: EnrollmentStatus
+  -requestedAt: DateTime
+}
+
+class Document <<entity>> {
+  -id: UUID
+  -displayName: String
+  -documentScope: DocumentScope
+  -materialType: MaterialType?
+  -documentVersion: Integer
+}
+class DocumentPublication <<entity>> {
+  -id: UUID
+  -status: PublicationStatus
+  -publishedAt: DateTime
+}
+class DocumentPage <<entity>> {
+  -id: UUID
+  -pageNumber: Integer
+}
+class PageNote <<entity>> {
+  -id: UUID
+  -pageNumber: Integer
+  -content: Text
+}
+class LearningProgress <<entity>> {
+  -id: UUID
+  -progressPercent: Decimal
+  -lastPage: Integer
+}
+class LearningEvent <<entity>> {
+  -id: UUID
+  -eventType: LearningEventType
+  -activityDate: Date
+}
+
+class ChatConversation <<entity>> {
+  -id: UUID
+  -type: ConversationType
+  -status: ConversationStatus
+}
+class ConversationDocument <<entity>> {
+  -conversationId: UUID
+  -documentId: UUID
+  -documentVersion: Integer
+}
+class ChatMessage <<entity>> {
+  -id: UUID
+  -role: MessageRole
+  -capability: AiCapability
+  -answerStatus: AnswerStatus
+}
+
+class Quiz <<entity>> {
+  -id: UUID
+  -title: String
+  -generationType: GenerationType
+  -status: QuizStatus
+}
+class QuizSource <<entity>> {
+  -quizId: UUID
+  -documentId: UUID
+  -documentVersion: Integer
+}
+class QuizQuestion <<entity>> {
+  -id: UUID
+  -content: Text
+  -options: String[4]
+  -correctOptionIndex: Integer
+}
+class QuizQuestionSource <<entity>> {
+  -id: UUID
+  -documentId: UUID
+  -pageNumber: Integer
+}
+class QuizAttempt <<entity>> {
+  -id: UUID
+  -startedAt: DateTime
+  -submittedAt: DateTime?
+  -score: Decimal?
+}
+class QuizAnswer <<entity>> {
+  -id: UUID
+  -selectedOptionIndex: Integer
+  -isCorrect: Boolean
+}
+
+class DailyGoal <<entity>> {
+  -studentId: UUID
+  -pageTarget: Integer
+  -quizQuestionTarget: Integer
+  -taskTarget: Integer
+}
+class StudyPlan <<entity>> {
+  -id: UUID
+  -title: String
+  -startDate: Date
+  -endDate: Date
+}
+class StudyPlanItem <<entity>> {
+  -id: UUID
+  -title: String
+  -scheduledStart: DateTime?
+  -dueAt: DateTime?
+}
+class FeedbackReport <<entity>> {
+  -id: UUID
+  -status: FeedbackStatus
+}
+class SystemLog <<entity>> {
+  -id: UUID
+  -action: String
+  -createdAt: DateTime
+}
+class SystemSetting <<entity>> {
+  -key: String
+  -valueJson: Json
+}
+
+class IndexJob <<AI entity>> {
+  -id: UUID
+  -documentId: UUID
+  -documentVersion: Integer
+  -idempotencyKey: String
+}
+class DocumentIndex <<AI entity>> {
+  -id: UUID
+  -documentId: UUID
+  -documentVersion: Integer
+  -embeddingDimensions: Integer
+}
+class DocumentChunk <<AI entity>> {
+  -id: UUID
+  -pageNumber: Integer
+  -chunkIndex: Integer
+  -embedding: Vector[1024]
+}
+class AgentRun <<AI entity>> {
+  -id: UUID
+  -conversationId: UUID
+  -selectedTool: AiCapability
+  -status: AgentRunStatus
+}
+
+' Account and course-offering domain.
+User "1" *-- "0..*" RefreshToken
+Subject "1" -- "0..*" CourseOffering
+Semester "1" -- "0..*" CourseOffering
+User "1" -- "0..*" CourseOffering
+CourseOffering "1" *-- "0..*" CourseEnrollment
+User "1" -- "0..*" CourseEnrollment
+
+' Document, publication and learning domain.
+User "1" -- "0..*" Document
+Document "1" *-- "0..*" DocumentPublication
+CourseOffering "1" -- "0..*" DocumentPublication
+Document "1" *-- "0..*" DocumentPage
+User "1" -- "0..*" PageNote
+Document "1" -- "0..*" PageNote
+User "1" -- "0..*" LearningProgress
+Document "1" -- "0..*" LearningProgress
+User "1" -- "0..*" LearningEvent
+
+' Personal-assistant conversation domain.
+User "1" -- "0..*" ChatConversation
+ChatConversation "1" *-- "0..*" ConversationDocument
+Document "1" -- "0..*" ConversationDocument
+ChatConversation "1" *-- "0..*" ChatMessage
+
+' Quiz domain.
+User "1" -- "0..*" Quiz
+CourseOffering "0..1" -- "0..*" Quiz
+Quiz "1" *-- "0..*" QuizSource
+Document "1" -- "0..*" QuizSource
+Quiz "1" *-- "0..*" QuizQuestion
+QuizQuestion "1" *-- "0..*" QuizQuestionSource
+Document "1" -- "0..*" QuizQuestionSource
+Quiz "1" *-- "0..*" QuizAttempt
+User "1" -- "0..*" QuizAttempt
+QuizAttempt "1" *-- "0..*" QuizAnswer
+QuizQuestion "1" -- "0..*" QuizAnswer
+
+' Plan, administration and monitoring domain.
+User "1" *-- "0..1" DailyGoal
+User "1" -- "0..*" StudyPlan
+StudyPlan "1" *-- "0..*" StudyPlanItem
+CourseOffering "0..1" -- "0..*" StudyPlanItem
+User "1" -- "0..*" FeedbackReport
+User "0..1" -- "0..*" SystemLog
+
+' AI schema keeps logical identifiers; it does not own Java business entities.
+IndexJob ..> Document
+DocumentIndex ..> Document
+DocumentIndex "1" *-- "0..*" DocumentChunk
+AgentRun ..> ChatConversation
+
+@enduml

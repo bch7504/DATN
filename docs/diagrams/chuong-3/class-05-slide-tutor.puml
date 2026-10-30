@@ -1,42 +1,132 @@
 @startuml
-' Palette: class; based on the Visual Paradigm guide samples (see README).
-skinparam defaultFontColor #000000
-skinparam ArrowColor #000000
-skinparam NoteBackgroundColor #FFFFFF
-skinparam NoteBorderColor #000000
-hide circle
-skinparam ClassBackgroundColor #FFFFFF
-skinparam ClassBorderColor #000000
-skinparam ClassHeaderBackgroundColor #FFFFFF
-skinparam shadowing false
-skinparam linetype ortho
+' Hình 3.5 - Thiết kế lớp Course Material Tutor.
+' Bố cục một mặt phẳng: View ở trên, Control ở giữa, Entity/DTO ở dưới.
 skinparam backgroundColor white
 skinparam defaultFontName Arial
-skinparam defaultFontSize 15
+skinparam defaultFontSize 14
+skinparam defaultFontColor #111111
+skinparam shadowing false
+skinparam linetype ortho
+skinparam ArrowColor #000000
+skinparam ClassBorderColor #000000
+skinparam ClassFontColor #111111
+skinparam ClassAttributeFontColor #111111
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassHeaderBackgroundColor #FFFFFF
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #000000
 skinparam classAttributeIconSize 0
-skinparam packageStyle rectangle
-skinparam roundcorner 10
-skinparam nodesep 30
-skinparam ranksep 40
+skinparam nodesep 28
+skinparam ranksep 52
+hide circle
 top to bottom direction
 
-class CourseMaterialTutorController <<Java boundary>> {
+class CourseMaterialLibraryPage <<view>> {
+  +loadMaterials(): CourseMaterial[]
+  +openSlide(documentId: UUID): void
+  +downloadReference(documentId: UUID): void
+}
+class SlideViewerPage <<view>> {
+  +showPage(pageNumber: Integer): void
+  +selectText(): String
+  +toggleTutor(): void
+  +toggleNotes(): void
+}
+class AiTutorPanel <<view>> {
+  +ask(question: String): void
+  +showAnswer(response: AnswerResponse): void
+  +openCitation(citation: PageCitation): void
+}
+class PageNotePanel <<view>> {
+  +loadNote(pageNumber: Integer): void
+  +saveNote(content: String): void
+}
+
+class StudentMaterialController <<controller>> {
+  +listMaterials(studentId: UUID): CourseMaterial[]
+  +renderSlide(documentId: UUID, pageNumber: Integer): PageImage
+  +getTextLayer(documentId: UUID, pageNumber: Integer): TextLayer
+}
+class CourseMaterialTutorController <<controller>> {
   +ask(documentId: UUID, pageNumber: Integer, body: PageQuestion): AnswerResponse
+}
+class PageNoteController <<controller>> {
+  +get(documentId: UUID, pageNumber: Integer): PageNote
+  +save(documentId: UUID, pageNumber: Integer, body: SaveNoteRequest): PageNote
+}
+class MaterialAccessPolicy <<control>> {
+  +authorizeView(studentId: UUID, documentId: UUID, pageNumber: Integer): PageScope
+  +authorizeTutor(studentId: UUID, documentId: UUID, pageNumber: Integer): PageScope
+}
+class CourseMaterialTutorService <<control>> {
+  +ask(studentId: UUID, documentId: UUID, pageNumber: Integer, question: String): AnswerResponse
+}
+class AiClient <<adapter>> {
+  +askCourseMaterial(scope: PageScope, question: String): AnswerResponse
+}
+class CourseMaterialTutorPipeline <<control>> {
+  +run(scope: PageScope, question: String): AnswerResponse
+}
+class ScopedRetriever <<control>> {
+  +search(scope: PageScope, query: String): EvidenceSet
+}
+class GroundingValidator <<control>> {
+  +validate(answer: GeneratedAnswer, evidence: EvidenceSet): ValidationResult
+}
+
+class Student <<entity>> {
+  -id: UUID
+  -status: UserStatus
+}
+class CourseOffering <<entity>> {
+  -id: UUID
+  -status: OfferingStatus
+}
+class CourseEnrollment <<entity>> {
+  -studentId: UUID
+  -courseOfferingId: UUID
+  -status: EnrollmentStatus
+}
+class CourseMaterial <<entity>> {
+  -id: UUID
+  -ownerId: UUID
+  -materialType: MaterialType
+  -version: Integer
+  -processingStatus: ProcessingStatus
+}
+class DocumentPublication <<entity>> {
+  -documentId: UUID
+  -courseOfferingId: UUID
+  -status: PublicationStatus
+}
+class DocumentPage <<entity>> {
+  -documentId: UUID
+  -pageNumber: Integer
+}
+class PageNote <<entity>> {
+  -studentId: UUID
+  -documentId: UUID
+  -pageNumber: Integer
+  -content: Text
+}
+class LearningProgress <<entity>> {
+  -studentId: UUID
+  -documentId: UUID
+  -lastPage: Integer
+  -progressPercent: Decimal
+}
+class DocumentIndex <<entity>> {
+  -documentId: UUID
+  -documentVersion: Integer
+  -status: IndexStatus
+}
+class DocumentChunk <<entity>> {
+  -pageNumber: Integer
+  -chunkIndex: Integer
+  -embedding: Vector[1024]
 }
 class PageQuestion <<DTO>> {
   +question: String
-}
-class CourseMaterialTutorService <<Java control>> {
-  +ask(userId: UUID, documentId: UUID, pageNumber: Integer, question: String): AnswerResponse
-}
-class MaterialAccessPolicy <<Java policy>> {
-  +authorize(userId: UUID, documentId: UUID, pageNumber: Integer): PageScope
-}
-class AiClient <<HTTP adapter>> {
-  +askCourseMaterial(scope: PageScope, question: String): AnswerResponse
-}
-class CourseMaterialTutorPipeline <<Python control>> {
-  +run(scope: PageScope, question: String): AnswerResponse
 }
 class PageScope <<DTO>> {
   +documentId: UUID
@@ -45,21 +135,72 @@ class PageScope <<DTO>> {
   +currentPage: Integer
   +allowedPageNumbers: Integer[]
 }
-class GroundingValidator <<Python service>> {
-  +validate(answer: GeneratedAnswer, evidence: EvidenceSet): ValidationResult
+class AnswerResponse <<DTO>> {
+  +status: AnswerStatus
+  +answer: String?
+  +citations: PageCitation[]
+}
+class PageCitation <<DTO>> {
+  +documentId: UUID
+  +pageNumber: Integer
+  +excerpt: String
 }
 
-CourseMaterialTutorController ..> PageQuestion
-CourseMaterialTutorController --> CourseMaterialTutorService
-CourseMaterialTutorService --> MaterialAccessPolicy
-MaterialAccessPolicy ..> PageScope
-CourseMaterialTutorService --> AiClient
-AiClient ..> CourseMaterialTutorPipeline : internal HTTP
-CourseMaterialTutorPipeline --> GroundingValidator
+' View navigation and View-to-Control dependencies.
+CourseMaterialLibraryPage --> SlideViewerPage
+SlideViewerPage --> AiTutorPanel
+SlideViewerPage --> PageNotePanel
+CourseMaterialLibraryPage ..> StudentMaterialController
+SlideViewerPage ..> StudentMaterialController
+AiTutorPanel ..> CourseMaterialTutorController
+AiTutorPanel ..> PageQuestion
+PageNotePanel ..> PageNoteController
 
-note bottom of MaterialAccessPolicy
-Kiểm tra enrollment APPROVED, publication và READY
-trước lời gọi AI và trước khi trả nội dung PDF.
-Tutor này chỉ dành cho Student.
+' Control flow.
+StudentMaterialController ..> MaterialAccessPolicy
+CourseMaterialTutorController ..> CourseMaterialTutorService
+CourseMaterialTutorService ..> MaterialAccessPolicy
+CourseMaterialTutorService ..> AiClient
+PageNoteController ..> MaterialAccessPolicy
+AiClient ..> CourseMaterialTutorPipeline : internal HTTP
+CourseMaterialTutorPipeline ..> ScopedRetriever
+CourseMaterialTutorPipeline ..> GroundingValidator
+
+' Entity associations, aggregation and composition.
+Student "1" -- "0..*" CourseEnrollment
+CourseOffering "1" -- "0..*" CourseEnrollment
+CourseOffering "1" o-- "0..*" DocumentPublication
+CourseMaterial "1" -- "0..*" DocumentPublication
+CourseMaterial "1" *-- "1..*" DocumentPage
+Student "1" -- "0..*" PageNote
+CourseMaterial "1" -- "0..*" PageNote
+Student "1" -- "0..*" LearningProgress
+CourseMaterial "1" -- "0..*" LearningProgress
+CourseMaterial "1" -- "1" DocumentIndex
+DocumentIndex "1" *-- "1..*" DocumentChunk
+AnswerResponse "1" *-- "0..*" PageCitation
+
+' Control-to-Entity dependencies.
+MaterialAccessPolicy ..> CourseEnrollment
+MaterialAccessPolicy ..> DocumentPublication
+MaterialAccessPolicy ..> CourseMaterial
+MaterialAccessPolicy ..> PageScope
+StudentMaterialController ..> DocumentPage
+PageNoteController ..> PageNote
+StudentMaterialController ..> LearningProgress
+ScopedRetriever ..> DocumentIndex
+ScopedRetriever ..> DocumentChunk
+CourseMaterialTutorService ..> AnswerResponse
+
+note right of MaterialAccessPolicy
+  Viewer và Tutor chỉ dùng SLIDE_PDF đã công bố
+  cho Student có enrollment APPROVED.
+  REFERENCE_PDF chỉ được tải xuống.
+end note
+
+note right of CourseMaterialTutorPipeline
+  Ưu tiên trang đang xem trong phạm vi được cấp quyền.
+  Thiếu bằng chứng trả NO_EVIDENCE;
+  trích dẫn phải đúng trang PDF.
 end note
 @enduml

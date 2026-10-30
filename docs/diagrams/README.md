@@ -5,11 +5,13 @@ Mở [gallery tổng](index.html), [PDF sơ đồ](luong-use-case-studyflow.pdf)
 ## Nguồn và cách dùng
 
 - `.puml`: nguồn UML hiện hành; `.svg` và `.png`: ảnh xuất tương ứng. Các `.mmd` cùng tên là bản mô tả Mermaid phụ đã được đồng bộ nội dung nhưng không dùng để render đè bộ UML báo cáo.
-- Sáu hình BE2-F01/F02/F03 trong mục 3.4.4–3.4.6 dùng các nguồn `chuong-3/class-be2-*.puml` và `chuong-3/sequence-be2-*.puml`; khi xuất lại phải dùng `render-plantuml.mjs` (hoặc wrapper `chuong-3/render_be2_report_diagrams.py` với dependency prefix), không dùng bộ SVG dựng thủ công cũ.
+- `.drawio`: bản chỉnh sửa trực tiếp bằng diagrams.net của các sơ đồ tổng quan và nhóm AI. Các sơ đồ tổng quan dùng layer từ trên xuống; Sequence giữ participant theo hàng ngang và thời gian đi từ trên xuống. Chạy `node docs/diagrams/export-drawio.mjs` để đồng bộ lại từ nguồn PlantUML hiện có.
+- Ba nguồn Activity AI đang bị xóa khỏi worktree được exporter đọc từ phiên bản `HEAD` gần nhất để tạo bản Draw.io, nhưng script không tự khôi phục hoặc ghi đè các file `.puml/.svg/.png` mà người dùng đã xóa.
 - ERD vật lý dùng nguồn `chuong-3/erd-physical-03-studyflow-overview.puml` và ảnh cùng tên. Đây là thiết kế mục tiêu 27 bảng `app` + 4 bảng `ai`, chưa phải bằng chứng migration đã chạy.
 - Word: ưu tiên SVG, dùng PNG nếu trình soạn thảo không hỗ trợ. Đường nối dùng đoạn thẳng/vuông góc và hạn chế giao cắt. Chỉ hình có nhiều bước/cột mới dùng bố cục và trang ngang; hình ngắn dùng dọc. Sequence vẫn tiến triển thời gian từ trên xuống, Activity chia swimlane; ERD tổng quan dùng trang phù hợp hoặc phụ lục khổ lớn, không xoay chữ hay thu nhỏ tới mức không đọc được.
 - Trước mỗi ảnh có câu dẫn; dưới ảnh có số hình/tên; sau ảnh có đoạn giải thích. Không lấy số hình của bản PDF cũ làm số hình hiện hành.
 - Màu sắc theo mẫu tham khảo của từng loại biểu đồ Visual Paradigm; không bắt buộc màu xám hay một palette duy nhất cho mọi hình. Phân biệt trạng thái/nhánh bằng ký hiệu và nhãn, không chỉ bằng màu.
+- Hai biểu đồ kiến trúc/phạm vi, Use Case tổng quan, ba Sequence và ba Class chức năng dùng nền trắng, khối trắng, chữ/viền/mũi tên màu đen theo ảnh mẫu báo cáo. Class Diagram đặt toàn bộ lớp trên một canvas, không chia bằng package hoặc khung khu vực: `view` ở trên, `control` ở giữa, `entity`/`DTO` ở dưới. Dependency dùng nét đứt có mũi tên mở; association dùng nét liền; aggregation/composition dùng hình thoi rỗng/đặc theo ký pháp Visual Paradigm.
 - Mỗi ảnh xuất có nền trắng được nhúng trực tiếp vào file, với lề trái 100 px, lề phải 150 px, lề trên 80 px và lề dưới 80 px; khung hệ thống, package và swimlane không được nằm sát mép ảnh. Đường nối dùng đoạn thẳng hoặc vuông góc, không dùng đường cong.
 - Activity Diagram có khung ngoài khép kín bốn cạnh, hàng tiêu đề riêng và các đường phân chia swimlane nối đúng từ cạnh trên tới cạnh dưới của khung; khung này được nhúng trong SVG/PNG, không phải viền của trình xem.
 
@@ -19,7 +21,7 @@ Mở [gallery tổng](index.html), [PDF sơ đồ](luong-use-case-studyflow.pdf)
 |---|---|
 | Use Case | Elip/actor xanh nhạt `#7ACFF5`, viền và association tối; boundary nền trắng để dễ đọc. [Mẫu Use Case](https://cdn-images.visual-paradigm.com/guide/uml/what-is-use-case-diagram/02-use-case-diagram-annotated.png) |
 | Activity | Action/decision xanh nhạt, nút đầu/cuối và control flow đen. [Mẫu Activity](https://cdn-images.visual-paradigm.com/guide/uml/what-is-activity-diagram/02-basic-activity-diagram.png) |
-| Class / Entity | Các ngăn lớp xanh nhạt, chữ và quan hệ tối; không dùng màu thay bội số. [Mẫu Class](https://cdn-images.visual-paradigm.com/guide/uml/what-is-class-diagram/02-simple-class.png) |
+| Class / Entity | Nền và khung lớp màu trắng, chữ/viền/connector màu đen; View nằm trên, Control ở giữa, Entity/DTO ở dưới. Stereotype, thuộc tính, phương thức, bội số và loại quan hệ được ghi bằng ký pháp UML. [Mẫu Class](https://cdn-images.visual-paradigm.com/guide/uml/what-is-class-diagram/02-simple-class.png) |
 | Sequence | Header participant/activation xanh nhạt, lifeline và thông điệp tối, khung alt/loop nền trắng. [Mẫu Sequence](https://cdn-images.visual-paradigm.com/guide/uml/what-is-sequence-diagram/01-sequence-diagram-example.png) |
 | State | State xanh nhạt; initial/final đen, transition có nhãn điều kiện. [Mẫu State](https://cdn-images.visual-paradigm.com/guide/uml/what-is-state-machine-diagram/05-simple-state-machine-diagram.png) |
 | ERD | Bảng cam nhạt `#F5B879`, nhãn PK/FK rõ ràng và đường chân quạ tối. [Mẫu Physical ERD](https://cdn-images.visual-paradigm.com/guide/data-modeling/what-is-erd/12-physical-data-model-example.png) |
@@ -35,7 +37,7 @@ Activity dùng nút bắt đầu/kết thúc, action, decision, nhãn điều ki
 
 Sequence dùng lifeline, lời gọi/phản hồi và các khung `alt`, `opt`, `loop`; thứ tự dọc là thời gian, không xoay toàn bộ biểu đồ để ép ngang. [Hướng dẫn Sequence](https://www.visual-paradigm.com/guide/uml-unified-modeling-language/what-is-sequence-diagram/).
 
-Class dùng tên lớp, thuộc tính/phương thức có kiểu, bội số và dependency; lớp miền không đồng nhất với bảng vật lý. [Hướng dẫn Class](https://www.visual-paradigm.com/guide/uml-unified-modeling-language/what-is-class-diagram/).
+Class dùng tên lớp, thuộc tính/phương thức có kiểu, bội số và dependency; lớp miền không đồng nhất với bảng vật lý. Các biểu đồ chức năng Chương 3 bắt buộc có đủ ba nhóm View/Boundary, Control và Entity/DTO; biểu đồ lớp thực thể tổng quan ở Hình 3.2 chỉ mô tả miền dữ liệu nên không lặp lại View và Control. [Hướng dẫn Class](https://www.visual-paradigm.com/guide/uml-unified-modeling-language/what-is-class-diagram/).
 
 State Diagram dùng initial/final pseudo-state, state bo góc, transition có sự kiện/điều kiện; composite state chỉ dùng khi cần gom một giai đoạn có trạng thái con. [Hướng dẫn State Machine](https://www.visual-paradigm.com/guide/uml-unified-modeling-language/what-is-state-machine-diagram/).
 
@@ -49,11 +51,11 @@ Các hình được dựng bằng PlantUML theo ký pháp UML tham khảo Visual
 |---|---|---|
 | Chương 1, mục 1.2 | 1.1 | Phạm vi và hai nguồn học liệu |
 | Chương 2, mục 2.4.1–2.4.4 | 2.1–2.4 | Use Case tổng quát và ba vai trò |
-| Chương 3, mục 3.1–3.3 | 3.1–3.3 | Kiến trúc, entity, ERD |
+| Chương 3, mục 3.1–3.3 | 3.1–3.3 | Kiến trúc, biểu đồ lớp thực thể, ERD vật lý |
 | Chương 3, mục 3.4.1–3.4.3 | 3.4–3.6 | Lớp xử lý ba chức năng AI |
 | Chương 3, mục 3.5.1–3.5.3 | 3.7–3.9 | Activity RAG, Tutor, Quiz |
 | Chương 3, mục 3.5.4–3.5.6 | 3.10–3.12 | Sequence RAG, Tutor, Quiz |
-| Chương 3, mục 3.5.7–3.5.11 | 3.13–3.17 | Enrollment, index, lifecycle, lịch và Dashboard |
+| Chương 3, mục 3.5.7–3.5.8 | 3.13–3.14 | Lập chỉ mục tài liệu và vòng đời Quiz |
 
 ## Đối chiếu bản `bao_cao_chuong_1_2_3.pdf` cũ
 
@@ -81,6 +83,8 @@ Tooling chỉ phục vụ tài liệu, không thêm dependency production. Cần
 
 ```powershell
 node docs/diagrams/render-plantuml.mjs "<dependency-prefix>"
+node docs/diagrams/export-drawio.mjs
+node docs/diagrams/export-drawio.mjs "chuong-3/class-entity-02-studyflow-overview.puml"
 node docs/diagrams/export-gallery.mjs "<dependency-prefix>"
 node docs/diagrams/validate-diagrams.mjs
 ```

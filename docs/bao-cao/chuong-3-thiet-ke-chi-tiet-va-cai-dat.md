@@ -42,17 +42,17 @@ Việc tách hệ thống chính và phần AI giúp nhóm có thể thay đổi
 
 ## 3.2. Thiết kế thực thể và quan hệ nghiệp vụ
 
-### 3.2.1. Sơ đồ thực thể tổng quan
+### 3.2.1. Biểu đồ thiết kế lớp thực thể
 
-Hình 3.2 trình bày những nhóm thông tin quan trọng của hệ thống dưới dạng các bảng và đường liên kết. Biểu tượng chiếc khóa cho biết trường dùng để nhận diện một bản ghi. Đường nối và ký hiệu ở hai đầu cho biết một bản ghi có thể liên quan đến một hay nhiều bản ghi khác.
+Hình 3.2 trình bày các lớp thực thể của hệ thống và mối quan hệ nghiệp vụ giữa chúng. Mỗi khung thể hiện tên lớp cùng các thuộc tính chính. Ba vai trò Student, Teacher và Admin được biểu diễn bằng thuộc tính `role` của lớp User để thống nhất với bảng `users` trong ERD. Hình thoi đặc đặt ở phía thực thể sở hữu thể hiện quan hệ hợp thành; đường liền thể hiện liên kết nghiệp vụ; đường nét đứt có mũi tên chỉ dùng cho tham chiếu logic từ dữ liệu AI sang dữ liệu nghiệp vụ. Các con số ở hai đầu đường nối cho biết một đối tượng có thể liên quan với bao nhiêu đối tượng khác.
 
-![Sơ đồ Entity tổng quan StudyFlow](../diagrams/chuong-3/erd-logical-02-entity-overview.svg)
+![Biểu đồ thiết kế lớp thực thể StudyFlow](../diagrams/chuong-3/class-entity-02-studyflow-overview.svg)
 
-*Hình 3.2. Các nhóm thông tin chính và quan hệ giữa chúng.*
+*Hình 3.2. Biểu đồ thiết kế lớp thực thể tổng quan của StudyFlow.*
 
-Một lớp học phần gắn với một môn học, một học kỳ và một Giảng viên. Sinh viên tham gia lớp thông qua yêu cầu tham gia và chỉ được sử dụng học liệu khi đã được chấp nhận. Tài liệu luôn có chủ sở hữu; việc Giảng viên công bố tài liệu cho lớp không làm thay đổi chủ sở hữu của tài liệu đó. PDF cá nhân của Sinh viên cũng không tự trở thành học liệu chung khi được dùng để hỏi đáp hoặc tạo câu hỏi.
+Biểu đồ được bố trí theo các quan hệ dữ liệu chính của hệ thống nhưng không chia thành khung khu vực. Một lớp học phần gắn với một môn học, một học kỳ và một tài khoản Giảng viên; Sinh viên tham gia thông qua bản ghi ghi danh. Lớp học phần liên hệ với bản công bố tài liệu, Quiz và mục kế hoạch học. Tài liệu luôn có chủ sở hữu; việc Giảng viên công bố tài liệu cho lớp không làm thay đổi chủ sở hữu của tài liệu đó. PDF cá nhân của Sinh viên cũng không tự trở thành học liệu chung khi được dùng để hỏi đáp hoặc tạo câu hỏi.
 
-Bộ câu hỏi cá nhân có thể không gắn với lớp học phần. Một Sinh viên có thể chưa đặt mục tiêu hằng ngày mà vẫn sử dụng các chức năng học tập khác. Bộ câu hỏi đang được tạo có thể chưa có câu hỏi; chỉ bộ đã được kiểm tra đầy đủ mới được chuyển sang bước ôn tập hoặc công bố. Việc xóa một thông tin không được tự động xóa toàn bộ lịch sử liên quan nếu chưa có quy tắc rõ ràng.
+Bộ câu hỏi cá nhân có thể không gắn với lớp học phần. Các lớp AI ở cuối sơ đồ chỉ lưu chỉ mục tài liệu, đoạn nội dung và lần xử lý; chúng liên hệ với dữ liệu học tập bằng mã tài liệu, phiên bản và mã hội thoại chứ không sở hữu tài khoản, kết quả làm bài hay kế hoạch học. Biểu đồ lớp này mô tả cấu trúc nghiệp vụ ở mức thiết kế; sơ đồ cơ sở dữ liệu vật lý tại mục 3.3 mới mô tả bảng, khóa và kiểu cột triển khai.
 
 ### 3.2.2. Các quy tắc bảo đảm dữ liệu đúng
 
@@ -124,37 +124,37 @@ Mục tiêu mỗi ngày cho phép đặt từ 0 đến 100 trang, 0 đến 200 c
 
 ## 3.4. Thiết kế chi tiết ba chức năng AI
 
-Các sơ đồ lớp trong mục này cho biết những nhóm xử lý cần có và trách nhiệm của từng nhóm. Tên trong sơ đồ là tên dự kiến để hỗ trợ lập trình, không có nghĩa toàn bộ các phần đó đã được xây dựng.
+Các sơ đồ lớp trong mục này sử dụng mô hình View–Control–Entity. Các lớp được trình bày trên một mặt phẳng thống nhất, không chia thành các khung riêng: View nằm ở phía trên, Control ở giữa và Entity/DTO ở phía dưới. Nhóm View thể hiện màn hình và thành phần giao diện mà người dùng thao tác. Nhóm Control tiếp nhận yêu cầu, kiểm tra quyền và điều phối xử lý giữa hệ thống chính với phần AI. Nhóm Entity/DTO thể hiện dữ liệu nghiệp vụ được lưu hoặc truyền giữa các bước. Đường phụ thuộc, liên kết, kết tập và hợp thành dùng ký hiệu UML tương ứng để người đọc phân biệt quan hệ. Tên trong sơ đồ là tên thiết kế để hỗ trợ lập trình, không có nghĩa toàn bộ các lớp đó đã được triển khai đầy đủ.
 
 ### 3.4.1. Hỏi đáp và tóm tắt tài liệu cá nhân — AI-F01
 
-Hình 3.4 cho thấy cách hệ thống kiểm tra chủ sở hữu tài liệu, lấy nội dung cuộc trò chuyện và chuyển phần được phép sang AI.
+Hình 3.4 cho thấy đầy đủ đường đi từ trang Tài liệu cá nhân và bảng hội thoại, qua lớp kiểm tra phạm vi và Single Agent, đến các thực thể tài liệu, hội thoại, chỉ mục và kết quả trả về.
 
 ![Lớp Personal RAG](../diagrams/chuong-3/class-04-personal-rag.svg)
 
-*Hình 3.4. Các nhóm xử lý chức năng hỏi đáp và tóm tắt tài liệu cá nhân.*
+*Hình 3.4. Biểu đồ lớp View–Control–Entity của chức năng hỏi đáp, tóm tắt và tạo Quiz từ tài liệu cá nhân.*
 
-Sinh viên gửi yêu cầu cùng danh sách PDF đã chọn. Hệ thống chính kiểm tra tài liệu có thuộc Sinh viên hay không và lấy phần trò chuyện cần thiết. Phần AI xác định người dùng muốn hỏi đáp, tóm tắt hay tạo bộ câu hỏi, sau đó chỉ thực hiện đúng một việc. Kết quả phải nêu rõ trạng thái, nội dung và trang nguồn; hệ thống chính kiểm tra lại trước khi hiển thị hoặc lưu.
+Sinh viên chọn PDF và nhập yêu cầu ngay trên trang Tài liệu cá nhân. Lớp View chỉ gửi dữ liệu tới controller của hệ thống chính. Lớp Control kiểm tra tài liệu có thuộc Sinh viên hay không, cố định phiên bản và phạm vi hội thoại, sau đó Single Agent chọn đúng một công cụ hỏi đáp, tóm tắt hoặc tạo Quiz. Các entity lưu quan hệ giữa Sinh viên, tài liệu, hội thoại, tin nhắn, chỉ mục và lần chạy; kết quả phải có trạng thái và trang nguồn trước khi giao diện hiển thị.
 
 ### 3.4.2. Hỏi đáp tài liệu bài giảng — AI-F02
 
-Hình 3.5 làm rõ việc Sinh viên chỉ được hỏi trên tài liệu đã công bố cho lớp học phần mà mình được tham gia.
+Hình 3.5 thể hiện từ thư viện học liệu, trình xem từng trang PDF, bảng ghi chú và AI Tutor đến lớp kiểm quyền, xử lý hỏi đáp và các entity lớp học phần, publication, tài liệu, trang, ghi chú và tiến độ.
 
 ![Lớp Course Material PDF Tutor](../diagrams/chuong-3/class-05-slide-tutor.svg)
 
-*Hình 3.5. Các nhóm xử lý chức năng hỏi đáp tài liệu bài giảng.*
+*Hình 3.5. Biểu đồ lớp View–Control–Entity của Viewer, ghi chú và Course Material AI Tutor.*
 
-Hệ thống chính xác định đúng phiên bản tài liệu, trang đang xem và những trang Sinh viên được phép sử dụng. Trình duyệt không thể tự mở rộng sang tài liệu hoặc trang khác. Sau khi AI trả kết quả, quyền sử dụng được kiểm tra lại để xử lý trường hợp tài liệu vừa bị thu hồi trong thời gian chờ.
+Giao diện phân biệt SLIDE_PDF để mở Viewer/Tutor và REFERENCE_PDF chỉ để tải xuống. Hệ thống chính xác định enrollment, publication, phiên bản tài liệu, trang đang xem và những trang Sinh viên được phép sử dụng. Phần AI chỉ tìm trong phạm vi này; sau khi AI trả kết quả, hệ thống chính kiểm tra lại quyền và citation trước khi hiển thị. Ghi chú và tiến độ là dữ liệu riêng do hệ thống chính quản lý, không phải kết quả do AI tự cập nhật.
 
 ### 3.4.3. Sinh bộ câu hỏi trắc nghiệm — AI-F03
 
-Hình 3.6 tách rõ việc AI tạo bản nháp với việc người dùng xem lại và hệ thống chấm điểm.
+Hình 3.6 thể hiện đầy đủ các màn hình tạo, theo dõi, duyệt, làm và xem kết quả Quiz; đồng thời tách lớp sinh bản nháp AI khỏi lớp chấm điểm của hệ thống chính.
 
 ![Lớp sinh Quiz](../diagrams/chuong-3/class-06-quiz.svg)
 
-*Hình 3.6. Các nhóm xử lý việc sinh và tiếp nhận bản nháp bộ câu hỏi.*
+*Hình 3.6. Biểu đồ lớp View–Control–Entity của quá trình sinh, duyệt, làm và chấm Quiz.*
 
-Hệ thống chính tiếp nhận yêu cầu và theo dõi quá trình tạo. Phần AI trả về một bản nháp trong đó mỗi câu có bốn phương án, một đáp án đúng, lời giải thích và trang nguồn. Hệ thống chính kiểm tra toàn bộ bộ câu hỏi rồi mới chuyển sang trạng thái chờ người dùng xem lại. Việc chấp nhận, công bố, làm bài và chấm điểm không thuộc trách nhiệm của AI.
+Lớp View gửi cấu hình tạo Quiz và theo dõi trạng thái thông qua controller. Lớp Control kiểm tra vai trò, tài liệu và lớp học phần trước khi giao công việc sinh bản nháp cho AI. Mỗi câu trong bản nháp phải có bốn phương án, một đáp án đúng, lời giải thích và trang nguồn. Các entity lưu Quiz, nguồn, câu hỏi, lượt làm và câu trả lời. Hệ thống Java quản lý duyệt/công bố, tạo lượt làm và chấm điểm; phần AI không thực hiện các công việc này.
 
 ### 3.4.4. Quy định dữ liệu vào và kết quả trả về
 
@@ -236,85 +236,25 @@ Hình 3.12 phân biệt thời điểm hệ thống tiếp nhận yêu cầu, th
 
 Trang web chỉ hỏi tình trạng từ hệ thống chính. Mỗi yêu cầu có mã riêng để lỗi mạng hoặc việc thử lại không tạo ra nhiều bộ giống nhau. Sinh viên chấp nhận bộ cá nhân trước khi ôn; Giảng viên xem lại, chỉnh sửa và công bố bộ câu hỏi của lớp. PDF cá nhân dùng làm nguồn không vì vậy mà trở thành học liệu chung.
 
-### 3.5.7. Luồng tham gia lớp học phần
+### 3.5.7. Luồng chuẩn bị tài liệu
 
-Hình 3.13 thể hiện quá trình từ lúc Sinh viên nhập mã tham gia đến lúc Giảng viên chấp nhận hoặc từ chối.
-
-![Activity enrollment](../diagrams/chuong-3/activity-13-course-enrollment.svg)
-
-*Hình 3.13. Các bước tham gia và xét duyệt lớp học phần.*
-
-Sinh viên không thể tự chuyển yêu cầu của mình sang trạng thái đã duyệt. Giảng viên sở hữu lớp là người quyết định. Sau khi được chấp nhận, mỗi lần mở học liệu vẫn phải kiểm tra lớp và tài liệu còn hoạt động; quyền không được cấp vĩnh viễn chỉ vì Sinh viên từng tham gia lớp.
-
-### 3.5.8. Luồng chuẩn bị tài liệu
-
-Hình 3.14 áp dụng cho cả PDF cá nhân và PDF bài giảng. Tài liệu được đọc theo từng trang để giữ nguồn chính xác.
+Hình 3.13 áp dụng cho cả PDF cá nhân và PDF bài giảng. Tài liệu được đọc theo từng trang để giữ nguồn chính xác.
 
 ![Sequence index](../diagrams/chuong-3/sequence-14-document-indexing.svg)
 
-*Hình 3.14. Tiếp nhận, chuẩn bị và đồng bộ trạng thái tài liệu.*
+*Hình 3.13. Tiếp nhận, chuẩn bị và đồng bộ trạng thái tài liệu.*
 
 Phần AI xác nhận đã nhận công việc trước, sau đó mới xử lý phía sau. Hệ thống chính định kỳ hỏi tình trạng và cập nhật cho người dùng. Chỉ PDF có thể đọc được chữ mới được chấp nhận. PDF bị khóa hoặc chỉ gồm hình ảnh phải được báo lỗi rõ ràng. Tài liệu xử lý xong vẫn cần Giảng viên chủ động công bố trước khi Sinh viên sử dụng.
 
-### 3.5.9. Các trạng thái của bộ câu hỏi
+### 3.5.8. Các trạng thái của bộ câu hỏi
 
-Hình 3.15 thể hiện những trạng thái mà một bộ câu hỏi có thể đi qua, tách biệt với các lần Sinh viên làm bài.
+Hình 3.14 thể hiện những trạng thái mà một bộ câu hỏi có thể đi qua, tách biệt với các lần Sinh viên làm bài.
 
 ![State Quiz](../diagrams/chuong-3/state-machine-15-quiz-lifecycle.svg)
 
-*Hình 3.15. Trạng thái của bộ câu hỏi và điều kiện chuyển trạng thái.*
+*Hình 3.14. Trạng thái của bộ câu hỏi và điều kiện chuyển trạng thái.*
 
 Bộ câu hỏi chỉ chuyển từ đang tạo sang chờ duyệt khi toàn bộ câu hỏi hợp lệ. Sinh viên chấp nhận bộ cá nhân để bắt đầu ôn; Giảng viên công bố bộ của lớp sau khi xem lại. Mỗi lần làm bài tạo một lịch sử riêng và không đưa bộ câu hỏi quay lại trạng thái đang tạo. Yêu cầu tạo lại sinh một bộ mới, không ghi đè bộ cũ. Hệ thống chính chấm điểm, AI không chấm.
-
-### 3.5.10. Luồng Kế hoạch và Lịch
-
-Hình 3.16 mô tả việc Sinh viên tự tạo nhiệm vụ, đặt lịch và đánh dấu hoàn thành.
-
-![Activity Kế hoạch và Lịch](../diagrams/chuong-3/activity-16-study-plan.svg)
-
-*Hình 3.16. Các bước quản lý nhiệm vụ và lịch tuần.*
-
-Hệ thống kiểm tra nhiệm vụ có thuộc Sinh viên hay không trước khi lưu. Lịch tuần chỉ hiển thị các nhiệm vụ và lịch học đã được tạo, không tự ghi thêm hoạt động học. Chỉ thao tác hoàn tất nhiệm vụ hợp lệ mới được ghi nhận và một lần hoàn tất không được tính nhiều lần. AI không tự sắp xếp lịch.
-
-### 3.5.11. Luồng Dashboard và ghi nhận hoạt động học
-
-Hình 3.17 mô tả cách các hoạt động hợp lệ được tổng hợp thành tiến độ, mục tiêu trong ngày và chuỗi ngày học liên tiếp.
-
-![Activity Dashboard](../diagrams/chuong-3/activity-17-dashboard-events.svg)
-
-*Hình 3.17. Tổng hợp hoạt động học tập cho Dashboard.*
-
-Ngày học được xác định theo múi giờ của Sinh viên và mỗi hoạt động chỉ được tính một lần. Chỉ xem trang, hoàn tất nhiệm vụ và hoàn thành bài trắc nghiệm được dùng để duy trì chuỗi ngày học. Đăng nhập, ghi chú và hỏi AI không được tính. Dashboard hiển thị toàn bộ tiến độ chung và tiến độ của từng lớp học phần, có thể mở hoặc thu gọn các phần; hệ thống không có trang tiến độ riêng.
-
-### 3.5.12. Sequence Đăng ký Lớp học phần bằng Join Code — BE1-F01
-
-Hình 3.18 mô tả tương tác tuần tự giữa Student, Teacher, Web, Java Backend và Database trong luồng ghi danh lớp học phần.
-
-![Sequence BE1-F01 Enrollment](../diagrams/chuong-3/sequence-be1-f01-enrollment.png)
-
-*Hình 3.18. Biểu đồ tuần tự luồng đăng ký lớp học phần và xét duyệt ghi danh (BE1-F01).*
-
-Biểu đồ thể hiện ba giai đoạn chính: **(1)** Student nhập Join Code — Java tra cứu theo `join_code_hash`, kiểm tra `join_enabled` và trạng thái lớp `ACTIVE`, sau đó kiểm tra ràng buộc unique `(course_offering_id, student_id)` để tạo `CourseEnrollment` với trạng thái `PENDING`. **(2)** Teacher xem danh sách `PENDING`, Java xác minh `teacher_id` là owner của Course Offering, sau đó chuyển trạng thái sang `APPROVED` hoặc `REJECTED` và ghi `system_logs`. **(3)** Mỗi lần Student truy cập học liệu, Java kiểm tra lại trạng thái Enrollment hiện tại — không tin vào session cũ, chỉ APPROVED mới được phép.
-
-### 3.5.13. Sequence Engine tính toán Study Streak và Daily Goal — BE1-F02
-
-Hình 3.19 thể hiện hai luồng song song: cấu hình Daily Goal của Student và tổng hợp Streak khi truy vấn Dashboard.
-
-![Sequence BE1-F02 Streak Goal](../diagrams/chuong-3/sequence-be1-f02-streak-goal.png)
-
-*Hình 3.19. Biểu đồ tuần tự tính toán Study Streak và Daily Goal theo múi giờ người dùng (BE1-F02).*
-
-Điểm kỹ thuật trọng tâm: Java chuyển timestamp ghi sự kiện sang múi giờ `users.time_zone` của Student bằng `ZonedDateTime` trước khi lưu `activity_date` — đảm bảo Student ở UTC+7 tạo sự kiện lúc 23:59 giờ địa phương được ghi đúng ngày. Cơ chế `idempotency_key` ngăn ghi trùng sự kiện khi retry. Các sự kiện `LOGIN`, `NOTE`, `ASK_AI` không được tính vào Streak hoặc Daily Goal theo quy tắc nghiệp vụ. Khi tổng hợp Dashboard, Java đọc `activity_date` đã chuẩn hóa để đếm chuỗi ngày liên tiếp và tính `actual` từ DB — client không được tự cung cấp giá trị này.
-
-### 3.5.14. Sequence Engine Làm bài Quiz, Chấm điểm và Tổng hợp Nguồn ôn tập — BE1-F03
-
-Hình 3.20 mô tả toàn bộ vòng đời một lần làm Quiz: từ khi Student bắt đầu đến khi nhận kết quả và danh sách nguồn cần ôn lại.
-
-![Sequence BE1-F03 Quiz Scoring](../diagrams/chuong-3/sequence-be1-f03-quiz-scoring.png)
-
-*Hình 3.20. Biểu đồ tuần tự luồng làm bài, chấm điểm tự động và trích dẫn nguồn ôn tập (BE1-F03).*
-
-Java tạo `QuizAttempt` và trả danh sách câu hỏi **không kèm** `correctOptionIndex` để tránh lộ đáp án. Khi Student nộp bài, Java mở một Transaction: so sánh từng `selectedOptionIndex` với `correctOptionIndex` lưu trong DB, ghi `QuizAnswer` kèm `is_correct`, tính tổng điểm và ghi sự kiện `QUIZ_COMPLETED` **đúng một lần** theo `idempotency_key = attemptId`. Khung `loop` thể hiện chấm từng câu hỏi trong vòng lặp; khung `alt` xử lý submit lặp idempotent. Sau chấm điểm, Java truy vấn ngược `quiz_question_sources` để lấy `documentId` và `pageNumber` cho các câu trả lời sai, tổng hợp thành danh sách `reviewItems` — hoàn toàn dựa trên dữ liệu nguồn đã lưu, không dùng AI suy luận. Mỗi lần "Làm lại" tạo `QuizAttempt` mới, lịch sử cũ được bảo toàn.
 
 ## 3.6. Thiết kế bảo mật và phân quyền
 

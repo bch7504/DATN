@@ -1,56 +1,123 @@
 @startuml
-' Palette: class; based on the Visual Paradigm guide samples (see README).
-skinparam defaultFontColor #000000
-skinparam ArrowColor #000000
-skinparam NoteBackgroundColor #FFFFFF
-skinparam NoteBorderColor #000000
-hide circle
-skinparam ClassBackgroundColor #FFFFFF
-skinparam ClassBorderColor #000000
-skinparam ClassHeaderBackgroundColor #FFFFFF
-skinparam shadowing false
-skinparam linetype ortho
+' Hình 3.4 - Thiết kế lớp Personal Document Assistant.
+' Bố cục một mặt phẳng: View ở trên, Control ở giữa, Entity/DTO ở dưới.
 skinparam backgroundColor white
 skinparam defaultFontName Arial
-skinparam defaultFontSize 15
+skinparam defaultFontSize 14
+skinparam defaultFontColor #111111
+skinparam shadowing false
+skinparam linetype ortho
+skinparam ArrowColor #000000
+skinparam ClassBorderColor #000000
+skinparam ClassFontColor #111111
+skinparam ClassAttributeFontColor #111111
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassHeaderBackgroundColor #FFFFFF
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #000000
 skinparam classAttributeIconSize 0
-skinparam packageStyle rectangle
-skinparam roundcorner 10
-skinparam nodesep 30
-skinparam ranksep 40
+skinparam nodesep 28
+skinparam ranksep 52
+hide circle
 top to bottom direction
 
-class PersonalAssistantController <<Java boundary>> {
-  +postMessage(id: UUID, body: MessageRequest): AssistantResponse
+class PersonalDocumentsPage <<view>> {
+  +loadDocuments(): PersonalDocument[]
+  +selectDocuments(ids: UUID[]): void
+  +openAssistant(): void
 }
-class MessageRequest <<DTO>> {
-  +message: String
-  +selectedDocumentIds: UUID[]
+class PersonalAssistantPanel <<view>> {
+  +submitPrompt(message: String): void
+  +showAnswer(response: AssistantResponse): void
+  +showNoEvidence(): void
 }
-class PersonalAssistantService <<Java control>> {
-  +run(userId: UUID, id: UUID, request: MessageRequest): AssistantResponse
+class CitationDrawer <<view>> {
+  +open(citation: PageCitation): void
 }
-class ConversationRepository <<Java repository>> {
-  +loadOwnedSnapshot(userId: UUID, id: UUID): ConversationSnapshot
+class QuizDraftReview <<view>> {
+  +showDraft(draft: QuizDraft): void
+  +acceptQuiz(quizId: UUID): void
+  +rejectQuiz(quizId: UUID): void
 }
-class AiClient <<HTTP adapter>> {
+
+class PersonalAssistantController <<controller>> {
+  +postMessage(conversationId: UUID, body: MessageRequest): AssistantResponse
+}
+class PersonalAssistantService <<control>> {
+  +run(studentId: UUID, conversationId: UUID, request: MessageRequest): AssistantResponse
+}
+class ConversationScopeService <<control>> {
+  +loadAuthorizedSnapshot(studentId: UUID, conversationId: UUID): AuthorizedScope
+  +validateResult(scope: AuthorizedScope, result: AssistantResponse): void
+}
+class AiClient <<adapter>> {
   +runAssistant(request: InternalAssistantRequest): AssistantResponse
 }
-class SingleOrchestratorAgent <<Python agent>> {
+class SingleOrchestratorAgent <<control>> {
   +run(request: InternalAssistantRequest): AssistantResponse
   -selectTool(message: String): ToolName
 }
-class AskDocumentTool <<Python tool>> {
+class AskDocumentTool <<control>> {
   +execute(args: AskArgs, scope: AuthorizedScope): AnswerResult
 }
-class SummarizeDocumentTool <<Python tool>> {
+class SummarizeDocumentTool <<control>> {
   +execute(args: SummaryArgs, scope: AuthorizedScope): SummaryResult
 }
-class GenerateQuizTool <<Python tool>> {
-  +execute(args: QuizArgs, scope: AuthorizedScope): QuizDraftResult
+class GenerateQuizTool <<control>> {
+  +execute(args: QuizArgs, scope: AuthorizedScope): QuizDraft
 }
-class ScopedRetriever <<Python service>> {
+class ScopedRetriever <<control>> {
   +search(scope: AuthorizedScope, query: String): EvidenceSet
+}
+class GroundingValidator <<control>> {
+  +validate(result: GeneratedResult, evidence: EvidenceSet): ValidationResult
+}
+
+class Student <<entity>> {
+  -id: UUID
+  -email: String
+  -status: UserStatus
+}
+class PersonalDocument <<entity>> {
+  -id: UUID
+  -ownerId: UUID
+  -version: Integer
+  -processingStatus: ProcessingStatus
+}
+class ChatConversation <<entity>> {
+  -id: UUID
+  -studentId: UUID
+  -status: ConversationStatus
+}
+class ConversationDocument <<entity>> {
+  -conversationId: UUID
+  -documentId: UUID
+  -documentVersion: Integer
+}
+class ChatMessage <<entity>> {
+  -id: UUID
+  -role: MessageRole
+  -capability: Capability
+  -answerStatus: AnswerStatus
+}
+class DocumentIndex <<entity>> {
+  -documentId: UUID
+  -documentVersion: Integer
+  -status: IndexStatus
+}
+class DocumentChunk <<entity>> {
+  -pageNumber: Integer
+  -chunkIndex: Integer
+  -embedding: Vector[1024]
+}
+class AgentRun <<entity>> {
+  -requestId: String
+  -selectedTool: ToolName
+  -status: RunStatus
+}
+class MessageRequest <<DTO>> {
+  +message: String
+  +selectedDocumentIds: UUID[1..10]
 }
 class AssistantResponse <<DTO>> {
   +status: AssistantStatus
@@ -59,23 +126,68 @@ class AssistantResponse <<DTO>> {
   +quizDraft: QuizDraft?
   +citations: PageCitation[]
 }
+class PageCitation <<DTO>> {
+  +documentId: UUID
+  +pageNumber: Integer
+  +excerpt: String
+}
+class QuizDraft <<DTO>> {
+  +questions: McqSingleQuestion[]
+}
 
-PersonalAssistantController ..> MessageRequest
-PersonalAssistantController --> PersonalAssistantService
-PersonalAssistantService --> ConversationRepository
-PersonalAssistantService --> AiClient
+' View navigation and View-to-Control dependencies.
+PersonalDocumentsPage --> PersonalAssistantPanel
+PersonalAssistantPanel --> CitationDrawer
+PersonalAssistantPanel --> QuizDraftReview
+PersonalAssistantPanel ..> MessageRequest
+PersonalAssistantPanel ..> PersonalAssistantController
+CitationDrawer ..> PageCitation
+QuizDraftReview ..> QuizDraft
+
+' Control flow.
+PersonalAssistantController ..> PersonalAssistantService
+PersonalAssistantService ..> ConversationScopeService
+PersonalAssistantService ..> AiClient
 AiClient ..> SingleOrchestratorAgent : internal HTTP
-SingleOrchestratorAgent --> AskDocumentTool
-SingleOrchestratorAgent --> SummarizeDocumentTool
-SingleOrchestratorAgent --> GenerateQuizTool
-AskDocumentTool --> ScopedRetriever
-SummarizeDocumentTool --> ScopedRetriever
-GenerateQuizTool --> ScopedRetriever
-PersonalAssistantService ..> AssistantResponse
+SingleOrchestratorAgent ..> AskDocumentTool
+SingleOrchestratorAgent ..> SummarizeDocumentTool
+SingleOrchestratorAgent ..> GenerateQuizTool
+AskDocumentTool ..> ScopedRetriever
+SummarizeDocumentTool ..> ScopedRetriever
+GenerateQuizTool ..> ScopedRetriever
+ScopedRetriever ..> GroundingValidator
 
-note bottom of SingleOrchestratorAgent
-Agent chỉ chọn một tool trong allowlist.
-Thiếu tham số phải trả NEEDS_CLARIFICATION;
-không tự mở rộng authorized scope.
+' Entity associations, aggregation and composition.
+Student "1" -- "0..*" PersonalDocument : owns
+Student "1" -- "0..*" ChatConversation
+ChatConversation "1" *-- "1..*" ConversationDocument
+PersonalDocument "1" -- "0..*" ConversationDocument
+ChatConversation "1" *-- "0..*" ChatMessage
+PersonalDocument "1" -- "1" DocumentIndex
+DocumentIndex "1" *-- "1..*" DocumentChunk
+ChatConversation "1" -- "0..*" AgentRun
+AssistantResponse "1" *-- "0..*" PageCitation
+AssistantResponse "1" o-- "0..1" QuizDraft
+
+' Control-to-Entity dependencies.
+ConversationScopeService ..> Student
+ConversationScopeService ..> PersonalDocument
+ConversationScopeService ..> ChatConversation
+PersonalAssistantService ..> ChatMessage
+PersonalAssistantService ..> AssistantResponse
+ScopedRetriever ..> DocumentIndex
+ScopedRetriever ..> DocumentChunk
+SingleOrchestratorAgent ..> AgentRun
+
+note right of SingleOrchestratorAgent
+  Single Agent chỉ chọn một công cụ trong danh sách cho phép.
+  Prompt không được mở rộng phạm vi tài liệu
+  hoặc thay đổi quy tắc Quiz.
+end note
+
+note right of ScopedRetriever
+  Chỉ tìm trong Personal PDF thuộc Student
+  và đúng phiên bản đã chọn.
+  Thiếu bằng chứng thì trả NO_EVIDENCE.
 end note
 @enduml

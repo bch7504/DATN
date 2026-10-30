@@ -1,29 +1,146 @@
 @startuml
-' Palette: class; based on the Visual Paradigm guide samples (see README).
-skinparam defaultFontColor #000000
-skinparam ArrowColor #000000
-skinparam NoteBackgroundColor #FFFFFF
-skinparam NoteBorderColor #000000
-hide circle
-skinparam ClassBackgroundColor #FFFFFF
-skinparam ClassBorderColor #000000
-skinparam ClassHeaderBackgroundColor #FFFFFF
-skinparam shadowing false
-skinparam linetype ortho
+' Hình 3.6 - Thiết kế lớp sinh, duyệt và làm Quiz.
+' Bố cục một mặt phẳng: View ở trên, Control ở giữa, Entity/DTO ở dưới.
 skinparam backgroundColor white
 skinparam defaultFontName Arial
-skinparam defaultFontSize 15
+skinparam defaultFontSize 14
+skinparam defaultFontColor #111111
+skinparam shadowing false
+skinparam linetype ortho
+skinparam ArrowColor #000000
+skinparam ClassBorderColor #000000
+skinparam ClassFontColor #111111
+skinparam ClassAttributeFontColor #111111
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassHeaderBackgroundColor #FFFFFF
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #000000
 skinparam classAttributeIconSize 0
-skinparam packageStyle rectangle
-skinparam roundcorner 10
-skinparam nodesep 30
-skinparam ranksep 40
+skinparam nodesep 28
+skinparam ranksep 52
+hide circle
 top to bottom direction
 
-class QuizController <<Java boundary>> {
+class QuizCreateForm <<view>> {
+  +selectDocuments(ids: UUID[]): void
+  +setConstraints(count: Integer, difficulty: Difficulty, topic: String?): void
+  +submit(): void
+}
+class QuizGenerationStatus <<view>> {
+  +poll(quizId: UUID): QuizSummary
+  +showFailure(errorCode: String): void
+}
+class QuizReviewPage <<view>> {
+  +showQuestions(quiz: QuizSummary): void
+  +acceptStudent(): void
+  +publishTeacher(): void
+  +reject(): void
+}
+class QuizAttemptPage <<view>> {
+  +start(quizId: UUID): QuizAttempt
+  +selectAnswer(questionId: UUID, optionIndex: Integer): void
+  +submit(): QuizResult
+}
+class QuizResultPage <<view>> {
+  +showScore(result: QuizResult): void
+  +showReviewSources(): void
+}
+
+class QuizController <<controller>> {
   +generate(body: QuizRequest): AcceptedQuiz
+  +getStatus(id: UUID): QuizSummary
   +accept(id: UUID, body: AcceptQuizRequest): QuizSummary
   +publish(id: UUID, body: PublishQuizRequest): QuizSummary
+}
+class QuizService <<control>> {
+  +create(actorId: UUID, request: QuizRequest): AcceptedQuiz
+  +acceptStudent(studentId: UUID, id: UUID): QuizSummary
+  +publishTeacher(teacherId: UUID, id: UUID): QuizSummary
+}
+class QuizGenerationJob <<control>> {
+  +execute(quizId: UUID, runId: UUID): JobResult
+}
+class QuizAttemptController <<controller>> {
+  +start(quizId: UUID): QuizAttempt
+  +submit(attemptId: UUID, body: SubmitAttemptRequest): QuizResult
+}
+class QuizScoringService <<control>> {
+  +score(studentId: UUID, attemptId: UUID, answers: SubmittedAnswer[]): QuizResult
+}
+class QuizAccessPolicy <<control>> {
+  +authorizeGeneration(actorId: UUID, request: QuizRequest): AuthorizedScope
+  +authorizeAttempt(studentId: UUID, quizId: UUID): void
+}
+class AiClient <<adapter>> {
+  +generate(request: InternalQuizRequest): QuizDraft
+}
+class QuizGenerator <<control>> {
+  +generate(scope: AuthorizedScope, constraints: QuizConstraints): QuizDraft
+}
+class ScopedRetriever <<control>> {
+  +search(scope: AuthorizedScope, constraints: QuizConstraints): EvidenceSet
+}
+class QuizValidator <<control>> {
+  +validate(draft: QuizDraft, evidence: EvidenceSet): ValidationResult
+}
+
+class Student <<entity>> {
+  -id: UUID
+  -status: UserStatus
+}
+class Teacher <<entity>> {
+  -id: UUID
+  -status: UserStatus
+}
+class CourseOffering <<entity>> {
+  -id: UUID
+  -teacherId: UUID
+  -status: OfferingStatus
+}
+class Document <<entity>> {
+  -id: UUID
+  -ownerId: UUID
+  -version: Integer
+  -scope: DocumentScope
+}
+class Quiz <<entity>> {
+  -id: UUID
+  -createdBy: UUID
+  -generationType: GenerationType
+  -status: QuizStatus
+  -questionCount: Integer
+}
+class QuizSource <<entity>> {
+  -quizId: UUID
+  -documentId: UUID
+  -documentVersion: Integer
+  -pageRange: PageRange?
+}
+class QuizQuestion <<entity>> {
+  -id: UUID
+  -content: Text
+  -options: String[4]
+  -correctOptionIndex: Integer
+  -explanation: Text
+}
+class QuizQuestionSource <<entity>> {
+  -questionId: UUID
+  -documentId: UUID
+  -pageNumber: Integer
+  -excerpt: Text
+}
+class QuizAttempt <<entity>> {
+  -id: UUID
+  -studentId: UUID
+  -startedAt: DateTime
+  -submittedAt: DateTime?
+  -score: Decimal?
+}
+class QuizAnswer <<entity>> {
+  -attemptId: UUID
+  -questionId: UUID
+  -selectedOptionIndex: Integer
+  -isCorrect: Boolean
 }
 class QuizRequest <<DTO>> {
   +mode: GenerationMode
@@ -34,45 +151,73 @@ class QuizRequest <<DTO>> {
   +pageRange: PageRange?
   +instructions: String?
 }
-class QuizService <<Java control>> {
-  +create(actorId: UUID, request: QuizRequest): AcceptedQuiz
-  +acceptStudent(userId: UUID, id: UUID, request: AcceptQuizRequest): QuizSummary
-  +publishTeacher(teacherId: UUID, id: UUID, request: PublishQuizRequest): QuizSummary
-}
-class QuizGenerationJob <<Java job>> {
-  +execute(quizId: UUID, runId: UUID): JobResult
-}
-class AiClient <<HTTP adapter>> {
-  +generate(request: InternalQuizRequest): QuizDraft
-}
-class QuizGenerator <<Python control>> {
-  +generate(scope: AuthorizedScope, constraints: QuizConstraints): QuizDraft
-}
-class QuizValidator <<Python service>> {
-  +validate(draft: QuizDraft, evidence: EvidenceSet): ValidationResult
-}
 class QuizDraft <<DTO>> {
   +questions: McqSingleQuestion[]
 }
 class McqSingleQuestion <<DTO>> {
+  +content: String
   +options: String[4]
   +correctOptionIndex: Integer
   +explanation: String
   +sources: PageCitation[]
 }
 
-QuizController ..> QuizRequest
-QuizController --> QuizService
-QuizService ..> QuizGenerationJob : enqueue
-QuizGenerationJob --> AiClient
-AiClient ..> QuizGenerator : internal HTTP
-QuizGenerator --> QuizValidator
-QuizDraft "1" *-- "1..*" McqSingleQuestion
-QuizGenerator ..> QuizDraft
+' View navigation and View-to-Control dependencies.
+QuizCreateForm --> QuizGenerationStatus
+QuizGenerationStatus --> QuizReviewPage
+QuizReviewPage --> QuizAttemptPage
+QuizAttemptPage --> QuizResultPage
+QuizCreateForm ..> QuizRequest
+QuizCreateForm ..> QuizController
+QuizGenerationStatus ..> QuizController
+QuizReviewPage ..> QuizController
+QuizAttemptPage ..> QuizAttemptController
+QuizResultPage ..> QuizAttemptController
 
-note bottom of QuizService
-Student: REVIEW_REQUIRED → READY / REJECTED.
-Teacher: REVIEW_REQUIRED → PUBLISHED / REJECTED.
-Java sở hữu lifecycle và scoring; Python chỉ trả draft.
+' Control flow.
+QuizController ..> QuizService
+QuizService ..> QuizAccessPolicy
+QuizService ..> QuizGenerationJob
+QuizGenerationJob ..> AiClient
+AiClient ..> QuizGenerator : internal HTTP
+QuizGenerator ..> ScopedRetriever
+QuizGenerator ..> QuizValidator
+QuizAttemptController ..> QuizScoringService
+QuizScoringService ..> QuizAccessPolicy
+
+' Entity associations, aggregation and composition.
+Student "1" -- "0..*" Quiz : creates personal
+Teacher "1" -- "0..*" Quiz : creates course
+CourseOffering "0..1" -- "0..*" Quiz : review destination
+Quiz "1" *-- "1..*" QuizSource
+Document "1" -- "0..*" QuizSource
+Quiz "1" *-- "1..*" QuizQuestion
+QuizQuestion "1" *-- "1..*" QuizQuestionSource
+Document "1" -- "0..*" QuizQuestionSource
+Quiz "1" *-- "0..*" QuizAttempt
+Student "1" -- "0..*" QuizAttempt
+QuizAttempt "1" *-- "1..*" QuizAnswer
+QuizQuestion "1" -- "0..*" QuizAnswer
+QuizDraft "1" *-- "1..*" McqSingleQuestion
+
+' Control-to-Entity dependencies.
+QuizAccessPolicy ..> Student
+QuizAccessPolicy ..> Teacher
+QuizAccessPolicy ..> CourseOffering
+QuizAccessPolicy ..> Document
+QuizService ..> Quiz
+QuizGenerationJob ..> QuizSource
+QuizGenerator ..> QuizDraft
+QuizScoringService ..> QuizQuestion
+QuizScoringService ..> QuizAnswer
+
+note right of QuizValidator
+  Mỗi câu MCQ_SINGLE có đúng bốn lựa chọn,
+  một đáp án đúng và nguồn nằm trong phạm vi được cấp quyền.
+end note
+
+note right of QuizScoringService
+  Java chấm điểm và lưu từng attempt riêng.
+  Python/LLM chỉ tạo bản nháp Quiz.
 end note
 @enduml
