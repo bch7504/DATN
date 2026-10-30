@@ -7,6 +7,7 @@ import { ChatConversation, ChatMessage, CreateConversationRequest, SendMessageRe
 import { Quiz, QuizDraft, QuizAttempt, CreateQuizDraftRequest, AcceptQuizRequest, SubmitQuizAttemptRequest, StartQuizAttemptResponse, SubmitAttemptResponse, } from "@/types/quiz";
 import { ReviewItem, CourseReviewSummary, CourseReviewWorkspace, DailyGoalProgress, DailyGoalConfig, StudyStreak, } from "@/types/review";
 import { StudentNotification } from "@/types/notification";
+import type { AdminDashboard, AdminUser, AdminUserRole, AdminUserStatus, AdminUserUpdate, AdminSubject, AdminSubjectInput, AdminSemester, AdminSemesterInput, AdminOffering, AdminOfferingStatus, AdminFeedback, AdminFeedbackStatus, AdminFeedbackUpdate, AdminSystemLog, AdminSettings, AdminPage } from "@/types/admin";
 export type StudyPlanStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED";
 export type StudyPlanItemType = "STUDY_SESSION" | "TASK" | "QUIZ";
 export type StudyPlanItemStatus = "TODO" | "OVERDUE" | "COMPLETED" | "CANCELLED" | "DELETED";
@@ -760,23 +761,116 @@ export const teacherApi = {
         await apiFetch<void>(`/teacher/documents/${documentId}/publications?offeringId=${offeringId}`, { method: "DELETE" });
     }
 };
-/**
- * Admin Course Offering Monitoring API (docs/api-plan.md Section 6)
- */
+/** Args: zero-based page and size 1..100. Input: Admin list query. Output: encoded query; Errors: INVALID_PAGE. */
+function adminPagination(page: number, size: number): URLSearchParams {
+    if (!Number.isInteger(page) || page < 0 || !Number.isInteger(size) || size < 1 || size > 100) {
+        throw new ApiClientError(422, { code: "INVALID_PAGE", message: "Trang hoặc số bản ghi không hợp lệ." });
+    }
+    return new URLSearchParams({ page: String(page), size: String(size) });
+}
+/** Args: relative Admin endpoint and validated query. Input: authenticated Admin session. Output: typed page. Errors: Java API error or INVALID_API_RESPONSE. */
+async function adminPaged<T>(endpoint: string, query: URLSearchParams): Promise<AdminPage<T>> {
+    const result = await apiFetch<AdminPage<T>>(`${endpoint}?${query.toString()}`);
+    if (!result || !Array.isArray(result.items) || !Number.isInteger(result.page) || !Number.isInteger(result.size) || !Number.isInteger(result.totalItems) || !Number.isInteger(result.totalPages)) {
+        throw new ApiClientError(502, { code: "INVALID_API_RESPONSE", message: "Dữ liệu quản trị trả về không hợp lệ." });
+    }
+    return result;
+}
+/** Args: required resource ID. Input: ID from Java response. Output: URL-safe ID. Errors: INVALID_ID. */
+function adminId(id: string): string {
+    if (!id?.trim()) throw new ApiClientError(422, { code: "INVALID_ID", message: "Thiếu mã đối tượng cần xử lý." });
+    return encodeURIComponent(id);
+}
+
+/** Public Admin API. All requests use the Java backend and the current Admin session. */
 export const adminApi = {
-    async getCourseOfferings(): Promise<CourseOffering[]> {
-        const res = await apiFetch<PaginatedList<CourseOffering>>("/admin/course-offerings");
-        return res.items;
+    /** Args: none. Output: operational totals. Errors: HTTP/auth/invalid JSON from Java. */
+    getDashboard(): Promise<AdminDashboard> {
+        return apiFetch<AdminDashboard>("/admin/dashboard");
     },
-    async lockOffering(offeringId: string): Promise<void> {
-        await apiFetch<void>(`/admin/course-offerings/${offeringId}/lock`, {
-            method: "POST"
-        });
+    /** Args: page, size, optional role/status filters. Output: matching User page. Errors: INVALID_PAGE/INVALID_FILTER or HTTP. */
+    getUsers(page = 0, size = 20, role?: AdminUserRole, status?: AdminUserStatus): Promise<AdminPage<AdminUser>> {
+        const query = adminPagination(page, size);
+        if (role) query.set("role", role);
+        if (status) query.set("status", status);
+        return adminPaged<AdminUser>("/admin/users", query);
     },
-    async archiveOffering(offeringId: string): Promise<void> {
-        await apiFetch<void>(`/admin/course-offerings/${offeringId}/archive`, {
-            method: "POST"
-        });
+    /** Args: User ID and nonempty role/status patch. Output: updated User. Errors: validation, self-change, active classes or HTTP. */
+    updateUser(id: string, patch: AdminUserUpdate): Promise<AdminUser> {
+        if (!patch.role && !patch.status) throw new ApiClientError(422, { code: "INVALID_USER_UPDATE", message: "Chọn ít nhất một thay đổi." });
+        return apiFetch<AdminUser>(`/admin/users/${adminId(id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+    },
+    /** Args: page and size. Output: Subject page. Errors: INVALID_PAGE or HTTP. */
+    getSubjects(page = 0, size = 20): Promise<AdminPage<AdminSubject>> {
+        return adminPaged<AdminSubject>("/admin/subjects", adminPagination(page, size));
+    },
+    /** Args: complete Subject input. Output: created Subject. Errors: validation, duplicate code or HTTP. */
+    createSubject(input: AdminSubjectInput): Promise<AdminSubject> {
+        return apiFetch<AdminSubject>("/admin/subjects", { method: "POST", body: JSON.stringify(input) });
+    },
+    /** Args: Subject ID and allowed patch. Output: updated Subject. Errors: validation, duplicate code, missing ID or HTTP. */
+    updateSubject(id: string, patch: Partial<AdminSubjectInput>): Promise<AdminSubject> {
+        return apiFetch<AdminSubject>(`/admin/subjects/${adminId(id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+    },
+    /** Args: Subject ID. Output: void after deletion. Errors: missing/in-use Subject or HTTP. */
+    async deleteSubject(id: string): Promise<void> {
+        await apiFetch<void>(`/admin/subjects/${adminId(id)}`, { method: "DELETE" });
+    },
+    /** Args: page and size. Output: Semester page. Errors: INVALID_PAGE or HTTP. */
+    getSemesters(page = 0, size = 20): Promise<AdminPage<AdminSemester>> {
+        return adminPaged<AdminSemester>("/admin/semesters", adminPagination(page, size));
+    },
+    /** Args: complete Semester input. Output: created Semester. Errors: validation, duplicate code or HTTP. */
+    createSemester(input: AdminSemesterInput): Promise<AdminSemester> {
+        return apiFetch<AdminSemester>("/admin/semesters", { method: "POST", body: JSON.stringify(input) });
+    },
+    /** Args: Semester ID and allowed patch. Output: updated Semester. Errors: validation, active classes, missing ID or HTTP. */
+    updateSemester(id: string, patch: Partial<AdminSemesterInput>): Promise<AdminSemester> {
+        return apiFetch<AdminSemester>(`/admin/semesters/${adminId(id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+    },
+    /** Args: Semester ID. Output: void after deletion. Errors: missing/in-use Semester or HTTP. */
+    async deleteSemester(id: string): Promise<void> {
+        await apiFetch<void>(`/admin/semesters/${adminId(id)}`, { method: "DELETE" });
+    },
+    /** Args: page, size, optional status. Output: Offering page without join codes. Errors: invalid filter/page or HTTP. */
+    getCourseOfferings(page = 0, size = 20, status?: AdminOfferingStatus): Promise<AdminPage<AdminOffering>> {
+        const query = adminPagination(page, size);
+        if (status) query.set("status", status);
+        return adminPaged<AdminOffering>("/admin/course-offerings", query);
+    },
+    /** Args: Offering ID. Output: one Offering metadata record. Errors: missing Offering or HTTP. */
+    getCourseOffering(id: string): Promise<AdminOffering> {
+        return apiFetch<AdminOffering>(`/admin/course-offerings/${adminId(id)}`);
+    },
+    /** Args: active Offering ID. Output: locked Offering. Errors: missing/non-active Offering or HTTP. */
+    lockOffering(id: string): Promise<AdminOffering> {
+        return apiFetch<AdminOffering>(`/admin/course-offerings/${adminId(id)}/lock`, { method: "POST" });
+    },
+    /** Args: active Offering ID. Output: archived Offering. Errors: missing/non-active Offering or HTTP. */
+    archiveOffering(id: string): Promise<AdminOffering> {
+        return apiFetch<AdminOffering>(`/admin/course-offerings/${adminId(id)}/archive`, { method: "POST" });
+    },
+    /** Args: page, size, optional status. Output: Feedback page. Errors: invalid filter/page or HTTP. */
+    getFeedbackReports(page = 0, size = 20, status?: AdminFeedbackStatus): Promise<AdminPage<AdminFeedback>> {
+        const query = adminPagination(page, size);
+        if (status) query.set("status", status);
+        return adminPaged<AdminFeedback>("/admin/feedback-reports", query);
+    },
+    /** Args: report ID and status/resolution patch. Output: updated report. Errors: missing report/invalid update or HTTP. */
+    updateFeedbackReport(id: string, patch: AdminFeedbackUpdate): Promise<AdminFeedback> {
+        return apiFetch<AdminFeedback>(`/admin/feedback-reports/${adminId(id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+    },
+    /** Args: page and size. Output: safe audit metadata page. Errors: invalid page or HTTP. */
+    getSystemLogs(page = 0, size = 20): Promise<AdminPage<AdminSystemLog>> {
+        return adminPaged<AdminSystemLog>("/admin/system-logs", adminPagination(page, size));
+    },
+    /** Args: none. Output: changeable nonsecret settings. Errors: HTTP/auth. */
+    getSettings(): Promise<AdminSettings> {
+        return apiFetch<AdminSettings>("/admin/system-settings");
+    },
+    /** Args: registrationEnabled boolean. Output: updated settings. Errors: INVALID_SETTING or HTTP. */
+    updateSettings(registrationEnabled: boolean): Promise<AdminSettings> {
+        return apiFetch<AdminSettings>("/admin/system-settings", { method: "PATCH", body: JSON.stringify({ registrationEnabled }) });
     }
 };
 export const teacherDocApi = teacherApi;

@@ -1,234 +1,83 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { adminApi, catalogApi } from "@/lib/api-client";
-import { CourseOffering, Subject, Semester } from "@/types/course-offering";
-import { StatusBadge } from "@/components/ui/status-badge";
+import React, { useEffect, useState } from "react";
+import { adminApi } from "@/lib/api-client";
+import type { AdminOffering, AdminOfferingStatus, AdminPage } from "@/types/admin";
+import { AdminConfirmDialog, AdminHeader, AdminModal, AdminPagination, AdminStatus, adminDate, adminErrorMessage, adminInput, adminSecondaryButton, adminTable, adminTd, adminTh } from "@/components/admin/admin-ui";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  GraduationCap,
-  Lock,
-  Archive,
-  Filter,
-  Search,
-  ShieldAlert,
-  Info,
-} from "lucide-react";
 
-export default function AdminCourseOfferingsPage() {
-  const [offerings, setOfferings] = useState<CourseOffering[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [semesters, setSemesters] = useState<Semester[]>([]);
-  const [selectedSubjectId, setSelectedSubjectId] = useState("ALL");
-  const [selectedSemesterId, setSelectedSemesterId] = useState("ALL");
-  const [selectedStatus, setSelectedStatus] = useState("ALL");
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+type OfferingAction = { offering: AdminOffering; kind: "lock" | "archive" };
+const statuses: AdminOfferingStatus[] = ["ACTIVE", "LOCKED", "ARCHIVED"];
 
-  const loadData = async () => {
-    try {
-      const [offeringsData, subjectsData, semestersData] = await Promise.all([
-        adminApi.getCourseOfferings(),
-        catalogApi.getSubjects(),
-        catalogApi.getSemesters(),
-      ]);
-      setOfferings(offeringsData);
-      setSubjects(subjectsData);
-      setSemesters(semestersData);
-    } catch (err: unknown) {
-      setErrorMsg(
-        err instanceof Error
-          ? err.message
-          : "Không thể tải danh sách Lớp học phần giám sát."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+/** Args: none. Input: Admin monitoring APIs, optional status URL filter. Output: paginated offerings, details and lock/archive controls. Errors: shown inline. */
+export default function AdminCourseOfferingsPage(): React.JSX.Element {
+  const [ready, setReady] = useState(false);
+  const [status, setStatus] = useState<AdminOfferingStatus | "ALL">("ALL");
+  const [page, setPage] = useState(0);
+  const [data, setData] = useState<AdminPage<AdminOffering> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const [detail, setDetail] = useState<AdminOffering | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [action, setAction] = useState<OfferingAction | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    loadData();
+    const queryStatus = new URLSearchParams(window.location.search).get("status");
+    if (statuses.includes(queryStatus as AdminOfferingStatus)) setStatus(queryStatus as AdminOfferingStatus);
+    setReady(true);
   }, []);
+  useEffect((): (() => void) => {
+    if (!ready) return (): void => {};
+    let active = true;
+    adminApi.getCourseOfferings(page, 20, status === "ALL" ? undefined : status)
+      .then((result) => { if (active) { setData(result); setError(null); } })
+      .catch((cause: unknown) => { if (active) setError(adminErrorMessage(cause)); })
+      .finally(() => { if (active) setLoading(false); });
+    return (): void => { active = false; };
+  }, [ready, status, page, reload]);
 
-  const handleLock = async (offeringId: string) => {
-    if (!confirm("Khóa Lớp học phần này? Sinh viên sẽ không thể tham gia mới.")) return;
+  /** Args: Offering ID. Input: row action. Output: freshly fetched metadata dialog. Errors: shown inline. */
+  async function showDetail(id: string): Promise<void> {
+    setDetailLoading(true); setActionError(null);
+    try { setDetail(await adminApi.getCourseOffering(id)); }
+    catch (cause: unknown) { setActionError(adminErrorMessage(cause)); }
+    finally { setDetailLoading(false); }
+  }
+
+  /** Args: selected Offering and action. Input: ACTIVE offering. Output: in-app confirmation dialog. Errors: none. */
+  function prepareAction(offering: AdminOffering, kind: "lock" | "archive"): void {
+    setDetail(null); setActionError(null); setAction({ offering, kind });
+  }
+
+  /** Args: none. Input: confirmed action and Admin session. Output: updated Offering, refreshed list. Errors: shown in confirmation. */
+  async function runAction(): Promise<void> {
+    if (!action) return;
+    setBusy(true); setActionError(null);
     try {
-      await adminApi.lockOffering(offeringId);
-      await loadData();
-    } catch (err: unknown) {
-      alert("Lỗi khi khóa lớp: " + (err instanceof Error ? err.message : ""));
-    }
-  };
+      if (action.kind === "lock") await adminApi.lockOffering(action.offering.id);
+      else await adminApi.archiveOffering(action.offering.id);
+      setSuccess(action.kind === "lock" ? "Đã khóa lớp học phần." : "Đã lưu trữ lớp học phần.");
+      setAction(null); setLoading(true); setReload((value) => value + 1);
+    } catch (cause: unknown) { setActionError(adminErrorMessage(cause)); }
+    finally { setBusy(false); }
+  }
 
-  const handleArchive = async (offeringId: string) => {
-    if (!confirm("Lưu trữ Lớp học phần này?")) return;
-    try {
-      await adminApi.archiveOffering(offeringId);
-      await loadData();
-    } catch (err: unknown) {
-      alert("Lỗi khi lưu trữ lớp: " + (err instanceof Error ? err.message : ""));
-    }
-  };
-
-  const filteredOfferings = offerings.filter((o) => {
-    if (selectedSubjectId !== "ALL" && o.subjectId !== selectedSubjectId) return false;
-    if (selectedSemesterId !== "ALL" && o.semesterId !== selectedSemesterId) return false;
-    if (selectedStatus !== "ALL" && o.status !== selectedStatus) return false;
-    return true;
-  });
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-          Giám sát Lớp học phần toàn hệ thống
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Theo dõi trạng thái mở lớp của Giảng viên, thực thi khóa hoặc lưu trữ theo quy chế đào tạo
-        </p>
-      </div>
-
-      {/* Admin Boundary Notice */}
-      <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 flex items-start gap-3 text-xs leading-relaxed">
-        <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <span className="font-bold">Quy chế phân quyền (MVP Baseline):</span> Giảng viên chủ động tạo Lớp học phần theo Môn học và Học kỳ, tự quản lý Join Code và duyệt sinh viên. Quản trị viên thực hiện giám sát chung, khóa (Lock) hoặc lưu trữ (Archive) khi có vi phạm; không can thiệp phân công từng lớp trong MVP.
-        </div>
-      </div>
-
-      {errorMsg && (
-        <ErrorAlert message={errorMsg} onRetry={() => setErrorMsg(null)} />
-      )}
-
-      {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-          <Filter className="w-4 h-4" /> Bộ lọc:
-        </div>
-
-        <select
-          value={selectedSubjectId}
-          onChange={(e) => setSelectedSubjectId(e.target.value)}
-          className="p-2 text-xs border border-slate-300 rounded-xl bg-white"
-        >
-          <option value="ALL">Tất cả môn học</option>
-          {subjects.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.code} - {s.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={selectedSemesterId}
-          onChange={(e) => setSelectedSemesterId(e.target.value)}
-          className="p-2 text-xs border border-slate-300 rounded-xl bg-white"
-        >
-          <option value="ALL">Tất cả học kỳ</option>
-          {semesters.map((sem) => (
-            <option key={sem.id} value={sem.id}>
-              {sem.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={selectedStatus}
-          onChange={(e) => setSelectedStatus(e.target.value)}
-          className="p-2 text-xs border border-slate-300 rounded-xl bg-white"
-        >
-          <option value="ALL">Tất cả trạng thái</option>
-          <option value="ACTIVE">Đang mở (ACTIVE)</option>
-          <option value="LOCKED">Đã khóa (LOCKED)</option>
-          <option value="ARCHIVED">Lưu trữ (ARCHIVED)</option>
-        </select>
-      </div>
-
-      {/* Offerings Table */}
-      {isLoading ? (
-        <div className="py-12 flex justify-center">
-          <LoadingSpinner size="lg" text="Đang tải dữ liệu giám sát..." />
-        </div>
-      ) : filteredOfferings.length === 0 ? (
-        <EmptyState
-          title="Không tìm thấy Lớp học phần phù hợp"
-          description="Thử thay đổi tiêu chí bộ lọc phía trên để tìm kiếm."
-        />
-      ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">Mã lớp</th>
-                  <th className="py-3 px-4">Tên lớp học phần</th>
-                  <th className="py-3 px-4">Học kỳ</th>
-                  <th className="py-3 px-4">Giảng viên phụ trách</th>
-                  <th className="py-3 px-4">Sinh viên</th>
-                  <th className="py-3 px-4">Trạng thái</th>
-                  <th className="py-3 px-4 text-right">Hành động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredOfferings.map((offering) => (
-                  <tr key={offering.id} className="">
-                    <td className="py-3 px-4 font-mono font-bold text-slate-800">
-                      {offering.code}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-slate-900">
-                      {offering.name}
-                    </td>
-                    <td className="py-3 px-4 text-slate-500">
-                      {offering.semesterName}
-                    </td>
-                    <td className="py-3 px-4 font-medium text-slate-700">
-                      {offering.teacherName}
-                    </td>
-                    <td className="py-3 px-4">
-                      <b>{offering.enrolledCount}</b> SV
-                      {offering.pendingCount > 0 && (
-                        <span className="ml-1 text-red-600 font-bold">
-                          ({offering.pendingCount} chờ)
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <StatusBadge status={offering.status} size="sm" />
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="inline-flex items-center gap-1.5">
-                        {offering.status === "ACTIVE" && (
-                          <button
-                            type="button"
-                            onClick={() => handleLock(offering.id)}
-                            className="p-1.5 rounded-lg border border-rose-200 text-rose-700 "
-                            title="Khóa lớp học phần"
-                          >
-                            <Lock className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        {offering.status !== "ARCHIVED" && (
-                          <button
-                            type="button"
-                            onClick={() => handleArchive(offering.id)}
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 "
-                            title="Lưu trữ lớp"
-                          >
-                            <Archive className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return <div className="space-y-5">
+    <AdminHeader title="Giám sát lớp học phần" description="Giảng viên sở hữu lớp và mã tham gia; quản trị viên xem metadata, khóa hoặc lưu trữ lớp đang mở." />
+    {success && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{success}</p>}
+    {actionError && !action && <ErrorAlert message={actionError} />}
+    <label className="block max-w-xs text-xs font-semibold text-slate-600">Trạng thái<select value={status} onChange={(event) => { setStatus(event.target.value as AdminOfferingStatus | "ALL"); setPage(0); setLoading(true); }} className={`mt-1 ${adminInput}`}><option value="ALL">Tất cả</option>{statuses.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
+    {error && <ErrorAlert message={error} onRetry={() => { setError(null); setLoading(true); setReload((value) => value + 1); }} />}
+    {loading && !error ? <div className="py-12"><LoadingSpinner size="lg" text="Đang tải lớp học phần..." /></div> : !error && data && (data.items.length === 0 ? <EmptyState title="Không có lớp phù hợp" description="Thử chọn trạng thái khác." /> : <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm"><table className={adminTable}><thead><tr>{["Mã / Tên lớp", "Môn / Học kỳ", "Giảng viên", "Sinh viên đã duyệt", "Trạng thái", ""].map((heading) => <th className={adminTh} key={heading}>{heading}</th>)}</tr></thead><tbody>{data.items.map((offering) => <tr key={offering.id}><td className={adminTd}><div className="font-semibold">{offering.code}</div><div className="text-xs text-slate-500">{offering.name}</div></td><td className={adminTd}>{offering.subjectCode} · {offering.semesterCode}</td><td className={adminTd}>{offering.teacherName}</td><td className={adminTd}>{offering.approvedStudents}</td><td className={adminTd}><AdminStatus status={offering.status} /></td><td className={`${adminTd} whitespace-nowrap`}><button type="button" onClick={() => void showDetail(offering.id)} className={adminSecondaryButton}>Chi tiết</button>{offering.status === "ACTIVE" && <><button type="button" onClick={() => prepareAction(offering, "lock")} className="ml-2 text-sm font-semibold text-amber-700">Khóa</button><button type="button" onClick={() => prepareAction(offering, "archive")} className="ml-2 text-sm font-semibold text-red-600">Lưu trữ</button></>}</td></tr>)}</tbody></table></div>)}
+    {detailLoading && <p className="text-sm text-slate-500">Đang tải chi tiết lớp...</p>}
+    {data && !error && !loading && <AdminPagination page={data.page} totalPages={data.totalPages} totalItems={data.totalItems} onChange={(next) => { setPage(next); setLoading(true); }} />}
+    {detail && <AdminModal title={`${detail.code} · ${detail.name}`} onClose={() => setDetail(null)}><dl className="grid grid-cols-2 gap-4 text-sm"><div><dt className="text-slate-500">Môn học</dt><dd>{detail.subjectCode}</dd></div><div><dt className="text-slate-500">Học kỳ</dt><dd>{detail.semesterCode}</dd></div><div><dt className="text-slate-500">Giảng viên</dt><dd>{detail.teacherName}</dd></div><div><dt className="text-slate-500">Sinh viên đã duyệt</dt><dd>{detail.approvedStudents}</dd></div><div><dt className="text-slate-500">Tạo lúc</dt><dd>{adminDate(detail.createdAt)}</dd></div><div><dt className="text-slate-500">Trạng thái</dt><dd><AdminStatus status={detail.status} /></dd></div></dl>{detail.status === "ACTIVE" && <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => prepareAction(detail, "lock")} className={adminSecondaryButton}>Khóa lớp</button><button type="button" onClick={() => prepareAction(detail, "archive")} className={adminSecondaryButton}>Lưu trữ</button></div>}</AdminModal>}
+    {action && <AdminConfirmDialog title={action.kind === "lock" ? "Khóa lớp học phần?" : "Lưu trữ lớp học phần?"} message={`Lớp ${action.offering.code} sẽ chuyển khỏi trạng thái đang mở; mã tham gia bị tắt.`} confirmLabel={action.kind === "lock" ? "Khóa lớp" : "Lưu trữ lớp"} onCancel={() => setAction(null)} onConfirm={() => void runAction()} busy={busy} error={actionError} />}
+  </div>;
 }

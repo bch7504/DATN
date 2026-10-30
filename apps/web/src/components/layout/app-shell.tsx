@@ -63,6 +63,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: "Tổng quan hệ thống", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Người dùng & Vai trò", href: "/admin/users", icon: Users },
   { label: "Môn học & Học kỳ", href: "/admin/catalog", icon: Layers },
+  { label: "Lớp học phần", href: "/admin/course-offerings", icon: GraduationCap },
   { label: "Feedback & Reports", href: "/admin/feedback", icon: ShieldAlert },
   { label: "Logs & Audit", href: "/admin/audit", icon: FileClock },
   { label: "Cấu hình", href: "/admin/settings", icon: Settings },
