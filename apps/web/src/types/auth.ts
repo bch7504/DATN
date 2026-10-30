@@ -12,6 +12,7 @@ export interface User {
   displayName: string;
   email: string;
   role: UserRole;
+  timeZone?: string;
   avatarUrl?: string;
 }
 

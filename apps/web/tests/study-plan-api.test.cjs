@@ -30,12 +30,14 @@ test("Personal study plan and calendar use persisted Java API data", async (t) =
     assert.doesNotMatch(planPage, /sb_01|task_01|21\/09|2026-09-21|setScheduleBlocks|setTasks/);
   });
 
-  await t.test("Plan forms use one date defaulting to today and send a same-day range to Java", () => {
+  await t.test("Plan forms retain independent start/end dates instead of collapsing the range", () => {
     assert.match(planEditor, /const today = new Date\(\)/);
-    assert.match(planEditor, /startDate: date, endDate: date/);
-    assert.equal((planEditor.match(/Ngày kế hoạch<input/g) ?? []).length, 1);
-    assert.doesNotMatch(planEditor, /Từ ngày<input|Đến ngày<input/);
-    assert.match(planEditor, /endDate: date === plan\.startDate \? plan\.endDate : date/);
+    assert.match(planEditor, /setStartDate\(item\.startDate\); setEndDate\(item\.endDate\)/);
+    assert.match(planEditor, /createPlan\(\{[^}]*startDate, endDate/);
+    assert.match(planEditor, /updatePlan\(plan\.id, \{[^}]*startDate, endDate/);
+    assert.match(planEditor, /Ngày bắt đầu<input/);
+    assert.match(planEditor, /Ngày kết thúc<input/);
+    assert.doesNotMatch(planEditor, /startDate: date, endDate: date/);
   });
 
   await t.test("Weekly calendar shows every saved schedule and accepts free-form date-times", () => {

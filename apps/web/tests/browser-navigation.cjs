@@ -28,6 +28,10 @@ const assignments = [assignment];
 const question = { id: "qst1", type: "MCQ_SINGLE", questionText: "Fixture question", options: ["A", "B", "C", "D"].map((id) => ({ id, text: `Option ${id}` })), correctOptionId: "B", explanation: "Fixture explanation", citation: { documentId: "doc1", documentName: "Fixture PDF", pageNumber: 1, excerpt: "Synthetic evidence" } };
 const draft = { id: "q1", prompt: "Fixture prompt", sourceDocumentIds: ["doc1"], status: "REVIEW_REQUIRED", questions: [question], createdAt: timestamp };
 const plan = { id: "plan1", title: "Fixture plan", description: null, startDate: "2030-01-07", endDate: "2030-01-07", status: "ACTIVE", createdAt: timestamp, updatedAt: timestamp };
+const plans = [plan];
+const planWrites = [];
+const itemWrites = [];
+let rejectPlanUpdate = false;
 const items = [{ id: "item1", planId: "plan1", title: "Fixture task", description: null, type: "TASK", scheduledStart: null, scheduledEnd: null, dueAt: "2030-01-07T14:00:00Z", reminderAt: "2030-01-06T14:00:00Z", status: "TODO", completedAt: null, lateCompleted: false, createdAt: timestamp, updatedAt: timestamp }];
 const adminUser = { id: "user1", email: "fixture@example.test", username: "fixture", fullName: "Fixture user", role: "STUDENT", status: "ACTIVE", createdAt: timestamp };
 const feedback = { id: "report1", reporterId: "user1", title: "Fixture report", content: "Synthetic report content", type: "GENERAL", status: "OPEN", resolution: null, createdAt: timestamp, updatedAt: timestamp };
@@ -36,7 +40,7 @@ const feedback = { id: "report1", reporterId: "user1", title: "Fixture report", 
 function page(records) { return { items: records, page: 0, size: 100, totalItems: records.length, totalPages: records.length ? 1 : 0 }; }
 /** @param {string} endpoint API path. @param {string} method HTTP method. @param {object} body JSON request. @returns {unknown} Synthetic API response; records unexpected endpoints. */
 function fixture(endpoint, method, body) {
-  if (endpoint === "/me") return { id: "fixture-actor", displayName: "Fixture actor", email: "actor@example.test", role };
+  if (endpoint === "/me") return { id: "fixture-actor", displayName: "Fixture actor", email: "actor@example.test", role, timeZone: "Asia/Ho_Chi_Minh" };
   if (endpoint.includes("/notifications")) return page([]);
   if (endpoint === "/catalog/subjects") return page([subject]);
   if (endpoint === "/catalog/semesters") return page([semester]);
@@ -65,9 +69,9 @@ function fixture(endpoint, method, body) {
   if (endpoint === "/review/personal-quizzes") return [{ id: "q1", title: "Fixture Quiz", questionCount: 1, createdAt: timestamp, attemptCount: 0, highestScore: null }];
   if (endpoint === "/review/course-offerings/off1") return { courseOfferingId: "off1", quizzes: [], reviewItems: [], attempts: [] };
   if (endpoint === "/calendar") return { from: timestamp, to: timestamp, items };
-  if (endpoint === "/study-plans") return page([plan]);
-  if (endpoint === "/study-plans/plan1") { if (method === "PUT") Object.assign(plan, body); return plan; }
-  if (endpoint === "/study-plans/plan1/items") { if (method === "POST") { const record = { ...items[0], ...body, id: "item2" }; items.push(record); return record; } return page(items); }
+  if (endpoint === "/study-plans") { if (method === "POST") { const record = { ...plan, ...body, id: `plan${plans.length + 1}` }; planWrites.push({ method, ...body }); plans.push(record); return record; } return page(plans); }
+  if (/^\/study-plans\/plan\d+$/.test(endpoint)) { const record = plans.find((entry) => endpoint.endsWith(`/${entry.id}`)); if (method === "PUT") { planWrites.push({ method, ...body }); Object.assign(record, body); } return record; }
+  if (endpoint === "/study-plans/plan1/items") { if (method === "POST") { itemWrites.push(body); const record = { ...items[0], ...body, id: `item${items.length + 1}` }; items.push(record); return record; } return page(items); }
   if (endpoint === "/study-plans/plan1/items/item1") { Object.assign(items[0], body); return items[0]; }
   if (endpoint === "/admin/users") return page([adminUser]);
   if (endpoint === "/admin/users/user1") { Object.assign(adminUser, body); return adminUser; }
@@ -141,11 +145,13 @@ async function run() {
         const { requestId, request } = message.params;
         const endpoint = new URL(request.url).pathname.replace(/^.*\/api\/v1/, "");
         let body = {}; try { body = JSON.parse(request.postData || "{}"); } catch { /* Multipart form contents are irrelevant to navigation fixtures. */ }
-        const result = request.method === "OPTIONS" ? null : fixture(endpoint, request.method, body);
-        await command("Fetch.fulfillRequest", { requestId, responseCode: 200, responseHeaders: [{ name: "Content-Type", value: "application/json" }, { name: "Access-Control-Allow-Origin", value: origin }, { name: "Access-Control-Allow-Credentials", value: "true" }, { name: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" }, { name: "Access-Control-Allow-Headers", value: "Content-Type, Authorization, Idempotency-Key" }], body: Buffer.from(JSON.stringify(result)).toString("base64") });
+        const denyExpansion = rejectPlanUpdate && request.method === "PUT" && endpoint === "/study-plans/plan1";
+        const result = request.method === "OPTIONS" ? null : denyExpansion ? { code: "FIXTURE_RANGE_REJECTED", message: "Fixture range update rejected" } : fixture(endpoint, request.method, body);
+        await command("Fetch.fulfillRequest", { requestId, responseCode: denyExpansion ? 422 : 200, responseHeaders: [{ name: "Content-Type", value: "application/json" }, { name: "Access-Control-Allow-Origin", value: origin }, { name: "Access-Control-Allow-Credentials", value: "true" }, { name: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" }, { name: "Access-Control-Allow-Headers", value: "Content-Type, Authorization, Idempotency-Key" }], body: Buffer.from(JSON.stringify(result)).toString("base64") });
       }
     });
     await command("Runtime.enable"); await command("Page.enable"); await command("Fetch.enable", { patterns: [{ urlPattern: "*/api/v1/*", requestStage: "Request" }] });
+    await command("Emulation.setTimezoneOverride", { timezoneId: "Asia/Ho_Chi_Minh" });
 
     await visit("/teacher/assignments");
     await waitFor("document.body.innerText.includes('Fixture assignment')");
@@ -173,10 +179,58 @@ async function run() {
     await evaluate("Array.from(document.querySelectorAll('main button')).find(element=>element.innerText.includes('Nộp bài')).click()");
     await waitFor("document.querySelector('[role=status]')?.innerText.includes('Đã lưu bài nộp')");
     await visit("/plan/plan1/items/new?type=TASK&date=2030-01-07", "STUDENT");
-    await fill("main form input:not([type])", "Fixture created task"); await click("main form button");
+    await fill("main form input:not([type])", "Fixture created task"); await click('main form button:not([type="button"])');
     await waitFor("location.pathname === '/plan' && document.body.innerText.includes('Fixture created task')");
     await command("Page.reload"); await waitFor("document.body.innerText.includes('Fixture created task')");
     console.log("PASS task create returns to saved calendar week and survives reload");
+    const createdBeforeExpansion = itemWrites.length;
+    await visit("/plan/plan1/items/new?type=STUDY_SESSION&date=2030-01-07", "STUDENT");
+    await fill("main form input:not([type])", "Fixture multi-day schedule");
+    await fill('main input[name="scheduledEnd"]', "2030-01-09T20:08");
+    await waitFor("document.querySelector('main [role=status]')?.innerText.includes('09/01/2030') && document.querySelector('main form button:not([type=button])').disabled");
+    assert.equal(planWrites.length, 0, "Changing schedule inputs must not silently mutate the plan");
+    await evaluate("document.querySelector('main form').requestSubmit()");
+    await waitFor("document.body.innerText.includes('Hãy mở rộng khoảng ngày')");
+    assert.equal(itemWrites.length, createdBeforeExpansion, "Out-of-range schedules must not be posted");
+    // A fresh GET before expansion must preserve changed metadata instead of overwriting it from form-load state.
+    plan.title = "Fixture plan updated elsewhere";
+    plan.description = "Fixture preserved description";
+    rejectPlanUpdate = true;
+    await click('main form button[type="button"]');
+    await waitFor("document.body.innerText.includes('Fixture range update rejected') && !document.querySelector('main form button[type=button]').disabled");
+    assert.equal(await evaluate("document.querySelector('main form input:not([type])').value"), "Fixture multi-day schedule");
+    assert.equal(await evaluate("document.querySelector('main input[name=scheduledEnd]').value"), "2030-01-09T20:08");
+    assert.equal(plan.endDate, "2030-01-07", "Failed expansion must retain the persisted range");
+    assert.equal(itemWrites.length, createdBeforeExpansion, "Failed expansion must not create an item");
+    rejectPlanUpdate = false;
+    await click('main form button[type="button"]');
+    await waitFor("!document.querySelector('main form button[type=button]') && !document.querySelector('main form button:not([type=button])').disabled");
+    assert.equal(plan.endDate, "2030-01-09");
+    assert.equal(planWrites[0].startDate, "2030-01-07");
+    assert.equal(planWrites[0].title, "Fixture plan updated elsewhere");
+    assert.equal(planWrites[0].description, "Fixture preserved description");
+    assert.equal(await evaluate("document.querySelector('main form input:not([type])').value"), "Fixture multi-day schedule");
+    await click('main form button:not([type="button"])');
+    await waitFor("location.pathname === '/plan' && document.body.innerText.includes('Fixture multi-day schedule')");
+    assert.equal(itemWrites.at(-1).scheduledEnd, "2030-01-09T13:08:00.000Z");
+    assert.equal(itemWrites.at(-1).dueAt, "2030-01-09T13:08:00.000Z");
+    console.log("PASS out-of-range validation, explicit expansion/failure/retry and retained schedule inputs");
+    await visit("/plan/plan1/edit", "STUDENT");
+    assert.equal(await evaluate("document.querySelector('main input[name=endDate]').value"), "2030-01-09");
+    await fill("main form input:not([type])", "Fixture renamed multi-day plan");
+    await click("main form button");
+    await waitFor("location.pathname === '/plan' && document.body.innerText.includes('Fixture renamed multi-day plan')");
+    assert.equal(plan.endDate, "2030-01-09", "Renaming a plan must preserve its entire range");
+    await visit("/plan/new", "STUDENT");
+    await fill("main form input:not([type])", "Fixture new multi-day plan");
+    await fill('main input[name="startDate"]', "2030-01-07");
+    await fill('main input[name="endDate"]', "2030-01-10");
+    await click("main form button");
+    await waitFor("location.pathname === '/plan' && new URLSearchParams(location.search).get('planId') === 'plan2'");
+    assert.equal(planWrites.at(-1).method, "POST");
+    assert.equal(planWrites.at(-1).startDate, "2030-01-07");
+    assert.equal(planWrites.at(-1).endDate, "2030-01-10");
+    console.log("PASS create/edit plan with independent dates and preserved end date");
     await visit("/quiz/create", "STUDENT");
     await click('main input[type="checkbox"]'); await fill("#quiz-prompt", "Fixture generation prompt"); await click("main form button");
     await waitFor("location.pathname === '/quiz/drafts/q1'");
