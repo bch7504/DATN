@@ -1,12 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { teacherApi, catalogApi } from "@/lib/api-client";
+import { teacherApi } from "@/lib/api-client";
 import {
   CourseEnrollment,
   CourseOffering,
-  Subject,
-  Semester,
 } from "@/types/course-offering";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorAlert } from "@/components/ui/error-states";
@@ -14,7 +12,6 @@ import { LoadingSpinner } from "@/components/ui/loading-states";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   GraduationCap,
-  PlusCircle,
   Copy,
   RefreshCw,
   Power,
@@ -22,11 +19,12 @@ import {
   Users,
   FolderKanban,
   Check,
-  X,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function TeacherCourseOfferingsPage() {
+  const router = useRouter();
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
   const [enrollmentCounts, setEnrollmentCounts] = useState<
     Record<string, { approved: number; pending: number }>
@@ -34,18 +32,9 @@ export default function TeacherCourseOfferingsPage() {
   const [enrollmentCountsStatus, setEnrollmentCountsStatus] = useState<
     "loading" | "ready" | "error"
   >("loading");
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [semesters, setSemesters] = useState<Semester[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Modal create state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSubjectId, setSelectedSubjectId] = useState("");
-  const [selectedSemesterId, setSelectedSemesterId] = useState("");
-  const [customCode, setCustomCode] = useState("");
-  const [customName, setCustomName] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Success reveal modal for Join Code (only exposed once upon create / regen)
@@ -57,26 +46,14 @@ export default function TeacherCourseOfferingsPage() {
   } | null>(null);
 
   /**
-   * Args: none. Input: Teacher-owned offerings, enrollment records, and public subject/semester catalogs from Java APIs.
-   * Output: Promise<void>; refreshes list/form state, enrollment counts, and the first subject-code prefill.
-   * Errors: offering/catalog failures are shown in errorMsg; enrollment failures mark counts unavailable.
+   * Args: none. Input: Teacher-owned offerings and enrollment records from Java APIs.
+   * Output: Promise<void>; refreshes class list and enrollment counts.
+   * Errors: offering failures are shown in errorMsg; enrollment failures mark counts unavailable.
    */
   const loadData = async (): Promise<void> => {
     try {
-      const [offeringsData, subjectsData, semestersData] = await Promise.all([
-        teacherApi.getOfferings(),
-        catalogApi.getSubjects(),
-        catalogApi.getSemesters(),
-      ]);
+      const offeringsData = await teacherApi.getOfferings();
       setOfferings(offeringsData);
-      setSubjects(subjectsData);
-      setSemesters(semestersData);
-      if (subjectsData.length > 0) {
-        setSelectedSubjectId(subjectsData[0].id);
-        setCustomCode(subjectsData[0].code);
-      }
-      const activeSem = semestersData.find((s) => s.status === "ACTIVE");
-      if (activeSem) setSelectedSemesterId(activeSem.id);
 
       setEnrollmentCountsStatus("loading");
       try {
@@ -108,51 +85,6 @@ export default function TeacherCourseOfferingsPage() {
   useEffect(() => {
     loadData();
   }, []);
-
-  /**
-   * Args: subjectId (required catalog Subject ID). Input: loaded subject catalog.
-   * Output: void; selects the subject and prefills its code for the editable class code.
-   * Errors: an unknown ID leaves the code empty, allowing normal form validation.
-   */
-  const handleSubjectChange = (subjectId: string): void => {
-    setSelectedSubjectId(subjectId);
-    setCustomCode(subjects.find((subject) => subject.id === subjectId)?.code || "");
-  };
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSubjectId || !selectedSemesterId) return;
-
-    setIsCreating(true);
-    setErrorMsg(null);
-
-    try {
-      const newOffering = await teacherApi.createOffering({
-        subjectId: selectedSubjectId,
-        semesterId: selectedSemesterId,
-        code: customCode.trim() || undefined,
-        name: customName.trim() || undefined,
-      });
-      setIsModalOpen(false);
-      setCustomCode("");
-      setCustomName("");
-      if (newOffering.joinCode) {
-        setRevealedJoinCode({
-          offeringName: newOffering.name,
-          offeringCode: newOffering.code,
-          joinCode: newOffering.joinCode,
-          actionType: "CREATE",
-        });
-      }
-      await loadData();
-    } catch (err: unknown) {
-      setErrorMsg(
-        err instanceof Error ? err.message : "Tạo Lớp học phần không thành công."
-      );
-    } finally {
-      setIsCreating(false);
-    }
-  };
 
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -212,13 +144,12 @@ export default function TeacherCourseOfferingsPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsModalOpen(true)}
+        <Link
+          href="/teacher/course-offerings/new"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600  text-white rounded-xl text-xs font-bold shadow-md transition flex-shrink-0"
         >
-          <PlusCircle className="w-4 h-4" /> Mở Lớp học phần mới
-        </button>
+          Mở Lớp học phần mới
+        </Link>
       </div>
 
       {errorMsg && (
@@ -234,7 +165,7 @@ export default function TeacherCourseOfferingsPage() {
           title="Chưa có Lớp học phần nào"
           description="Hãy bấm vào nút 'Mở Lớp học phần mới' để bắt đầu giảng dạy học kỳ này."
           actionLabel="Mở lớp mới"
-          onAction={() => setIsModalOpen(true)}
+          onAction={() => router.push("/teacher/course-offerings/new")}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -364,7 +295,7 @@ export default function TeacherCourseOfferingsPage() {
                   </Link>
                   <span>·</span>
                   <Link
-                    href={`/teacher/documents?offeringId=${offering.id}`}
+                    href={`/teacher/documents/${encodeURIComponent(offering.id)}`}
                     className="inline-flex items-center gap-1 font-semibold text-slate-600 "
                   >
                     <FolderKanban className="w-3.5 h-3.5" /> Học liệu
@@ -373,120 +304,6 @@ export default function TeacherCourseOfferingsPage() {
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Create Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-900 text-lg">
-                Mở Lớp học phần mới
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 "
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Môn học đào tạo
-                </label>
-                <select
-                  value={selectedSubjectId}
-                  onChange={(event: React.ChangeEvent<HTMLSelectElement>): void =>
-                    handleSubjectChange(event.target.value)
-                  }
-                  className="w-full p-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 bg-white"
-                  required
-                >
-                  {subjects.map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.code} - {sub.name} ({sub.credits} tín chỉ)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Học kỳ áp dụng
-                </label>
-                <select
-                  value={selectedSemesterId}
-                  onChange={(e) => setSelectedSemesterId(e.target.value)}
-                  className="w-full p-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 bg-white"
-                  required
-                >
-                  {semesters
-                    .filter((s) => s.offeringCreationEnabled || s.status === "ACTIVE")
-                    .map((sem) => (
-                      <option key={sem.id} value={sem.id}>
-                        {sem.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Mã lớp
-                </label>
-                <input
-                  type="text"
-                  value={customCode}
-                  onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
-                  placeholder="Chọn môn học để tự điền mã"
-                  className="w-full p-2.5 text-xs font-mono border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500"
-                />
-                <p className="mt-1 text-[11px] text-slate-500">
-                  Tự điền theo mã môn học; bạn có thể sửa để phân biệt các nhóm lớp.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Tên lớp hiển thị (Tùy chọn)
-                </label>
-                <input
-                  type="text"
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  placeholder="VD: Trí tuệ nhân tạo - Nhóm 02"
-                  className="w-full p-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 "
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCreating}
-                  className="px-4 py-2 text-xs font-bold rounded-xl bg-red-600  text-white shadow-md disabled:opacity-60 flex items-center gap-1.5"
-                >
-                  {isCreating ? (
-                    <LoadingSpinner size="sm" />
-                  ) : (
-                    <>
-                      <PlusCircle className="w-4 h-4" /> Xác nhận mở lớp
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
 

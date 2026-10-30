@@ -25,7 +25,7 @@ Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1
 
 | Method | Endpoint | Contract |
 |---|---|---|
-| POST | `/api/v1/auth/register` | `{displayName,email,password}`; chỉ nhận đúng miền `@ptit.edu.vn`; gửi OTP và trả `{status,expiresAt,resendAvailableAt}`; `202`, `409`, `422`, `429` |
+| POST | `/api/v1/auth/register` | `{displayName,email,password}`; chỉ nhận đúng miền email tổ chức đã cấu hình; gửi OTP và trả `{status,expiresAt,resendAvailableAt}`; `202`, `403 REGISTRATION_DISABLED`, `409`, `422`, `429` |
 | POST | `/api/v1/auth/verify-registration` | `{email,verificationCode}`; OTP gồm 6 chữ số; tạo tài khoản `STUDENT` sau khi xác minh; `204`, `409`, `410`, `422`, `429` |
 | POST | `/api/v1/auth/resend-verification` | `{email}`; thay OTP cũ sau thời gian chờ và trả thời hạn mới; `202`, `409`, `422`, `429` |
 | POST | `/api/v1/auth/login` | `{identifier,password}`; `204` + session cookie; `401|403` |
@@ -34,7 +34,7 @@ Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1
 | GET | `/api/v1/me` | Trả `{id,displayName,email,username,timeZone,role}` của tài khoản `ACTIVE`; `200`, `401`, `403` |
 | PATCH | `/api/v1/me` | Nhận `{displayName?,timeZone?}` và trả profile đã cập nhật; không nhận email/username/role/status; `200`, `401`, `403`, `422` |
 
-Luồng đăng ký chưa tạo người dùng ngay. Hệ thống lưu tạm hash của mật khẩu và OTP; OTP có hiệu lực 10 phút, chỉ được yêu cầu gửi lại sau 60 giây và tối đa 5 lần nhập sai cho mỗi mã. So khớp miền email không phân biệt chữ hoa/thường nhưng phải là chính xác `ptit.edu.vn`, không chấp nhận miền con.
+Luồng đăng ký chưa tạo người dùng ngay. Hệ thống lưu tạm hash của mật khẩu và OTP; OTP có hiệu lực 10 phút, chỉ được yêu cầu gửi lại sau 60 giây và tối đa 5 lần nhập sai cho mỗi mã. So khớp miền email không phân biệt chữ hoa/thường nhưng phải khớp chính xác miền đã cấu hình, không chấp nhận miền con. Admin tắt `registrationEnabled` thì lượt bắt đầu đăng ký mới trả `403 REGISTRATION_DISABLED`; OTP đang chờ vẫn có thể xác minh.
 
 Response `202` của register/resend:
 
@@ -87,7 +87,7 @@ Business/error:
 | GET | `/api/v1/student/course-offerings/{offeringId}/materials` | Enrollment `APPROVED`; chỉ publication active trong lớp đó |
 | GET | `/api/v1/student/materials/{documentId}/download` | Stream inline sau khi kiểm enrollment + publication; `?download=true` dùng attachment; không trả storage key/URL |
 
-Course Material MVP hiện hỗ trợ quản lý file PDF, công bố/gỡ công bố theo lớp, xem/tải PDF và hỏi đáp bằng AI Tutor qua Java → Python. Page metadata, ghi chú theo trang và ghi nhận lượt xem chưa được nối; không hiển thị dữ liệu giả thay cho các phần đó.
+Course Material MVP hỗ trợ quản lý file PDF, công bố/gỡ công bố theo lớp, xem/tải PDF và hỏi đáp bằng AI Tutor qua Java → Python. Ghi chú theo trang và lượt xem PDF được lưu trong schema `app`; không hiển thị dữ liệu giả thay cho tiến độ trang.
 
 Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ khi offering `ARCHIVED`, trừ khi `LOCKED`, publication revoked hoặc policy retention chặn.
 
@@ -96,6 +96,8 @@ Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ k
 - `GET/PUT /api/v1/student/materials/{documentId}/pages/{number}/note`
 - `POST /api/v1/student/materials/{documentId}/pages/{number}/view-events` với `Idempotency-Key`
 - `POST /api/v1/student/materials/{documentId}/pages/{number}/tutor`
+
+`GET note` trả `200 {documentId,pageNumber,content,updatedAt}`; `content=""`, `updatedAt=null` nếu chưa lưu. `PUT note` nhận `{content:string}` tối đa 10.000 ký tự, cho phép chuỗi rỗng để xóa nội dung; trả cùng schema sau khi lưu. `POST view-events` yêu cầu header `Idempotency-Key` dài 1–100 ký tự, trả `204` và chỉ ghi một `VIEW_PAGE` cho mỗi Student/PDF/trang/ngày địa phương; gọi lặp không cộng thêm. Cả ba route kiểm enrollment `APPROVED`, publication còn hiệu lực, PDF `READY`, số trang từ 1 đến `pageCount` và lớp không `LOCKED`. Lỗi: `403 ENROLLMENT_REQUIRED`, `404 DOCUMENT_NOT_FOUND`, `409 DOCUMENT_NOT_READY`, `422 INVALID_PAGE|INVALID_NOTE|INVALID_IDEMPOTENCY_KEY` qua error envelope chung.
 
 Trạng thái triển khai: endpoint Tutor đã có ở Java. Frontend chỉ gọi endpoint Java này; Java xác thực Student, enrollment `APPROVED`, publication và trạng thái Course Offering trước khi chuyển phạm vi tài liệu tối thiểu sang Python `/internal/v1/course-materials/ask`. Java kiểm tra lại `documentId`, `documentVersion` và `pageNumber` của mọi citation trước khi trả về trình duyệt.
 
@@ -423,17 +425,32 @@ Chỉ nhận PDF có text layer. Hệ thống kiểm document owner và ownershi
 
 ## 6. Admin API
 
-- Dashboard: `GET /api/v1/admin/dashboard`.
-- Users/roles/status: `/api/v1/admin/users`.
-- Subjects CRUD: `/api/v1/admin/subjects`.
-- Semesters CRUD/status: `/api/v1/admin/semesters`.
-- Monitoring: `GET /api/v1/admin/course-offerings`, `GET .../{id}`.
-- Enforcement: `POST .../{id}/lock`, `POST .../{id}/archive`.
-- Feedback: `/api/v1/admin/feedback-reports`.
-- Audit: `GET /api/v1/admin/system-logs`.
-- Settings: `GET/PATCH /api/v1/admin/system-settings`.
+Mọi route dưới `/api/v1/admin/**` yêu cầu JWT role `ADMIN`, trả `401 UNAUTHENTICATED` hoặc `403 FORBIDDEN` qua error envelope chung. Danh sách dùng `{items,page,size,totalItems,totalPages}`, `page >= 0`, `1 <= size <= 100`; input sai trả `422 INVALID_PAGE`. Mutations chỉ nhận các trường đã ghi, không nhận map tùy ý; Admin không xem Personal Document/chat/Note/plan/Quiz result.
 
-Admin không có endpoint tạo/phân công Teacher cho Course Offering và không cần approve lớp. Admin không mặc định đọc Personal Document/chat/Note/plan/Quiz result.
+| Method | Endpoint | Input và output thành công | Lỗi nghiệp vụ |
+|---|---|---|---|
+| GET | `/api/v1/admin/dashboard` | `200 {users,students,teachers,activeOfferings,pendingEnrollments,publishedDocuments,openFeedbackReports}` | — |
+| GET | `/api/v1/admin/users?role=&status=&page=&size=` | `200` page `{id,email,username,fullName,role,status,createdAt}`; lọc tùy chọn `STUDENT|TEACHER|ADMIN`, `ACTIVE|LOCKED` | `422 INVALID_FILTER` |
+| PATCH | `/api/v1/admin/users/{id}` | `{role?,status?}` với ít nhất một trường; `200` User; đổi role/status thu hồi refresh token và access JWT cũ bị từ chối từ request kế tiếp | `404 USER_NOT_FOUND`, `409 SELF_ACCOUNT_CHANGE|TEACHER_HAS_ACTIVE_CLASSES`, `422 INVALID_USER_UPDATE` |
+| GET | `/api/v1/admin/subjects?page=&size=` | `200` page Subject `{id,code,name,credits,description,status}` | — |
+| POST | `/api/v1/admin/subjects` | `{code,name,credits,description?,status?}`; `201` Subject, status mặc định `ACTIVE` | `409 SUBJECT_CODE_EXISTS`, `422 INVALID_SUBJECT` |
+| PATCH | `/api/v1/admin/subjects/{id}` | `{code?,name?,credits?,description?,status?}`; `200` Subject | `404 SUBJECT_NOT_FOUND`, `409 SUBJECT_CODE_EXISTS`, `422 INVALID_SUBJECT` |
+| DELETE | `/api/v1/admin/subjects/{id}` | `204`; chỉ xóa danh mục chưa được lớp học phần tham chiếu | `404 SUBJECT_NOT_FOUND`, `409 SUBJECT_IN_USE` |
+| GET | `/api/v1/admin/semesters?page=&size=` | `200` page Semester `{id,code,name,academicYear,startDate,endDate,status,offeringCreationEnabled}` | — |
+| POST | `/api/v1/admin/semesters` | `{code,name,academicYear,startDate,endDate,status,offeringCreationEnabled}`; `201` Semester | `409 SEMESTER_CODE_EXISTS`, `422 INVALID_SEMESTER` |
+| PATCH | `/api/v1/admin/semesters/{id}` | các trường trên đều tùy chọn; `200` Semester; `CLOSED` luôn tắt tạo lớp | `404 SEMESTER_NOT_FOUND`, `409 SEMESTER_HAS_ACTIVE_CLASSES|SEMESTER_CODE_EXISTS`, `422 INVALID_SEMESTER` |
+| DELETE | `/api/v1/admin/semesters/{id}` | `204`; chỉ xóa học kỳ chưa có lớp | `404 SEMESTER_NOT_FOUND`, `409 SEMESTER_IN_USE` |
+| GET | `/api/v1/admin/course-offerings?status=&page=&size=` | `200` page `{id,code,name,subjectCode,semesterCode,teacherId,teacherName,status,approvedStudents,createdAt}`; không trả join code | `422 INVALID_FILTER` |
+| GET | `/api/v1/admin/course-offerings/{id}` | `200` cùng metadata của một lớp | `404 COURSE_NOT_FOUND` |
+| POST | `/api/v1/admin/course-offerings/{id}/lock` | `200` Offering; `ACTIVE → LOCKED`, tắt mã tham gia | `404 COURSE_NOT_FOUND`, `409 COURSE_NOT_ACTIVE` |
+| POST | `/api/v1/admin/course-offerings/{id}/archive` | `200` Offering; `ACTIVE → ARCHIVED`, tắt mã tham gia | `404 COURSE_NOT_FOUND`, `409 COURSE_NOT_ACTIVE` |
+| GET | `/api/v1/admin/feedback-reports?status=&page=&size=` | `200` page `{id,reporterId,type,title,content,status,resolution,createdAt,updatedAt}` | `422 INVALID_FILTER` |
+| PATCH | `/api/v1/admin/feedback-reports/{id}` | `{status:"OPEN"|"RESOLVED",resolution?}`; `200` report | `404 FEEDBACK_NOT_FOUND`, `422 INVALID_FEEDBACK_UPDATE` |
+| GET | `/api/v1/admin/system-logs?page=&size=` | `200` page `{id,actorId,action,targetType,targetId,status,traceId,createdAt}`; không trả token/prompt/nội dung tài liệu | — |
+| GET | `/api/v1/admin/system-settings` | `200 {registrationEnabled:boolean}`; chỉ gồm cấu hình cho phép thay đổi lúc chạy | — |
+| PATCH | `/api/v1/admin/system-settings` | `{registrationEnabled:boolean}`; `200` settings; thay đổi có hiệu lực cho lượt đăng ký kế tiếp | `422 INVALID_SETTING` |
+
+`POST /api/v1/student/feedback-reports` và `POST /api/v1/teacher/feedback-reports` nhận `{type,title,content}`; `201` report `OPEN` của chính tài khoản, giới hạn lần lượt 30/200/10000 ký tự, lỗi `422 INVALID_FEEDBACK`. Admin chỉ xử lý, không tạo hoặc sửa nội dung báo cáo. Mỗi thao tác Admin thay đổi dữ liệu ghi một `system_logs` record trong cùng giao dịch, chỉ chứa actor/action/target/status/trace an toàn. Subject/Semester có lớp tham chiếu không được xóa vật lý. Admin không có endpoint tạo/phân công Teacher cho Course Offering và không cần approve lớp.
 
 ## 7. Internal Java → Python API
 
@@ -469,7 +486,7 @@ Quy tắc `signedUrl` của endpoint index:
 - Index/deindex trả `202 {requestId,jobId,status}` sau khi nhận job, không giữ request chờ xử lý xong. Java poll `GET /internal/v1/jobs/{jobId}` với backoff; cập nhật document `READY` khi index thành công hoặc `FAILED` với safe error code khi thất bại. Browser chỉ poll trạng thái document qua Java.
 - Contract trên là schema version mới thay cho hai endpoint `personal-rag/ask` và `slides/ask`. Contract test Java/Python phải bao phủ tool routing, scope của hai chế độ Quiz, output 4 options và vòng đời job.
 
-- Retrieval filter được đẩy xuống repository theo document/version/owner/source; filter lại sau retrieval để defense in depth.
+- Retrieval dùng hai nhánh trong cùng authorized scope: pgvector cosine và PostgreSQL full-text search. Kết quả được hợp nhất bằng RRF, LangChain rerank theo độ liên quan/trang hiện tại/độ đa dạng, rồi filter lại document/version/owner/source/page để defense in depth.
 - Citation được dựng từ retrieved chunk, deduplicate và validate document/location/excerpt bằng code.
 - Document content được delimit và xem là untrusted evidence, không phải instruction.
 - Khi evidence thiếu, trả `NO_EVIDENCE` mà không gọi model để bịa.

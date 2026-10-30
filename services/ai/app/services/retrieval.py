@@ -5,6 +5,7 @@ import math
 from app.clients.protocols import EmbeddingClient
 from app.repositories.chunk_repository import ChunkRepository
 from app.schemas.grounding import AuthorizedDocument, AuthorizedScope, RetrievedEvidence
+from app.services.reranking import LangChainEvidenceReranker
 
 
 class RetrievalService:
@@ -17,6 +18,8 @@ class RetrievalService:
         chunk_repository: ChunkRepository,
         embedding_dimensions: int = 1024,
         minimum_relevance: float = 0.3,
+        candidate_limit: int = 32,
+        reranker: LangChainEvidenceReranker | None = None,
     ) -> None:
         """Create an authorized retrieval service.
 
@@ -25,6 +28,8 @@ class RetrievalService:
             chunk_repository: Repository that applies scope before ranking.
             embedding_dimensions: Exact vector length required by the index.
             minimum_relevance: Inclusive relevance threshold in the range 0..1.
+            candidate_limit: Number of hybrid candidates fetched before reranking, 8..100.
+            reranker: Optional LangChain reranker; a deterministic instance is used by default.
 
         Returns:
             None.
@@ -37,10 +42,14 @@ class RetrievalService:
             raise ValueError("embedding_dimensions must be positive")
         if not 0.0 <= minimum_relevance <= 1.0:
             raise ValueError("minimum_relevance must be between zero and one")
+        if not 8 <= candidate_limit <= 100:
+            raise ValueError("candidate_limit must be between 8 and 100")
         self._embedding_client = embedding_client
         self._chunk_repository = chunk_repository
         self._embedding_dimensions = embedding_dimensions
         self._minimum_relevance = minimum_relevance
+        self._candidate_limit = candidate_limit
+        self._reranker = reranker or LangChainEvidenceReranker()
 
     async def retrieve(
         self,
@@ -76,15 +85,22 @@ class RetrievalService:
         if any(not math.isfinite(value) for value in vectors[0]) or not any(vectors[0]):
             raise ValueError("embedding must contain finite values and have nonzero magnitude")
         candidates = self._chunk_repository.search(
+            query_text=normalized_query,
             query_embedding=vectors[0],
             scope=scope,
-            limit=limit,
+            limit=max(limit, self._candidate_limit),
         )
-        return tuple(
+        authorized_candidates = tuple(
             evidence
             for evidence in candidates
             if evidence.relevance_score >= self._minimum_relevance
             and _is_authorized(evidence, scope.documents)
+        )
+        return self._reranker.rerank(
+            query=normalized_query,
+            evidence=authorized_candidates,
+            scope=scope,
+            limit=limit,
         )
 
     def collect_for_summary(

@@ -4,14 +4,16 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.join(__dirname, "..");
-const page = fs.readFileSync(path.join(root, "src/app/teacher/documents/page.tsx"), "utf8");
+const page = fs.readFileSync(path.join(root, "src/app/teacher/documents/document-library.tsx"), "utf8");
+const upload = fs.readFileSync(path.join(root, "src/app/teacher/documents/[offeringId]/upload/page.tsx"), "utf8");
+const publication = fs.readFileSync(path.join(root, "src/app/teacher/documents/publications/[documentId]/page.tsx"), "utf8");
 
 test("Teacher PDF library lists owned classes before class-specific materials", async (t) => {
   await t.test("Class selection is reflected in the URL and direct class links are supported", () => {
     assert.match(page, /new URLSearchParams\(window\.location\.search\)\.get\("offeringId"\)/);
-    assert.match(page, /window\.history\.pushState/);
-    assert.match(page, /window\.addEventListener\("popstate", syncSelectedOffering\)/);
-    assert.match(page, /window\.history\.back\(\)/);
+    assert.match(page, /router\.push\(offeringId \? `\/teacher\/documents\//);
+    assert.match(page, /selectedOfferingId = offeringId/);
+    assert.ok(fs.existsSync(path.join(root, "src/app/teacher/documents/[offeringId]/page.tsx")));
     assert.match(page, /offerings\.map\(\(offering\)/);
   });
 
@@ -22,9 +24,9 @@ test("Teacher PDF library lists owned classes before class-specific materials", 
   });
 
   await t.test("A new class PDF is uploaded privately and publication requires confirmation", () => {
-    assert.match(page, /teacherDocApi\.uploadDocument\(selectedFile, uploadTitle\.trim\(\)\)/);
-    assert.match(page, /openPublishModal\(uploadedDocument, selectedOffering\.id\)/);
-    assert.match(page, /Bấm “Lưu công bố” nếu muốn chia sẻ với sinh viên lớp/);
-    assert.doesNotMatch(page, /publishDocument\(uploadedDocument\.id, \[selectedOffering\.id\]\)/);
+    assert.match(upload, /teacherDocApi\.uploadDocument\(file, title\.trim\(\)\)/);
+    assert.match(upload, /router\.replace\(`\/teacher\/documents\/publications\//);
+    assert.match(publication, /teacherDocApi\.publishDocument\(document\.id, selected\)/);
+    assert.doesNotMatch(upload, /teacherDocApi\.publishDocument/);
   });
 });

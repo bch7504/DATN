@@ -1,6 +1,6 @@
 # StudyFlow — Kế hoạch thay đổi và triển khai AI Service
 
-**Trạng thái cập nhật 16/10/2026:** Phần nền tảng Python và các luồng AI đã được hiện thực, có 76 kiểm thử offline bằng dữ liệu tổng hợp. Chưa nghiệm thu tích hợp đầy đủ với Java, PostgreSQL/pgvector, Object Storage và nhà cung cấp mô hình thật.
+**Trạng thái cập nhật 23/10/2026:** Python AI Service đã có Hybrid RAG, LangChain rerank và guardrails, với 88/88 kiểm thử mặc định đạt, một ca PostgreSQL/pgvector tích hợp opt-in đạt. Bốn PDF môn Kỹ thuật số đã được lập chỉ mục thật; 12 ca live đạt retrieval recall@8 = 100% và `NO_EVIDENCE` = 100%, nhưng citation location precision mới đạt 64,29%. Local AI Service tự nạp `.env` ở root, trong khi biến môi trường tiến trình vẫn có ưu tiên cao hơn.
 **Phạm vi:** Python AI Service và các contract Java ↔ Python liên quan đến Personal PDF Assistant, Course Material AI Tutor và AI Quiz Generator.
 
 ## 0. Trạng thái hiện tại và kế hoạch làm tiếp
@@ -12,26 +12,26 @@
 | API nội bộ | Đã có health, index, deindex, job polling, Personal Assistant, Course Material Tutor và Quiz Generator theo schema version 3 |
 | Xử lý PDF | Đã có kiểm tra PDF có lớp văn bản, tách nội dung theo trang, chunk, embedding 1024 chiều và lưu pgvector |
 | Personal Assistant | Đã có bộ điều phối một agent để chọn hỏi đáp, tóm tắt hoặc tạo Quiz; có hỏi lại khi thiếu thông tin |
-| Grounding | Đã có giới hạn phạm vi tài liệu, `NO_EVIDENCE`, citation theo trang và kiểm tra lại nguồn |
+| Retrieval/Grounding | Đã có vector search + full-text search, RRF, LangChain rerank, giới hạn phạm vi tài liệu, `NO_EVIDENCE`, citation theo trang và kiểm tra lại nguồn |
 | Quiz | Đã kiểm tra đúng `MCQ_SINGLE`, bốn phương án, một đáp án đúng, citation và chống tạo trùng |
-| Kiểm thử | Có 76 ca offline; chưa được xem là nghiệm thu với hạ tầng và mô hình thật |
+| Kiểm thử | Có 88 ca mặc định đạt; migration hybrid và pgvector integration test đã đạt trên PostgreSQL local; bộ 12 câu tiếng Việt đã chạy live |
 
 ### 0.2. Thứ tự triển khai tiếp theo
 
 | Ưu tiên | Mốc tiếp theo | Công việc | Điều kiện hoàn thành |
 |---|---|---|---|
-| 1 | AI-N1 — PostgreSQL thật | Chạy integration test trên schema `ai`, kiểm tra migration, vector 1024 chiều, cosine index, quyền role và cô lập khỏi schema `app` | Migration tiến thành công; role AI không đọc/ghi được bảng nghiệp vụ; index/deindex không tạo chunk trùng |
-| 2 | AI-N2 — Worker và Storage | Dùng PDF tổng hợp qua signed URL, chạy worker thật, kiểm tra file hợp lệ, file mã hóa, file không có text, URL hết hạn và thu hồi chỉ mục | Job chuyển đúng `PENDING → RUNNING → SUCCEEDED/FAILED`; không log URL hoặc nội dung PDF |
-| 3 | AI-N3 — Java contract v3 | Đối chiếu DTO Java với `CONTRACT_V3.md`, bổ sung Java AI client, service credential, request ID, schema version, timeout và idempotency | Contract test hai phía đạt cho cả phản hồi thành công, input sai và output sai schema |
-| 4 | AI-N4 — E2E Personal Assistant | Java cấp đúng Personal PDF scope; thử hỏi đáp, tóm tắt và tạo Quiz từ hội thoại | Owner isolation đạt; citation đúng trang; Quiz được Java lưu ở `REVIEW_REQUIRED` |
-| 5 | AI-N5 — E2E Course AI | Tích hợp Course Material Tutor cho Student và Quiz Generator cho Teacher | Enrollment/publication/ownership được kiểm tra lại trước khi trả kết quả hoặc lưu Quiz |
-| 6 | AI-N6 — Provider thật | Chỉ sau khi được cấp phép chi phí: kiểm tra model chat, embedding 1024 chiều, structured output, timeout và refusal | Không biến lỗi provider thành kết quả thành công; model ID và khả năng thực tế được xác nhận |
-| 7 | AI-N7 — Evaluation | Xây tập kiểm chứng tiếng Việt tổng hợp, tách development/final set và đo retrieval, grounding, citation, abstention, Quiz | Scope violation bằng 0; citation hợp lệ 100%; KPI chất lượng được ghi bằng kết quả thật, không dùng fixture |
+| 1 | AI-N1 — PostgreSQL thật | **Đã chạy:** 6 migration, vector 1024 chiều, HNSW cosine, `tsvector`/GIN, index lặp và Hybrid retrieval | Tiếp tục giữ role AI cô lập khỏi schema `app` |
+| 2 | AI-N2 — Worker và Storage | **Đã có code/test:** signed URL, validation PDF, lease/retry/fencing, index/deindex | Còn stress test nhiều worker và revoke đồng thời |
+| 3 | AI-N3 — Java contract v3 | **Đã đối chiếu:** DTO, credential, request ID, schema version, timeout và idempotency | Duy trì contract test hai phía khi schema thay đổi |
+| 4 | AI-N4 — E2E Personal Assistant | **Đã có luồng và test phân quyền:** hỏi đáp, tóm tắt, tạo Quiz | Chạy lại provider thật sau Hybrid RAG |
+| 5 | AI-N5 — E2E Course AI | **Đã có luồng và contract:** Tutor Student, Quiz Teacher, scope enrollment/publication | Chạy lại provider thật sau Hybrid RAG |
+| 6 | AI-N6 — Provider thật | **Đã chạy lại:** Hybrid RAG dùng `openai/gpt-5.6-luna` và `openai/text-embedding-3-large` | Tiếp tục theo dõi timeout/refusal/chi phí trên nhiều tài liệu hơn |
+| 7 | AI-N7 — Evaluation | **Đã chạy:** 12 ca tiếng Việt, recall@8 100%, `NO_EVIDENCE` 100%, citation location 64,29% | Cải thiện citation, tách final holdout và người đánh giá chấm groundedness/factual correctness |
 | 8 | AI-N8 — Hoàn thiện | Kiểm thử tải, crash recovery, metrics, retention, Docker và hướng dẫn demo | Demo end-to-end lặp lại được; có báo cáo latency/lỗi/chi phí và checklist vận hành |
 
 ### 0.3. Phạm vi của đợt triển khai gần nhất
 
-Đợt kế tiếp chỉ nên nhận `AI-N1 → AI-N3`. Chưa dùng tài liệu người dùng thật và chưa gọi OpenRouter thật trong unit/integration test. Sau khi contract Java–Python ổn định mới mở `AI-N4 → AI-N6`, tránh sửa đồng thời database, wire schema và giao diện.
+Mốc gần nhất là hiệu chỉnh `AI-N7`: phân tích các citation sai trang, điều chỉnh ranking/citation selection trên development set, sau đó đánh giá lại bằng final holdout và chấm groundedness độc lập. Unit test vẫn không gọi OpenRouter và không dùng tài liệu người dùng.
 
 ## 1. Quyết định đã chốt
 
@@ -72,7 +72,7 @@ Personal Document Assistant
 - Agent chỉ chọn tool và trích xuất tham số; không quyết định quyền, lifecycle hoặc kết quả học tập.
 - Java là system of record và bộ não nghiệp vụ.
 - Python thực hiện document intelligence, retrieval, generation, citation và evaluation.
-- LangChain `create_agent` được dùng làm agent harness; runtime dựa trên LangGraph.
+- Single Orchestrator dùng bộ phân loại structured output và allowlist ba công cụ. LangChain Core hiện được dùng trong pipeline rerank; chưa đưa LangGraph vào runtime vì luồng chỉ cho phép đúng một công cụ mỗi lượt và không cần graph nhiều bước.
 - Không dùng Deep Agents, sub-agent hoặc Supervisor nhiều agent trong MVP.
 
 ## 2. Kiến trúc mục tiêu
@@ -109,10 +109,11 @@ Frontend không gọi Python, database, pgvector hoặc OpenRouter trực tiếp
 
 - FastAPI: internal HTTP API.
 - Pydantic v2: request, tool args, tool result và model output schema.
-- LangChain `create_agent`: Single Orchestrator Agent và structured tool calling.
-- LangGraph runtime: state, tool loop, checkpoint/trace khi cần.
+- LangChain Core Runnable/Document: chuẩn hóa pipeline rerank và dữ liệu evidence.
+- Single Orchestrator Agent: phân loại structured output rồi gọi đúng một công cụ trong allowlist; không dùng multi-agent.
 - SQLAlchemy/Alembic: schema `ai`.
 - PostgreSQL + pgvector: chunk, metadata và embedding.
+- PostgreSQL full-text search + GIN: nhánh tìm kiếm từ khóa cho Hybrid RAG.
 - OpenRouter: chat model và embedding model.
 
 Tham khảo:
@@ -168,6 +169,23 @@ Quy tắc:
 - Tool call vượt scope trả `SCOPE_VIOLATION`; không tự thu hẹp rồi âm thầm tiếp tục.
 - Conversation history không được dùng để mở rộng document scope.
 
+### 4.1. Guardrails bắt buộc
+
+Guardrails không giao hoàn toàn cho mô hình mà được kiểm tra bằng code tại từng ranh giới:
+
+| Lớp bảo vệ | Cách thực hiện |
+|---|---|
+| Quyền truy cập | Java cấp danh sách tài liệu, phiên bản và trang được phép; Python không nhận phạm vi mới do prompt hoặc LLM tự tạo |
+| Cô lập dữ liệu | Cả nhánh vector và từ khóa đều lọc scope trước khi xếp hạng; Python kiểm tra lại từng evidence sau retrieval/rerank |
+| Prompt injection | Câu hỏi và nội dung PDF luôn nằm trong vùng dữ liệu không đáng tin; system rule cố định yêu cầu bỏ qua mọi chỉ dẫn nằm trong tài liệu |
+| Thiếu bằng chứng | Evidence dưới ngưỡng hoặc không đủ hỗ trợ phải trả `NO_EVIDENCE`; không dùng kiến thức bên ngoài để bù |
+| Đầu ra mô hình | OpenRouter phải trả JSON theo schema đóng; trường lạ, output bị cắt hoặc refusal đều bị coi là lỗi |
+| Citation | LLM chỉ chọn `evidenceId`; Python tự dựng `documentId`, phiên bản, trang và trích đoạn từ evidence đã xác minh |
+| Quiz | Đúng số câu được yêu cầu, mỗi câu đúng 4 lựa chọn khác nhau, đúng một đáp án và có citation hợp lệ |
+| Giới hạn tài nguyên | Giới hạn độ dài prompt, số tài liệu, số trang/chunk, số ứng viên và timeout; không log prompt, nội dung PDF, signed URL hoặc secret |
+
+Guardrails trên bảo vệ quyền, cấu trúc và tính bám nguồn. Chúng không tự chứng minh mọi câu trả lời đúng về ngữ nghĩa; phần đó phải được đo riêng bằng bộ đánh giá groundedness/factual correctness.
+
 ## 5. Tool của Personal Document Assistant
 
 ### 5.1. `ask_document`
@@ -185,8 +203,10 @@ Quy tắc:
 **Workflow**
 
 ```text
-normalize/rewrite có giới hạn
-→ retrieval trong authorized Personal PDF
+normalize query có giới hạn
+→ vector search + full-text search trong authorized Personal PDF
+→ Reciprocal Rank Fusion (RRF)
+→ LangChain rerank và giảm evidence gần trùng
 → evidence gate
 → grounded generation
 → claim/citation validation

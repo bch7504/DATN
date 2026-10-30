@@ -163,18 +163,31 @@ Invoke-RestMethod http://127.0.0.1:8088/actuator/health
 
 Kết quả mong đợi có `status: UP`.
 
-### 6. Cấu hình Frontend
+### 6. Tài khoản local đang sử dụng
 
-Tạo file `apps/web/.env.local` với đúng hai biến public:
+Các tài khoản dưới đây là bản ghi thật trong PostgreSQL local, dùng khi chạy Frontend với Java Backend:
+
+| Vai trò | Tên đăng nhập | Email | Mật khẩu test local | Trạng thái |
+|---|---|---|---|---|
+| Student | `student.local` | `student.local@stu.ptit.edu.vn` | `StudyFlow@123` | `ACTIVE` |
+| Teacher | `teacher.local` | `teacher.local@studyflow.local` | `StudyFlow@123` | `ACTIVE` |
+| Admin | `admin.local` | `admin.local@studyflow.local` | `StudyFlow@123` | `ACTIVE` |
+
+Ba tài khoản và mật khẩu trên chỉ dành cho PostgreSQL local phục vụ phát triển/demo. Không dùng
+mật khẩu này trên môi trường public, staging hoặc production. Khi triển khai ra ngoài máy local,
+phải tạo tài khoản riêng và cấp mật khẩu bằng kênh bí mật, không lưu thông tin đăng nhập thật vào Git.
+
+### 7. Cấu hình Frontend
+
+Tạo file `apps/web/.env.local` với biến public sau:
 
 ```text
 NEXT_PUBLIC_API_URL=http://localhost:8088/api/v1
-NEXT_PUBLIC_DEMO_MODE=false
 ```
 
 Không đặt database password, AI key hoặc service token trong biến `NEXT_PUBLIC_*`.
 
-### 7. Chạy Frontend
+### 8. Chạy Frontend
 
 Mở PowerShell mới:
 
@@ -185,25 +198,6 @@ npm.cmd run dev
 ```
 
 Mở `http://localhost:3000`. Khi đăng ký tài khoản Student bằng email `@ptit.edu.vn`, lấy mã OTP tại Mailpit rồi nhập vào màn xác minh.
-
-## Chạy Frontend ở chế độ demo
-
-Nếu chỉ cần xem giao diện mà không chạy Java/PostgreSQL, đặt trong `apps/web/.env.local`:
-
-```text
-NEXT_PUBLIC_API_URL=http://localhost:8088/api/v1
-NEXT_PUBLIC_DEMO_MODE=true
-```
-
-Sau đó chạy `npm.cmd run dev`. Các tài khoản fixture:
-
-| Vai trò | Email | Mật khẩu demo |
-|---|---|---|
-| Student | `student@ptit.edu.vn` | `ptit@demo123` |
-| Teacher | `teacher@ptit.edu.vn` | `ptit@demo123` |
-| Admin | `admin@ptit.edu.vn` | `ptit@demo123` |
-
-Đây không phải tài khoản PostgreSQL và không được dùng để kiểm chứng backend production.
 
 ## Chạy Python AI Service
 
@@ -319,7 +313,7 @@ Script không xóa Docker volume. Không chạy lệnh xóa volume nếu chưa x
 | `npm.ps1 cannot be loaded` | Dùng `npm.cmd` thay cho `npm` trong PowerShell |
 | Backend không kết nối database | Kiểm tra Docker Desktop và chạy `.\scripts\database.ps1 status` |
 | Không nhận OTP | Kiểm tra container Mailpit và mở `http://127.0.0.1:8025` |
-| Frontend vẫn dùng dữ liệu demo | Đặt `NEXT_PUBLIC_DEMO_MODE=false`, sau đó khởi động lại Next.js |
+| Frontend không tải được dữ liệu | Kiểm tra Java Backend tại `http://127.0.0.1:8088/actuator/health` và `NEXT_PUBLIC_API_URL` |
 | Biểu tượng Dev Tools vẫn hiện | Dừng rồi chạy lại `npm.cmd run dev`; `next.config.ts` đã tắt dev indicator |
 | Port đã được sử dụng | Kiểm tra các cổng `3000`, `8088`, `8001`, `5433`, `8025` trước khi chạy |
 | Maven lỗi với đường dẫn Unicode | Dùng `subst` như hướng dẫn ở phần Java Backend |
@@ -345,4 +339,4 @@ Script không xóa Docker volume. Không chạy lệnh xóa volume nếu chưa x
 3. Java xác minh quyền trước khi cấp phạm vi tài liệu cho Python.
 4. Thiếu bằng chứng phải trả `NO_EVIDENCE`.
 5. Java là nơi duy nhất chấm Quiz và cập nhật tiến độ.
-6. Fixture chỉ chạy khi demo mode được bật rõ ràng.
+6. Frontend chỉ hiển thị dữ liệu thật từ Java; fixtures tổng hợp chỉ được dùng trong test.

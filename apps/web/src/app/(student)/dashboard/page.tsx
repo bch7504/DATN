@@ -1,37 +1,37 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/context/auth-context";
-import { reviewApi, studentApi } from "@/lib/api-client";
-import { DailyGoalProgress, StudyStreak } from "@/types/review";
-import { CourseOffering } from "@/types/course-offering";
-import { StatusBadge } from "@/components/ui/status-badge";
-import {
-  Flame,
-  Target,
-  GraduationCap,
-  BookOpen,
-  Award,
-  ChevronRight,
-  Sparkles,
-  Calendar,
-  AlertCircle,
-  CheckCircle2,
-  Settings,
-  ArrowRight,
-  Clock,
-  RotateCcw,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  Flame,
+  GraduationCap,
+  RotateCcw,
+  Settings,
+  Target,
+} from "lucide-react";
+import { useAuth } from "@/context/auth-context";
+import { catalogApi, reviewApi, studentApi } from "@/lib/api-client";
+import type { CourseOffering, Semester, Subject } from "@/types/course-offering";
+import type { DailyGoalProgress, StudyStreak } from "@/types/review";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorAlert } from "@/components/ui/error-states";
+import { LoadingSpinner } from "@/components/ui/loading-states";
+import { StatusBadge } from "@/components/ui/status-badge";
 
-export default function StudentDashboardPage() {
+/** Student dashboard backed exclusively by Java APIs for the active MVP semester. */
+export default function StudentDashboardPage(): React.JSX.Element {
   const { user } = useAuth();
-
+  const [offerings, setOfferings] = useState<CourseOffering[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [semester, setSemester] = useState<Semester | null>(null);
   const [dailyGoal, setDailyGoal] = useState<DailyGoalProgress | null>(null);
   const [streak, setStreak] = useState<StudyStreak | null>(null);
-  const [offerings, setOfferings] = useState<CourseOffering[]>([]);
-
-  // Daily Goal Config Modal
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [goalUnavailable, setGoalUnavailable] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [targetPages, setTargetPages] = useState(8);
   const [targetQuiz, setTargetQuiz] = useState(10);
@@ -39,35 +39,68 @@ export default function StudentDashboardPage() {
   const [isSavingGoal, setIsSavingGoal] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-    async function loadData() {
-      try {
-        const [goalData, streakData, offeringsData] = await Promise.all([
-          reviewApi.getDailyGoalProgress(),
-          reviewApi.getStudyStreak(),
-          studentApi.getOfferings(),
-        ]);
-        if (!mounted) return;
-        setDailyGoal(goalData);
-        setStreak(streakData);
-        setOfferings(offeringsData.filter((o) => o.status === "ACTIVE"));
-        setTargetPages(goalData.targetPages);
-        setTargetQuiz(goalData.targetQuizQuestions);
-        setTargetTasks(goalData.targetTasks);
-      } catch (err: unknown) {
-        console.error("Failed to load dashboard data:", err);
+    let active = true;
+
+    /**
+     * Args: none.
+     * Input: authenticated Student session and public Java APIs.
+     * Output: void; stores each independently available dashboard section.
+     * Errors: a failed optional aggregate never hides successfully loaded Course Offerings.
+     */
+    async function loadDashboard(): Promise<void> {
+      const [offeringResult, subjectResult, semesterResult, goalResult, streakResult] = await Promise.allSettled([
+        studentApi.getOfferings(),
+        catalogApi.getSubjects(),
+        catalogApi.getSemesters(),
+        reviewApi.getDailyGoalProgress(),
+        reviewApi.getStudyStreak(),
+      ]);
+      if (!active) return;
+
+      if (offeringResult.status === "fulfilled") {
+        setOfferings(offeringResult.value.filter((item) => item.status === "ACTIVE"));
+      } else {
+        setLoadError(offeringResult.reason instanceof Error ? offeringResult.reason.message : "Không thể tải lớp học phần.");
       }
+      if (subjectResult.status === "fulfilled") {
+        setSubjects(subjectResult.value.filter((item) => item.status === "ACTIVE"));
+      }
+      if (semesterResult.status === "fulfilled") {
+        setSemester(semesterResult.value.find((item) => item.status === "ACTIVE") ?? null);
+      }
+      if (goalResult.status === "fulfilled") {
+        setDailyGoal(goalResult.value);
+        setTargetPages(goalResult.value.targetPages);
+        setTargetQuiz(goalResult.value.targetQuizQuestions);
+        setTargetTasks(goalResult.value.targetTasks);
+      } else {
+        setGoalUnavailable(true);
+      }
+      if (streakResult.status === "fulfilled") setStreak(streakResult.value);
+      setIsLoading(false);
     }
 
-    loadData();
+    void loadDashboard();
     return () => {
-      mounted = false;
+      active = false;
     };
   }, []);
 
-  const handleSaveGoal = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const materialCount = useMemo(
+    () => offerings.reduce((total, offering) => total + (offering.materialsCount ?? 0), 0),
+    [offerings],
+  );
+
+  /**
+   * Args: form submit event.
+   * Input: positive Student-selected targets.
+   * Output: void; replaces displayed goal with Java's computed response.
+   * Errors: keeps the modal open and shows the returned API message.
+   */
+  async function saveGoal(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
     setIsSavingGoal(true);
+    setLoadError(null);
     try {
       const updated = await reviewApi.updateDailyGoalConfig({
         targetPages,
@@ -75,441 +108,158 @@ export default function StudentDashboardPage() {
         targetTasks,
       });
       setDailyGoal(updated);
+      setGoalUnavailable(false);
       setIsGoalModalOpen(false);
-    } catch {
-      alert("Lỗi khi cập nhật mục tiêu.");
+    } catch (error: unknown) {
+      setLoadError(error instanceof Error ? error.message : "Không thể cập nhật mục tiêu ngày.");
     } finally {
       setIsSavingGoal(false);
     }
-  };
+  }
 
-  const overview = {
-    viewedPages: 38,
-    totalPublishedPages: 62,
-    completedTasks: 9,
-    totalTasks: 12,
-    completedQuizzes: 7,
-    averageQuizScore: 84.0,
-  };
+  if (isLoading) {
+    return <div className="flex min-h-[60vh] items-center justify-center"><LoadingSpinner size="lg" text="Đang tải tổng quan học kỳ..." /></div>;
+  }
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Welcome Hero Banner */}
-      <div className="bg-gradient-to-r from-red-600 via-red-700 to-amber-600 rounded-3xl p-6 lg:p-8 text-white shadow-md relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-12 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold uppercase tracking-wider mb-3">
-            <Sparkles className="w-3.5 h-3.5" /> Chào mừng trở lại · Học kỳ 1 (2026 - 2027)
-          </div>
-          <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight font-display">
-            Xin chào, {user?.displayName || "Sinh viên PTIT"}!
-          </h1>
-          <p className="mt-2 text-white/90 text-xs sm:text-sm leading-relaxed">
-            Hôm nay bạn đã hoàn thành bài giảng và câu hỏi trắc nghiệm. Hãy tiếp tục duy trì nhịp độ học tập để giữ vững chuỗi Streak {streak?.currentStreak || 5} ngày nhé!
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-red-700 via-red-600 to-red-500 p-6 text-white shadow-sm lg:p-8">
+        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10" />
+        <div className="relative max-w-3xl">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-100">{semester?.name ?? "Chưa có học kỳ ACTIVE"}</p>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight lg:text-3xl">Xin chào, {user?.displayName ?? "Sinh viên PTIT"}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-red-50">
+            Theo dõi một học kỳ thống nhất gồm {subjects.length} môn. Tất cả lớp, học liệu, Quiz và tiến độ dưới đây được lấy trực tiếp từ hệ thống.
           </p>
-
           <div className="mt-5 flex flex-wrap gap-2.5">
-            <Link
-              href="/review"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-ptit-red hover:bg-red-50 rounded-xl text-xs font-bold shadow-sm transition"
-            >
-              <RotateCcw className="w-4 h-4" /> Không gian Ôn tập
+            <Link href="/course-offerings" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-red-700 shadow-sm">
+              <GraduationCap className="h-4 w-4" /> Mở danh sách môn học
             </Link>
-            <Link
-              href="/course-offerings"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-semibold backdrop-blur-sm transition"
-            >
-              <GraduationCap className="w-4 h-4" /> Lớp học phần của tôi
+            <Link href="/review" className="inline-flex items-center gap-2 rounded-xl border border-white/40 bg-red-800/30 px-4 py-2.5 text-xs font-bold text-white">
+              <RotateCcw className="h-4 w-4" /> Không gian ôn tập
             </Link>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* 4 Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Streak Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center flex-shrink-0 shadow-2xs">
-            <Flame className="w-6 h-6 fill-amber-500" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Study Streak
-            </div>
-            <div className="text-2xl font-extrabold text-slate-800 font-display">
-              {streak?.currentStreak || 5}{" "}
-              <span className="text-xs font-normal text-slate-500">ngày</span>
-            </div>
-            <div className="text-[11px] text-amber-700 font-semibold mt-0.5 truncate">
-              Kỷ lục: {streak?.longestStreak || 12} ngày liên tục
-            </div>
-          </div>
-        </div>
+      {loadError && <ErrorAlert message={loadError} onRetry={() => window.location.reload()} />}
 
-        {/* Course Material page progress card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-red-50 text-ptit-red border border-red-200 flex items-center justify-center flex-shrink-0 shadow-2xs">
-            <BookOpen className="w-6 h-6" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Trang học liệu PDF
-            </div>
-            <div className="text-2xl font-extrabold text-slate-800 font-display">
-              {overview.viewedPages}
-              <span className="text-sm font-normal text-slate-400">
-                /{overview.totalPublishedPages}
-              </span>
-            </div>
-            <div className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">
-              Đạt {Math.round((overview.viewedPages / overview.totalPublishedPages) * 100)}% toàn bộ môn
-            </div>
-          </div>
-        </div>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Số liệu học kỳ">
+        <MetricCard icon={BookOpen} label="Danh mục MVP" value={`${subjects.length} môn`} detail="Môn học đang hoạt động" />
+        <MetricCard icon={GraduationCap} label="Đã tham gia" value={`${offerings.length} lớp`} detail="Enrollment đã được duyệt" />
+        <MetricCard icon={CalendarDays} label="Học liệu đã công bố" value={`${materialCount} PDF`} detail="Theo dữ liệu lớp học phần" />
+        <MetricCard icon={Flame} label="Study Streak" value={streak ? `${streak.currentStreak} ngày` : "Chưa có"} detail={streak ? `Kỷ lục ${streak.longestStreak} ngày` : "Chưa có dữ liệu hoạt động"} />
+      </section>
 
-        {/* Daily Goal Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center flex-shrink-0 shadow-2xs">
-            <Target className="w-6 h-6" />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-lg font-extrabold text-slate-900">Môn học trong học kỳ</h2>
+              <p className="mt-1 text-xs text-slate-500">Chỉ hiển thị lớp thật mà tài khoản hiện tại đã được duyệt.</p>
+            </div>
+            <Link href="/course-offerings" className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600">Quản lý lớp <ArrowRight className="h-3.5 w-3.5" /></Link>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Mục tiêu ngày
-              </span>
-              <button
-                onClick={() => setIsGoalModalOpen(true)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
-                title="Cài đặt mục tiêu"
-              >
-                <Settings className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <div className="text-2xl font-extrabold text-slate-800 font-display">
-              {dailyGoal ? dailyGoal.actualPages + dailyGoal.actualQuizQuestions + dailyGoal.actualTasks : 16}
-              <span className="text-sm font-normal text-slate-400">
-                /{dailyGoal ? dailyGoal.targetPages + dailyGoal.targetQuizQuestions + dailyGoal.targetTasks : 20}
-              </span>
-            </div>
-            <div className="text-[11px] text-blue-700 font-semibold mt-0.5 truncate">
-              Hoàn thành 80% chỉ tiêu
-            </div>
-          </div>
-        </div>
 
-        {/* Quiz Avg Score Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center flex-shrink-0 shadow-2xs">
-            <Award className="w-6 h-6" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Điểm Quiz TB
-            </div>
-            <div className="text-2xl font-extrabold text-slate-800 font-display">
-              {overview.averageQuizScore}
-              <span className="text-xs font-normal text-slate-400">/100</span>
-            </div>
-            <div className="text-[11px] text-emerald-700 font-semibold mt-0.5 truncate">
-              Đã làm {overview.completedQuizzes} lượt ôn thi
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Active Course Offerings (Col 7 or 8) */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-base sm:text-lg font-bold text-slate-900 font-display">
-                  Lớp học phần đang theo học
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Xem học liệu PDF, tiến độ đọc và câu hỏi ôn tập gắn với từng môn học
-                </p>
-              </div>
-              <Link
-                href="/course-offerings"
-                className="inline-flex items-center gap-1 text-xs font-bold text-ptit-red hover:underline"
-              >
-                Xem tất cả lớp <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {offerings.length === 0 ? (
+            <EmptyState title="Chưa tham gia lớp học phần" description="Nhập mã do Giảng viên cung cấp để tham gia một trong các môn của học kỳ." />
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
               {offerings.map((offering) => (
-                <div
-                  key={offering.id}
-                  className="p-5 rounded-2xl border border-slate-200 hover:border-red-200 bg-white hover:shadow-sm transition group flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-3 mb-2.5">
-                      <span className="px-2.5 py-0.5 rounded-lg bg-red-50 text-ptit-red font-mono font-bold text-xs border border-red-100">
-                        {offering.code}
-                      </span>
-                      <StatusBadge status="APPROVED" size="sm" />
-                    </div>
-
-                    <h3 className="font-bold text-slate-900 text-sm group-hover:text-ptit-red transition mb-1">
-                      {offering.name}
-                    </h3>
-                    <p className="text-xs text-slate-500 mb-4">
-                      Giảng viên: <span className="font-medium text-slate-700">{offering.teacherName}</span>
-                    </p>
-
-                    <div className="space-y-1.5 mb-4">
-                      <div className="flex justify-between text-xs text-slate-600">
-                        <span>Tiến độ đọc PDF</span>
-                        <span className="font-bold text-slate-800">75%</span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                        <div className="h-full rounded-full bg-ptit-red" style={{ width: "75%" }} />
-                      </div>
-                    </div>
+                <article key={offering.id} className="rounded-2xl border border-slate-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="rounded-lg bg-red-50 px-2.5 py-1 font-mono text-xs font-bold text-red-700">{offering.code}</span>
+                    <StatusBadge status="APPROVED" size="sm" />
                   </div>
-
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <span className="text-slate-400">
-                      {offering.materialsCount || 4} học liệu
-                    </span>
-                    <Link
-                      href={`/course-offerings?offeringId=${offering.id}`}
-                      className="font-bold text-ptit-red hover:underline inline-flex items-center gap-0.5"
-                    >
-                      Vào lớp học <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
+                  <h3 className="mt-3 text-sm font-extrabold text-slate-900">{offering.name}</h3>
+                  <p className="mt-1 text-xs text-slate-500">Giảng viên: {offering.teacherName || "Chưa cập nhật"}</p>
+                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
+                    <span className="text-slate-500">{offering.materialsCount ?? 0} tài liệu PDF</span>
+                    <Link href={`/course-offerings/${encodeURIComponent(offering.id)}`} className="inline-flex items-center gap-1 font-bold text-red-600">Mở môn học <ArrowRight className="h-3.5 w-3.5" /></Link>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
-          </div>
-
-          {/* Quick Review Action Card */}
-          <div className="p-5 rounded-3xl bg-gradient-to-r from-red-50 via-white to-amber-50 border border-red-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-ptit-red text-white flex items-center justify-center flex-shrink-0 shadow-xs">
-                <RotateCcw className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 font-display">
-                  Có 3 câu hỏi trắc nghiệm cần ôn tập lại
-                </h4>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Được hệ thống tự động tổng hợp từ các lần làm bài chưa chính xác. Bạn có thể mở đúng trang PDF nguồn để xem lại lý thuyết.
-                </p>
-              </div>
-            </div>
-
-            <Link
-              href="/review"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex-shrink-0"
-            >
-              <span>Ôn tập ngay</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-
-        {/* Right: Daily Goal Breakdown & Weekly Activity (Col 4 or 5) */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Daily Goal Detail Box */}
-          {dailyGoal && (
-            <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Target className="w-4 h-4 text-ptit-red" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    Chi tiết Mục tiêu Ngày
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setIsGoalModalOpen(true)}
-                  className="text-xs font-semibold text-ptit-red hover:underline cursor-pointer"
-                >
-                  Cài đặt
-                </button>
-              </div>
-
-              <div className="space-y-3.5 text-xs">
-                <div>
-                  <div className="flex justify-between text-slate-600 mb-1">
-                    <span>Đọc trang học liệu PDF</span>
-                    <span className="font-bold text-slate-900">
-                      {dailyGoal.actualPages}/{dailyGoal.targetPages} trang
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-ptit-red rounded-full"
-                      style={{ width: `${dailyGoal.pagesPercentage}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-slate-600 mb-1">
-                    <span>Làm câu Quiz</span>
-                    <span className="font-bold text-slate-900">
-                      {dailyGoal.actualQuizQuestions}/{dailyGoal.targetQuizQuestions} câu
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-ptit-red rounded-full"
-                      style={{ width: `${dailyGoal.quizPercentage}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-slate-600 mb-1">
-                    <span>Nhiệm vụ học tập</span>
-                    <span className="font-bold text-slate-900">
-                      {dailyGoal.actualTasks}/{dailyGoal.targetTasks} task
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-600 rounded-full"
-                      style={{ width: `${dailyGoal.tasksPercentage}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-2.5 bg-slate-50 rounded-xl text-[11px] text-slate-500 leading-normal">
-                Điểm actual do Java backend tính tự động dựa trên nhật ký học tập.
-              </div>
-            </div>
           )}
+        </section>
 
-          {/* 7-Days Streak Activity Heatmap */}
-          {streak && (
-            <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <div className="flex items-center gap-1.5">
-                  <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    Chuỗi Streak 7 ngày
-                  </h3>
-                </div>
-                <span className="text-[11px] font-bold text-emerald-600">
-                  {streak.currentStreak} ngày liên tiếp
-                </span>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1.5 text-center pt-1">
-                {streak.weeklyActivity.map((day, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div
-                      className={`h-9 rounded-xl flex items-center justify-center text-xs font-bold transition ${
-                        day.active
-                          ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"
-                          : "bg-slate-100 text-slate-400 border border-transparent"
-                      }`}
-                      title={`${day.date}: ${day.count} hoạt động`}
-                    >
-                      {day.active ? <Flame className="w-4 h-4 fill-amber-500 text-amber-500" /> : "—"}
-                    </div>
-                    <div className="text-[10px] font-semibold text-slate-500">
-                      {day.day}
-                    </div>
-                  </div>
-                ))}
-              </div>
+        <aside className="space-y-4">
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2"><Target className="h-4 w-4 text-red-600" /><h2 className="text-sm font-extrabold text-slate-900">Mục tiêu ngày</h2></div>
+              {!goalUnavailable && <button type="button" onClick={() => setIsGoalModalOpen(true)} className="rounded-lg border border-red-200 p-1.5 text-red-600" aria-label="Cài đặt mục tiêu ngày"><Settings className="h-3.5 w-3.5" /></button>}
             </div>
-          )}
-        </div>
+            {dailyGoal ? (
+              <div className="mt-4 space-y-3">
+                <GoalLine label="Đọc PDF" actual={dailyGoal.actualPages} target={dailyGoal.targetPages} percentage={dailyGoal.pagesPercentage} />
+                <GoalLine label="Câu Quiz" actual={dailyGoal.actualQuizQuestions} target={dailyGoal.targetQuizQuestions} percentage={dailyGoal.quizPercentage} />
+                <GoalLine label="Nhiệm vụ" actual={dailyGoal.actualTasks} target={dailyGoal.targetTasks} percentage={dailyGoal.tasksPercentage} />
+              </div>
+            ) : (
+              <p className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600">API mục tiêu ngày chưa cung cấp dữ liệu. Giao diện không tự tạo số liệu thay thế.</p>
+            )}
+          </section>
+
+          <section className="rounded-3xl border border-red-100 bg-red-50 p-5">
+            <div className="flex items-center gap-2 text-sm font-extrabold text-red-800"><RotateCcw className="h-4 w-4" /> Ôn tập có nguồn</div>
+            <p className="mt-2 text-xs leading-5 text-slate-600">Mở Quiz đã duyệt và nội dung cần ôn lại được Java tổng hợp từ các câu trả lời sai.</p>
+            <Link href="/review" className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white">Mở Ôn tập <ArrowRight className="h-3.5 w-3.5" /></Link>
+          </section>
+        </aside>
       </div>
 
-      {/* Goal Config Modal */}
       {isGoalModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-ptit-red" />
-                <h3 className="font-bold text-slate-900 text-sm font-display">
-                  Cài đặt Mục tiêu ngày (Daily Goal)
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsGoalModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"
-              >
-                ✕
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-labelledby="goal-dialog-title">
+          <form onSubmit={saveGoal} className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+            <h2 id="goal-dialog-title" className="text-lg font-extrabold text-slate-900">Cấu hình mục tiêu ngày</h2>
+            <p className="mt-1 text-xs text-slate-500">Sinh viên chỉ đặt mục tiêu; Java tính kết quả thực tế.</p>
+            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              <GoalInput label="Trang PDF" value={targetPages} onChange={setTargetPages} />
+              <GoalInput label="Câu Quiz" value={targetQuiz} onChange={setTargetQuiz} />
+              <GoalInput label="Nhiệm vụ" value={targetTasks} onChange={setTargetTasks} />
             </div>
-
-            <form onSubmit={handleSaveGoal} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Mục tiêu số trang PDF đọc mỗi ngày:
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={targetPages}
-                  onChange={(e) => setTargetPages(Number(e.target.value))}
-                  className="w-full p-2.5 border border-slate-300 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Mục tiêu câu Quiz mỗi ngày:
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={targetQuiz}
-                  onChange={(e) => setTargetQuiz(Number(e.target.value))}
-                  className="w-full p-2.5 border border-slate-300 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Mục tiêu nhiệm vụ (Task):
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={targetTasks}
-                  onChange={(e) => setTargetTasks(Number(e.target.value))}
-                  className="w-full p-2.5 border border-slate-300 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsGoalModalOpen(false)}
-                  className="px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingGoal}
-                  className="px-5 py-2 bg-ptit-red hover:bg-red-700 text-white rounded-xl font-bold shadow-sm"
-                >
-                  {isSavingGoal ? "Đang lưu..." : "Lưu mục tiêu"}
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" onClick={() => setIsGoalModalOpen(false)} className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700">Hủy</button>
+              <button type="submit" disabled={isSavingGoal} className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{isSavingGoal ? "Đang lưu..." : "Lưu mục tiêu"}</button>
+            </div>
+          </form>
         </div>
       )}
     </div>
   );
+}
+
+interface MetricCardProps {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  detail: string;
+}
+
+/** Args: typed metric presentation values. Input: Java-derived dashboard state. Output: one stat card. Errors: none. */
+function MetricCard({ icon: Icon, label, value, detail }: MetricCardProps): React.JSX.Element {
+  return <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600"><Icon className="h-5 w-5" /></span><span className="min-w-0"><span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</span><strong className="block text-xl text-slate-900">{value}</strong><span className="block truncate text-[11px] text-slate-500">{detail}</span></span></div>;
+}
+
+interface GoalLineProps {
+  label: string;
+  actual: number;
+  target: number;
+  percentage: number;
+}
+
+/** Args: server-computed actual, target and percentage. Input: DailyGoalProgress. Output: progress row. Errors: none. */
+function GoalLine({ label, actual, target, percentage }: GoalLineProps): React.JSX.Element {
+  return <div><div className="mb-1 flex justify-between text-xs text-slate-600"><span>{label}</span><strong>{actual}/{target}</strong></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-red-600" style={{ width: `${Math.max(0, Math.min(100, percentage))}%` }} /></div></div>;
+}
+
+interface GoalInputProps {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}
+
+/** Args: goal label/value/change handler. Input: positive integer field. Output: controlled input. Errors: browser validation rejects values below one. */
+function GoalInput({ label, value, onChange }: GoalInputProps): React.JSX.Element {
+  return <label className="text-xs font-bold text-slate-700">{label}<input required type="number" min={1} value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal outline-none focus:border-red-500" /></label>;
 }

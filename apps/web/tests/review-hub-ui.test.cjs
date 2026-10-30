@@ -178,7 +178,7 @@ test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
   await t.test("Review Hub must not duplicate Course Offering progress from Dashboard", () => {
     const workspacePath = path.join(
       process.cwd(),
-      "src/app/(student)/review/[courseId]/page.tsx"
+      "src/app/(student)/review/[courseId]/review-workspace.tsx"
     );
     const source = fs.readFileSync(workspacePath, "utf8");
 
@@ -200,6 +200,7 @@ test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
   await t.test("Plan route loads persisted weekly calendar data and keeps Daily Goal on Dashboard", () => {
     const planPath = path.join(process.cwd(), "src/app/(student)/plan/page.tsx");
     const source = fs.readFileSync(planPath, "utf8");
+    const editor = fs.readFileSync(path.join(process.cwd(), "src/app/(student)/plan/plan-item-editor.tsx"), "utf8");
 
     assert.equal(source.includes("Kế hoạch &amp; Lịch học cá nhân"), true);
     assert.equal(source.includes("Thêm nhiệm vụ"), true);
@@ -209,8 +210,8 @@ test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
     assert.equal(source.includes("getDailyGoalProgress"), false);
     assert.equal(source.includes('studyPlanApi.listPlans("ACTIVE")'), true);
     assert.equal(source.includes("studyPlanApi.getCalendar(from.toISOString(), to.toISOString())"), true);
-    assert.equal(source.includes("studyPlanApi.createItem"), true);
-    assert.equal(source.includes("studyPlanApi.updateItem"), true);
+    assert.equal(editor.includes("studyPlanApi.createItem"), true);
+    assert.equal(editor.includes("studyPlanApi.updateItem"), true);
     assert.equal(source.includes("studyPlanApi.permanentlyDeleteItem"), true);
     assert.equal(source.includes("isDemoMode()"), false);
   });

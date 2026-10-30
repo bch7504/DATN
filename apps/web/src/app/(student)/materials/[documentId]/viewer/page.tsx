@@ -34,6 +34,14 @@ export default function CourseMaterialViewerPage() {
   const [tutorResult, setTutorResult] = useState<CourseMaterialTutorResponse | null>(null);
   const [tutorError, setTutorError] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
+  const [backHref, setBackHref] = useState("/materials");
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const courseId = query.get("courseId");
+    const offeringId = query.get("offeringId");
+    setBackHref(courseId ? `/course-offerings/${encodeURIComponent(courseId)}` : offeringId ? `/materials/class/${encodeURIComponent(offeringId)}` : "/materials");
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -95,7 +103,7 @@ export default function CourseMaterialViewerPage() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex min-w-0 items-center gap-3">
-          <Link href="/materials" aria-label="Quay lại học liệu" className="rounded-lg border border-slate-200 p-2 text-slate-600">
+          <Link href={backHref} aria-label="Quay lại học liệu" className="rounded-lg border border-slate-200 p-2 text-slate-600">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="min-w-0">

@@ -4,14 +4,14 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.join(__dirname, "..");
-const page = fs.readFileSync(path.join(root, "src/app/(student)/materials/page.tsx"), "utf8");
+const page = fs.readFileSync(path.join(root, "src/app/(student)/materials/material-library.tsx"), "utf8");
 
 test("Student PDF library lists approved classes before class-specific materials", async (t) => {
   await t.test("Class selection is reflected in the URL and direct class links are supported", () => {
     assert.match(page, /new URLSearchParams\(window\.location\.search\)\.get\("offeringId"\)/);
-    assert.match(page, /window\.history\.pushState/);
-    assert.match(page, /window\.addEventListener\("popstate", syncSelectedOffering\)/);
-    assert.match(page, /window\.history\.back\(\)/);
+    assert.match(page, /router\.push\(offeringId \? `\/materials\/class\//);
+    assert.match(page, /selectedOfferingId = offeringId/);
+    assert.ok(fs.existsSync(path.join(root, "src/app/(student)/materials/class/[offeringId]/page.tsx")));
     assert.match(page, /offerings\.map\(\(offering\)/);
   });
 

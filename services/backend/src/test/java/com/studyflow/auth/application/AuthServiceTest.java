@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.studyflow.auth.application.port.RefreshSessionStore;
+import com.studyflow.admin.infrastructure.AdminJdbcStore;
 import com.studyflow.auth.application.port.RegistrationChallengeStore;
 import com.studyflow.auth.application.port.SecretHasher;
 import com.studyflow.auth.application.port.SessionTokenIssuer;
@@ -51,6 +52,8 @@ class AuthServiceTest {
     private SessionTokenIssuer tokenIssuer;
     @Mock
     private VerificationCodeGenerator codeGenerator;
+    @Mock
+    private AdminJdbcStore adminSettings;
 
     private AuthService service;
 
@@ -77,8 +80,10 @@ class AuthServiceTest {
                 tokenIssuer,
                 codeGenerator,
                 properties,
-                Clock.fixed(NOW, ZoneOffset.UTC)
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                adminSettings
         );
+        org.mockito.Mockito.lenient().when(adminSettings.registrationEnabled()).thenReturn(true);
     }
 
     @Test
@@ -109,6 +114,17 @@ class AuthServiceTest {
                 NOW.plus(Duration.ofMinutes(10))
         );
         assertThat(result.status()).isEqualTo("VERIFICATION_REQUIRED");
+    }
+
+    @Test
+    void registrationSettingStopsNewChallengeBeforeSendingOtp() {
+        when(adminSettings.registrationEnabled()).thenReturn(false);
+        assertThatThrownBy(() -> service.startRegistration(new StartRegistrationCommand(
+                "Nguyễn Văn A", "b22dccn001@stu.ptit.edu.vn", "StrongPass1")))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("Đăng ký tài khoản hiện đang tạm dừng");
+        verify(challenges, never()).save(any());
+        verify(codeSender, never()).send(any(), any(), any(), any());
     }
 
     @Test

@@ -1,6 +1,6 @@
 # StudyFlow Web
 
-Frontend Next.js hiện là baseline giao diện đã chốt cho ba vai trò. Fixture chỉ hoạt động khi demo mode được bật; route/chức năng được mô tả tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md).
+Frontend Next.js là giao diện thật cho ba vai trò và chỉ lấy dữ liệu qua Java `/api/v1`; không có chế độ demo lúc chạy. Route/chức năng được mô tả tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md).
 
 ## Cấu trúc mục tiêu
 
@@ -46,8 +46,32 @@ apps/web/
 - Không tính score, progress, Streak hoặc Daily Goal actual ở client.
 - Dashboard hiển thị aggregate và tiến độ từng Course Offering; không có màn Progress riêng.
 - Student quản lý Personal PDF, hỏi đáp, tóm tắt và tạo Quiz ngay trên cùng trang Tài liệu cá nhân. Teacher tạo Quiz từ Course Material PDF qua AI Quiz Studio riêng; cả hai đều qua Java và ở trạng thái review trước khi sử dụng/công bố.
-- Fixture demo không được xem là implementation production hoặc dữ liệu thật.
+- Dữ liệu tổng hợp chỉ được dùng trong test; giao diện đang chạy không fallback sang học liệu, lớp hoặc Quiz giả khi API lỗi.
 
 Kế hoạch triển khai nằm tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md).
 
 Khung toàn bộ giao diện và lịch sử thay đổi: [`../../docs/ui-design.md`](../../docs/ui-design.md).
+
+## Điều hướng các màn nghiệp vụ
+
+Màn danh sách, tạo, sửa và chi tiết có route riêng. Route module chỉ chọn màn; các form và phần tải dữ liệu chung được tái sử dụng bằng component có props rõ ràng. Bộ lọc danh sách vẫn dùng query hoặc state; hộp xác nhận và xem trước tệp là popup ngắn.
+
+| Khu vực | Đường dẫn |
+| --- | --- |
+| Bài tập giảng viên | `/teacher/assignments`, `/new`, `/{assignmentId}`, `/{assignmentId}/edit` |
+| Bài tập sinh viên | `/assignments`, `/assignments/{assignmentId}` |
+| Mở lớp giảng viên | `/teacher/course-offerings/new` |
+| Học liệu giảng viên | `/teacher/documents`, `/{offeringId}`, `/{offeringId}/upload`, `/publications/{documentId}` |
+| Lớp và học liệu sinh viên | `/course-offerings/{offeringId}`, `/materials/class/{offeringId}`, `/materials/{documentId}/viewer` |
+| Quiz giảng viên | `/teacher/quizzes/create`, `/teacher/quizzes/{quizId}` |
+| Quiz sinh viên | `/quiz/create`, `/quiz/drafts/{draftId}`, `/quiz/drafts/{draftId}/accept` |
+| Ôn tập và lượt làm | `/review/{courseId}`, `/items`, `/attempts/{attemptId}`, `/attempts/{attemptId}/result` |
+| Kế hoạch | `/plan`, `/plan/new`, `/plan/{planId}/edit`, `/plan/{planId}/items/new`, `/plan/{planId}/items/{itemId}/edit` |
+| Quản trị | `/admin/users/{userId}/edit`, `/admin/feedback/{reportId}`, `/admin/course-offerings/{offeringId}` |
+| Danh mục quản trị | `/admin/catalog/subjects` và `/admin/catalog/semesters`, mỗi khu vực có `/new` và `/{entityId}/edit` |
+
+Liên kết query cũ tới chi tiết bài tập/lớp/học liệu được chuyển tiếp sang route mới. Mỗi màn con có nút về danh sách/màn cha; Back của trình duyệt dùng lịch sử điều hướng Next.
+
+Lượt làm Quiz chỉ được tạo bằng thao tác bấm bắt đầu, không tạo lại khi tải trang. Câu hỏi, lựa chọn đang làm và kết quả chấm thực từ Java được giữ trong `sessionStorage` theo tài khoản + lượt làm để khôi phục trong cùng thẻ. Contract hiện chưa có GET lượt đang làm; mở URL đó ở thẻ mới không tự tạo một lượt khác. Kết quả dùng phản hồi chấm của Java, không chấm tại frontend.
+
+`node tests/browser-navigation.cjs` chạy Chrome headless với API fixtures tổng hợp để kiểm tra các route, Back, F5, tạo bài và nộp Quiz; toàn bộ request `/api/v1` của lượt kiểm thử được chặn và trả fixture, không ghi dữ liệu vào Java thật.

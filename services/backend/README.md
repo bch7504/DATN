@@ -25,6 +25,8 @@ Java backend là system of record và public API duy nhất cho Web. Module dùn
 3. Cấu hình SMTP qua `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` để gửi OTP đăng ký và thông báo cho email sinh viên đã đăng ký. Không đưa mật khẩu ứng dụng vào Git.
 4. Chạy `./mvnw spring-boot:run` (Windows: `mvnw.cmd spring-boot:run`); Flyway sẽ tạo schema `app` và các bảng xác thực.
 
+Khi chạy web local trên cổng 3000 hoặc 3001, dùng `./mvnw -Dspring-boot.run.profiles=local spring-boot:run` (PowerShell: `.\mvnw.cmd "-Dspring-boot.run.profiles=local" spring-boot:run`). Profile `local` cho phép chính xác các origin localhost/127.0.0.1 trên hai cổng này và dùng cookie dành cho HTTP local. Profile `dev` cũng nhận hai cổng; có thể ghi đè danh sách bằng `STUDYFLOW_CORS_ALLOWED_ORIGINS`. Backend dùng database được cấu hình trong `DATABASE_URL`; không tự chuyển sang database/container khác. Web không thể đăng nhập khi tiến trình Java ở cổng 8088 chưa chạy.
+
 Đăng ký công khai chỉ nhận email có miền chính xác `stu.ptit.edu.vn` (không nhận `ptit.edu.vn` hoặc miền con khác). Tài khoản `STUDENT` chỉ được tạo sau khi xác minh OTP sáu chữ số. Nếu môi trường đã đặt `STUDYFLOW_ALLOWED_EMAIL_DOMAIN`, cần đổi giá trị đó thành `stu.ptit.edu.vn` và khởi động lại backend. Tài khoản cũ không bị tự động đổi địa chỉ hoặc khóa đăng nhập.
 
 Profile `dev` cũng dùng PostgreSQL qua cùng các biến `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`; không có CSDL nhúng riêng. Migration Flyway vẫn chạy như cấu hình mặc định.
@@ -44,11 +46,11 @@ Các tài khoản có tên `Sinh viên mẫu …`, email `@example.invalid` (kh�
 | `courseoffering` | Teacher tự tạo lớp, join-code lifecycle, lock/archive |
 | `enrollment` | Student request, Teacher approve/reject, access policy |
 | `document`, `publication` | Teacher/Personal metadata, upload, public/revoke theo Course Offering |
-| `slide`, `note` | Slide artifact access, view event và Note |
+| `material` | Ghi chú trang PDF và view event đã xác thực |
 | `conversation` | Personal RAG conversation/history và citation record |
 | `review` | Free-prompt Quiz, destination, draft review/regenerate, attempt, wrong-answer source và Java scoring |
 | `progress`, `study` | Dashboard aggregate, Content Progress, Study Streak, Daily Goal và Study Plan/Calendar |
-| `feedback`, `audit`, `settings` | Admin operation và operational metadata |
+| `admin` | Quản trị danh mục, tài khoản, phản hồi, audit và runtime setting |
 | `integration.ai`, `integration.storage` | Outbound adapters; không chứa business rule |
 
 Mỗi business module triển khai theo `api → application → domain → infrastructure`. DTO/JPA entity không đi xuyên boundary; public/application method phải có typed contract và Javadoc theo `AGENTS.md`.
@@ -79,7 +81,8 @@ Study Plan vẫn hoạt động độc lập khi không chọn lớp học phầ
 - Teacher hợp lệ tự tạo Course Offering từ Subject + Semester active; Admin quản lý catalog và giám sát, không phân công từng lớp.
 - Teacher owner quản lý join code, duyệt Enrollment và public document vào lớp mình sở hữu.
 - Student chỉ truy cập materials/Tutor khi Enrollment `APPROVED` hoặc historical policy cho phép.
-- Course Material: Teacher upload/public PDF text-layer; Student `APPROVED` xem/tải và dùng AI Tutor qua Java. Page Note và view event vẫn là phần chưa nối trong module hiện tại.
+- Course Material: Teacher upload/public PDF text-layer; Student `APPROVED` xem/tải và dùng AI Tutor qua Java. Student lưu ghi chú theo trang và ghi nhận một lượt xem cho mỗi trang/ngày địa phương qua Java; Dashboard tổng hợp tiến độ trang, nhiệm vụ và Quiz từ dữ liệu thật.
+- Admin: API quản lý tài khoản, danh mục, lớp học phần, phản hồi, audit và cờ cho phép đăng ký. Đổi vai trò/khóa tài khoản thu hồi refresh token và access JWT cũ bị kiểm lại theo trạng thái/role hiện hành.
 - Personal Document: PDF text-layer thuộc Student owner; Personal Assistant/RAG đã đi qua Java và tách khỏi Teacher materials.
 - Java xác minh scope trước khi gọi Python, kiểm lại citation/Quiz output và sở hữu Quiz lifecycle/scoring/progress.
 - Java không đọc/ghi schema `ai` hoặc vector.

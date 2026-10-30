@@ -1,4 +1,4 @@
 # Course Offering Monitoring
 
-Admin lọc/giám sát, lock hoặc archive Course Offering với audit reason.
+Admin lọc/giám sát, xem metadata, khóa hoặc lưu trữ Course Offering đang ACTIVE. Java ghi audit metadata cho thao tác thay đổi.
 

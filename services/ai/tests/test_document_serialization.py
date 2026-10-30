@@ -67,6 +67,7 @@ def test_enqueue_locks_before_reading_revocation_and_cannot_insert_after_revoke(
 def test_engine_requires_fresh_snapshots_after_document_lock() -> None:
     """Args: none. Returns: None. Raises: AssertionError if isolation relies on server defaults."""
     settings = Settings(
+        _env_file=None,
         INTERNAL_SERVICE_TOKEN="synthetic-service-token-only",
         AI_DATABASE_URL="postgresql+psycopg://fixture:fixture@db.invalid/fixture",
     )

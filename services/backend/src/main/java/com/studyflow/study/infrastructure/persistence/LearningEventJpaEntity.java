@@ -30,6 +30,9 @@ class LearningEventJpaEntity {
     @Column(name = "idempotency_key", nullable = false, length = 100)
     private String idempotencyKey;
 
+    @Column(name = "quantity", nullable = false)
+    private int quantity;
+
     @Column(name = "occurred_at", nullable = false)
     private Instant occurredAt;
 
@@ -59,6 +62,7 @@ class LearningEventJpaEntity {
         entity.sourceType = "STUDY_PLAN_ITEM";
         entity.sourceId = itemId;
         entity.idempotencyKey = idempotencyKey;
+        entity.quantity = 1;
         entity.occurredAt = occurredAt;
         entity.activityDate = activityDate;
         entity.quantity = 1;

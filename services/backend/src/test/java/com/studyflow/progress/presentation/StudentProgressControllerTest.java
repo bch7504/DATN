@@ -8,11 +8,8 @@ import com.studyflow.progress.application.ConfigureDailyGoalCommand;
 import com.studyflow.progress.application.DailyGoalProgressDTO;
 import com.studyflow.progress.application.DailyGoalService;
 import com.studyflow.progress.application.LearningEventService;
-import com.studyflow.progress.application.RecordLearningEventCommand;
 import com.studyflow.progress.application.StudyMetricsService;
-import com.studyflow.progress.domain.EventType;
 import com.studyflow.progress.domain.LearningEventRepository;
-import com.studyflow.progress.dto.RecordLearningEventRequest;
 import com.studyflow.progress.dto.StudentDailyGoalRequest;
 import java.time.Clock;
 import java.time.Instant;
@@ -43,7 +40,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -229,29 +225,12 @@ class StudentProgressControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/student/learning-events records student event and returns 201 Created")
-    void recordLearningEventSuccess() throws Exception {
-        UUID docId = UUID.randomUUID();
-        RecordLearningEventRequest req = new RecordLearningEventRequest(
-                EventType.VIEW_PAGE,
-                "PERSONAL_DOCUMENT",
-                docId,
-                1,
-                "client-idempotency-key-123"
-        );
-
-        mockMvc.perform(post("/api/v1/student/learning-events")
+    @DisplayName("A client cannot forge an unverified study-completion event")
+    void genericLearningEventRouteIsUnavailable() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/student/learning-events")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isCreated());
-
-        verify(learningEventService).recordEvent(eq(new RecordLearningEventCommand(
-                STUDENT_ID,
-                EventType.VIEW_PAGE,
-                "PERSONAL_DOCUMENT",
-                docId,
-                1,
-                "client-idempotency-key-123"
-        )));
+                        .content("{\"eventType\":\"QUIZ_COMPLETED\",\"quantity\":200}"))
+                .andExpect(status().isNotFound());
     }
 }

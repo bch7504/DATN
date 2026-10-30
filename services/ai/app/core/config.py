@@ -1,21 +1,21 @@
-"""Validated process-environment configuration.
-
-The service deliberately does not load a local .env file. Deployment tooling
-must inject environment variables explicitly.
-"""
+"""Validated configuration from the repository .env and process environment."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import AnyHttpUrl, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+REPOSITORY_ENV_FILE = Path(__file__).resolve().parents[4] / ".env"
 
 
 class Settings(BaseSettings):
     """Immutable runtime settings for one AI service process."""
 
     model_config = SettingsConfigDict(
-        env_file=None,
+        env_file=REPOSITORY_ENV_FILE,
+        env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
         frozen=True,
@@ -59,6 +59,30 @@ class Settings(BaseSettings):
         ge=1024,
         le=1024,
         validation_alias="EMBEDDING_DIMENSIONS",
+    )
+    retrieval_candidate_limit: int = Field(
+        default=32,
+        ge=8,
+        le=100,
+        validation_alias="AI_RETRIEVAL_CANDIDATE_LIMIT",
+    )
+    retrieval_minimum_relevance: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        validation_alias="AI_RETRIEVAL_MINIMUM_RELEVANCE",
+    )
+    retrieval_rrf_k: int = Field(
+        default=60,
+        ge=1,
+        le=200,
+        validation_alias="AI_RETRIEVAL_RRF_K",
+    )
+    rerank_diversity_penalty: float = Field(
+        default=0.15,
+        ge=0.0,
+        le=0.5,
+        validation_alias="AI_RERANK_DIVERSITY_PENALTY",
     )
     storage_endpoint: AnyHttpUrl | None = Field(default=None, validation_alias="STORAGE_ENDPOINT")
     allow_insecure_local_storage_url: bool = Field(
@@ -130,7 +154,7 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Load and cache settings from process environment variables.
+    """Load and cache settings from root .env with process values taking precedence.
 
     Returns:
         A validated immutable Settings instance.
@@ -138,6 +162,7 @@ def get_settings() -> Settings:
     Raises:
         pydantic.ValidationError: If required configuration is missing or
             invalid.
+        OSError: If an existing environment file cannot be read.
     """
 
     return Settings()

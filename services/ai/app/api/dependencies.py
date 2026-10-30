@@ -16,6 +16,7 @@ from app.services.assistant_runs import AssistantRunService
 from app.services.grounded_generation import GroundedAnswerService, GroundedQuizService
 from app.services.idempotent_quiz import IdempotentQuizGenerationService
 from app.services.orchestrator import PersonalAssistantOrchestrator
+from app.services.reranking import LangChainEvidenceReranker
 from app.services.retrieval import RetrievalService
 
 
@@ -113,8 +114,13 @@ def get_retrieval_service(
             session,
             embedding_dimensions=settings.embedding_dimensions,
             embedding_model=settings.openrouter_embedding_model,
+            minimum_relevance=settings.retrieval_minimum_relevance,
+            rrf_k=settings.retrieval_rrf_k,
         ),
         embedding_dimensions=settings.embedding_dimensions,
+        minimum_relevance=settings.retrieval_minimum_relevance,
+        candidate_limit=settings.retrieval_candidate_limit,
+        reranker=LangChainEvidenceReranker(diversity_penalty=settings.rerank_diversity_penalty),
     )
 
 

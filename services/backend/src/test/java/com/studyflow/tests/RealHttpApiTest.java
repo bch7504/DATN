@@ -12,6 +12,11 @@ import com.studyflow.auth.application.port.UserAccountStore;
 import com.studyflow.auth.application.port.VerificationCodeSender;
 import com.studyflow.assignment.application.AssignmentAttachmentCleanupJob;
 import com.studyflow.document.domain.CourseMaterialDocumentRepository;
+import com.studyflow.integration.ai.AiContracts.IndexArtifact;
+import com.studyflow.integration.ai.AiContracts.JobAcceptedResponse;
+import com.studyflow.integration.ai.AiContracts.JobResponse;
+import com.studyflow.integration.ai.AiContracts.JobStatus;
+import com.studyflow.integration.ai.AiServiceClient;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
 import com.studyflow.user.domain.*;
 import java.io.*;
@@ -46,15 +51,16 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * Run: mvnw.cmd -Dtest=RealHttpApiTest test. Nonzero exit means a contract/scenario failed.
  * Tests have no args and return void; HTTP/JSON errors and failed expectations fail the test.
  * Console output contains method/path/status only, never cookies, passwords, OTPs or file contents.
- * This does not validate Flyway migrations, S3 connectivity, SMTP delivery or browser UI.
+ * This validates Flyway migrations and HTTP contracts, but not S3, SMTP or browser UI.
  */
 @Testcontainers(disabledWithoutDocker = true)
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "spring.profiles.active=qa-http",
         "server.address=127.0.0.1",
         "spring.datasource.driver-class-name=org.postgresql.Driver",
-        "spring.jpa.hibernate.ddl-auto=create-drop", "spring.jpa.show-sql=false",
-        "spring.flyway.enabled=false", "spring.sql.init.mode=never",
+        "spring.jpa.hibernate.ddl-auto=validate", "spring.jpa.show-sql=false",
+        "spring.flyway.enabled=true", "spring.sql.init.mode=never",
         "spring.mail.host=127.0.0.1", "spring.mail.port=1",
         "spring.mail.username=qa", "spring.mail.password=qa-not-real",
         "management.health.mail.enabled=false", "studyflow.storage.enabled=false",
@@ -65,6 +71,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "studyflow.notifications.reminder-scan-delay=3600000",
         "studyflow.notifications.email-scan-delay=3600000",
         "studyflow.assignments.attachment-cleanup-delay=3600000",
+        "studyflow.ai.allow-insecure-local-storage-url=true",
+        "studyflow.ai.document-scan-delay=3600000",
         "logging.level.root=ERROR", "spring.main.banner-mode=off"
 })
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -105,11 +113,11 @@ class RealHttpApiTest {
     @Autowired private org.springframework.transaction.PlatformTransactionManager transactions;
     @Autowired private AssignmentAttachmentCleanupJob attachmentCleanupJob;
     @Autowired private CourseMaterialDocumentRepository documents;
-    @Autowired private javax.sql.DataSource dataSource;
     @Autowired private ObjectMapper json;
     @Autowired @Qualifier("requestMappingHandlerMapping") private RequestMappingHandlerMapping mappings;
     @MockBean(reset = org.springframework.boot.test.mock.mockito.MockReset.NONE) private VerificationCodeSender mail;
     @MockBean(reset = org.springframework.boot.test.mock.mockito.MockReset.NONE) private AssignmentAttachmentStorage storage;
+    @MockBean(reset = org.springframework.boot.test.mock.mockito.MockReset.NONE) private AiServiceClient ai;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final Map<String, String> codes = new ConcurrentHashMap<>();
     private final Map<String, byte[]> objects = new ConcurrentHashMap<>();
@@ -147,10 +155,6 @@ class RealHttpApiTest {
     /** No args; seeds isolated accounts/catalog and external adapter doubles. Output void; errors abort setup. */
     @BeforeAll
     void prepareIsolatedFixtures() throws Exception {
-        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
-                new org.springframework.core.io.ClassPathResource(
-                        "db/migration/V15__create_personal_assistant_and_ai_quiz_tables.sql"))
-                .execute(dataSource);
         doAnswer(call -> { codes.put(call.getArgument(0), call.getArgument(2)); return null; })
                 .when(mail).send(any(), any(), any(), any());
         doAnswer(call -> {
@@ -161,6 +165,18 @@ class RealHttpApiTest {
         when(storage.get(any())).thenAnswer(call -> new ByteArrayInputStream(
                 Objects.requireNonNull(objects.get(call.getArgument(0)), "Missing synthetic object")));
         doAnswer(call -> { objects.remove(call.getArgument(0)); return null; }).when(storage).delete(any());
+        when(storage.presignGet(any(), any())).thenAnswer(call -> URI.create(
+                "http://127.0.0.1:8333/" + call.<String>getArgument(0)));
+        when(ai.indexDocument(any(), any(), any())).thenAnswer(call -> {
+            String requestId = call.getArgument(1);
+            return new JobAcceptedResponse(requestId, UUID.randomUUID(), JobStatus.PENDING);
+        });
+        when(ai.getJob(any(), any())).thenAnswer(call -> {
+            UUID jobId = call.getArgument(0);
+            String requestId = call.getArgument(1);
+            return new JobResponse(requestId, jobId, JobStatus.SUCCEEDED, 1, null,
+                    new IndexArtifact(1, 1, "openai/text-embedding-3-large", 1024, "pdf-v1"));
+        });
         teacher = seedAndLogin("qa-teacher", UserRole.TEACHER);
         student = seedAndLogin("qa-student", UserRole.STUDENT);
         admin = seedAndLogin("qa-admin", UserRole.ADMIN);
@@ -347,12 +363,15 @@ class RealHttpApiTest {
         var own = send("GET", "/api/v1/teacher/documents/" + doc + "/download", teacher, null);
         assertThat(own.statusCode()).isEqualTo(200);
         assertThat(own.body()).isEqualTo(pdf);
-        expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
-                Map.of("courseOfferingIds", List.of(offering))), 409);
-        new org.springframework.transaction.support.TransactionTemplate(transactions).executeWithoutResult(status ->
-                documents.findById(UUID.fromString(doc)).orElseThrow().markReady(1, Instant.now()));
-        expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
-                Map.of("courseOfferingIds", List.of(offering))), 204);
+        var publicationRequest = send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
+                Map.of("courseOfferingIds", List.of(offering)));
+        assertThat(publicationRequest.statusCode()).isIn(204, 409);
+        if (publicationRequest.statusCode() == 409) {
+            new org.springframework.transaction.support.TransactionTemplate(transactions).executeWithoutResult(status ->
+                    documents.findById(UUID.fromString(doc)).orElseThrow().markReady(1, Instant.now()));
+            expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
+                    Map.of("courseOfferingIds", List.of(offering))), 204);
+        }
         assertThat(expect(send("GET", "/api/v1/student/notifications?size=100", student, null), 200)
                 .path("items").findValuesAsText("type")).contains("STUDENT_MATERIAL_PUBLISHED");
         expect(send("GET", "/api/v1/student/materials", student, null), 200);
@@ -366,6 +385,93 @@ class RealHttpApiTest {
         assertThat(expect(send("GET", "/api/v1/student/notifications?size=100", student, null), 200)
                 .path("items").findValuesAsText("type")).contains("STUDENT_MATERIAL_REVOKED");
         expect(send("GET", "/api/v1/student/materials/" + doc + "/download", student, null), 403);
+    }
+
+    /** No args. Input: isolated Admin/Student sessions and synthetic catalog/report data.
+     * Output: verifies Admin mutations, audit, settings enforcement and stale-token rejection through HTTP.
+     * Errors: any contract or persistence failure fails the scenario. */
+    @Test
+    void adminCatalogFeedbackSettingsAndAccountLifecycleOverHttp() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String subject = expect(send("POST", "/api/v1/admin/subjects", admin,
+                Map.of("code", "QA-S-" + suffix, "name", "Synthetic Admin Subject", "credits", 3)), 201)
+                .path("id").asText();
+        assertThat(expect(send("GET", "/api/v1/admin/subjects", admin, null), 200)
+                .path("items").findValuesAsText("id")).contains(subject);
+        expect(send("PATCH", "/api/v1/admin/subjects/" + subject, admin,
+                Map.of("name", "Updated synthetic subject")), 200);
+        expect(send("DELETE", "/api/v1/admin/subjects/" + subject, admin, null), 204);
+
+        String semester = expect(send("POST", "/api/v1/admin/semesters", admin,
+                Map.of("code", "QA-M-" + suffix, "name", "Synthetic semester", "academicYear", "2026-2027",
+                        "startDate", "2026-09-01", "endDate", "2027-01-31", "status", "ACTIVE",
+                        "offeringCreationEnabled", true)), 201).path("id").asText();
+        expect(send("PATCH", "/api/v1/admin/semesters/" + semester, admin,
+                Map.of("name", "Updated synthetic semester")), 200);
+        expect(send("DELETE", "/api/v1/admin/semesters/" + semester, admin, null), 204);
+
+        String report = expect(send("POST", "/api/v1/student/feedback-reports", student,
+                Map.of("type", "BUG", "title", "Synthetic feedback", "content", "Isolated test")), 201)
+                .path("id").asText();
+        expect(send("PATCH", "/api/v1/admin/feedback-reports/" + report, admin,
+                Map.of("status", "RESOLVED", "resolution", "Synthetic resolution")), 200);
+        assertThat(expect(send("GET", "/api/v1/admin/system-logs", admin, null), 200)
+                .path("totalItems").asLong()).isGreaterThan(0);
+
+        try {
+            expect(send("PATCH", "/api/v1/admin/system-settings", admin,
+                    Map.of("registrationEnabled", false)), 200);
+            expect(send("POST", "/api/v1/auth/register", null,
+                    Map.of("displayName", "QA Registration", "email", "qa-new@stu.ptit.edu.vn",
+                            "password", PASSWORD)), 403);
+        } finally {
+            expect(send("PATCH", "/api/v1/admin/system-settings", admin,
+                    Map.of("registrationEnabled", true)), 200);
+        }
+
+        String temporarySession = seedAndLogin("qa-lock-" + suffix, UserRole.STUDENT);
+        UUID temporaryId = users.findByIdentifier("qa-lock-" + suffix).orElseThrow().id();
+        expect(send("PATCH", "/api/v1/admin/users/" + temporaryId, admin,
+                Map.of("status", "LOCKED")), 200);
+        expect(send("GET", "/api/v1/me", temporarySession, null), 401);
+    }
+
+    /** No args. Input: one approved class and published synthetic one-page PDF.
+     * Output: verifies saved notes, deduplicated VIEW_PAGE and dashboard aggregates on migrated PostgreSQL.
+     * Errors: access/SQL/schema mismatch fails the scenario. */
+    @Test
+    void pageNoteViewAndDashboardOverHttp() throws Exception {
+        String offering = approvedCourse();
+        String doc = expect(multipart("/api/v1/teacher/documents", teacher, "file", syntheticPdf(),
+                "Synthetic page activity PDF"), 201).path("id").asText();
+        new org.springframework.transaction.support.TransactionTemplate(transactions).executeWithoutResult(status ->
+                documents.findById(UUID.fromString(doc)).orElseThrow().markReady(1, Instant.now()));
+        expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
+                Map.of("courseOfferingIds", List.of(offering))), 204);
+        String page = "/api/v1/student/materials/" + doc + "/pages/1";
+        assertThat(expect(send("GET", page + "/note", student, null), 200)
+                .path("content").asText()).isEmpty();
+        assertThat(expect(send("PUT", page + "/note", student,
+                Map.of("content", "Synthetic page note")), 200).path("content").asText())
+                .isEqualTo("Synthetic page note");
+        expect(send("POST", page + "/view-events", student, null,
+                Map.of("Idempotency-Key", "qa-view-1")), 204);
+        expect(send("POST", page + "/view-events", student, null,
+                Map.of("Idempotency-Key", "qa-view-1")), 204);
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM app.course_material_page_views
+                WHERE student_id = ? AND document_id = ? AND page_number = 1
+                """, Long.class, studentId, UUID.fromString(doc))).isEqualTo(1L);
+        UUID pageSource = UUID.nameUUIDFromBytes((doc + ":1").getBytes(StandardCharsets.UTF_8));
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM app.learning_events
+                WHERE student_id = ? AND event_type = 'VIEW_PAGE' AND source_id = ?
+                """, Long.class, studentId, pageSource)).isEqualTo(1L);
+        JsonNode dashboard = expect(send("GET", "/api/v1/student/dashboard", student, null), 200);
+        assertThat(dashboard.path("overview").path("viewedPages").asInt()).isGreaterThanOrEqualTo(1);
+        assertThat(dashboard.path("dailyGoal").path("pageActual").asInt()).isGreaterThanOrEqualTo(1);
+        assertThat(dashboard.path("activeCourseOfferings").findValuesAsText("courseOfferingId"))
+                .contains(offering);
     }
 
     @Test

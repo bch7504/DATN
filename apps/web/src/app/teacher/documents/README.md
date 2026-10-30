@@ -1,3 +1,3 @@
 # Teacher Document Library
 
-Teacher xem danh sách các lớp học phần mình phụ trách trước; chọn một lớp để xem đúng PDF đã công bố cho lớp đó. Tải PDF từ trang lớp sẽ lưu vào kho riêng rồi mở hộp xác nhận công bố cho lớp đang chọn. PDF tải lên nhưng chưa công bố vẫn có thể được quản lý từ danh sách lớp. Teacher có thể quản lý phạm vi công bố hoặc gỡ tài liệu khỏi lớp. Giao diện không tạo Quiz/chatbot từ trang này và không nhận PPTX/DOCX.
+Teacher xem danh sách lớp ở `/teacher/documents`; chọn lớp để mở `/{offeringId}`. Trang `/{offeringId}/upload` tải PDF vào kho riêng rồi chuyển tới `/publications/{documentId}` để xem trạng thái xử lý và xác nhận phạm vi công bố. PDF chưa công bố vẫn được quản lý từ danh sách lớp. Teacher có thể gỡ một publication trực tiếp tại lớp. Chỉ nhận PDF có text layer; không có chatbot/Quiz generator trong kho học liệu.
