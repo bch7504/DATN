@@ -175,7 +175,7 @@ export default function StudentDashboardPage(): React.JSX.Element {
                   <p className="mt-1 text-xs text-slate-500">Giảng viên: {offering.teacherName || "Chưa cập nhật"}</p>
                   <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
                     <span className="text-slate-500">{offering.materialsCount ?? 0} tài liệu PDF</span>
-                    <Link href={`/course-offerings?offeringId=${offering.id}`} className="inline-flex items-center gap-1 font-bold text-red-600">Mở môn học <ArrowRight className="h-3.5 w-3.5" /></Link>
+                    <Link href={`/course-offerings/${encodeURIComponent(offering.id)}`} className="inline-flex items-center gap-1 font-bold text-red-600">Mở môn học <ArrowRight className="h-3.5 w-3.5" /></Link>
                   </div>
                 </article>
               ))}

@@ -5,7 +5,7 @@ const path = require("node:path");
 
 test("student course cards show counts derived from published materials", () => {
   const page = fs.readFileSync(
-    path.join(__dirname, "../src/app/(student)/course-offerings/page.tsx"),
+    path.join(__dirname, "../src/app/(student)/course-offerings/course-workspace.tsx"),
     "utf8"
   );
 

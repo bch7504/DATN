@@ -51,29 +51,29 @@ test("FE-M2: Course Offering & Enrollment business rules", async (t) => {
 
 test("Teacher create form prefills editable class code from the selected subject", () => {
   const page = fs.readFileSync(
-    path.join(__dirname, "../src/app/teacher/course-offerings/page.tsx"),
+    path.join(__dirname, "../src/app/teacher/course-offerings/new/page.tsx"),
     "utf8"
   );
 
-  assert.match(page, /setCustomCode\(subjectsData\[0\]\.code\)/);
-  assert.match(page, /handleSubjectChange\(event\.target\.value\)/);
-  assert.match(page, /subjects\.find\(\(subject\) => subject\.id === subjectId\)\?\.code/);
-  assert.match(page, /value=\{customCode\}/);
+  assert.match(page, /setCode\(subjectList\[0\]\?\.code/);
+  assert.match(page, /selectSubject\(event\.target\.value\)/);
+  assert.match(page, /subjects\.find\(\(entry\) => entry\.id === nextId\)\?\.code/);
+  assert.match(page, /value=\{code\}/);
 });
 
 /** Args: none. Input: Student class route source. Output: void; asserts detail/history integration. Errors: AssertionError on regression. */
 test("Student class details have a reversible browser-history step", () => {
-  const page = fs.readFileSync(path.join(__dirname, "../src/app/(student)/course-offerings/page.tsx"), "utf8");
-  assert.match(page, /window\.history\.pushState/);
-  assert.match(page, /window\.addEventListener\("popstate", syncSelection\)/);
-  assert.match(page, /window\.history\.back\(\)/);
+  const page = fs.readFileSync(path.join(__dirname, "../src/app/(student)/course-offerings/course-workspace.tsx"), "utf8");
+  assert.match(page, /router\.push\(offeringId \? `\/course-offerings\//);
+  assert.match(page, /selectedOfferingId = offeringId/);
+  assert.ok(fs.existsSync(path.join(__dirname, "../src/app/(student)/course-offerings/[offeringId]/page.tsx")));
   assert.match(page, /onClick=\{\(\) => navigateToOffering\(offering\.id\)\}/);
 });
 
 /** Args: none. Input: Student class route source. Output: void; asserts semester grouping. Errors: AssertionError on regression. */
 test("Student Course Offerings are grouped by semester", () => {
   const page = fs.readFileSync(
-    path.join(__dirname, "../src/app/(student)/course-offerings/page.tsx"),
+    path.join(__dirname, "../src/app/(student)/course-offerings/course-workspace.tsx"),
     "utf8"
   );
 

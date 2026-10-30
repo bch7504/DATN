@@ -198,7 +198,7 @@ export default function TeacherDashboardPage(): React.JSX.Element {
                         Duyệt sinh viên
                       </Link>
                       <Link
-                        href={`/teacher/documents?offeringId=${offering.id}`}
+                        href={`/teacher/documents/${encodeURIComponent(offering.id)}`}
                         className="text-slate-700 hover:underline"
                       >
                         Kho học liệu

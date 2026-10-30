@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
+import { parentRoute } from "@/lib/navigation";
 import { PtitLogo } from "@/components/ui/ptit-logo";
 import { NotificationBell } from "@/components/layout/student-notification-bell";
 import { SemesterScopeBar } from "@/components/layout/semester-scope-bar";
@@ -86,8 +87,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   /** Args: none. Input: current in-page history marker or previously visited app route. Output: void; returns one history step, or opens the role dashboard when there is no safe predecessor. Errors: none. */
   function goBack(): void {
-    if (window.history.state?.studyflowDetail || previousPath.current) window.history.back();
-    else router.push(role === "TEACHER" ? "/teacher/dashboard" : role === "ADMIN" ? "/admin/dashboard" : "/dashboard");
+    if (window.history.state?.studyflowDetail || previousPath.current) { window.history.back(); return; }
+    router.push(parentRoute(pathname, role));
   }
 
   let navItems: NavItem[] = STUDENT_NAV;
@@ -184,6 +185,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               const Icon = item.icon;
               const isActive =
                 pathname === item.href ||
+                (item.href === "/review" && pathname.startsWith("/quiz/")) ||
+                (item.href === "/teacher/quizzes/create" && pathname.startsWith("/teacher/quizzes/")) ||
                 (item.href !== "/dashboard" &&
                   item.href !== "/teacher/dashboard" &&
                   item.href !== "/admin/dashboard" &&
@@ -269,48 +272,94 @@ export function AppShell({ children }: { children: ReactNode }) {
                   const crumbs: string[] = [];
                   if (pathname?.startsWith("/materials/") && pathname?.includes("/viewer")) {
                     crumbs.push("Lớp học phần", "Xem học liệu PDF");
+                  } else if (pathname?.startsWith("/materials/class/")) {
+                    crumbs.push("Lớp học phần", "Học liệu của lớp");
                   } else if (pathname?.startsWith("/materials")) {
                     crumbs.push("Lớp học phần", "Kho học liệu");
                   } else if (pathname === "/dashboard") {
                     crumbs.push("Bảng điều khiển");
+                  } else if (pathname?.startsWith("/course-offerings/")) {
+                    crumbs.push("Lớp học phần", "Chi tiết lớp");
                   } else if (pathname?.startsWith("/course-offerings")) {
                     crumbs.push("Lớp học phần");
+                  } else if (pathname?.startsWith("/assignments/")) {
+                    crumbs.push("Bài tập về nhà", "Chi tiết bài tập");
                   } else if (pathname?.startsWith("/assignments")) {
                     crumbs.push("Bài tập về nhà");
                   } else if (pathname?.startsWith("/personal-documents")) {
                     crumbs.push("Tài liệu cá nhân");
                   } else if (pathname?.startsWith("/chat")) {
                     crumbs.push("Tài liệu cá nhân");
+                  } else if (pathname?.match(/^\/quiz\/drafts\/[^/]+\/accept$/)) {
+                    crumbs.push("Ôn tập", "Chọn nơi lưu Quiz");
+                  } else if (pathname?.startsWith("/quiz/drafts/")) {
+                    crumbs.push("Ôn tập", "Duyệt bản nháp Quiz");
                   } else if (pathname?.startsWith("/quiz/create")) {
                     crumbs.push("Ôn tập", "Sinh đề thi trắc nghiệm AI");
+                  } else if (pathname?.match(/^\/review\/[^/]+\/attempts\/[^/]+\/result$/)) {
+                    crumbs.push("Ôn tập", "Kết quả Quiz");
+                  } else if (pathname?.match(/^\/review\/[^/]+\/attempts\/[^/]+$/)) {
+                    crumbs.push("Ôn tập", "Làm Quiz");
+                  } else if (pathname?.match(/^\/review\/[^/]+\/items$/)) {
+                    crumbs.push("Ôn tập", "Nội dung cần ôn lại");
                   } else if (pathname?.startsWith("/review/")) {
                     crumbs.push("Ôn tập", "Không gian môn học");
                   } else if (pathname?.startsWith("/review")) {
                     crumbs.push("Ôn tập");
+                  } else if (pathname === "/plan/new") {
+                    crumbs.push("Kế hoạch & Lịch", "Tạo kế hoạch");
+                  } else if (pathname?.match(/^\/plan\/[^/]+\/items\/new$/)) {
+                    crumbs.push("Kế hoạch & Lịch", "Thêm lịch / nhiệm vụ");
+                  } else if (pathname?.startsWith("/plan/")) {
+                    crumbs.push("Kế hoạch & Lịch", "Chỉnh sửa");
                   } else if (pathname?.startsWith("/plan")) {
                     crumbs.push("Kế hoạch & Lịch");
                   } else if (pathname?.startsWith("/notifications")) {
                     crumbs.push("Thông báo học tập");
                   } else if (pathname === "/teacher/dashboard") {
                     crumbs.push("Bảng điều khiển");
+                  } else if (pathname === "/teacher/course-offerings/new") {
+                    crumbs.push("Quản lý Lớp học phần", "Mở lớp mới");
                   } else if (pathname?.startsWith("/teacher/course-offerings")) {
                     crumbs.push("Quản lý Lớp học phần");
+                  } else if (pathname === "/teacher/assignments/new") {
+                    crumbs.push("Giao bài tập về nhà", "Bài tập mới");
+                  } else if (pathname && /^\/teacher\/assignments\/[^/]+\/edit$/.test(pathname)) {
+                    crumbs.push("Giao bài tập về nhà", "Sửa bản nháp");
+                  } else if (pathname && /^\/teacher\/assignments\/[^/]+$/.test(pathname)) {
+                    crumbs.push("Giao bài tập về nhà", "Chi tiết bài tập");
                   } else if (pathname?.startsWith("/teacher/assignments")) {
                     crumbs.push("Giao bài tập về nhà");
                   } else if (pathname?.startsWith("/teacher/enrollments")) {
                     crumbs.push("Phê duyệt sinh viên");
+                  } else if (pathname?.startsWith("/teacher/documents/publications/")) {
+                    crumbs.push("Kho học liệu PDF", "Quản lý công bố");
+                  } else if (pathname?.match(/^\/teacher\/documents\/[^/]+\/upload$/)) {
+                    crumbs.push("Kho học liệu PDF", "Tải PDF mới");
+                  } else if (pathname?.startsWith("/teacher/documents/")) {
+                    crumbs.push("Kho học liệu PDF", "Học liệu của lớp");
                   } else if (pathname?.startsWith("/teacher/documents")) {
                     crumbs.push("Kho học liệu PDF");
+                  } else if (pathname?.match(/^\/teacher\/quizzes\/(?!create$)[^/]+$/)) {
+                    crumbs.push("AI Quiz Studio", "Duyệt và công bố Quiz");
                   } else if (pathname?.startsWith("/teacher/quizzes")) {
                     crumbs.push("AI Quiz Studio");
                   } else if (pathname === "/admin/dashboard") {
                     crumbs.push("Bảng điều khiển");
+                  } else if (pathname?.startsWith("/admin/users/")) {
+                    crumbs.push("Quản lý người dùng", "Chỉnh sửa tài khoản");
                   } else if (pathname?.startsWith("/admin/users")) {
                     crumbs.push("Quản lý người dùng");
                   } else if (pathname?.startsWith("/admin/catalog")) {
-                    crumbs.push("Môn học & Học kỳ");
+                    crumbs.push(pathname.includes("/semesters") ? "Học kỳ" : "Môn học");
+                    if (pathname.endsWith("/new")) crumbs.push("Thêm mới");
+                    else if (pathname.endsWith("/edit")) crumbs.push("Chỉnh sửa");
+                  } else if (pathname?.startsWith("/admin/course-offerings/")) {
+                    crumbs.push("Giám sát Lớp học phần", "Chi tiết lớp");
                   } else if (pathname?.startsWith("/admin/course-offerings")) {
                     crumbs.push("Giám sát Lớp học phần");
+                  } else if (pathname?.startsWith("/admin/feedback/")) {
+                    crumbs.push("Phản hồi", "Xem và xử lý");
                   } else if (pathname?.startsWith("/admin/feedback")) {
                     crumbs.push("Phản hồi");
                   } else if (pathname?.startsWith("/admin/audit")) {

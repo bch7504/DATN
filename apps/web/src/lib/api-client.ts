@@ -1214,6 +1214,17 @@ export const teacherNotificationApi = {
  * client deliberately has no fixture fallback so failures cannot look persisted.
  */
 export const studyPlanApi = {
+    /** Args: required nonempty owned plan ID. Input: authenticated Student. Output: persisted StudyPlanRecord. Errors: INVALID_PLAN_ID, 404/ownership or HTTP API errors. */
+    getPlan(planId: string): Promise<StudyPlanRecord> {
+        if (!planId.trim()) throw new ApiClientError(422, { code: "INVALID_PLAN_ID", message: "Thiếu mã kế hoạch." });
+        return apiFetch<StudyPlanRecord>(`/study-plans/${encodeURIComponent(planId)}`);
+    },
+    /** Args: required owned plan ID; page defaults 0; size defaults 100, both integers with page>=0 and size 1..100. Input: Student session. Output: owner item page. Errors: INVALID_PLAN_ID/INVALID_PAGE or Java auth/ownership/HTTP errors. */
+    listItems(planId: string, page = 0, size = 100): Promise<PaginatedList<StudyPlanItemRecord>> {
+        if (!planId.trim()) throw new ApiClientError(422, { code: "INVALID_PLAN_ID", message: "Thiếu mã kế hoạch." });
+        if (!Number.isInteger(page) || page < 0 || !Number.isInteger(size) || size < 1 || size > 100) throw new ApiClientError(422, { code: "INVALID_PAGE", message: "Phân trang không hợp lệ." });
+        return apiFetch<PaginatedList<StudyPlanItemRecord>>(`/study-plans/${encodeURIComponent(planId)}/items?page=${page}&size=${size}`);
+    },
     /**
      * Args: optional StudyPlanStatus and page size 1..100. Input: current Student session.
      * Output: page of plans owned by that Student. Errors: ApiClientError for auth/validation failures.

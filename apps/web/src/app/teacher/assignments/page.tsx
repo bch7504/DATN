@@ -1,187 +1,78 @@
-"use client";
+﻿"use client";
 
-import { FormEvent, useEffect, useRef, useState, type ReactElement } from "react";
-import { AlertCircle, ArrowLeft, ClipboardList, Download, Eye, Plus, Send, X } from "lucide-react";
-import { assignmentApi, AssignmentStats, CourseAssignment, teacherApi } from "@/lib/api-client";
+import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useRouter } from "next/navigation";
+import { AlertCircle, ClipboardList, Plus } from "lucide-react";
+import { assignmentApi, CourseAssignment, teacherApi } from "@/lib/api-client";
 import { CourseOffering } from "@/types/course-offering";
 
-interface AssignmentPreview {
-  url: string;
-  fileName: string;
-  contentType: string;
-}
-
-/** Args: none. Input: authenticated Teacher actions and Java assignment/report DTOs. Output: management page ReactElement. Errors: Java API failures are rendered as an alert. */
+/**
+ * Args: none. Input: authenticated Teacher's offerings and assignments from Java.
+ * Output: list-only page; each assignment opens its own URL. Errors: API failures appear as an alert.
+ */
 export default function TeacherAssignmentsPage(): ReactElement {
+  const router = useRouter();
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
   const [offeringId, setOfferingId] = useState("");
-  const [composerOfferingId, setComposerOfferingId] = useState("");
   const [items, setItems] = useState<CourseAssignment[]>([]);
-  const [stats, setStats] = useState<AssignmentStats | null>(null);
-  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
-  const [reportLoading, setReportLoading] = useState(false);
-  const [previewFile, setPreviewFile] = useState<AssignmentPreview | null>(null);
-  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
-  const [isComposerOpen, setIsComposerOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [dueAt, setDueAt] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [success, setSuccess] = useState("");
-  const listRequest = useRef(0);
-  const reportRequest = useRef(0);
-  const previewUrl = useRef<string | null>(null);
+  const [error, setError] = useState("");
+  const requestId = useRef(0);
 
-  async function loadOfferings(): Promise<void> {
-    try { const data = await teacherApi.getOfferings(); setOfferings(data); }
-    catch (e) { setError(e instanceof Error ? e.message : "Không tải được lớp học phần."); }
-  }
-  /** Args: optional selected Course Offering ID and owned offering list. Input: authenticated Teacher and Java assignment API. Output: void; refreshes one class or all classes, with no API writes. Errors: displays Java API errors and ignores stale responses. */
-  async function loadAssignments(id: string, availableOfferings: CourseOffering[]): Promise<void> {
-    const request = ++listRequest.current;
-    ++reportRequest.current;
-    setItems([]); setStats(null); setSelectedAssignmentId(null); setReportLoading(false); setLoading(true);
-    try {
-      const ids = id ? [id] : availableOfferings.map((offering) => offering.id);
-      const groups = await Promise.all(ids.map((offering) => assignmentApi.listForTeacher(offering)));
-      if (request === listRequest.current) {
-        const assignments = groups.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-        setItems(assignments);
-        const requestedId = new URLSearchParams(window.location.search).get("assignmentId");
-        setSelectedAssignmentId(requestedId && assignments.some((item) => item.id === requestedId) ? requestedId : null);
-        setError("");
-      }
-    }
-    catch (e) { if (request === listRequest.current) setError(e instanceof Error ? e.message : "Không tải được danh sách bài tập."); }
-    finally { if (request === listRequest.current) setLoading(false); }
-  }
-  // Fetch once on entry; class changes are handled by the separate assignments effect.
-  useEffect(() => { void loadOfferings(); }, []);
-  useEffect(() => { void loadAssignments(offeringId, offerings); }, [offeringId, offerings]);
-  /** Args: none. Input: browser Back/Forward and the `assignmentId` URL parameter. Output: void; restores the selected assignment without changing Java data. Errors: none. */
   useEffect(() => {
-    const syncSelection = (): void => setSelectedAssignmentId(new URLSearchParams(window.location.search).get("assignmentId"));
-    window.addEventListener("popstate", syncSelection);
-    return () => window.removeEventListener("popstate", syncSelection);
+    const query = new URLSearchParams(window.location.search);
+    const legacyAssignmentId = query.get("assignmentId");
+    if (legacyAssignmentId) {
+      router.replace("/teacher/assignments/" + encodeURIComponent(legacyAssignmentId));
+      return;
+    }
+    setOfferingId(query.get("offeringId") ?? "");
+  }, [router]);
+
+  useEffect(() => {
+    let mounted = true;
+    teacherApi.getOfferings()
+      .then((result) => { if (mounted) { setOfferings(result); setReady(true); } })
+      .catch((cause) => { if (mounted) { setError(cause instanceof Error ? cause.message : "Không tải được lớp học phần."); setLoading(false); } });
+    return () => { mounted = false; };
   }, []);
+
   useEffect(() => {
-    const selected = items.find((item) => item.id === selectedAssignmentId);
-    if (selected?.status === "PUBLISHED") void showReport(selected.id);
-  }, [selectedAssignmentId, items]);
-  useEffect(() => () => { if (previewUrl.current) URL.revokeObjectURL(previewUrl.current); }, []);
-
-  /** Args: owned assignment ID. Input: current URL and detail history state. Output: void; selects the assignment and records one reversible browser-history step. Errors: none. */
-  function selectAssignment(assignmentId: string): void {
-    const nextUrl = new URL(window.location.href);
-    if (nextUrl.searchParams.get("assignmentId") !== assignmentId) {
-      nextUrl.searchParams.set("assignmentId", assignmentId);
-      const historyState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
-      if (historyState.studyflowDetail === "teacher-assignment") window.history.replaceState(historyState, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
-      else window.history.pushState({ ...historyState, studyflowDetail: "teacher-assignment" }, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+    if (!ready) return;
+    const request = ++requestId.current;
+    if (offeringId && !offerings.some((offering) => offering.id === offeringId)) {
+      setOfferingId("");
+      router.replace("/teacher/assignments", { scroll: false });
+      return;
     }
-    setSelectedAssignmentId(assignmentId);
+    setLoading(true);
+    const ids = offeringId ? [offeringId] : offerings.map((offering) => offering.id);
+    Promise.all(ids.map((id) => assignmentApi.listForTeacher(id)))
+      .then((groups) => {
+        if (request === requestId.current) {
+          setItems(groups.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+          setError("");
+        }
+      })
+      .catch((cause) => { if (request === requestId.current) setError(cause instanceof Error ? cause.message : "Không tải được danh sách bài tập."); })
+      .finally(() => { if (request === requestId.current) setLoading(false); });
+  }, [offeringId, offerings, ready, router]);
+
+  /** Args: next class ID or empty for all. Input: owned class selector. Output: void; updates the list URL and data. Errors: handled by the loading effect. */
+  function changeOffering(nextId: string): void {
+    setOfferingId(nextId);
+    router.replace(nextId ? "/teacher/assignments?offeringId=" + encodeURIComponent(nextId) : "/teacher/assignments", { scroll: false });
   }
 
-  /** Args: none. Input: current browser URL/history. Output: void; returns to the assignment list without adding a history entry. Errors: none. */
-  function showAssignmentList(): void {
-    ++reportRequest.current; setStats(null); setReportLoading(false);
-    if (window.history.state?.studyflowDetail === "teacher-assignment") window.history.back();
-    else {
-      const nextUrl = new URL(window.location.href);
-      nextUrl.searchParams.delete("assignmentId");
-      const historyState = window.history.state && typeof window.history.state === "object" ? window.history.state : {};
-      window.history.replaceState({ ...historyState, studyflowDetail: undefined }, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
-      setSelectedAssignmentId(null);
-    }
-  }
-
-  /** Args: optional owned draft. Output: void; fills the composer and opens it; no API writes. */
-  function editDraft(item?: CourseAssignment): void {
-    if (selectedAssignmentId) showAssignmentList();
-    setEditingId(item?.id ?? null); setTitle(item?.title ?? ""); setDescription(item?.description ?? "");
-    setComposerOfferingId(item?.courseOfferingId ?? (offerings.find((offering) => offering.id === offeringId && offering.status === "ACTIVE")?.id ?? offerings.find((offering) => offering.status === "ACTIVE")?.id ?? ""));
-    if (item) {
-      const date = new Date(item.dueAt);
-      setDueAt(new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
-    } else setDueAt("");
-    setSuccess(""); setIsComposerOpen(true);
-  }
-  /** Args: none. Input: current composer state. Output: void; closes and clears the form without an API write. */
-  function closeComposer(): void {
-    setEditingId(null); setComposerOfferingId(""); setTitle(""); setDescription(""); setDueAt(""); setIsComposerOpen(false);
-  }
-  /** Args: one assignment from the current list. Output: void; opens its details; the selection effect fetches the published-work report. Errors: shown in the page alert. */
+  /** Args: assignment DTO from the current list. Input: owned item. Output: void; opens the detail route. Errors: none. */
   function openAssignment(item: CourseAssignment): void {
-    if (selectedAssignmentId === item.id) return;
-    selectAssignment(item.id);
-    setStats(null);
-    setError("");
-    ++reportRequest.current; setReportLoading(false);
+    const query = offeringId ? "?offeringId=" + encodeURIComponent(offeringId) : "";
+    router.push("/teacher/assignments/" + encodeURIComponent(item.id) + query);
   }
 
-  /** Args: form submit event. Input: chosen active class, title, instructions and due time. Output: saves/updates draft, closes composer and refreshes the current filter. Errors: shown in the page alert. */
-  async function createDraft(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault(); if (!composerOfferingId || !dueAt) return;
-    setBusy(true); setError("");
-    try {
-      const input = { title: title.trim(), description: description.trim(), dueAt: new Date(dueAt).toISOString() };
-      const saved = editingId
-        ? await assignmentApi.update(editingId, input)
-        : await assignmentApi.create(composerOfferingId, input);
-      closeComposer(); setSuccess("Đã lưu bản nháp."); await loadAssignments(offeringId, offerings); selectAssignment(saved.id);
-    } catch (e) { setError(e instanceof Error ? e.message : "Không tạo được bài tập."); }
-    finally { setBusy(false); }
-  }
-  /** Args: draft assignment ID. Input: Teacher owns the draft. Output: publishes and refreshes list/report. Errors: shown in the page alert. */
-  async function publish(id: string): Promise<void> {
-    setBusy(true); setError(""); try { await assignmentApi.publish(id); await loadAssignments(offeringId, offerings); selectAssignment(id); }
-    catch (e) { setError(e instanceof Error ? e.message : "Không công bố được bài tập."); }
-    finally { setBusy(false); }
-  }
-  /** Args: published assignment ID. Input: Teacher owns the assignment. Output: report DTO displayed in selected details. Errors: shown in the page alert. */
-  async function showReport(id: string): Promise<void> {
-    const request = ++reportRequest.current;
-    setStats(null); setReportLoading(true);
-    try { const data = await assignmentApi.stats(id); if (request === reportRequest.current) { setStats(data); setError(""); } }
-    catch (e) { if (request === reportRequest.current) setError(e instanceof Error ? e.message : "Không tải được tình trạng nộp bài."); }
-    finally { if (request === reportRequest.current) setReportLoading(false); }
-  }
-  async function download(assignmentId: string, studentId: string, attachmentId: string, name: string): Promise<void> {
-    try {
-      const blob = await assignmentApi.downloadForTeacher(assignmentId, studentId, attachmentId);
-      const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = name; anchor.click(); URL.revokeObjectURL(url);
-    } catch (e) { setError(e instanceof Error ? e.message : "Không tải được tệp."); }
-  }
-  /** Args: assignment/student/attachment IDs and file name. Input: Teacher owns this submission attachment. Output: void; loads an authorized file into an in-page PDF/image preview. Errors: shown in the page alert; the object URL is revoked when replaced or closed. */
-  async function previewAttachment(assignmentId: string, studentId: string, attachmentId: string, name: string): Promise<void> {
-    setPreviewLoadingId(attachmentId); setError("");
-    try {
-      const blob = await assignmentApi.downloadForTeacher(assignmentId, studentId, attachmentId);
-      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
-      const url = URL.createObjectURL(blob);
-      previewUrl.current = url;
-      setPreviewFile({ url, fileName: name, contentType: blob.type });
-    } catch (e) { setError(e instanceof Error ? e.message : "Không thể xem trước tệp."); }
-    finally { setPreviewLoadingId(null); }
-  }
-  /** Args: none. Input: current preview object URL, if present. Output: void; closes preview and releases its browser resource. */
-  function closePreview(): void {
-    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
-    previewUrl.current = null;
-    setPreviewFile(null);
-  }
-
-  const selectedAssignment = items.find((item) => item.id === selectedAssignmentId) ?? null;
-  const selectedReport = selectedAssignment && stats?.assignmentId === selectedAssignment.id ? stats : null;
   const activeOffering = offerings.find((item) => item.id === offeringId);
-  const composerOffering = offerings.find((item) => item.id === composerOfferingId);
   const hasActiveOffering = offerings.some((item) => item.status === "ACTIVE");
-  const previewName = previewFile?.fileName.toLowerCase() ?? "";
-  const isPdfPreview = !!previewFile && (previewFile.contentType === "application/pdf" || previewName.endsWith(".pdf"));
-  const isImagePreview = !!previewFile && (previewFile.contentType.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(previewName));
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
@@ -193,8 +84,8 @@ export default function TeacherAssignmentsPage(): ReactElement {
         </div>
         <button
           type="button"
-          disabled={!hasActiveOffering || busy}
-          onClick={() => editDraft()}
+          disabled={!hasActiveOffering}
+          onClick={() => router.push(offeringId ? "/teacher/assignments/new?offeringId=" + encodeURIComponent(offeringId) : "/teacher/assignments/new")}
           className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus className="h-4 w-4" /> Giao bài tập
@@ -202,53 +93,20 @@ export default function TeacherAssignmentsPage(): ReactElement {
       </header>
 
       {error && <div role="alert" className="flex gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"><AlertCircle className="h-5 w-5 shrink-0" />{error}</div>}
-      {success && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{success}</p>}
 
       <label className="block max-w-xl text-sm font-semibold text-slate-700">
         Lớp học phần
-        <select
-          disabled={busy}
-          value={offeringId}
-          onChange={(event) => { if (selectedAssignmentId) showAssignmentList(); closeComposer(); setSuccess(""); setOfferingId(event.target.value); }}
-          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-        >
+        <select value={offeringId} onChange={(event) => changeOffering(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5">
           <option value="">Tất cả</option>
           {offerings.map((offering) => <option key={offering.id} value={offering.id}>{offering.code} · {offering.name}</option>)}
         </select>
       </label>
 
-      {isComposerOpen && (
-        <form onSubmit={(event) => void createDraft(event)} className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
-          <div className="md:col-span-2 flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
-            <div>
-              <h2 className="text-lg font-bold">{editingId ? "Sửa bản nháp" : "Giao bài tập mới"}</h2>
-              <p className="mt-1 text-xs text-slate-500">Bài tập được lưu thành bản nháp; bấm “Công bố” trong chi tiết để gửi tới sinh viên.</p>
-            </div>
-            <button type="button" aria-label="Đóng biểu mẫu" onClick={closeComposer} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
-          </div>
-          <label className="text-sm font-semibold md:col-span-2">Lớp học phần
-            <select required disabled={!!editingId} value={composerOfferingId} onChange={(event) => setComposerOfferingId(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal disabled:bg-slate-50">
-              <option value="">Chọn lớp để giao bài tập</option>
-              {offerings.filter((offering) => offering.status === "ACTIVE" || offering.id === composerOfferingId).map((offering) => <option key={offering.id} value={offering.id}>{offering.code} · {offering.name}</option>)}
-            </select>
-          </label>
-          <label className="text-sm font-semibold">Tên bài<input required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" placeholder="Ví dụ: Bài tập chương 1" /></label>
-          <label className="text-sm font-semibold">Hạn nộp<input required type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" /></label>
-          <label className="text-sm font-semibold md:col-span-2">Hướng dẫn<textarea required maxLength={10000} rows={4} value={description} onChange={(event) => setDescription(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-normal" placeholder="Mô tả yêu cầu bài tập..." /></label>
-          <div className="md:col-span-2 flex justify-end gap-2">
-            <button type="button" disabled={busy} onClick={closeComposer} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Hủy</button>
-            <button disabled={!composerOfferingId || busy || composerOffering?.status !== "ACTIVE"} className="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">
-              <Plus className="h-4 w-4" /> {busy ? "Đang lưu..." : "Lưu bản nháp"}
-            </button>
-          </div>
-        </form>
-      )}
-
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Danh sách bài tập</h2>
-            <p className="mt-1 text-sm text-slate-500">{activeOffering ? `${activeOffering.code} · ${activeOffering.name}` : "Tất cả lớp học phần"}</p>
+            <p className="mt-1 text-sm text-slate-500">{activeOffering ? activeOffering.code + " · " + activeOffering.name : "Tất cả lớp học phần"}</p>
           </div>
           {!loading && <span className="text-xs text-slate-500">{items.length} bài</span>}
         </div>
@@ -262,139 +120,24 @@ export default function TeacherAssignmentsPage(): ReactElement {
           </div>
         ) : (
           <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {items.map((item) => {
-              const isSelected = selectedAssignmentId === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-expanded={isSelected}
-                  onClick={() => openAssignment(item)}
-                  className={`flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition hover:bg-slate-50 ${isSelected ? "bg-red-50/60" : ""}`}
-                >
-                  <span className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="truncate font-semibold text-slate-900">{item.title}</span>
-                      {!offeringId && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{offerings.find((offering) => offering.id === item.courseOfferingId)?.code ?? "Lớp học phần"}</span>}
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${item.status === "DRAFT" ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>
-                        {item.status === "DRAFT" ? "Bản nháp" : "Đã giao"}
-                      </span>
+            {items.map((item) => (
+              <button key={item.id} type="button" onClick={() => openAssignment(item)} className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition hover:bg-slate-50">
+                <span className="min-w-0">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="truncate font-semibold text-slate-900">{item.title}</span>
+                    {!offeringId && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{offerings.find((offering) => offering.id === item.courseOfferingId)?.code ?? "Lớp học phần"}</span>}
+                    <span className={item.status === "DRAFT" ? "rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800" : "rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"}>
+                      {item.status === "DRAFT" ? "Bản nháp" : "Đã giao"}
                     </span>
-                    <span className="mt-1 block text-xs text-slate-500">Hạn nộp: {new Date(item.dueAt).toLocaleString("vi-VN")}</span>
                   </span>
-                  <span className="shrink-0 text-xs font-semibold text-red-700">{isSelected ? "Đang xem" : "Xem chi tiết →"}</span>
-                </button>
-              );
-            })}
+                  <span className="mt-1 block text-xs text-slate-500">Hạn nộp: {new Date(item.dueAt).toLocaleString("vi-VN")}</span>
+                </span>
+                <span className="shrink-0 text-xs font-semibold text-red-700">Xem chi tiết →</span>
+              </button>
+            ))}
           </div>
         )}
       </section>
-
-      {selectedAssignment && (
-        <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="assignment-detail-title">
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 id="assignment-detail-title" className="text-lg font-bold text-slate-900">{selectedAssignment.title}</h2>
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${selectedAssignment.status === "DRAFT" ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>
-                  {selectedAssignment.status === "DRAFT" ? "Bản nháp" : "Đã công bố"}
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-slate-500">Hạn nộp: {new Date(selectedAssignment.dueAt).toLocaleString("vi-VN")}</p>
-              <p className="mt-1 text-xs text-slate-500">Lớp: {offerings.find((offering) => offering.id === selectedAssignment.courseOfferingId)?.code ?? "Lớp học phần"}</p>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              {selectedAssignment.status === "DRAFT" ? (
-                <>
-                  <button type="button" disabled={busy} onClick={() => editDraft(selectedAssignment)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">Sửa nháp</button>
-                  <button type="button" disabled={busy} onClick={() => void publish(selectedAssignment.id)} className="inline-flex items-center gap-1 rounded-xl bg-red-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"><Send className="h-4 w-4" />Công bố</button>
-                </>
-              ) : (
-                <button type="button" disabled={reportLoading} onClick={() => void showReport(selectedAssignment.id)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">{reportLoading ? "Đang tải..." : "Tải lại tình trạng nộp"}</button>
-              )}
-              <button type="button" onClick={showAssignmentList} className="inline-flex items-center gap-1 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ArrowLeft className="h-4 w-4" /> Danh sách bài tập</button>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-semibold text-slate-800">Hướng dẫn</h3>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{selectedAssignment.description || "Không có hướng dẫn bổ sung."}</p>
-          </div>
-
-          {selectedAssignment.status === "PUBLISHED" && (
-            reportLoading ? (
-              <p role="status" className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Đang tải tình trạng nộp bài...</p>
-            ) : selectedReport ? (
-              <div className="space-y-4 border-t border-slate-100 pt-4">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Tình trạng nộp bài</h3>
-                  <p className="mt-1 text-sm text-slate-600">Đã nộp: {selectedReport.submittedCount}/{selectedReport.approvedStudentCount} · Đúng hạn: {selectedReport.onTimeCount} · Nộp muộn: {selectedReport.lateCount} · Chưa nộp: {selectedReport.notSubmittedCount}</p>
-                  <p className="mt-1 text-xs text-slate-500">Thống kê gồm mọi sinh viên hiện đã được duyệt vào lớp, kể cả người được duyệt sau hạn.</p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[700px] text-left text-sm">
-                    <thead className="border-b text-slate-500"><tr><th className="p-2">Sinh viên</th><th className="p-2">Trạng thái</th><th className="p-2">Thời điểm</th><th className="p-2">Bài làm</th></tr></thead>
-                    <tbody>{selectedReport.students.map((student) => (
-                      <tr key={student.studentId} className="border-b last:border-0">
-                        <td className="p-2"><div className="font-semibold">{student.fullName}</div><div className="text-xs text-slate-500">{student.email}</div></td>
-                        <td className="p-2">{student.submissionState === "NOT_SUBMITTED" ? <span className="text-amber-700">Chưa nộp</span> : student.status === "LATE" ? <span className="text-orange-700">Nộp muộn</span> : <span className="text-emerald-700">Đã nộp đúng hạn</span>}</td>
-                        <td className="p-2">{student.submittedAt ? new Date(student.submittedAt).toLocaleString("vi-VN") : "—"}</td>
-                        <td className="p-2">
-                          {student.answerText && <p className="mb-1 max-w-sm whitespace-pre-wrap">{student.answerText}</p>}
-                          <div className="flex flex-wrap gap-3">
-                            {student.attachments?.map((file) => (
-                              <span key={file.id} className="inline-flex items-center gap-2">
-                                <button type="button" disabled={previewLoadingId === file.id} onClick={() => void previewAttachment(selectedReport.assignmentId, student.studentId, file.id, file.fileName)} className="inline-flex items-center gap-1 text-blue-700 hover:underline disabled:opacity-50">
-                                  <Eye className="h-4 w-4" /> {previewLoadingId === file.id ? "Đang mở..." : "Xem"}
-                                </button>
-                                <button type="button" onClick={() => void download(selectedReport.assignmentId, student.studentId, file.id, file.fileName)} className="inline-flex items-center gap-1 text-red-700 hover:underline">
-                                  <Download className="h-4 w-4" /> Tải {file.fileName}
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}</tbody>
-                  </table>
-                </div>
-              </div>
-            ) : null
-          )}
-        </section>
-      )}
-
-      {previewFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-6" onClick={closePreview}>
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="assignment-preview-title"
-            onClick={(event) => event.stopPropagation()}
-            className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
-          >
-            <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3">
-              <h2 id="assignment-preview-title" className="truncate text-sm font-bold text-slate-900">{previewFile.fileName}</h2>
-              <button type="button" aria-label="Đóng xem trước" onClick={closePreview} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
-                <X className="h-5 w-5" />
-              </button>
-            </header>
-            <div className="min-h-0 flex-1 bg-slate-100">
-              {isPdfPreview ? (
-                <iframe title={`Xem trước ${previewFile.fileName}`} src={previewFile.url} className="h-full w-full border-0" />
-              ) : isImagePreview ? (
-                <div className="flex h-full items-center justify-center p-4">
-                  <img src={previewFile.url} alt={previewFile.fileName} className="max-h-full max-w-full object-contain" />
-                </div>
-              ) : (
-                <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-600">
-                  Trình duyệt không hỗ trợ xem trước định dạng tệp này. Đóng cửa sổ và chọn “Tải” để lưu tệp.
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-      )}
     </main>
   );
 }

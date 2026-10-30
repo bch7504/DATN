@@ -2,11 +2,11 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, FileText, ListChecks, Loader2, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, FileText, ListChecks, Loader2, Sparkles } from "lucide-react";
 import { teacherApi, teacherDocApi, teacherQuizApi } from "@/lib/api-client";
 import type { TeacherDocument } from "@/types/material";
 import type { CourseOffering } from "@/types/course-offering";
-import type { QuizDraft } from "@/types/quiz";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 
@@ -25,13 +25,12 @@ interface TeacherQuizForm {
 
 /** Teacher UI for requesting a grounded MCQ_SINGLE draft from an owned Course Material PDF. */
 export default function TeacherQuizStudioPage(): React.JSX.Element {
+  const router = useRouter();
   const [documents, setDocuments] = useState<TeacherDocument[]>([]);
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<QuizDraft | null>(null);
   const [form, setForm] = useState<TeacherQuizForm>({
     documentId: "",
     courseOfferingId: "",
@@ -84,13 +83,11 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
   function handleDocumentChange(documentId: string): void {
     const document = documents.find((item) => item.id === documentId);
     setForm((current) => ({ ...current, documentId, pageFrom: 1, pageTo: document?.totalPages ?? 1 }));
-    setDraft(null);
   }
 
   /** Required form event; validates controls and calls only the Java public API. */
   async function handleGenerate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setDraft(null);
     if (!selectedDocument) {
       setError("Hãy chọn một Course Material PDF ở trạng thái READY.");
       return;
@@ -120,7 +117,7 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
         pageFrom: form.pageFrom,
         pageTo: form.pageTo,
       });
-      setDraft(created);
+      router.push(`/teacher/quizzes/${encodeURIComponent(created.id)}`);
     } catch (generateError: unknown) {
       setError(generateError instanceof Error ? generateError.message : "Không thể tạo bản nháp Quiz.");
     } finally {
@@ -128,25 +125,10 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
     }
   }
 
-  /** No args; publishes the current real draft through Java after Teacher confirmation. */
-  async function publishDraft(): Promise<void> {
-    if (!draft || isPublishing) return;
-    setIsPublishing(true);
-    setError(null);
-    try {
-      setDraft(await teacherQuizApi.publish(draft.id));
-    } catch (publishError: unknown) {
-      setError(publishError instanceof Error ? publishError.message : "Không thể công bố Quiz.");
-    } finally {
-      setIsPublishing(false);
-    }
-  }
-
   if (isLoading) {
     return <div className="flex min-h-[60vh] items-center justify-center"><LoadingSpinner size="lg" text="Đang tải AI Quiz Studio..." /></div>;
   }
 
-  const generated = draft !== null;
 
   return (
     <div className="space-y-6">
@@ -206,15 +188,6 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
             <div className="flex items-center gap-2 font-bold text-red-700"><ListChecks className="h-4 w-4" /> Quy tắc bắt buộc</div>
             <ul className="mt-2 list-disc space-y-1 pl-4"><li>Mỗi câu có đúng 4 lựa chọn và một đáp án đúng.</li><li>Citation phải thuộc PDF và khoảng trang đã chọn.</li><li>AI không chấm điểm hoặc tự công bố.</li><li>Giảng viên kiểm tra trước khi sử dụng.</li></ul>
           </div>
-          {generated && (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900">
-              <div className="flex items-center gap-2 font-bold"><CheckCircle2 className="h-5 w-5" /> Đã tạo bản nháp</div>
-              <p className="mt-2 text-xs leading-5">Bản nháp {draft?.questions.length ?? form.questionCount} câu ở trạng thái <code>REVIEW_REQUIRED</code>.</p>
-              {draft && <div className="mt-3 max-h-72 space-y-2 overflow-y-auto">{draft.questions.map((question, index) => <div key={question.id} className="rounded-xl border border-emerald-200 bg-white p-3 text-xs text-slate-700"><strong>Câu {index + 1}.</strong> {question.questionText}<div className="mt-1 text-[11px] text-slate-500">Nguồn: trang {question.citation?.pageNumber ?? "—"}</div></div>)}</div>}
-              {draft?.status === "REVIEW_REQUIRED" && <button type="button" disabled={isPublishing} onClick={() => void publishDraft()} className="mt-3 w-full rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">{isPublishing ? "Đang công bố..." : "Duyệt và công bố Quiz"}</button>}
-              {draft?.status === "PUBLISHED" && <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs font-bold text-emerald-700">Quiz đã được công bố cho lớp.</p>}
-            </div>
-          )}
         </aside>
       </div>
     </div>

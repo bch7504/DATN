@@ -51,3 +51,27 @@ apps/web/
 Kế hoạch triển khai nằm tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md).
 
 Khung toàn bộ giao diện và lịch sử thay đổi: [`../../docs/ui-design.md`](../../docs/ui-design.md).
+
+## Điều hướng các màn nghiệp vụ
+
+Màn danh sách, tạo, sửa và chi tiết có route riêng. Route module chỉ chọn màn; các form và phần tải dữ liệu chung được tái sử dụng bằng component có props rõ ràng. Bộ lọc danh sách vẫn dùng query hoặc state; hộp xác nhận và xem trước tệp là popup ngắn.
+
+| Khu vực | Đường dẫn |
+| --- | --- |
+| Bài tập giảng viên | `/teacher/assignments`, `/new`, `/{assignmentId}`, `/{assignmentId}/edit` |
+| Bài tập sinh viên | `/assignments`, `/assignments/{assignmentId}` |
+| Mở lớp giảng viên | `/teacher/course-offerings/new` |
+| Học liệu giảng viên | `/teacher/documents`, `/{offeringId}`, `/{offeringId}/upload`, `/publications/{documentId}` |
+| Lớp và học liệu sinh viên | `/course-offerings/{offeringId}`, `/materials/class/{offeringId}`, `/materials/{documentId}/viewer` |
+| Quiz giảng viên | `/teacher/quizzes/create`, `/teacher/quizzes/{quizId}` |
+| Quiz sinh viên | `/quiz/create`, `/quiz/drafts/{draftId}`, `/quiz/drafts/{draftId}/accept` |
+| Ôn tập và lượt làm | `/review/{courseId}`, `/items`, `/attempts/{attemptId}`, `/attempts/{attemptId}/result` |
+| Kế hoạch | `/plan`, `/plan/new`, `/plan/{planId}/edit`, `/plan/{planId}/items/new`, `/plan/{planId}/items/{itemId}/edit` |
+| Quản trị | `/admin/users/{userId}/edit`, `/admin/feedback/{reportId}`, `/admin/course-offerings/{offeringId}` |
+| Danh mục quản trị | `/admin/catalog/subjects` và `/admin/catalog/semesters`, mỗi khu vực có `/new` và `/{entityId}/edit` |
+
+Liên kết query cũ tới chi tiết bài tập/lớp/học liệu được chuyển tiếp sang route mới. Mỗi màn con có nút về danh sách/màn cha; Back của trình duyệt dùng lịch sử điều hướng Next.
+
+Lượt làm Quiz chỉ được tạo bằng thao tác bấm bắt đầu, không tạo lại khi tải trang. Câu hỏi, lựa chọn đang làm và kết quả chấm thực từ Java được giữ trong `sessionStorage` theo tài khoản + lượt làm để khôi phục trong cùng thẻ. Contract hiện chưa có GET lượt đang làm; mở URL đó ở thẻ mới không tự tạo một lượt khác. Kết quả dùng phản hồi chấm của Java, không chấm tại frontend.
+
+`node tests/browser-navigation.cjs` chạy Chrome headless với API fixtures tổng hợp để kiểm tra các route, Back, F5, tạo bài và nộp Quiz; toàn bộ request `/api/v1` của lượt kiểm thử được chặn và trả fixture, không ghi dữ liệu vào Java thật.

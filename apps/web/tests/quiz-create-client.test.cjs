@@ -78,7 +78,7 @@ test("Production AI failures are propagated instead of returning demo questions"
 });
 
 test("Both review entry points link to the dedicated Quiz form", () => {
-  for (const route of ["review/page.tsx", "review/[courseId]/page.tsx"]) {
+  for (const route of ["review/page.tsx", "review/[courseId]/review-workspace.tsx"]) {
     const source = fs.readFileSync(path.join(process.cwd(), "src/app/(student)", route), "utf8");
     assert.ok(source.includes('href="/quiz/create"'));
     assert.ok(!source.includes("/personal-documents#personal-ai-assistant"));
