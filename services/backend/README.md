@@ -25,6 +25,8 @@ Java backend là system of record và public API duy nhất cho Web. Module dùn
 3. Cấu hình SMTP qua `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` để gửi OTP đăng ký và thông báo cho email sinh viên đã đăng ký. Không đưa mật khẩu ứng dụng vào Git.
 4. Chạy `./mvnw spring-boot:run` (Windows: `mvnw.cmd spring-boot:run`); Flyway sẽ tạo schema `app` và các bảng xác thực.
 
+Khi chạy web local trên cổng 3000 hoặc 3001, dùng `./mvnw -Dspring-boot.run.profiles=local spring-boot:run` (PowerShell: `.\mvnw.cmd "-Dspring-boot.run.profiles=local" spring-boot:run`). Profile `local` cho phép chính xác các origin localhost/127.0.0.1 trên hai cổng này và dùng cookie dành cho HTTP local. Profile `dev` cũng nhận hai cổng; có thể ghi đè danh sách bằng `STUDYFLOW_CORS_ALLOWED_ORIGINS`. Backend dùng database được cấu hình trong `DATABASE_URL`; không tự chuyển sang database/container khác. Web không thể đăng nhập khi tiến trình Java ở cổng 8088 chưa chạy.
+
 Đăng ký công khai chỉ nhận email có miền chính xác `stu.ptit.edu.vn` (không nhận `ptit.edu.vn` hoặc miền con khác). Tài khoản `STUDENT` chỉ được tạo sau khi xác minh OTP sáu chữ số. Nếu môi trường đã đặt `STUDYFLOW_ALLOWED_EMAIL_DOMAIN`, cần đổi giá trị đó thành `stu.ptit.edu.vn` và khởi động lại backend. Tài khoản cũ không bị tự động đổi địa chỉ hoặc khóa đăng nhập.
 
 Profile `dev` cũng dùng PostgreSQL qua cùng các biến `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`; không có CSDL nhúng riêng. Migration Flyway vẫn chạy như cấu hình mặc định.

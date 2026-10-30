@@ -6,4 +6,4 @@ studyflow:
     secret: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
     expiration-ms: 86400000
   cors:
-    allowed-origins: http://localhost:3000
+    allowed-origins: ${STUDYFLOW_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001}
