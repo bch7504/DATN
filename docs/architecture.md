@@ -13,7 +13,7 @@ Semester ┘          │
 ```
 
 - Admin quản lý account/role, Subject, Semester và giám sát; không phân công từng lớp trong MVP.
-- Teacher tạo Course Offering, quản lý join code, duyệt Student, upload/public Course Material PDF theo loại `SLIDE_PDF|REFERENCE_PDF` và tạo Quiz AI từ slide mình sở hữu.
+- Teacher tạo Course Offering, quản lý join code, duyệt Student, upload PDF/PPTX làm Course Material theo loại `SLIDE_PDF|REFERENCE_PDF` và tạo Quiz AI từ slide mình sở hữu. Java chuyển PPTX thành PDF trước mọi bước lưu/index.
 - Student `APPROVED` xem `SLIDE_PDF` theo từng trang, dùng Course Material AI Tutor; `REFERENCE_PDF` chỉ tải xuống.
 - Personal PDF thuộc Student, chỉ dùng trong Personal Document Assistant và Quiz cá nhân.
 
@@ -44,7 +44,7 @@ Ranh giới bắt buộc:
 |---|---|
 | Next.js | UI ba role, PDF Viewer/Note/Tutor, Personal Assistant, Teacher AI Quiz Studio, Review, Dashboard, Kế hoạch & Lịch |
 | Spring Boot | Auth/RBAC, Course Offering/Enrollment, Document/Publication, Note, conversation, Quiz lifecycle/scoring, Dashboard/Streak/Daily Goal, Plan và audit |
-| FastAPI | PDF parsing/chunk/embed, Hybrid RAG (vector + full-text + RRF + LangChain rerank), Single Orchestrator Agent, Course Material Tutor, Quiz generation, citation và evaluation |
+| FastAPI | PDF parsing/chunk/embed, Hybrid RAG (vector + full-text + RRF), LangChain orchestration, OpenRouter LLM reranker có structured output, Single Orchestrator Agent, Course Material Tutor, Quiz generation, citation và evaluation |
 | PostgreSQL + pgvector | Schema nghiệp vụ `app`; job/index/chunk/vector/agent run ở schema `ai` |
 | Object Storage | PDF gốc và preview/page artifact cần thiết |
 | OpenRouter | Model chat và embedding; credential chỉ tồn tại ở Python runtime |
@@ -61,12 +61,13 @@ Ranh giới bắt buộc:
 
 ### 5.1 Course Material PDF
 
-1. Teacher upload PDF có text layer và chọn `SLIDE_PDF` hoặc `REFERENCE_PDF`; Java kiểm owner, MIME/signature/kích thước và lưu Object Storage.
-2. Chỉ `SLIDE_PDF` được Java gửi job index sang Python bằng signed URL và authorized source metadata. `REFERENCE_PDF` không rời Java/Object Storage để phục vụ AI.
-3. Python extract slide PDF theo trang, chunk, embed và activate index version; OCR/PPTX/DOCX ngoài MVP.
-4. Teacher public tài liệu `READY` vào Course Offering mình sở hữu.
-5. Student `APPROVED` xem từng trang `SLIDE_PDF` và dùng Course Material AI Tutor; với `REFERENCE_PDF`, Student chỉ có thao tác tải xuống.
-6. Teacher không có chatbot hoặc AI Tutor; Teacher chỉ dùng `SLIDE_PDF` làm nguồn cho AI Quiz Generator.
+1. Teacher upload PDF hoặc PPTX và chọn `SLIDE_PDF` hoặc `REFERENCE_PDF`; Java kiểm owner, phần mở rộng/chữ ký/kích thước.
+2. Với PPTX, Java gọi Gotenberg nội bộ bằng multipart có timeout; chỉ nhận PDF đầu ra trong giới hạn, kiểm tra chữ ký, số trang và text layer. Tệp gốc PPTX không được lưu và không gửi sang Python.
+3. Java lưu PDF chuẩn hóa vào Object Storage. Chỉ `SLIDE_PDF` được gửi job index sang Python bằng signed URL và authorized source metadata; `REFERENCE_PDF` không rời Java/Object Storage để phục vụ AI.
+4. Python extract PDF theo trang, chunk, embed và activate index version; OCR/DOCX ngoài MVP.
+5. Teacher public tài liệu `READY` vào Course Offering mình sở hữu.
+6. Student `APPROVED` xem từng trang `SLIDE_PDF` và dùng Course Material AI Tutor; với `REFERENCE_PDF`, Student chỉ có thao tác tải xuống.
+7. Teacher không có chatbot hoặc AI Tutor; Teacher chỉ dùng `SLIDE_PDF` làm nguồn cho AI Quiz Generator.
 
 ### 5.2 Personal PDF
 
@@ -107,7 +108,7 @@ Conversation hỗ trợ Agent hiểu ngữ cảnh, nhưng không được mở r
 3. Python trả `ANSWERED` cùng page citations hoặc `NO_EVIDENCE`.
 4. Java đối chiếu document/version/page lần cuối rồi mới trả Browser.
 
-Tutor này chỉ dành cho Student. Teacher không có AI Tutor.
+Tutor này chỉ dành cho Student. Teacher không có AI Tutor. Java lưu long-term history theo Student/document/version, gửi tối đa 12 lượt gần nhất làm short-term memory; Python dùng working memory trong request để viết lại câu hỏi nối tiếp. History không thay thế evidence từ PDF.
 
 ## 8. Hai luồng AI Quiz
 
@@ -142,4 +143,4 @@ Cả hai luồng dùng `MCQ_SINGLE`, mỗi câu đúng 4 lựa chọn, một đ�
 - Mọi document index lưu model, dimensions và index version; đổi embedding config phải reindex.
 - Triển khai mục tiêu: Next.js → Spring Boot → FastAPI/worker → PostgreSQL+pgvector/Object Storage/OpenRouter.
 
-Ngoài MVP: OCR, PPTX/DOCX, Teacher chatbot/Tutor, multi-agent, Exam, recommendation tự động, Topic Mastery, XP/badge/leaderboard và advanced analytics.
+Ngoài MVP: OCR, DOCX, Teacher chatbot/Tutor, multi-agent, Exam, recommendation tự động, Topic Mastery, XP/badge/leaderboard và advanced analytics.

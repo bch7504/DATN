@@ -15,6 +15,12 @@ export interface QuizCitation {
   excerpt?: string;
 }
 
+export interface QuizQuestionImage {
+  id: string;
+  url: string;
+  altText: string;
+}
+
 export interface QuizQuestion {
   id: string;
   questionText: string;
@@ -23,6 +29,7 @@ export interface QuizQuestion {
   correctOptionId: string; // "A" | "B" | "C" | "D"
   explanation: string;
   citation?: QuizCitation;
+  image?: QuizQuestionImage;
 }
 
 export type QuizDraftStatus = "GENERATING" | "REVIEW_REQUIRED" | "READY" | "PUBLISHED" | "REJECTED" | "GENERATION_FAILED";
@@ -114,4 +121,17 @@ export interface SubmitAttemptResponse {
   correctAnswersCount: number;
   totalQuestionsCount: number;
   completedAt: string;
+  questionReviews: QuizQuestionReviewDTO[];
+}
+
+export interface QuizQuestionReviewDTO {
+  questionId: string;
+  questionOrder: number;
+  questionText: string;
+  options: TakingOptionDTO[];
+  selectedOptionIndex: number | null;
+  correctOptionIndex: number;
+  isCorrect: boolean;
+  explanation: string;
+  citations: Array<{ documentId: string; pageNumber: number; excerpt: string }>;
 }

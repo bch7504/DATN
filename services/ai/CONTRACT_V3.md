@@ -2,7 +2,7 @@
 
 Đây là wire shape đang hiện thực trong Python, cần đối chiếu DTO Java và cập nhật `docs/api-plan.md` khi tích hợp. Không coi việc test Python đạt là đã kiểm thử cả hai service.
 
-Tất cả đường dẫn bắt đầu bằng `/internal/v1`. Header bắt buộc: `Authorization: Bearer <service token>`, `X-Request-Id` và `X-Schema-Version: 3`. Index/deindex/Quiz trực tiếp bắt buộc `Idempotency-Key` dài 8–255 ký tự.
+Tất cả đường dẫn bắt đầu bằng `/internal/v1`. Header bắt buộc: `Authorization: Bearer <service token>`, `X-Request-Id` và `X-Schema-Version: 4`. Index/deindex/Quiz trực tiếp bắt buộc `Idempotency-Key` dài 8–255 ký tự. Tên file được giữ để không làm hỏng liên kết tài liệu cũ; nội dung hiện mô tả schema v4.
 
 ## Phạm vi tài liệu
 
@@ -92,7 +92,13 @@ Retry cùng yêu cầu phải giữ nguyên `X-Request-Id`, nội dung, history 
 
 ## Course Material Tutor
 
-`POST /course-materials/ask` nhận `userId`, `courseOfferingId`, `document` (scope với `sourceType: COURSE_MATERIAL_PDF`), `currentPageNumber` và `question`. Trang hiện tại phải nằm trong phạm vi được phép.
+`POST /course-materials/ask` nhận `userId`, `courseOfferingId`, `document` (scope với
+`sourceType: COURSE_MATERIAL_PDF`), `currentPageNumber`, `history` và `question`. Trang hiện tại
+phải nằm trong phạm vi được phép. `history` có tối đa 12 lượt `USER|ASSISTANT`, do Java tải từ
+conversation đã kiểm owner/document/version. Python chỉ dùng history để viết lại câu hỏi nối tiếp
+thành truy vấn độc lập; history không phải evidence và không được mở rộng authorized scope. Working
+memory gồm truy vấn đã viết lại, current page và evidence của request hiện tại, không được lưu lâu dài
+trong Python.
 
 Trả `200 {requestId, result: {status, answer, citations}}`, status `ANSWERED | NO_EVIDENCE`. Java phải bảo đảm caller là Student có quyền trước khi gọi endpoint này; Teacher không có Tutor.
 

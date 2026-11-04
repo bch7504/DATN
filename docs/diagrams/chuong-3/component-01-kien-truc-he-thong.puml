@@ -1,62 +1,57 @@
 @startuml
-' Palette: architecture; layered platform form based on the supplied reference.
-' Monochrome: true
+' Palette: architecture; strict black-and-white layered style.
 skinparam backgroundColor white
 skinparam defaultFontName Arial
 skinparam defaultFontSize 15
 skinparam defaultFontColor #000000
-skinparam ArrowColor #000000
 skinparam shadowing false
 skinparam linetype ortho
-skinparam nodesep 45
-skinparam ranksep 55
-skinparam roundcorner 12
-skinparam PackageStyle rectangle
-skinparam PackagePadding 34
-skinparam RectangleBorderColor #000000
-skinparam RectangleBackgroundColor #FFFFFF
+skinparam ArrowColor #000000
 skinparam ComponentBorderColor #000000
 skinparam ComponentBackgroundColor #FFFFFF
+skinparam RectangleBorderColor #000000
+skinparam RectangleBackgroundColor #FFFFFF
 skinparam DatabaseBorderColor #000000
 skinparam DatabaseBackgroundColor #FFFFFF
-skinparam StorageBorderColor #000000
-skinparam StorageBackgroundColor #FFFFFF
-skinparam CloudBorderColor #000000
-skinparam CloudBackgroundColor #FFFFFF
-skinparam ActorBackgroundColor #FFFFFF
 skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam nodesep 36
+skinparam ranksep 48
 top to bottom direction
 
-actor "Student / Teacher / Admin" as user
-
-rectangle "StudyFlow Platform" as platform {
-  component "Next.js" as web
-
-  rectangle "Backend services" as backend {
-    component "Spring Boot" as java
-    component "FastAPI" as ai
+actor "Người dùng" as User
+rectangle "StudyFlow Platform" as Platform {
+  rectangle "FE" as FeLayer {
+    component "Next.js\nTypeScript" as Web
   }
-
-  rectangle "Platform data & file storage" as data {
-    database "PostgreSQL" as appdb
-    database "PostgreSQL + pgvector" as aidb
-    storage "Object Storage" as storage
+  rectangle "BE" as BeLayer {
+    component "Spring Boot\nJava" as Backend
+    rectangle "AI Service" as AiLayer {
+      component "FastAPI\nPython" as AiApi
+      component "Single Agent\nLangChain" as Agent
+      component "RAG" as Rag
+      component "Quiz AI" as QuizAi
+    }
   }
-
-  web -down-> java : REST /api/v1
-  java -down-> ai : Internal API\nauthorized scope
-  java -down-> appdb
-  ai -down-> aidb
-  java -down-> storage : metadata / signed URL
-  ai -down-> storage : đọc PDF theo scope
-
-  appdb -[hidden]right-> aidb
-  aidb -[hidden]right-> storage
+  rectangle "Data & Storage" as DataLayer {
+    database "PostgreSQL\napp" as AppDb
+    database "PostgreSQL + pgvector\nai" as AiDb
+    component "Object Storage" as Storage
+  }
+}
+rectangle "External" as External {
+  component "OpenRouter" as OpenRouter
 }
 
-cloud "OpenRouter" as model
-
-user -down-> web
-storage -[hidden]down-> model
-ai -down-> model : HTTPS
+User -down-> Web
+Web -down-> Backend
+Backend -right-> AiApi
+AiApi -right-> Agent
+Agent -down-> Rag
+Agent -down-> QuizAi
+Backend -down-> AppDb
+Backend -down-> Storage
+AiApi -down-> AiDb
+AiApi -down-> Storage
+Agent -down-> OpenRouter
 @enduml

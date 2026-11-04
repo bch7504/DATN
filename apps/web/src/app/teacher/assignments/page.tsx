@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useRef, useState, type ReactElement } from "react
 import { AlertCircle, ArrowLeft, ClipboardList, Download, Eye, Plus, Send, X } from "lucide-react";
 import { assignmentApi, AssignmentStats, CourseAssignment, teacherApi } from "@/lib/api-client";
 import { CourseOffering } from "@/types/course-offering";
+import type { SubmitAttemptResponse } from "@/types/quiz";
+import { MathText } from "@/components/quiz/math-text";
 
 interface AssignmentPreview {
   url: string;
@@ -31,6 +33,7 @@ export default function TeacherAssignmentsPage(): ReactElement {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [success, setSuccess] = useState("");
+  const [quizDetail, setQuizDetail] = useState<{ studentName: string; result: SubmitAttemptResponse } | null>(null);
   const listRequest = useRef(0);
   const reportRequest = useRef(0);
   const previewUrl = useRef<string | null>(null);
@@ -148,6 +151,13 @@ export default function TeacherAssignmentsPage(): ReactElement {
     try { const data = await assignmentApi.stats(id); if (request === reportRequest.current) { setStats(data); setError(""); } }
     catch (e) { if (request === reportRequest.current) setError(e instanceof Error ? e.message : "Không tải được tình trạng nộp bài."); }
     finally { if (request === reportRequest.current) setReportLoading(false); }
+  }
+  /** Args: Quiz assignment and submitted Student. Input: Teacher-owned report row. Output: Java-scored question detail. Errors: shown in alert. */
+  async function showQuizDetail(assignmentId: string, studentId: string, studentName: string): Promise<void> {
+    setReportLoading(true); setError("");
+    try { setQuizDetail({ studentName, result: await assignmentApi.quizAttemptDetail(assignmentId, studentId) }); }
+    catch (e) { setError(e instanceof Error ? e.message : "Không tải được chi tiết bài trắc nghiệm."); }
+    finally { setReportLoading(false); }
   }
   async function download(assignmentId: string, studentId: string, attachmentId: string, name: string): Promise<void> {
     try {
@@ -275,6 +285,7 @@ export default function TeacherAssignmentsPage(): ReactElement {
                   <span className="min-w-0">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="truncate font-semibold text-slate-900">{item.title}</span>
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">{item.type === "QUIZ" ? "Trắc nghiệm" : "Tự luận / tệp"}</span>
                       {!offeringId && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{offerings.find((offering) => offering.id === item.courseOfferingId)?.code ?? "Lớp học phần"}</span>}
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${item.status === "DRAFT" ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>
                         {item.status === "DRAFT" ? "Bản nháp" : "Đã giao"}
@@ -296,6 +307,7 @@ export default function TeacherAssignmentsPage(): ReactElement {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 id="assignment-detail-title" className="text-lg font-bold text-slate-900">{selectedAssignment.title}</h2>
+                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">{selectedAssignment.type === "QUIZ" ? "Trắc nghiệm" : "Tự luận / tệp"}</span>
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${selectedAssignment.status === "DRAFT" ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>
                   {selectedAssignment.status === "DRAFT" ? "Bản nháp" : "Đã công bố"}
                 </span>
@@ -333,13 +345,15 @@ export default function TeacherAssignmentsPage(): ReactElement {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[700px] text-left text-sm">
-                    <thead className="border-b text-slate-500"><tr><th className="p-2">Sinh viên</th><th className="p-2">Trạng thái</th><th className="p-2">Thời điểm</th><th className="p-2">Bài làm</th></tr></thead>
+                    <thead className="border-b text-slate-500"><tr><th className="p-2">Sinh viên</th><th className="p-2">Trạng thái</th><th className="p-2">Thời điểm</th><th className="p-2">Điểm / Bài làm</th></tr></thead>
                     <tbody>{selectedReport.students.map((student) => (
                       <tr key={student.studentId} className="border-b last:border-0">
                         <td className="p-2"><div className="font-semibold">{student.fullName}</div><div className="text-xs text-slate-500">{student.email}</div></td>
                         <td className="p-2">{student.submissionState === "NOT_SUBMITTED" ? <span className="text-amber-700">Chưa nộp</span> : student.status === "LATE" ? <span className="text-orange-700">Nộp muộn</span> : <span className="text-emerald-700">Đã nộp đúng hạn</span>}</td>
                         <td className="p-2">{student.submittedAt ? new Date(student.submittedAt).toLocaleString("vi-VN") : "—"}</td>
                         <td className="p-2">
+                          {student.score !== null && <p className="mb-2 font-extrabold text-red-700">{(student.score / 10).toFixed(1)}/10</p>}
+                          {selectedReport.type === "QUIZ" && student.submissionState === "SUBMITTED" && <button type="button" onClick={() => void showQuizDetail(selectedReport.assignmentId, student.studentId, student.fullName)} className="mb-2 text-sm font-semibold text-red-700 underline">Xem câu đúng/sai</button>}
                           {student.answerText && <p className="mb-1 max-w-sm whitespace-pre-wrap">{student.answerText}</p>}
                           <div className="flex flex-wrap gap-3">
                             {student.attachments?.map((file) => (
@@ -358,11 +372,14 @@ export default function TeacherAssignmentsPage(): ReactElement {
                     ))}</tbody>
                   </table>
                 </div>
+                {selectedReport.type === "QUIZ" && <div className="rounded-xl border border-slate-200 p-4"><h3 className="font-bold text-slate-900">Tỷ lệ trả lời sai theo câu</h3><p className="mt-1 text-xs text-slate-500">Chỉ tính lượt làm hiện đang gắn với bài nộp của mỗi sinh viên, không đếm lặp lượt cũ.</p><div className="mt-3 space-y-2">{selectedReport.questionAnalytics.map((item) => <div key={item.questionId} className="grid gap-1 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-[1fr_auto]"><p><strong>Câu {item.questionOrder}.</strong> <MathText text={item.questionText} /></p><p className="font-bold text-red-700">Sai {item.wrongCount}/{item.submissionCount} · {item.wrongRatePercent.toFixed(2)}%</p></div>)}</div></div>}
               </div>
             ) : null
           )}
         </section>
       )}
+
+      {quizDetail && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" onClick={() => setQuizDetail(null)}><section role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-bold">Chi tiết Quiz · {quizDetail.studentName}</h2><p className="mt-1 font-extrabold text-red-700">{(quizDetail.result.score / 10).toFixed(1)}/10 · đúng {quizDetail.result.correctAnswersCount}/{quizDetail.result.totalQuestionsCount} câu</p></div><button type="button" onClick={() => setQuizDetail(null)} aria-label="Đóng"><X className="h-5 w-5" /></button></div><div className="mt-4 space-y-3">{quizDetail.result.questionReviews.map((review) => <article key={review.questionId} className="rounded-xl border border-slate-200 p-4"><p className="font-bold">Câu {review.questionOrder}. <MathText text={review.questionText} /></p><p className={`mt-2 text-sm font-semibold ${review.isCorrect ? "text-emerald-700" : "text-red-700"}`}>{review.isCorrect ? "Trả lời đúng" : `Trả lời sai · đáp án đúng ${String.fromCharCode(65 + review.correctOptionIndex)}`}</p><MathText text={review.explanation} className="mt-1 text-sm text-slate-600" /></article>)}</div></section></div>}
 
       {previewFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-6" onClick={closePreview}>

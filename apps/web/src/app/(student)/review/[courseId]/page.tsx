@@ -17,6 +17,7 @@ import { CourseOffering } from "@/types/course-offering";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MathText } from "@/components/quiz/math-text";
 import {
   ArrowLeft,
   GraduationCap,
@@ -459,7 +460,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                           <X className="w-3.5 h-3.5" /> Đáp án bạn đã chọn (Sai):
                         </div>
                         <p className="font-semibold line-through decoration-red-500">
-                          {item.wrongOptionText}
+                          <MathText text={item.wrongOptionText} />
                         </p>
                       </div>
 
@@ -467,14 +468,14 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                         <div className="text-[10px] font-bold uppercase text-emerald-600 flex items-center gap-1">
                           <Check className="w-3.5 h-3.5" /> Đáp án chính xác:
                         </div>
-                        <p className="font-semibold">{item.correctOptionText}</p>
+                        <p className="font-semibold"><MathText text={item.correctOptionText} /></p>
                       </div>
                     </div>
 
                     {/* Explanation */}
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600">
                       <span className="font-bold text-slate-800">Giải thích chi tiết: </span>
-                      {item.explanation}
+                      <MathText text={item.explanation} />
                     </div>
 
                     {/* Source Link Jump Button */}
@@ -569,7 +570,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                 activeQuizToTake.questions.map((q, idx) => (
                   <div key={q.id} className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
                     <div className="font-bold text-slate-900 text-sm">
-                      Câu {idx + 1}: {q.questionText}
+                      Câu {idx + 1}: <MathText text={q.questionText} />
                     </div>
 
                     <div className="space-y-2">
@@ -594,7 +595,7 @@ export default function StudentCourseReviewWorkspacePage({ params }: PageProps) 
                             >
                               {opt.id}
                             </span>
-                            <span>{opt.text}</span>
+                            <MathText text={opt.text} />
                           </div>
                         );
                       })}

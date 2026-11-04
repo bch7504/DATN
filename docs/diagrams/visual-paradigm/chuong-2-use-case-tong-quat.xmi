@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmi:XMI xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:uml="http://schema.omg.org/spec/UML/2.1">
+  <uml:Model xmi:id="id_StudyFlow_Use_Case_tong_quat" name="StudyFlow - Use Case tổng quát">
+    <packagedElement xmi:type="uml:Actor" xmi:id="id_Student" name="Student"/>
+    <packagedElement xmi:type="uml:Actor" xmi:id="id_Teacher" name="Teacher"/>
+    <packagedElement xmi:type="uml:Actor" xmi:id="id_Admin" name="Admin"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_S1" name="Tham gia Course Offering bằng join code"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_S2" name="Xem PDF và lưu ghi chú theo trang"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_S3" name="Dùng Trợ lý tài liệu cá nhân"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_S4" name="Hỏi Course Material AI Tutor"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_S5" name="Tạo, review và làm Quiz AI"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_S6" name="Xem Dashboard và nội dung cần ôn lại"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_S7" name="Quản lý Kế hoạch &amp; Lịch ôn tập"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_T1" name="Tạo và quản lý Course Offering"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_T2" name="Quản lý join code và enrollment"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_T3" name="Upload PDF và theo dõi xử lý"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_T4" name="Công bố hoặc thu hồi học liệu"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_T5" name="Tạo, review và publish Quiz AI"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_A1" name="Quản lý người dùng và vai trò"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_A2" name="Quản lý Subject và Semester"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_A3" name="Giám sát Course Offering"/>
+    <packagedElement xmi:type="uml:UseCase" xmi:id="id_A4" name="Xem feedback, audit và cấu hình hệ thống"/>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_0_Student_S1" memberEnd="id_association_0_Student_S1_a id_association_0_Student_S1_b">
+      <ownedEnd xmi:id="id_association_0_Student_S1_a" type="id_Student" association="id_association_0_Student_S1"/>
+      <ownedEnd xmi:id="id_association_0_Student_S1_b" type="id_S1" association="id_association_0_Student_S1"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_1_Student_S2" memberEnd="id_association_1_Student_S2_a id_association_1_Student_S2_b">
+      <ownedEnd xmi:id="id_association_1_Student_S2_a" type="id_Student" association="id_association_1_Student_S2"/>
+      <ownedEnd xmi:id="id_association_1_Student_S2_b" type="id_S2" association="id_association_1_Student_S2"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_2_Student_S3" memberEnd="id_association_2_Student_S3_a id_association_2_Student_S3_b">
+      <ownedEnd xmi:id="id_association_2_Student_S3_a" type="id_Student" association="id_association_2_Student_S3"/>
+      <ownedEnd xmi:id="id_association_2_Student_S3_b" type="id_S3" association="id_association_2_Student_S3"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_3_Student_S4" memberEnd="id_association_3_Student_S4_a id_association_3_Student_S4_b">
+      <ownedEnd xmi:id="id_association_3_Student_S4_a" type="id_Student" association="id_association_3_Student_S4"/>
+      <ownedEnd xmi:id="id_association_3_Student_S4_b" type="id_S4" association="id_association_3_Student_S4"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_4_Student_S5" memberEnd="id_association_4_Student_S5_a id_association_4_Student_S5_b">
+      <ownedEnd xmi:id="id_association_4_Student_S5_a" type="id_Student" association="id_association_4_Student_S5"/>
+      <ownedEnd xmi:id="id_association_4_Student_S5_b" type="id_S5" association="id_association_4_Student_S5"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_5_Student_S6" memberEnd="id_association_5_Student_S6_a id_association_5_Student_S6_b">
+      <ownedEnd xmi:id="id_association_5_Student_S6_a" type="id_Student" association="id_association_5_Student_S6"/>
+      <ownedEnd xmi:id="id_association_5_Student_S6_b" type="id_S6" association="id_association_5_Student_S6"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_6_Student_S7" memberEnd="id_association_6_Student_S7_a id_association_6_Student_S7_b">
+      <ownedEnd xmi:id="id_association_6_Student_S7_a" type="id_Student" association="id_association_6_Student_S7"/>
+      <ownedEnd xmi:id="id_association_6_Student_S7_b" type="id_S7" association="id_association_6_Student_S7"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_7_Teacher_T1" memberEnd="id_association_7_Teacher_T1_a id_association_7_Teacher_T1_b">
+      <ownedEnd xmi:id="id_association_7_Teacher_T1_a" type="id_Teacher" association="id_association_7_Teacher_T1"/>
+      <ownedEnd xmi:id="id_association_7_Teacher_T1_b" type="id_T1" association="id_association_7_Teacher_T1"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_8_Teacher_T2" memberEnd="id_association_8_Teacher_T2_a id_association_8_Teacher_T2_b">
+      <ownedEnd xmi:id="id_association_8_Teacher_T2_a" type="id_Teacher" association="id_association_8_Teacher_T2"/>
+      <ownedEnd xmi:id="id_association_8_Teacher_T2_b" type="id_T2" association="id_association_8_Teacher_T2"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_9_Teacher_T3" memberEnd="id_association_9_Teacher_T3_a id_association_9_Teacher_T3_b">
+      <ownedEnd xmi:id="id_association_9_Teacher_T3_a" type="id_Teacher" association="id_association_9_Teacher_T3"/>
+      <ownedEnd xmi:id="id_association_9_Teacher_T3_b" type="id_T3" association="id_association_9_Teacher_T3"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_10_Teacher_T4" memberEnd="id_association_10_Teacher_T4_a id_association_10_Teacher_T4_b">
+      <ownedEnd xmi:id="id_association_10_Teacher_T4_a" type="id_Teacher" association="id_association_10_Teacher_T4"/>
+      <ownedEnd xmi:id="id_association_10_Teacher_T4_b" type="id_T4" association="id_association_10_Teacher_T4"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_11_Teacher_T5" memberEnd="id_association_11_Teacher_T5_a id_association_11_Teacher_T5_b">
+      <ownedEnd xmi:id="id_association_11_Teacher_T5_a" type="id_Teacher" association="id_association_11_Teacher_T5"/>
+      <ownedEnd xmi:id="id_association_11_Teacher_T5_b" type="id_T5" association="id_association_11_Teacher_T5"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_12_Admin_A1" memberEnd="id_association_12_Admin_A1_a id_association_12_Admin_A1_b">
+      <ownedEnd xmi:id="id_association_12_Admin_A1_a" type="id_Admin" association="id_association_12_Admin_A1"/>
+      <ownedEnd xmi:id="id_association_12_Admin_A1_b" type="id_A1" association="id_association_12_Admin_A1"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_13_Admin_A2" memberEnd="id_association_13_Admin_A2_a id_association_13_Admin_A2_b">
+      <ownedEnd xmi:id="id_association_13_Admin_A2_a" type="id_Admin" association="id_association_13_Admin_A2"/>
+      <ownedEnd xmi:id="id_association_13_Admin_A2_b" type="id_A2" association="id_association_13_Admin_A2"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_14_Admin_A3" memberEnd="id_association_14_Admin_A3_a id_association_14_Admin_A3_b">
+      <ownedEnd xmi:id="id_association_14_Admin_A3_a" type="id_Admin" association="id_association_14_Admin_A3"/>
+      <ownedEnd xmi:id="id_association_14_Admin_A3_b" type="id_A3" association="id_association_14_Admin_A3"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_association_15_Admin_A4" memberEnd="id_association_15_Admin_A4_a id_association_15_Admin_A4_b">
+      <ownedEnd xmi:id="id_association_15_Admin_A4_a" type="id_Admin" association="id_association_15_Admin_A4"/>
+      <ownedEnd xmi:id="id_association_15_Admin_A4_b" type="id_A4" association="id_association_15_Admin_A4"/>
+    </packagedElement>
+  </uml:Model>
+</xmi:XMI>

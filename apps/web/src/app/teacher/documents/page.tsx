@@ -22,7 +22,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 
-/** Teacher-owned Course Material PDFs, browsed by the Course Offering they are published to. */
+/** Teacher-owned Course Materials; Java normalizes PDF/PPTX uploads into stored PDFs. */
 export default function TeacherDocumentsPage() {
   const [documents, setDocuments] = useState<TeacherDocument[]>([]);
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
@@ -98,18 +98,19 @@ export default function TeacherDocumentsPage() {
 
   /**
    * Args: event, FormEvent<HTMLFormElement>, required.
-   * Input: upload form, selected PDF, title, and an active selected offering.
-   * Output: Promise<void>; stores the PDF privately, refreshes state, and opens publication review with this class selected.
+   * Input: upload form, selected PDF/PPTX, title, and an active selected offering.
+   * Output: Promise<void>; stores the normalized PDF privately, refreshes state, and opens publication review with this class selected.
    * Errors: validation/API errors are displayed in the page; publication happens only after the Teacher confirms it.
    */
   const handleUpload = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!selectedFile) {
-      setErrorMsg("Vui lòng chọn một tệp PDF.");
+      setErrorMsg("Vui lòng chọn một tệp PDF hoặc PPTX.");
       return;
     }
-    if (!selectedFile.name.toLowerCase().endsWith(".pdf")) {
-      setErrorMsg("Course Material chỉ nhận PDF có lớp văn bản; không nhận PPTX hoặc DOCX.");
+    const lowerName = selectedFile.name.toLowerCase();
+    if (!lowerName.endsWith(".pdf") && !lowerName.endsWith(".pptx")) {
+      setErrorMsg("Học liệu chỉ nhận PDF hoặc PPTX; không nhận DOCX.");
       return;
     }
     if (!selectedOffering || selectedOffering.status !== "ACTIVE") {
@@ -202,15 +203,15 @@ export default function TeacherDocumentsPage() {
         </div>
         {selectedOffering && selectedOffering.status === "ACTIVE" && (
           <button type="button" onClick={() => { setErrorMsg(null); setIsUploadModalOpen(true); }} className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm">
-            <PlusCircle className="h-4 w-4" /> Tải PDF mới
+            <PlusCircle className="h-4 w-4" /> Tải học liệu mới
           </button>
         )}
       </div>
 
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         {selectedOffering
-          ? `PDF tải mới được lưu vào kho riêng; bạn sẽ xác nhận trước khi công bố cho lớp ${selectedOffering.code}. Chỉ nhận PDF có lớp văn bản, tối đa 20 MB.`
-          : "Tài liệu chỉ hiển thị cho sinh viên sau khi được công bố vào lớp. Chỉ nhận PDF có lớp văn bản, tối đa 20 MB."}
+          ? `Học liệu tải mới được chuẩn hóa thành PDF và lưu vào kho riêng; bạn sẽ xác nhận trước khi công bố cho lớp ${selectedOffering.code}. Nhận PDF hoặc PPTX, tối đa 20 MB.`
+          : "Tài liệu chỉ hiển thị cho sinh viên sau khi được công bố vào lớp. Nhận PDF hoặc PPTX, tối đa 20 MB."}
       </div>
 
       {errorMsg && <ErrorAlert message={errorMsg} onRetry={() => void loadData()} />}
@@ -257,7 +258,7 @@ export default function TeacherDocumentsPage() {
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
                 <BookOpen className="mx-auto h-8 w-8 text-slate-400" />
                 <p className="mt-3 font-semibold text-slate-800">Lớp chưa có tài liệu được công bố</p>
-                <p className="mt-1 text-sm text-slate-500">Tải PDF mới để công bố vào lớp.</p>
+                <p className="mt-1 text-sm text-slate-500">Tải PDF/PPTX mới để công bố vào lớp.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -309,7 +310,7 @@ export default function TeacherDocumentsPage() {
         <section className="space-y-4">
           <div>
             <h2 className="text-base font-bold text-slate-900">Lớp học phần của tôi</h2>
-            <p className="mt-1 text-xs text-slate-500">Chọn một lớp để xem học liệu đã công bố và thêm PDF vào lớp đó.</p>
+            <p className="mt-1 text-xs text-slate-500">Chọn một lớp để xem học liệu đã công bố và thêm PDF/PPTX vào lớp đó.</p>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {offerings.map((offering) => {
@@ -362,7 +363,7 @@ export default function TeacherDocumentsPage() {
           <div className="w-full max-w-md space-y-4 rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Tải PDF cho lớp</h2>
+                <h2 className="text-lg font-bold text-slate-900">Tải PDF/PPTX cho lớp</h2>
                 <p className="mt-1 text-xs text-slate-500">{selectedOffering.code} · {selectedOffering.name}</p>
               </div>
               <button type="button" onClick={() => setIsUploadModalOpen(false)} aria-label="Đóng" className="text-slate-500"><X className="h-5 w-5" /></button>
@@ -381,10 +382,10 @@ export default function TeacherDocumentsPage() {
                 </select>
               </label>
               <label className="block text-xs font-bold uppercase text-slate-700">
-                Tệp PDF có lớp văn bản
-                <input ref={fileInputRef} required type="file" accept="application/pdf,.pdf" onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)} className="mt-1 w-full text-xs text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-red-50 file:px-3 file:py-2 file:text-xs file:font-bold file:text-red-700" />
+                Tệp PDF có lớp văn bản hoặc PPTX
+                <input ref={fileInputRef} required type="file" accept="application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pdf,.pptx" onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)} className="mt-1 w-full text-xs text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-red-50 file:px-3 file:py-2 file:text-xs file:font-bold file:text-red-700" />
               </label>
-              <p className="text-xs leading-5 text-slate-500">PDF sẽ được lưu vào kho riêng. Sau khi tải lên, bạn xác nhận công bố cho lớp này. Không nhận PPTX/DOCX hoặc PDF scan không có lớp văn bản; tối đa 20 MB.</p>
+              <p className="text-xs leading-5 text-slate-500">PPTX được hệ thống chuyển thành PDF trước khi lưu; tệp PPTX gốc không được giữ lại. PDF đầu ra phải có lớp văn bản. Không nhận DOCX hoặc tài liệu scan; tối đa 20 MB.</p>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" disabled={isUploading} onClick={() => setIsUploadModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 disabled:opacity-60">Hủy</button>
                 <button type="submit" disabled={isUploading} className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-60">

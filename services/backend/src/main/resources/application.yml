@@ -75,6 +75,12 @@ studyflow:
     bucket: ${STORAGE_BUCKET:documents}
     access-key: ${STORAGE_ACCESS_KEY:}
     secret-key: ${STORAGE_SECRET_KEY:}
+  presentation-converter:
+    enabled: ${PRESENTATION_CONVERTER_ENABLED:false}
+    base-url: ${PRESENTATION_CONVERTER_URL:http://127.0.0.1:3001}
+    connect-timeout: ${PRESENTATION_CONVERTER_CONNECT_TIMEOUT:3s}
+    read-timeout: ${PRESENTATION_CONVERTER_READ_TIMEOUT:45s}
+    max-output-bytes: ${PRESENTATION_CONVERTER_MAX_OUTPUT_BYTES:41943040}
   notifications:
     reminder-scan-delay: ${STUDYFLOW_REMINDER_SCAN_DELAY:60000}
     email-scan-delay: ${STUDYFLOW_EMAIL_SCAN_DELAY:60000}

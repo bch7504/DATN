@@ -7,6 +7,7 @@ import com.studyflow.progress.application.LearningEventService;
 import com.studyflow.progress.application.RecordLearningEventCommand;
 import com.studyflow.progress.domain.EventType;
 import com.studyflow.review.domain.Quiz;
+import com.studyflow.review.domain.QuizCreatorRole;
 import com.studyflow.review.domain.QuizAnswer;
 import com.studyflow.review.domain.QuizAnswerRepository;
 import com.studyflow.review.domain.QuizAttempt;
@@ -65,12 +66,39 @@ public class QuizAttemptService {
     }
 
     /**
-     * Starts a new attempt for a Quiz. Returns questions WITHOUT correct answers.
+     * Args: ready personal Quiz UUID and authenticated Student UUID.
+     * Input: a Student-owned personal Quiz; Teacher Quiz is intentionally rejected here.
+     * Output: a new IN_PROGRESS attempt with questions but no answer key.
+     * Errors: 403 wrong owner/Teacher Quiz, 404 missing Quiz, 422 invalid state or empty Quiz.
      */
     @Transactional
     public StartQuizAttemptResult startAttempt(UUID quizId, UUID studentId) {
+        return startAttempt(quizId, studentId, false);
+    }
+
+    /**
+     * Args: Teacher Quiz UUID and approved Student UUID supplied by QuizAssignmentService.
+     * Input: a PUBLISHED Teacher Quiz already authorized through a published assignment.
+     * Output: a new IN_PROGRESS attempt without exposing the answer key.
+     * Errors: 403 wrong Quiz kind/enrollment, 404 missing Quiz, 422 invalid state or empty Quiz.
+     */
+    @Transactional
+    public StartQuizAttemptResult startAssignmentAttempt(UUID quizId, UUID studentId) {
+        return startAttempt(quizId, studentId, true);
+    }
+
+    private StartQuizAttemptResult startAttempt(UUID quizId, UUID studentId, boolean assignmentContext) {
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "QUIZ_NOT_FOUND", "KhA'ng tAm thy bAi quiz"));
+
+        if (assignmentContext && quiz.getCreatorRole() != QuizCreatorRole.TEACHER) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "ASSIGNMENT_QUIZ_REQUIRED",
+                    "Bài tập trắc nghiệm phải sử dụng Quiz của giảng viên.");
+        }
+        if (!assignmentContext && quiz.getCreatorRole() == QuizCreatorRole.TEACHER) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "TEACHER_QUIZ_REQUIRES_ASSIGNMENT",
+                    "Quiz của giảng viên chỉ được làm từ bài tập đã giao.");
+        }
 
         // If quiz is attached to a course offering, verify student enrollment
         if (quiz.getCourseOfferingId() != null) {
@@ -217,5 +245,45 @@ public class QuizAttemptService {
                 now,
                 reviews
         );
+    }
+
+    /**
+     * Args: scored attemptId and expectedStudentId, both required UUIDs.
+     * Input: persisted attempt owned by that Student. Output: saved score and per-question review.
+     * Errors: 404 missing, 403 different owner, 422 attempt not scored; no side effects.
+     */
+    @Transactional(readOnly = true)
+    public SubmitQuizAttemptResult getScoredAttempt(UUID attemptId, UUID expectedStudentId) {
+        QuizAttempt attempt = quizAttemptRepository.findById(attemptId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ATTEMPT_NOT_FOUND", "Không tìm thấy lượt làm bài."));
+        if (!attempt.getStudentId().equals(expectedStudentId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN_ATTEMPT", "Lượt làm bài không thuộc sinh viên này.");
+        }
+        if (attempt.getStatus() != QuizAttemptStatus.SCORED) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "ATTEMPT_NOT_SCORED", "Lượt làm bài chưa được chấm.");
+        }
+        List<QuizQuestion> questions = quizQuestionRepository.findByQuizIdOrderByQuestionOrderAsc(attempt.getQuizId());
+        Map<UUID, QuizAnswer> answers = quizAnswerRepository.findByAttemptId(attemptId).stream()
+                .collect(Collectors.toMap(QuizAnswer::getQuestionId, answer -> answer));
+        List<QuizQuestionSource> sources = quizQuestionSourceRepository.findByQuestionIdIn(
+                questions.stream().map(QuizQuestion::getId).toList());
+        Map<UUID, List<QuizQuestionSource>> sourcesByQuestion = sources.stream()
+                .collect(Collectors.groupingBy(QuizQuestionSource::getQuestionId));
+        List<QuizQuestionReviewDTO> reviews = questions.stream().map(question -> {
+            QuizAnswer answer = answers.get(question.getId());
+            Integer selected = answer == null ? null : answer.getSelectedOptionIndex();
+            return new QuizQuestionReviewDTO(question.getId(), question.getQuestionOrder(),
+                    question.getQuestionText(), List.of(
+                    new QuestionOptionDTO(0, question.getOptionA()),
+                    new QuestionOptionDTO(1, question.getOptionB()),
+                    new QuestionOptionDTO(2, question.getOptionC()),
+                    new QuestionOptionDTO(3, question.getOptionD())), selected,
+                    question.getCorrectOptionIndex(), question.isCorrect(selected), question.getExplanation(),
+                    sourcesByQuestion.getOrDefault(question.getId(), List.of()).stream()
+                            .map(source -> new QuizCitationSourceDTO(source.getDocumentId(), source.getPageNumber(), source.getExcerpt()))
+                            .toList());
+        }).toList();
+        return new SubmitQuizAttemptResult(attempt.getId(), attempt.getQuizId(), attempt.getScore(),
+                attempt.getCorrectAnswersCount(), attempt.getTotalQuestionsCount(), attempt.getSubmittedAt(), reviews);
     }
 }

@@ -762,7 +762,7 @@ Các đường dẫn source tương đối dưới `apps/web/src/app/`. Panel d�
 
 - Browser chỉ gọi Java `/api/v1`; không gọi Python, vector DB hoặc model provider trực tiếp.
 - Single Orchestrator chỉ phục vụ Personal Assistant Student; không multi-agent. Hỏi đáp, tóm tắt, Quiz phải grounded trên PDF được cấp quyền.
-- Course Material và Personal Document chỉ PDF có text layer; không PPTX/DOCX/OCR.
+- Teacher Course Material nhận PDF hoặc PPTX; Java chuyển PPTX thành PDF trước khi lưu/index. Personal Document chỉ nhận PDF có text layer; không DOCX/OCR.
 - Teacher chỉ AI Quiz Generator, không Personal Chatbot/AI Tutor.
 - Java sở hữu scoring, lifecycle, enrollment, progress, Streak và Daily Goal actual.
 - Các màn Admin còn thiếu API, persist draft từ chat, Note theo trang và các workflow chưa nối Java phải được triển khai/kiểm thử riêng. Không coi đầy đủ wireframe là đầy đủ code.
@@ -776,7 +776,7 @@ Các đường dẫn source tương đối dưới `apps/web/src/app/`. Panel d�
 | UI-2026-10-06 | Toàn bộ FE | Đổi tên tài liệu thành `ui-design.md`; tập trung Auth/Student/Teacher/Admin và khung phụ |
 | UI-2026-10-06 | S05/S06 | Kho mặc định; bấm Hỏi đáp mới mở AI bên trong; không có menu Assistant |
 | UI-2026-10-06 | S07–S09 | Khôi phục form sinh đề riêng; chat tạo Quiz là đường vào tùy chọn khác |
-| UI-2026-10-06 | T04/T05 | PDF-only, Teacher Quiz, không Teacher chatbot/Tutor |
+| UI-2026-11-04 | T04/T05 | Teacher upload PDF/PPTX; Java chuẩn hóa PPTX thành PDF; Teacher Quiz, không Teacher chatbot/Tutor |
 
 Mỗi lần sửa UI phải ghi thêm dòng (ngày, ID khung, cũ → mới, route/contract ảnh hưởng) thay vì xóa lịch sử.
 

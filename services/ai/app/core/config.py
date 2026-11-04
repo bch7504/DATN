@@ -31,7 +31,7 @@ class Settings(BaseSettings):
         validation_alias="INTERNAL_SERVICE_TOKEN",
         min_length=16,
     )
-    internal_schema_version: Literal["3"] = "3"
+    internal_schema_version: Literal["4"] = "4"
     ai_database_url: SecretStr | None = Field(
         default=None,
         validation_alias="AI_DATABASE_URL",
@@ -48,6 +48,45 @@ class Settings(BaseSettings):
         default="openai/gpt-5.6-luna",
         validation_alias="OPENROUTER_CHAT_MODEL",
         min_length=1,
+    )
+    openrouter_vision_model: str = Field(
+        default="openai/gpt-5.6-luna",
+        validation_alias="AI_VISION_MODEL",
+        min_length=1,
+    )
+    ai_enable_image_extraction: bool = Field(
+        default=True,
+        validation_alias="AI_ENABLE_IMAGE_EXTRACTION",
+    )
+    ai_vision_max_pages_per_document: int = Field(
+        default=100,
+        ge=1,
+        le=500,
+        validation_alias="AI_VISION_MAX_PAGES_PER_DOCUMENT",
+    )
+    ai_vision_timeout_seconds: float = Field(
+        default=20.0,
+        ge=0.1,
+        le=120.0,
+        validation_alias="AI_VISION_TIMEOUT_SECONDS",
+    )
+    ai_vision_max_context_characters: int = Field(
+        default=400,
+        ge=1,
+        le=4_000,
+        validation_alias="AI_VISION_MAX_CONTEXT_CHARACTERS",
+    )
+    ai_vision_max_caption_characters: int = Field(
+        default=4_000,
+        ge=100,
+        le=20_000,
+        validation_alias="AI_VISION_MAX_CAPTION_CHARACTERS",
+    )
+    ai_vision_max_render_pixels: int = Field(
+        default=4_000_000,
+        ge=250_000,
+        le=16_000_000,
+        validation_alias="AI_VISION_MAX_RENDER_PIXELS",
     )
     openrouter_embedding_model: str = Field(
         default="openai/text-embedding-3-large",

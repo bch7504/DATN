@@ -101,6 +101,7 @@ class CourseMaterialAskRequest(WireModel):
     course_offering_id: UUID
     document: AuthorizedDocumentRequest
     current_page_number: int = Field(ge=1)
+    history: tuple[ConversationTurn, ...] = Field(default=(), max_length=12)
     question: str = Field(min_length=1, max_length=4000)
 
     @model_validator(mode="after")

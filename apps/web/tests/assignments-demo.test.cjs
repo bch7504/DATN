@@ -29,6 +29,10 @@ test("Class assignments use persisted Java API data without a demo fallback", as
     assert.match(client, /downloadForStudent: .*apiDownload/);
     assert.match(client, /downloadForTeacher: .*apiDownload/);
     assert.doesNotMatch(studentPage, /Chế độ demo|lưu tạm trong phiên/);
+    assert.match(client, /quiz-attempts/);
+    assert.match(client, /quiz-submissions/);
+    assert.match(studentPage, /assignmentApi\.startQuiz/);
+    assert.match(studentPage, /assignmentApi\.submitQuiz/);
   });
 
   await t.test("Both role pages remain available and show real request failures", () => {
@@ -50,12 +54,15 @@ test("Class assignments use persisted Java API data without a demo fallback", as
     assert.match(teacherPage, /assignmentApi\.create\(composerOfferingId, input\)/);
   });
 
-  await t.test("F01 has submission counts but no grading flow", () => {
+  await t.test("Class report keeps submission counts and exposes only Java-scored Quiz detail", () => {
     assert.match(client, /onTimeCount: number/);
     assert.match(client, /lateCount: number/);
     assert.match(client, /notSubmittedCount: number/);
     assert.doesNotMatch(client, /assignmentApi\.review|review: \(submissionId: string/);
     assert.doesNotMatch(`${teacherPage}\n${studentPage}`, /assignmentApi\.review|teacherFeedback|reviewedAt/);
+    assert.match(client, /quizAttemptDetail/);
+    assert.match(teacherPage, /student\.score/);
+    assert.match(teacherPage, /Xem câu đúng\/sai/);
     assert.match(teacherPage, /kể cả người được duyệt sau hạn/);
     assert.doesNotMatch(teacherPage, /chỉ tính sinh viên được duyệt vào lớp không muộn hơn hạn nộp/);
   });

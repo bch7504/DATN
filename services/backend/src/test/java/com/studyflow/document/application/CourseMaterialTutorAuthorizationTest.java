@@ -16,6 +16,7 @@ import com.studyflow.document.domain.CourseMaterialType;
 import com.studyflow.enrollment.domain.CourseEnrollment;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
+import com.studyflow.integration.document.PresentationToPdfConverter;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
 import com.studyflow.notification.application.port.NotificationStore;
 import com.studyflow.publication.domain.DocumentPublication;
@@ -45,12 +46,14 @@ class CourseMaterialTutorAuthorizationTest {
         offerings = mock(CourseOfferingRepository.class);
         enrollments = mock(CourseEnrollmentRepository.class);
         ObjectProvider<AssignmentAttachmentStorage> storage = mock(ObjectProvider.class);
+        ObjectProvider<PresentationToPdfConverter> converter = mock(ObjectProvider.class);
         service = new CourseMaterialLibraryService(
                 documents,
                 publications,
                 offerings,
                 enrollments,
                 storage,
+                converter,
                 mock(NotificationStore.class),
                 Clock.fixed(Instant.parse("2026-10-21T00:00:00Z"), ZoneOffset.UTC));
     }

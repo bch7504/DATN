@@ -2,7 +2,7 @@
 
 Kho Ôn tập theo lớp chỉ trả Quiz `creatorRole=STUDENT`, `createdBy` bằng Student đăng nhập và `status=READY`. Bộ lọc áp dụng đồng nhất cho danh sách, thống kê và câu sai; mọi truy vấn theo lớp phải kiểm enrollment `APPROVED`. Quiz Teacher không thuộc kho cá nhân.
 
-> Contract mở rộng đang triển khai: [Quiz Assignment và Trí tuệ tài liệu](quiz-assignment-document-intelligence-plan.md), mục 5. Q1–Q4 và D4 đã được đưa vào source và qua kiểm thử service/contract; browser E2E, provider thật và các mốc Document Intelligence còn lại vẫn đang tiếp tục.
+> Contract mở rộng đang triển khai: [Quiz Assignment và Trí tuệ tài liệu](quiz-assignment-document-intelligence-plan.md), mục 5. Q1–Q4 và D4 đã được đưa vào source. HTTP E2E đã xác nhận Teacher sinh/công bố Quiz AI, gắn Assignment, Student làm/nộp và Teacher đọc điểm/tỷ lệ sai; browser E2E, provider thật và các mốc Document Intelligence còn lại vẫn đang tiếp tục.
 
 Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1`; Python chỉ mở `/internal/v1` cho Java.
 
@@ -230,7 +230,7 @@ History chỉ owner đọc; response có selected source metadata và messages/c
 - Header `Idempotency-Key` cho mỗi lần gửi chủ động; retry cùng thao tác phải giữ key. Java tạo cùng một Quiz ID từ actor + request đã chuẩn hóa + key, nên retry trả lại draft đã lưu và không gọi Python lần hai.
 - Java gọi Python đồng bộ trong request này. Output `200 QuizDraft` ở trạng thái `REVIEW_REQUIRED`; nếu không đủ bằng chứng trả `422 NO_EVIDENCE` và không lưu draft giả.
 - `GET /api/v1/review/quizzes/{id}`: owner-only, output `200 QuizDraft` gồm `{id,prompt,sourceDocumentIds,status,questions,createdAt}`. Luồng hiện tại sinh đồng bộ nên draft được lưu trực tiếp ở `REVIEW_REQUIRED`; mỗi câu có `{id,type:"MCQ_SINGLE",questionText,options:[{id,text}],correctOptionId,explanation,citation,image?}`, đúng 4 options và đúng một ID đáp án thuộc options. `citation` giữ `{documentId,documentName,pageNumber,excerpt}`; `image` là tùy chọn và chỉ có `{id,altText,url}` để browser tải qua Java, không chứa object key.
-- `GET /api/v1/quiz-images/{imageId}`: Java kiểm lại quyền đối với Quiz ở mỗi lần đọc rồi stream `image/png` với `Cache-Control: private`; Student chỉ đọc ảnh của Quiz cá nhân mình sở hữu hoặc Quiz lớp thuộc Course Offering đang có enrollment `APPROVED`, Teacher chỉ đọc ảnh của Quiz mình tạo. Không trả URL Object Storage.
+- `GET /api/v1/quiz-images/{imageId}`: Java kiểm lại quyền đối với Quiz ở mỗi lần đọc rồi stream `image/png` với `Cache-Control: no-store`; Student chỉ đọc ảnh của Quiz cá nhân mình sở hữu hoặc Quiz lớp thuộc Course Offering đang có enrollment `APPROVED`, Teacher chỉ đọc ảnh của Quiz mình tạo. Không trả URL Object Storage.
 - Ảnh Quiz chỉ được tạo cho câu `PDF_GROUNDED` khi câu hỏi thật sự phụ thuộc bằng chứng hình/sơ đồ trên một trang đã được cấp quyền. Java dựng PNG từ đúng PDF version/page do Python trả, lưu trong private Object Storage và lưu metadata `{documentId,documentVersion,pageNumber,bbox,objectKey,altText}`. `IMPORTED_TEXT` không được có image. Nếu ảnh được khai báo nhưng không thể materialize hoặc vượt scope, toàn bộ draft bị từ chối; không lưu câu hỏi có ảnh hỏng.
 - Errors dùng error envelope chung: `401`, `404 QUIZ_NOT_FOUND`, `409 DOCUMENT_NOT_READY|DOCUMENT_SCOPE_CHANGED`, `422 INVALID_QUIZ_PROMPT|INVALID_DOCUMENT_SELECTION|NO_EVIDENCE`, `503 AI_SERVICE_UNAVAILABLE`. FE giữ input và cho thử lại; không tự tạo câu trả lời production.
 - Java dựng scope và gọi pipeline sinh Quiz nội bộ; không tạo conversation. Cùng lifecycle review/accept/attempt với Quiz sinh từ hỏi đáp. Regenerate trả ID mới, FE tiếp tục theo dõi ID đó.
@@ -395,9 +395,9 @@ Plan item optional `courseOfferingId`. Java phát hiện conflict. Không có To
 
 Student list chỉ trả account metadata tối thiểu; không trả Personal Documents, Note, chat, plan, Quiz result hoặc progress cá nhân.
 
-### 5.3 Teacher Course Material PDF và publication
+### 5.3 Teacher Course Material PDF/PPTX và publication
 
-- `POST /api/v1/teacher/documents` — multipart `{file,title,materialType}`, trong đó `materialType=SLIDE_PDF|REFERENCE_PDF`; chỉ nhận PDF text-layer tối đa 20 MiB → `201 TeacherDocument`. `SLIDE_PDF` đi qua pipeline index; `REFERENCE_PDF` sẵn sàng sau khi lưu và không gửi sang Python. Lỗi `413 FILE_TOO_LARGE`, `415 UNSUPPORTED_MEDIA_TYPE`, `422 INVALID_PDF|PDF_TEXT_REQUIRED|INVALID_TITLE|INVALID_MATERIAL_TYPE`, `502 DOCUMENT_STORAGE_FAILED`, `503 STORAGE_NOT_CONFIGURED`.
+- `POST /api/v1/teacher/documents` — multipart `{file,title,materialType}`, trong đó `materialType=SLIDE_PDF|REFERENCE_PDF`; nhận PDF hoặc PPTX tối đa 20 MiB → `201 TeacherDocument`. PDF phải có text layer. PPTX được Java gửi tới Gotenberg nội bộ, nhận PDF đầu ra, đổi tên an toàn sang `.pdf`, kiểm tra lại chữ ký PDF/số trang/text layer rồi mới lưu. Python, Student và metadata đầu ra chỉ nhận PDF đã chuẩn hóa. `SLIDE_PDF` đi qua pipeline index; `REFERENCE_PDF` sẵn sàng sau khi lưu và không gửi sang Python. Lỗi `413 FILE_TOO_LARGE|PPTX_OUTPUT_TOO_LARGE`, `415 UNSUPPORTED_MEDIA_TYPE|INVALID_PPTX`, `422 INVALID_PDF|PDF_TEXT_REQUIRED|INVALID_TITLE|INVALID_MATERIAL_TYPE`, `502 PPTX_CONVERSION_FAILED|PPTX_CONVERTER_UNAVAILABLE|DOCUMENT_STORAGE_FAILED`, `503 PPTX_CONVERTER_NOT_CONFIGURED|STORAGE_NOT_CONFIGURED`, `504 PPTX_CONVERSION_TIMEOUT`.
 - `GET /api/v1/teacher/documents` — `{items,page,size,totalItems,totalPages}` theo owner; mỗi item có danh sách publication đang hiệu lực.
 - `GET /api/v1/teacher/documents/{id}/download` — stream PDF cho Teacher owner.
 - `POST /api/v1/teacher/documents/{id}/publications` — `{courseOfferingIds:[...]}`; chọn danh sách đồng nghĩa gỡ khỏi lớp đã bỏ chọn; lớp phải ACTIVE và thuộc Teacher.
@@ -478,7 +478,7 @@ Header:
 ```text
 Authorization: Bearer <service-token>
 X-Request-Id: req_...
-X-Schema-Version: 3
+X-Schema-Version: 4
 Idempotency-Key: ...   # index/deindex/Quiz generation
 ```
 
@@ -508,6 +508,7 @@ Quy tắc `signedUrl` của endpoint index:
 - Retrieval dùng hai nhánh trong cùng authorized scope: pgvector cosine và PostgreSQL full-text search. Kết quả được hợp nhất bằng RRF; LangChain điều phối OpenRouter LLM reranker với structured output, rồi filter lại document/version/owner/source/page để defense in depth. Reranker chỉ xếp hạng evidence đã được cấp quyền.
 - Citation được dựng từ retrieved chunk, deduplicate và validate document/location/excerpt bằng code.
 - Image reference không nhận trực tiếp `documentId/page/bbox` do model phát sinh. Model chỉ được chọn một `imageEvidenceId`; Python ánh xạ ID đó về evidence đã cấp và trả `{documentId,documentVersion,pageNumber,bbox:{x,y,width,height},altText}`. Bản đầu dùng toàn trang với bbox chuẩn hóa `{0,0,1,1}`; Java revalidate rồi materialize PNG. Câu không phụ thuộc hình để `image=null`.
+- Vision indexing bị giới hạn theo số trang, pixel render, độ dài context/caption và timeout từng trang. Caption chỉ là enrichment có provenance theo trang; lỗi Vision giữ text layer gốc với trạng thái fallback. PDF không có text layer vẫn trả `PDF_TEXT_REQUIRED`, kể cả model có thể mô tả hình ảnh.
 - Document content được delimit và xem là untrusted evidence, không phải instruction.
 - Khi evidence thiếu, trả `NO_EVIDENCE` mà không gọi model để bịa.
 - Single Orchestrator Agent chỉ được gọi bốn tool đã đăng ký. Router confidence thấp hoặc thiếu trường bắt buộc phải trả `NEEDS_CLARIFICATION`, không tự mở rộng scope. `IMPORT_QUIZ_FROM_TEXT` không được dùng nội dung PDF hoặc gắn citation; Java phân biệt rõ với `GENERATE_QUIZ` có nguồn.

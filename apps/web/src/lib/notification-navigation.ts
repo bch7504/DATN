@@ -28,7 +28,7 @@ export function notificationDestination(
     case "TEACHER_MATERIAL_PUBLISHED":
     case "TEACHER_MATERIAL_REVOKED": return { href: "/teacher/documents", label: "Xem học liệu" };
     case "STUDENT_MATERIAL_PUBLISHED":
-    case "STUDENT_MATERIAL_REVOKED": return { href: "/materials", label: "Xem học liệu" };
+    case "STUDENT_MATERIAL_REVOKED": return { href: "/course-offerings", label: "Xem lớp học" };
     case "STUDENT_ENROLLMENT_REQUESTED":
     case "STUDENT_ENROLLMENT_APPROVED":
     case "STUDENT_ENROLLMENT_REJECTED":
@@ -36,7 +36,7 @@ export function notificationDestination(
     case "ASSIGNMENT_PUBLISHED":
     case "ASSIGNMENT_DEADLINE":
     case "STUDENT_ASSIGNMENT_EXPIRED":
-    case "STUDENT_ASSIGNMENT_SUBMITTED": return { href: "/assignments", label: "Xem bài tập" };
+    case "STUDENT_ASSIGNMENT_SUBMITTED": return { href: "/course-offerings", label: "Xem lớp học" };
     default: return role === "TEACHER"
       ? { href: "/teacher/dashboard", label: "Về bảng điều khiển" }
       : { href: "/dashboard", label: "Về bảng điều khiển" };

@@ -1,65 +1,117 @@
 /**
- * CLI: node validate-diagrams.mjs (no arguments).
- * Input: allowlisted report/gallery files and diagrams under this directory only.
- * Output: summary to stdout, exit 0 if valid; no writes/network.
- * Errors: broken links, malformed sources/assets, duplicate or missing caption; exit nonzero.
+ * Validate the canonical StudyFlow diagram pairs.
+ *
+ * Args: none.
+ * Input: .puml and .png files inside chuong-1/, chuong-2/ and chuong-3/.
+ * Output: summary to stdout and exit code 0; this command has no side effects.
+ * Errors: missing pair, invalid PlantUML/PNG/XMI, or a forbidden legacy format.
  */
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import assert from 'node:assert/strict';
-import { fileURLToPath } from 'node:url';
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 const root = path.dirname(fileURLToPath(import.meta.url));
-const chapters = ['chuong-1-tong-quan-de-tai.md', 'chuong-2-phan-tich-va-thiet-ke-he-thong.md', 'chuong-3-thiet-ke-chi-tiet-va-cai-dat.md'];
-let figures = 0, sources = 0, links = 0;
-for (const file of chapters) {
-  const absolute = path.join(root, '../bao-cao', file);
-  const report = await fs.readFile(absolute, 'utf8');
-  const captions = [...report.matchAll(/^\*Hình (\d+\.\d+)\./gm)].map(m => m[1]);
-  assert.equal(new Set(captions).size, captions.length, 'Duplicate figure number');
-  assert.equal(captions.length, [...report.matchAll(/!\[/g)].length, 'Missing caption');
-  figures += captions.length;
-  for (const link of report.matchAll(/\]\(([^)]+)\)/g)) {
-    if (/^https?:|^#/.test(link[1])) continue;
-    await fs.access(path.resolve(path.dirname(absolute), link[1].split('#')[0])); links++;
+const chapters = ["chuong-1", "chuong-2", "chuong-3"];
+const forbiddenExtensions = new Set([".svg", ".mmd", ".pdf"]);
+
+/**
+ * @param {string} directory Absolute allowlisted directory.
+ * @returns {Promise<string[]>} Absolute file paths below the directory.
+ */
+async function listFiles(directory) {
+  const files = [];
+  for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...await listFiles(absolute));
+    else files.push(absolute);
+  }
+  return files;
+}
+
+const allFiles = await listFiles(root);
+for (const file of allFiles) {
+  assert(
+    !forbiddenExtensions.has(path.extname(file).toLowerCase()),
+    `Legacy diagram format is not allowed: ${path.relative(root, file)}`,
+  );
+}
+
+let pairs = 0;
+for (const chapter of chapters) {
+  const directory = path.join(root, chapter);
+  const files = await fs.readdir(directory);
+  const sources = files.filter(file => file.endsWith(".puml")).sort();
+  const images = files.filter(file => file.endsWith(".png")).sort();
+  assert(sources.length > 0, `No PlantUML source in ${chapter}`);
+
+  for (const sourceName of sources) {
+    const stem = sourceName.slice(0, -5);
+    const source = await fs.readFile(path.join(directory, sourceName), "utf8");
+    assert(source.trimStart().startsWith("@startuml"), `Invalid source start: ${sourceName}`);
+    assert(source.trimEnd().endsWith("@enduml"), `Invalid source end: ${sourceName}`);
+    assert(source.includes("' Palette:"), `Missing palette declaration: ${sourceName}`);
+    assert(source.includes("skinparam linetype ortho"), `Connectors must be orthogonal: ${sourceName}`);
+
+    const imageName = `${stem}.png`;
+    assert(images.includes(imageName), `Missing PNG for ${sourceName}`);
+    const png = await fs.readFile(path.join(directory, imageName));
+    assert.equal(png.subarray(1, 4).toString(), "PNG", `Invalid PNG signature: ${imageName}`);
+    assert(png.readUInt32BE(16) > 100, `PNG width is too small: ${imageName}`);
+    assert(png.readUInt32BE(20) > 100, `PNG height is too small: ${imageName}`);
+    pairs++;
+  }
+
+  for (const imageName of images) {
+    const sourceName = `${imageName.slice(0, -4)}.puml`;
+    assert(sources.includes(sourceName), `Missing PUML source for ${imageName}`);
   }
 }
-for (const chapter of ['chuong-1', 'chuong-2', 'chuong-3']) {
-  for (const file of await fs.readdir(path.join(root, chapter))) {
-    if (!file.endsWith('.puml')) continue;
-    const stem = path.join(root, chapter, file.slice(0,-5));
-    const source = await fs.readFile(stem + '.puml', 'utf8');
-    assert(source.trimStart().startsWith('@startuml') && source.trimEnd().endsWith('@enduml'), 'Invalid source');
-    assert(source.includes("' Palette:"), 'Missing per-diagram palette');
-    assert(!source.includes('skinparam monochrome true'), 'Obsolete forced monochrome style');
-    assert(source.includes('skinparam linetype ortho'), 'Connectors must use straight/orthogonal segments: ' + file);
-    const svg = await fs.readFile(stem + '.svg', 'utf8');
-    assert(svg.includes('<svg') && !svg.includes('Syntax Error?'), 'Invalid rendered SVG');
-    if (source.includes("' Palette: activity")) {
-      assert(svg.includes('data-activity-frame="true"'), 'Activity diagram must contain a closed swimlane frame: ' + file);
-    }
-    if (source.includes("' Palette: sequence")) {
-      assert(svg.includes('data-sequence-frame="true"'), 'Sequence diagram must contain an sd interaction frame: ' + file);
-    }
-    const expectedColor = file.startsWith('erd-')
-      ? '#F2BB7B'
-      : file === 'architecture-scope-01-pham-vi-studyflow.puml'
-        ? '#F8FAFC'
-        : '#7ACFF5';
-    assert(svg.toUpperCase().includes(expectedColor), 'Expected Visual Paradigm reference palette: ' + file);
-    const png = await fs.readFile(stem + '.png');
-    assert.equal(png.subarray(1,4).toString(), 'PNG');
-    assert(png.readUInt32BE(16) > 100 && png.readUInt32BE(20) > 100, 'Empty PNG');
-    sources++;
-  }
+
+const xmiFiles = allFiles.filter(file => path.extname(file).toLowerCase() === ".xmi");
+assert.equal(xmiFiles.length, 7, "Expected seven Visual Paradigm XMI exchange files");
+for (const file of xmiFiles) {
+  const content = await fs.readFile(file, "utf8");
+  assert(content.startsWith("<?xml"), `Invalid XML declaration: ${path.relative(root, file)}`);
+  assert(content.includes('xmi:version="2.1"'), `Visual Paradigm requires XMI 2.1: ${path.relative(root, file)}`);
+  assert(content.includes("<xmi:XMI") && content.includes("<uml:Model"), `Invalid XMI model: ${path.relative(root, file)}`);
+  assert(content.trimEnd().endsWith("</xmi:XMI>"), `Incomplete XMI document: ${path.relative(root, file)}`);
 }
-for (const file of ['index.html', 'chuong-1/index.html', 'chuong-2/index.html', 'chuong-3/index.html']) {
-  const absolute = path.join(root, file);
-  const html = await fs.readFile(absolute, 'utf8');
-  for (const link of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
-    await fs.access(path.resolve(path.dirname(absolute), decodeURI(link[1]))); links++;
-  }
+
+const xmiByName = new Map();
+for (const file of xmiFiles) xmiByName.set(path.basename(file), await fs.readFile(file, "utf8"));
+const count = (content, pattern) => [...content.matchAll(pattern)].length;
+const useCaseXmi = xmiByName.get("chuong-2-use-case-tong-quat.xmi");
+assert.equal(count(useCaseXmi, /xmi:type="uml:Actor"/g), 3, "Use Case XMI must contain three actors");
+assert.equal(count(useCaseXmi, /xmi:type="uml:UseCase"/g), 16, "Use Case XMI must contain sixteen use cases");
+assert.equal(count(useCaseXmi, /xmi:type="uml:Association"/g), 16, "Use Case XMI must exclude hidden layout links");
+
+for (const name of [
+  "chuong-3-class-personal-rag.xmi",
+  "chuong-3-class-course-material-tutor.xmi",
+  "chuong-3-class-quiz.xmi",
+]) {
+  const content = xmiByName.get(name);
+  assert(count(content, /xmi:type="uml:Class"/g) > 20, `${name} is missing classes`);
+  assert(count(content, /xmi:type="uml:Association"/g) > 10, `${name} is missing associations`);
+  assert(count(content, /xmi:type="uml:Dependency"/g) > 10, `${name} is missing dependencies`);
+  assert(count(content, /<ownedAttribute /g) > 10, `${name} is missing attributes`);
+  assert(count(content, /<ownedParameter [^>]* direction="in"/g) > 10, `${name} is missing operation parameters`);
+  assert(content.includes('href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"'), `${name} is missing primitive String references`);
+  assert(content.includes('href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"'), `${name} is missing primitive Integer references`);
+  assert(content.includes('href="urn:studyflow:types#UUID"'), `${name} is missing UUID references`);
+  assert(!content.includes('<packagedElement xmi:type="uml:DataType"'), `${name} must not add supporting data types as top-level elements`);
+  assert(!content.includes('<packagedElement xmi:type="uml:PrimitiveType"'), `${name} must not add primitive types as top-level elements`);
 }
-await fs.access(path.join(root, 'chuong-3/erd-physical-03-studyflow-overview.png'));
-assert.equal(figures, 22, 'Unexpected report figure count');
-assert.equal(sources, 22, 'Unexpected UML source count');
-console.log(`PASS: ${figures} captioned figures, ${sources} UML/SVG/PNG sets, ${links} local links`);
+
+for (const [name, minimumMessages] of [
+  ["chuong-3-sequence-personal-rag.xmi", 40],
+  ["chuong-3-sequence-course-material-tutor.xmi", 25],
+  ["chuong-3-sequence-quiz.xmi", 35],
+]) {
+  const content = xmiByName.get(name);
+  assert(count(content, /<lifeline /g) > 10, `${name} is missing lifelines`);
+  assert(count(content, /<message /g) >= minimumMessages, `${name} is missing sequence messages`);
+}
+
+console.log(`PASS: ${pairs} PUML/PNG pairs and ${xmiFiles.length} XMI exchange files; no SVG, MMD or PDF artifacts.`);

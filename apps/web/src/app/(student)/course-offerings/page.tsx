@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { studentApi, materialApi } from "@/lib/api-client";
+import { assignmentApi, materialApi, studentApi, type CourseAssignment } from "@/lib/api-client";
 import { CourseOffering, CourseEnrollment } from "@/types/course-offering";
 import { TeacherDocument } from "@/types/material";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -21,9 +21,12 @@ import {
   ShieldAlert,
   ArrowRight,
   FileText,
+  ClipboardList,
+  CalendarDays,
   Sparkles,
   ArrowLeft,
   Info,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -72,7 +75,13 @@ function CourseOfferingsContent() {
     setSelectedOfferingId(offeringId);
   }
   const [materials, setMaterials] = useState<TeacherDocument[]>([]);
+  const [assignments, setAssignments] = useState<CourseAssignment[]>([]);
   const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
+  const [materialError, setMaterialError] = useState<string | null>(null);
+  const [materialDownloadId, setMaterialDownloadId] = useState<string | null>(null);
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+  const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
+  const [courseSection, setCourseSection] = useState<"MATERIALS" | "ASSIGNMENTS">("MATERIALS");
   const [materialCounts, setMaterialCounts] = useState<Record<string, number>>({});
   const [materialCountsStatus, setMaterialCountsStatus] = useState<
     "loading" | "ready" | "error"
@@ -138,6 +147,7 @@ function CourseOfferingsContent() {
 
   // When selectedOfferingId changes, load its materials
   useEffect(() => {
+    setCourseSection("MATERIALS");
     if (!selectedOfferingId) {
       setMaterials([]);
       return;
@@ -150,9 +160,10 @@ function CourseOfferingsContent() {
         const docs = await materialApi.getMaterials(selectedOfferingId || undefined);
         if (mounted) {
           setMaterials(docs);
+          setMaterialError(null);
         }
       } catch (err: unknown) {
-        console.error("Failed to load materials for course:", err);
+        if (mounted) setMaterialError(err instanceof Error ? err.message : "Không tải được học liệu của lớp học phần.");
       } finally {
         if (mounted) setIsLoadingMaterials(false);
       }
@@ -163,6 +174,55 @@ function CourseOfferingsContent() {
       mounted = false;
     };
   }, [selectedOfferingId]);
+
+  /**
+   * Args: authorized REFERENCE_PDF metadata. Input: current Student session and approved class scope.
+   * Output: Promise<void>; downloads through Java and releases the temporary object URL.
+   * Errors: shown inside the Course Offering detail; no demo fallback is used.
+   */
+  async function downloadReference(document: TeacherDocument): Promise<void> {
+    if (materialDownloadId) return;
+    setMaterialDownloadId(document.id);
+    setMaterialError(null);
+    try {
+      const blob = await materialApi.downloadReference(document.id);
+      const url = URL.createObjectURL(blob);
+      const anchor = window.document.createElement("a");
+      anchor.href = url;
+      anchor.download = document.fileName || `${document.title}.pdf`;
+      window.document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (error: unknown) {
+      setMaterialError(error instanceof Error ? error.message : "Không thể tải tài liệu PDF.");
+    } finally {
+      setMaterialDownloadId(null);
+    }
+  }
+
+  /**
+   * Args: none.
+   * Input: authenticated Student session; Java returns assignments from approved Course Offerings only.
+   * Output: void; stores published assignments for class-level display and counts.
+   * Errors: exposes a retryable in-page error and never substitutes fixture data.
+   */
+  const loadAssignments = async (): Promise<void> => {
+    setIsLoadingAssignments(true);
+    setAssignmentsError(null);
+    try {
+      const data = await assignmentApi.listForStudent();
+      setAssignments(data.filter((assignment) => assignment.status === "PUBLISHED"));
+    } catch (err: unknown) {
+      setAssignmentsError(err instanceof Error ? err.message : "Không tải được bài tập của lớp học phần.");
+    } finally {
+      setIsLoadingAssignments(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadAssignments();
+  }, []);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -230,6 +290,16 @@ function CourseOfferingsContent() {
   const currentSelectedOffering = approvedOfferings.find(
     (o) => o.id === selectedOfferingId
   );
+  const selectedAssignments = assignments.filter(
+    (assignment) => assignment.courseOfferingId === selectedOfferingId
+  );
+  const assignmentCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const assignment of assignments) {
+      counts[assignment.courseOfferingId] = (counts[assignment.courseOfferingId] ?? 0) + 1;
+    }
+    return counts;
+  }, [assignments]);
 
   return (
     <div className="space-y-6">
@@ -376,68 +446,81 @@ function CourseOfferingsContent() {
                     </Link>
                   </div>
 
-                  {/* Policy Info Box */}
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600 flex items-start gap-2.5">
-                    <Info className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-slate-800">Quy định truy cập học liệu trong lớp:</span> toàn bộ Course Material dùng PDF có lớp văn bản. Student được đọc trực tuyến, ghi chú theo trang và dùng AI Tutor khi enrollment ở trạng thái APPROVED.
-                    </div>
-                  </div>
+                  <nav aria-label="Nội dung lớp học phần" className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-2">
+                    <button type="button" onClick={() => setCourseSection("MATERIALS")} aria-pressed={courseSection === "MATERIALS"} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold ${courseSection === "MATERIALS" ? "bg-red-700 text-white" : "text-slate-600"}`}>
+                      <BookOpen className="h-4 w-4" /> Học liệu lớp học ({materials.length})
+                    </button>
+                    <button type="button" onClick={() => setCourseSection("ASSIGNMENTS")} aria-pressed={courseSection === "ASSIGNMENTS"} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold ${courseSection === "ASSIGNMENTS" ? "bg-red-700 text-white" : "text-slate-600"}`}>
+                      <ClipboardList className="h-4 w-4" /> Bài tập về nhà ({selectedAssignments.length})
+                    </button>
+                  </nav>
 
-                  {/* Materials List */}
-                  {isLoadingMaterials ? (
-                    <div className="py-12 flex justify-center">
-                      <LoadingSpinner size="md" text="Đang tải học liệu của lớp học phần..." />
+                  {courseSection === "MATERIALS" ? <>
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600 flex items-start gap-2.5">
+                      <Info className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                      <div><span className="font-bold text-slate-800">Học liệu của lớp:</span> slide được xem trong hệ thống và hỏi đáp AI; tài liệu PDF tham khảo chỉ được tải xuống.</div>
                     </div>
-                  ) : materials.length === 0 ? (
-                    <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
-                      <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                      <h4 className="text-sm font-bold text-slate-800">Chưa có học liệu nào được công bố</h4>
-                      <p className="text-xs text-slate-500 mt-1">Giảng viên phụ trách chưa tải lên bài giảng hoặc tài liệu cho lớp học phần này.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {materials.map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="p-5 rounded-2xl border border-slate-200 bg-white   transition flex flex-col justify-between"
-                          >
-                            <div>
-                              <div className="flex items-center justify-between gap-2 mb-2">
-                                <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1 bg-red-100 text-ptit-red border border-red-200">
-                                  <FileText className="w-3.5 h-3.5" /> PDF Học liệu
-                                </span>
-                                <span className="text-[11px] text-slate-400">
-                                  {(doc.fileSize / (1024 * 1024)).toFixed(1)} MB
-                                </span>
-                              </div>
-
-                              <h3 className="font-bold text-slate-900 text-sm mb-1 line-clamp-2">
-                                {doc.title}
-                              </h3>
-                              <p className="text-xs text-slate-400 mb-3 truncate">
-                                Tên tệp: {doc.fileName}
-                              </p>
-
-                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-800 text-[11px] font-semibold rounded-lg mb-4">
-                                <Sparkles className="w-3 h-3 text-red-600" />
-                                <span>PDF Viewer · Ghi chú theo trang · AI Tutor</span>
-                              </div>
+                    {materialError ? (
+                      <ErrorAlert message={materialError} />
+                    ) : isLoadingMaterials ? (
+                      <div className="py-12 flex justify-center"><LoadingSpinner size="md" text="Đang tải học liệu của lớp học phần..." /></div>
+                    ) : materials.length === 0 ? (
+                      <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
+                        <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                        <h4 className="text-sm font-bold text-slate-800">Chưa có học liệu nào được công bố</h4>
+                        <p className="text-xs text-slate-500 mt-1">Giảng viên phụ trách chưa tải lên tài liệu cho lớp học phần này.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {materials.map((doc) => <article key={doc.id} className="p-5 rounded-2xl border border-slate-200 bg-white flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1 bg-red-100 text-ptit-red border border-red-200"><FileText className="w-3.5 h-3.5" /> {doc.materialType === "SLIDE_PDF" ? "Slide" : "Tài liệu PDF"}</span>
+                              <span className="text-[11px] text-slate-400">{(doc.fileSize / (1024 * 1024)).toFixed(1)} MB</span>
                             </div>
-
-                            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                              <span className="text-xs text-slate-500">{doc.totalPages} trang</span>
-                              <Link
-                                href={`/materials/${doc.id}/viewer`}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red text-white rounded-xl text-xs font-bold shadow-sm transition"
-                              >
-                                <BookOpen className="w-4 h-4" /> Xem PDF & Hỏi AI
-                              </Link>
-                            </div>
+                            <h3 className="font-bold text-slate-900 text-sm mb-1 line-clamp-2">{doc.title}</h3>
+                            <p className="text-xs text-slate-400 mb-3 truncate">Tên tệp: {doc.fileName}</p>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-800 text-[11px] font-semibold rounded-lg mb-4"><Sparkles className="w-3 h-3 text-red-600" /><span>{doc.materialType === "SLIDE_PDF" ? "Xem slide · Hỏi đáp AI" : "Tài liệu tham khảo tải xuống"}</span></div>
                           </div>
-                      ))}
+                          <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                            <span className="text-xs text-slate-500">{doc.totalPages} trang</span>
+                            {doc.materialType === "SLIDE_PDF" ? (
+                              <Link href={`/materials/${doc.id}/viewer?offeringId=${currentSelectedOffering.id}`} className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red text-white rounded-xl text-xs font-bold shadow-sm"><BookOpen className="w-4 h-4" /> Xem slide</Link>
+                            ) : (
+                              <button type="button" disabled={materialDownloadId === doc.id} onClick={() => void downloadReference(doc)} className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red text-white rounded-xl text-xs font-bold shadow-sm disabled:opacity-50"><Download className="w-4 h-4" /> {materialDownloadId === doc.id ? "Đang tải..." : "Tải xuống"}</button>
+                            )}
+                          </div>
+                        </article>)}
+                      </div>
+                    )}
+                  </> : <>
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600 flex items-start gap-2.5">
+                      <Info className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                      <div><span className="font-bold text-slate-800">Bài tập của lớp:</span> xem yêu cầu, hạn nộp và trạng thái bài làm. Mỗi bài mở màn hình nộp bài riêng nhưng vẫn giữ phạm vi của lớp học phần này.</div>
                     </div>
-                  )}
+                    {assignmentsError ? (
+                      <ErrorAlert message={assignmentsError} onRetry={() => void loadAssignments()} />
+                    ) : isLoadingAssignments ? (
+                      <div className="py-12 flex justify-center"><LoadingSpinner size="md" text="Đang tải bài tập của lớp học phần..." /></div>
+                    ) : selectedAssignments.length === 0 ? (
+                      <div className="p-8 text-center bg-white rounded-2xl border border-slate-200"><ClipboardList className="w-10 h-10 text-slate-300 mx-auto mb-2" /><h4 className="text-sm font-bold text-slate-800">Chưa có bài tập nào được giao</h4><p className="text-xs text-slate-500 mt-1">Bài tập đã công bố của giảng viên sẽ xuất hiện tại đây.</p></div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {selectedAssignments.map((assignment) => {
+                          const submitted = !!assignment.submission;
+                          const overdue = !submitted && Date.parse(assignment.dueAt) <= Date.now();
+                          return <article key={assignment.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div><h3 className="text-sm font-bold text-slate-900">{assignment.title}</h3>{assignment.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{assignment.description}</p>}</div>
+                              <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${submitted ? "bg-emerald-50 text-emerald-700" : overdue ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>{assignment.submission?.status === "LATE" ? "Đã nộp muộn" : submitted ? "Đã nộp" : overdue ? "Quá hạn" : "Chưa nộp"}</span>
+                            </div>
+                            <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-600"><CalendarDays className="h-3.5 w-3.5 text-red-600" />Hạn nộp: {new Date(assignment.dueAt).toLocaleString("vi-VN")}</p>
+                            <Link href={`/assignments?offeringId=${currentSelectedOffering.id}&assignmentId=${assignment.id}`} className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-red-700 px-4 py-2 text-xs font-bold text-white"><ClipboardList className="h-4 w-4" /> Xem và nộp bài</Link>
+                          </article>;
+                        })}
+                      </div>
+                    )}
+                  </>}
                 </div>
               ) : (
                 /* DEFAULT APPROVED OFFERINGS LIST */
@@ -488,6 +571,12 @@ function CourseOfferingsContent() {
                                         : materialCountsStatus === "error"
                                           ? "Chưa tải được số học liệu"
                                           : `${materialCounts[offering.id] ?? 0} tài liệu PDF`}
+                                      <span className="mx-1.5 text-slate-300">•</span>
+                                      {isLoadingAssignments
+                                        ? "Đang tải số bài tập…"
+                                        : assignmentsError
+                                          ? "Chưa tải được số bài tập"
+                                          : `${assignmentCounts[offering.id] ?? 0} bài tập`}
                                     </p>
                                   </div>
                                 </div>

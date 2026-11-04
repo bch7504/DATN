@@ -1,6 +1,7 @@
 @startuml
+' Palette: class; black-and-white View-DAO-Entity report style.
 ' Hình 3.4 - Thiết kế lớp Personal Document Assistant.
-' Bố cục một mặt phẳng: View ở trên, Control ở giữa, Entity/DTO ở dưới.
+' Bố cục một mặt phẳng: View ở trên, DAO ở giữa, Entity ở dưới.
 skinparam backgroundColor white
 skinparam defaultFontName Arial
 skinparam defaultFontSize 14
@@ -21,55 +22,56 @@ skinparam ranksep 52
 hide circle
 top to bottom direction
 
-class PersonalDocumentsPage <<view>> {
+class PersonalDocumentsView <<view>> {
   +loadDocuments(): PersonalDocument[]
   +selectDocuments(ids: UUID[]): void
   +openAssistant(): void
 }
-class PersonalAssistantPanel <<view>> {
+class PersonalAssistantView <<view>> {
+  +open(selectedDocumentIds: UUID[]): void
   +submitPrompt(message: String): void
   +showAnswer(response: AssistantResponse): void
   +showNoEvidence(): void
 }
-class CitationDrawer <<view>> {
+class CitationView <<view>> {
   +open(citation: PageCitation): void
 }
-class QuizDraftReview <<view>> {
+class QuizDraftReviewView <<view>> {
   +showDraft(draft: QuizDraft): void
   +acceptQuiz(quizId: UUID): void
   +rejectQuiz(quizId: UUID): void
 }
 
-class PersonalAssistantController <<controller>> {
+class PersonalAssistantDAO <<DAO>> {
   +postMessage(conversationId: UUID, body: MessageRequest): AssistantResponse
 }
-class PersonalAssistantService <<control>> {
+class ConversationDAO <<DAO>> {
   +run(studentId: UUID, conversationId: UUID, request: MessageRequest): AssistantResponse
 }
-class ConversationScopeService <<control>> {
+class ConversationScopeDAO <<DAO>> {
   +loadAuthorizedSnapshot(studentId: UUID, conversationId: UUID): AuthorizedScope
   +validateResult(scope: AuthorizedScope, result: AssistantResponse): void
 }
-class AiClient <<adapter>> {
+class AiGatewayDAO <<DAO>> {
   +runAssistant(request: InternalAssistantRequest): AssistantResponse
 }
-class SingleOrchestratorAgent <<control>> {
+class OrchestratorDAO <<DAO>> {
   +run(request: InternalAssistantRequest): AssistantResponse
   -selectTool(message: String): ToolName
 }
-class AskDocumentTool <<control>> {
+class AskDocumentDAO <<DAO>> {
   +execute(args: AskArgs, scope: AuthorizedScope): AnswerResult
 }
-class SummarizeDocumentTool <<control>> {
+class SummarizeDocumentDAO <<DAO>> {
   +execute(args: SummaryArgs, scope: AuthorizedScope): SummaryResult
 }
-class GenerateQuizTool <<control>> {
+class GenerateQuizDAO <<DAO>> {
   +execute(args: QuizArgs, scope: AuthorizedScope): QuizDraft
 }
-class ScopedRetriever <<control>> {
+class DocumentIndexDAO <<DAO>> {
   +search(scope: AuthorizedScope, query: String): EvidenceSet
 }
-class GroundingValidator <<control>> {
+class GroundingValidationDAO <<DAO>> {
   +validate(result: GeneratedResult, evidence: EvidenceSet): ValidationResult
 }
 
@@ -115,47 +117,63 @@ class AgentRun <<entity>> {
   -selectedTool: ToolName
   -status: RunStatus
 }
-class MessageRequest <<DTO>> {
+class MessageRequest <<entity>> {
   +message: String
   +selectedDocumentIds: UUID[1..10]
 }
-class AssistantResponse <<DTO>> {
+class AssistantResponse <<entity>> {
   +status: AssistantStatus
   +capability: Capability
   +answer: String?
   +quizDraft: QuizDraft?
   +citations: PageCitation[]
 }
-class PageCitation <<DTO>> {
+class PageCitation <<entity>> {
   +documentId: UUID
   +pageNumber: Integer
   +excerpt: String
 }
-class QuizDraft <<DTO>> {
+class QuizDraft <<entity>> {
   +questions: McqSingleQuestion[]
 }
 
-' View navigation and View-to-Control dependencies.
-PersonalDocumentsPage --> PersonalAssistantPanel
-PersonalAssistantPanel --> CitationDrawer
-PersonalAssistantPanel --> QuizDraftReview
-PersonalAssistantPanel ..> MessageRequest
-PersonalAssistantPanel ..> PersonalAssistantController
-CitationDrawer ..> PageCitation
-QuizDraftReview ..> QuizDraft
+' Giữ ba vùng thị giác như mẫu: View trên, DAO giữa, Entity dưới.
+PersonalDocumentsView -[hidden]right- PersonalAssistantView
+PersonalAssistantView -[hidden]right- CitationView
+CitationView -[hidden]right- QuizDraftReviewView
+PersonalAssistantDAO -[hidden]right- ConversationDAO
+ConversationDAO -[hidden]right- ConversationScopeDAO
+ConversationScopeDAO -[hidden]right- AiGatewayDAO
+AiGatewayDAO -[hidden]right- OrchestratorDAO
+AskDocumentDAO -[hidden]right- SummarizeDocumentDAO
+SummarizeDocumentDAO -[hidden]right- GenerateQuizDAO
+GenerateQuizDAO -[hidden]right- DocumentIndexDAO
+DocumentIndexDAO -[hidden]right- GroundingValidationDAO
+PersonalDocumentsView -[hidden]down- PersonalAssistantDAO
+PersonalAssistantDAO -[hidden]down- AskDocumentDAO
+AskDocumentDAO -[hidden]down- Student
 
-' Control flow.
-PersonalAssistantController ..> PersonalAssistantService
-PersonalAssistantService ..> ConversationScopeService
-PersonalAssistantService ..> AiClient
-AiClient ..> SingleOrchestratorAgent : internal HTTP
-SingleOrchestratorAgent ..> AskDocumentTool
-SingleOrchestratorAgent ..> SummarizeDocumentTool
-SingleOrchestratorAgent ..> GenerateQuizTool
-AskDocumentTool ..> ScopedRetriever
-SummarizeDocumentTool ..> ScopedRetriever
-GenerateQuizTool ..> ScopedRetriever
-ScopedRetriever ..> GroundingValidator
+' View navigation and View-to-DAO dependencies.
+PersonalDocumentsView --> PersonalAssistantView
+PersonalAssistantView --> CitationView
+PersonalAssistantView --> QuizDraftReviewView
+PersonalAssistantView ..> MessageRequest
+PersonalAssistantView ..> PersonalAssistantDAO
+CitationView ..> PageCitation
+QuizDraftReviewView ..> QuizDraft
+
+' DAO flow.
+PersonalAssistantDAO ..> ConversationDAO
+ConversationDAO ..> ConversationScopeDAO
+ConversationDAO ..> AiGatewayDAO
+AiGatewayDAO ..> OrchestratorDAO : internal HTTP
+OrchestratorDAO ..> AskDocumentDAO
+OrchestratorDAO ..> SummarizeDocumentDAO
+OrchestratorDAO ..> GenerateQuizDAO
+AskDocumentDAO ..> DocumentIndexDAO
+SummarizeDocumentDAO ..> DocumentIndexDAO
+GenerateQuizDAO ..> DocumentIndexDAO
+DocumentIndexDAO ..> GroundingValidationDAO
 
 ' Entity associations, aggregation and composition.
 Student "1" -- "0..*" PersonalDocument : owns
@@ -169,23 +187,23 @@ ChatConversation "1" -- "0..*" AgentRun
 AssistantResponse "1" *-- "0..*" PageCitation
 AssistantResponse "1" o-- "0..1" QuizDraft
 
-' Control-to-Entity dependencies.
-ConversationScopeService ..> Student
-ConversationScopeService ..> PersonalDocument
-ConversationScopeService ..> ChatConversation
-PersonalAssistantService ..> ChatMessage
-PersonalAssistantService ..> AssistantResponse
-ScopedRetriever ..> DocumentIndex
-ScopedRetriever ..> DocumentChunk
-SingleOrchestratorAgent ..> AgentRun
+' DAO-to-Entity dependencies.
+ConversationScopeDAO ..> Student
+ConversationScopeDAO ..> PersonalDocument
+ConversationScopeDAO ..> ChatConversation
+ConversationDAO ..> ChatMessage
+ConversationDAO ..> AssistantResponse
+DocumentIndexDAO ..> DocumentIndex
+DocumentIndexDAO ..> DocumentChunk
+OrchestratorDAO ..> AgentRun
 
-note right of SingleOrchestratorAgent
+note right of OrchestratorDAO
   Single Agent chỉ chọn một công cụ trong danh sách cho phép.
   Prompt không được mở rộng phạm vi tài liệu
   hoặc thay đổi quy tắc Quiz.
 end note
 
-note right of ScopedRetriever
+note right of DocumentIndexDAO
   Chỉ tìm trong Personal PDF thuộc Student
   và đúng phiên bản đã chọn.
   Thiếu bằng chứng thì trả NO_EVIDENCE.

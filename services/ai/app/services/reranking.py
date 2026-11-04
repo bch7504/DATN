@@ -1,4 +1,4 @@
-"""LangChain-backed deterministic reranking for grounded evidence."""
+"""LangChain stage combining structured LLM reranking with deterministic safeguards."""
 
 import re
 from typing import TypedDict
@@ -6,6 +6,7 @@ from typing import TypedDict
 from langchain_core.documents import Document
 from langchain_core.runnables import RunnableLambda
 
+from app.clients.protocols import EvidenceRerankClient
 from app.schemas.grounding import AuthorizedScope, RetrievedEvidence
 
 
@@ -16,16 +17,25 @@ class RerankInput(TypedDict):
     evidence: tuple[RetrievedEvidence, ...]
     scope: AuthorizedScope
     limit: int
+    llm_scores: dict[str, float] | None
 
 
 class LangChainEvidenceReranker:
-    """Rerank hybrid candidates by grounding, query coverage, page context, and diversity."""
+    """Rerank hybrid candidates using constrained LLM scores and deterministic safeguards."""
 
-    def __init__(self, *, diversity_penalty: float = 0.15) -> None:
-        """Create the deterministic LangChain reranking stage.
+    def __init__(
+        self,
+        *,
+        diversity_penalty: float = 0.15,
+        llm_client: EvidenceRerankClient | None = None,
+        llm_batch_size: int = 12,
+    ) -> None:
+        """Create the LangChain reranking stage.
 
         Args:
             diversity_penalty: Penalty in 0..0.5 for selecting near-duplicate chunks.
+            llm_client: Structured LLM scorer. Runtime supplies it; offline unit tests may omit it.
+            llm_batch_size: Maximum authorized candidates in one structured provider call.
 
         Returns:
             None.
@@ -36,10 +46,14 @@ class LangChainEvidenceReranker:
 
         if not 0.0 <= diversity_penalty <= 0.5:
             raise ValueError("diversity_penalty must be between zero and 0.5")
+        if not 1 <= llm_batch_size <= 32:
+            raise ValueError("llm_batch_size must be between one and 32")
         self._diversity_penalty = diversity_penalty
+        self._llm_client = llm_client
+        self._llm_batch_size = llm_batch_size
         self._pipeline = RunnableLambda(self._rerank_documents)
 
-    def rerank(
+    async def rerank(
         self,
         *,
         query: str,
@@ -56,7 +70,7 @@ class LangChainEvidenceReranker:
             limit: Final number of chunks, from 1 to the candidate count.
 
         Returns:
-            Evidence reordered by deterministic relevance and diversity scores.
+            Evidence reordered by LLM relevance, hybrid rank, page context, and diversity scores.
 
         Raises:
             ValueError: If the query or limit is invalid.
@@ -69,12 +83,28 @@ class LangChainEvidenceReranker:
             raise ValueError("rerank limit must be between 1 and 50")
         if not evidence:
             return ()
-        result = self._pipeline.invoke(
+        llm_scores: dict[str, float] | None = None
+        if self._llm_client is not None:
+            llm_scores = {}
+            for offset in range(0, len(evidence), self._llm_batch_size):
+                batch = evidence[offset : offset + self._llm_batch_size]
+                decision = await self._llm_client.score_evidence(
+                    query=normalized_query,
+                    evidence=batch,
+                )
+                batch_scores = {item.evidence_id: item.relevance for item in decision.scores}
+                if set(batch_scores) != {item.evidence_id for item in batch}:
+                    raise RuntimeError("LLM reranker batch scores do not match authorized evidence")
+                llm_scores.update(batch_scores)
+            if set(llm_scores) != {item.evidence_id for item in evidence}:
+                raise RuntimeError("LLM reranker scores do not match authorized evidence")
+        result = await self._pipeline.ainvoke(
             RerankInput(
                 query=normalized_query,
                 evidence=evidence,
                 scope=scope,
                 limit=min(limit, len(evidence)),
+                llm_scores=llm_scores,
             )
         )
         return tuple(result)
@@ -118,7 +148,14 @@ class LangChainEvidenceReranker:
                 and payload["scope"].current_page_number == item.page_number
             ):
                 current_page_bonus = 0.05
-            base_score = 0.80 * item.relevance_score + 0.15 * coverage + current_page_bonus
+            if payload["llm_scores"] is None:
+                base_score = 0.80 * item.relevance_score + 0.15 * coverage + current_page_bonus
+            else:
+                base_score = (
+                    0.70 * payload["llm_scores"][item.evidence_id]
+                    + 0.25 * item.relevance_score
+                    + current_page_bonus
+                )
             remaining.append((document, base_score, document_tokens))
 
         selected: list[tuple[Document, frozenset[str]]] = []

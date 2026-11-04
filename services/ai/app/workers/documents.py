@@ -86,9 +86,20 @@ async def run_worker(*, once: bool, poll_seconds: float | None = None) -> None:
                             worker = DocumentIndexWorker(
                                 download_client=downloader,
                                 embedding_client=provider,
+                                vision_client=provider,
+                                enable_vision=settings.ai_enable_image_extraction,
                                 index_repository=FencedIndexRepository(session, claim),
                                 embedding_model=settings.openrouter_embedding_model,
                                 embedding_dimensions=settings.embedding_dimensions,
+                                max_vision_pages=settings.ai_vision_max_pages_per_document,
+                                vision_timeout_seconds=settings.ai_vision_timeout_seconds,
+                                max_vision_context_characters=(
+                                    settings.ai_vision_max_context_characters
+                                ),
+                                max_vision_caption_characters=(
+                                    settings.ai_vision_max_caption_characters
+                                ),
+                                max_vision_render_pixels=settings.ai_vision_max_render_pixels,
                             )
                             artifact = await worker.execute(claim.command)
                             repository.finish(claim, artifact=artifact)
@@ -108,6 +119,8 @@ async def run_worker(*, once: bool, poll_seconds: float | None = None) -> None:
                         except RuntimeError:
                             # An expired/revoked claim must not overwrite another worker's result.
                             session.rollback()
+                    finally:
+                        session.commit()
             if once:
                 return
             if claim is None:

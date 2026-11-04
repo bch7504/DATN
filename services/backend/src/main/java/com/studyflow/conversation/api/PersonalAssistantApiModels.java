@@ -16,7 +16,7 @@ public final class PersonalAssistantApiModels {
             @Size(max = 200) String title
     ) { }
 
-    public record SendMessageRequest(@NotBlank @Size(max = 2000) String message) { }
+    public record SendMessageRequest(@NotBlank @Size(max = 4000) String message) { }
 
     public record Citation(UUID documentId, String documentName, int pageNumber, String excerpt, String sha256) { }
 

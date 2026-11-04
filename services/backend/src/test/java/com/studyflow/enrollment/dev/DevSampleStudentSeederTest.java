@@ -30,6 +30,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "spring.mail.password=test-only",
         "studyflow.auth.mail-from=test@example.invalid",
         "studyflow.auth.jwt-secret=sample-data-test-signing-key-minimum-32-bytes",
+        "studyflow.ai.document-scheduling-enabled=false",
         "studyflow.dev.sample-students.enabled=true",
         "logging.level.root=ERROR", "spring.main.banner-mode=off",
         "spring.jpa.show-sql=false", "logging.level.org.hibernate.SQL=OFF"

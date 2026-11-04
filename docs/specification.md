@@ -48,14 +48,14 @@ Giá trị cốt lõi:
 - Dashboard đầy đủ progress/Streak/Daily Goal; Kế hoạch & Lịch tuần theo mock.
 - Admin monitoring, feedback/audit/settings; deploy/test/seed tổng hợp.
 
-Ngoài MVP: PPTX/DOCX/OCR, Teacher chatbot/Tutor, multi-agent, Topic Mastery, Exam, AI grading, recommendation tự động, XP/badge/leaderboard, calendar sync và advanced analytics.
+Ngoài MVP: DOCX/OCR, Teacher chatbot/Tutor, multi-agent, Topic Mastery, Exam, AI grading, recommendation tự động, XP/badge/leaderboard, calendar sync và advanced analytics. Teacher Course Material được phép nhận PPTX nhưng Java phải chuyển thành PDF trước khi lưu/index; Python không xử lý PPTX.
 
 ## 4. Quy tắc nghiệp vụ
 
 - Chỉ enrollment `APPROVED` được truy cập Course Material. `SLIDE_PDF` có Viewer, Note, Tutor và progress; `REFERENCE_PDF` chỉ tải xuống.
-- Course Material và Personal Document chỉ nhận PDF có text layer; PDF scan/no text trả `PDF_TEXT_REQUIRED`, PDF mã hóa trả `PDF_ENCRYPTED`.
+- Teacher Course Material nhận PDF có text layer hoặc PPTX; Java chuyển PPTX thành PDF và kiểm tra text layer trước khi lưu/index. Personal Document chỉ nhận PDF có text layer. PDF/PDF đầu ra không có chữ trả `PDF_TEXT_REQUIRED`, PDF mã hóa trả `PDF_ENCRYPTED`.
 - Personal Document thuộc owner; Teacher/Admin không mặc định đọc hoặc dùng làm Official Content.
-- Teacher chỉ public PDF và Course Offering mình sở hữu; chỉ `SLIDE_PDF` `READY` được dùng tạo Quiz.
+- Teacher chỉ public PDF đã chuẩn hóa và Course Offering mình sở hữu; chỉ `SLIDE_PDF` `READY` được dùng tạo Quiz.
 - Teacher không có Personal Chatbot và không có Course Material AI Tutor.
 - Student Personal Assistant dùng một Single Orchestrator Agent, chỉ được gọi `ask_document`, `summarize_document`, `generate_quiz`.
 - Thiếu tham số quan trọng trả `NEEDS_CLARIFICATION`; thiếu bằng chứng trả `NO_EVIDENCE`.

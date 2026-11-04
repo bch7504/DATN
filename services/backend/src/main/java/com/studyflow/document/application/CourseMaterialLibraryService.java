@@ -13,14 +13,18 @@ import com.studyflow.common.exception.ApiException;
 import com.studyflow.common.exception.ForbiddenException;
 import com.studyflow.common.exception.ResourceNotFoundException;
 import com.studyflow.common.exception.ValidationException;
+import com.studyflow.integration.document.PresentationConversionException;
+import com.studyflow.integration.document.PresentationToPdfConverter;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
 import com.studyflow.notification.application.port.NotificationStore;
 import com.studyflow.notification.domain.NotificationType;
 import com.studyflow.publication.domain.DocumentPublication;
 import com.studyflow.publication.domain.DocumentPublicationRepository;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.awt.image.BufferedImage;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -30,9 +34,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import javax.imageio.ImageIO;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.ImageType;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.text.TextPosition;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -54,6 +64,7 @@ public class CourseMaterialLibraryService {
     private final CourseOfferingRepository offerings;
     private final CourseEnrollmentRepository enrollments;
     private final ObjectProvider<AssignmentAttachmentStorage> storageProvider;
+    private final ObjectProvider<PresentationToPdfConverter> converterProvider;
     private final NotificationStore notifications;
     private final Clock clock;
 
@@ -62,6 +73,7 @@ public class CourseMaterialLibraryService {
                                         CourseOfferingRepository offerings,
                                         CourseEnrollmentRepository enrollments,
                                         ObjectProvider<AssignmentAttachmentStorage> storageProvider,
+                                        ObjectProvider<PresentationToPdfConverter> converterProvider,
                                         NotificationStore notifications,
                                         Clock clock) {
         this.documents = documents;
@@ -69,15 +81,17 @@ public class CourseMaterialLibraryService {
         this.offerings = offerings;
         this.enrollments = enrollments;
         this.storageProvider = storageProvider;
+        this.converterProvider = converterProvider;
         this.notifications = notifications;
         this.clock = clock;
     }
 
     /**
-     * Args: authenticated teacherId, uploaded PDF, and display title (1–200 chars).
-     * Input: PDF <=20 MiB with a readable text layer and at least one page.
+     * Args: authenticated teacherId, uploaded PDF/PPTX, and display title (1–200 chars).
+     * Input: PDF/PPTX <=20 MiB; normalized PDF must have a readable text layer and at least one page.
      * Output: saved SLIDE_PDF metadata in PENDING_PROCESSING; compatibility overload for tests/callers.
-     * Errors: 413 oversized, 422 invalid/title/scan PDF, 502 storage failure, 503 storage unavailable.
+     * Errors: 413 oversized, 415 invalid media/PPTX, 422 invalid/title/textless PDF,
+     * 502 converter/storage failure, 503 converter/storage unavailable, 504 conversion timeout.
      * Side effect: stores a private object and inserts its metadata; confirmed transaction rollback
      * attempts object cleanup, including failures during commit. Cleanup failure never hides the DB error.
      */
@@ -87,8 +101,8 @@ public class CourseMaterialLibraryService {
     }
 
     /**
-     * Args: authenticated Teacher, text-layer PDF, title and SLIDE_PDF|REFERENCE_PDF.
-     * Input: bounded multipart upload.
+     * Args: authenticated Teacher, PDF/PPTX, title and SLIDE_PDF|REFERENCE_PDF.
+     * Input: bounded multipart upload; PPTX is converted internally and the source bytes are not stored.
      * Output: persisted metadata; SLIDE_PDF starts PENDING_PROCESSING, REFERENCE_PDF starts READY.
      * Errors: validation/media/storage errors; REFERENCE_PDF never creates an AI job.
      */
@@ -101,29 +115,25 @@ public class CourseMaterialLibraryService {
             throw new ValidationException("INVALID_MATERIAL_TYPE",
                     "Loại học liệu phải là SLIDE_PDF hoặc REFERENCE_PDF.");
         }
-        if (file == null || file.isEmpty()) throw new ValidationException("INVALID_FILE", "Vui lòng chọn tệp PDF.");
-        if (file.getSize() > MAX_BYTES) throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "PDF vượt giới hạn 20 MB.");
-        if (file.getOriginalFilename() == null || !file.getOriginalFilename().toLowerCase(Locale.ROOT).endsWith(".pdf")) {
-            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE", "Chỉ nhận PDF có lớp văn bản.");
+        if (file == null || file.isEmpty()) throw new ValidationException("INVALID_FILE", "Vui lòng chọn tệp PDF hoặc PPTX.");
+        if (file.getSize() > MAX_BYTES) throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "Tệp vượt giới hạn 20 MB.");
+        String originalName = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().trim();
+        String lowerName = originalName.toLowerCase(Locale.ROOT);
+        boolean pptx = lowerName.endsWith(".pptx");
+        if (!pptx && !lowerName.endsWith(".pdf")) {
+            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE", "Chỉ nhận PDF hoặc PPTX.");
         }
         String cleanTitle = title == null ? "" : title.trim();
         if (cleanTitle.isEmpty() || cleanTitle.length() > 200) throw new ValidationException("INVALID_TITLE", "Tiêu đề phải có từ 1 đến 200 ký tự.");
-        byte[] content;
-        int pageCount;
+        byte[] uploaded;
         try {
-            content = file.getBytes();
-            if (content.length < 5 || content[0] != '%' || content[1] != 'P' || content[2] != 'D' || content[3] != 'F' || content[4] != '-') {
-                throw new ValidationException("INVALID_PDF", "Tệp tải lên không phải PDF hợp lệ.");
-            }
-            try (PDDocument pdf = Loader.loadPDF(content)) {
-                pageCount = pdf.getNumberOfPages();
-                if (pageCount == 0 || new PDFTextStripper().getText(pdf).isBlank()) {
-                    throw new ValidationException("PDF_TEXT_REQUIRED", "PDF phải có lớp văn bản; không nhận PDF scan.");
-                }
-            }
+            uploaded = file.getBytes();
         } catch (IOException exception) {
-            throw new ValidationException("INVALID_PDF", "Không thể đọc tệp PDF hoặc tệp đang được bảo vệ bằng mật khẩu.");
+            throw new ValidationException("INVALID_FILE", "Không thể đọc tệp tải lên.");
         }
+        if (uploaded.length > MAX_BYTES) throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "Tệp vượt giới hạn 20 MB.");
+        byte[] content = pptx ? convertPresentation(originalName, uploaded) : uploaded;
+        int pageCount = validateNormalizedPdf(content);
         AssignmentAttachmentStorage storage = requireStorage();
         UUID id = UUID.randomUUID();
         String objectKey = "course-materials/" + teacherId + "/" + id + ".pdf";
@@ -135,7 +145,8 @@ public class CourseMaterialLibraryService {
         boolean cleanupRegistered = registerRollbackCleanup(storage, objectKey);
         Instant now = clock.instant();
         CourseMaterialDocument document = new CourseMaterialDocument(id, teacherId,
-                sanitizeFileName(file.getOriginalFilename()), cleanTitle, objectKey, content.length, pageCount,
+                pptx ? normalizedPdfName(originalName) : sanitizeFileName(originalName),
+                cleanTitle, objectKey, content.length, pageCount,
                 parsedMaterialType, now);
         try {
             CourseMaterialDocument saved = documents.save(document);
@@ -146,6 +157,77 @@ public class CourseMaterialLibraryService {
         } catch (RuntimeException exception) {
             if (!cleanupRegistered) deleteAfterFailedUpload(storage, objectKey);
             throw exception;
+        }
+    }
+
+    /**
+     * Args: original PPTX name and bounded bytes. Input: Teacher Course Material upload.
+     * Output: converted PDF bytes. Errors: 415 invalid OOXML, 502/503/504 converter failures, 413 output limit.
+     */
+    private byte[] convertPresentation(String originalName, byte[] uploaded) {
+        validatePptxPackage(uploaded);
+        PresentationToPdfConverter converter = converterProvider.getIfAvailable();
+        if (converter == null) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "PPTX_CONVERTER_NOT_CONFIGURED",
+                    "Dịch vụ chuyển PPTX sang PDF chưa được cấu hình.");
+        }
+        try {
+            return converter.convert(sanitizeFileName(originalName), uploaded);
+        } catch (PresentationConversionException exception) {
+            throw switch (exception.reason()) {
+                case OUTPUT_TOO_LARGE -> new ApiException(HttpStatus.PAYLOAD_TOO_LARGE,
+                        "PPTX_OUTPUT_TOO_LARGE", "PDF sau chuyển đổi vượt giới hạn cho phép.");
+                case TIMEOUT -> new ApiException(HttpStatus.GATEWAY_TIMEOUT,
+                        "PPTX_CONVERSION_TIMEOUT", "Chuyển PPTX sang PDF quá thời gian cho phép.");
+                case UNAVAILABLE -> new ApiException(HttpStatus.BAD_GATEWAY,
+                        "PPTX_CONVERTER_UNAVAILABLE", "Không thể kết nối dịch vụ chuyển PPTX.");
+                case FAILED -> new ApiException(HttpStatus.BAD_GATEWAY,
+                        "PPTX_CONVERSION_FAILED", "Không thể chuyển PPTX sang PDF.");
+            };
+        }
+    }
+
+    /** Args: bounded upload bytes. Output: void for a valid PPTX OOXML package. Errors: 415 invalid package. */
+    private static void validatePptxPackage(byte[] bytes) {
+        if (bytes.length < 4 || bytes[0] != 'P' || bytes[1] != 'K') {
+            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "INVALID_PPTX", "Tệp PPTX không hợp lệ.");
+        }
+        boolean contentTypes = false;
+        boolean presentation = false;
+        int entries = 0;
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if (++entries > 10_000) {
+                    throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "INVALID_PPTX", "Tệp PPTX có cấu trúc không hợp lệ.");
+                }
+                contentTypes |= "[Content_Types].xml".equals(entry.getName());
+                presentation |= "ppt/presentation.xml".equals(entry.getName());
+                zip.closeEntry();
+                if (contentTypes && presentation) break;
+            }
+        } catch (IOException exception) {
+            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "INVALID_PPTX", "Tệp PPTX không hợp lệ.");
+        }
+        if (!contentTypes || !presentation) {
+            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "INVALID_PPTX", "Tệp không phải bản trình chiếu PPTX hợp lệ.");
+        }
+    }
+
+    /** Args: candidate normalized PDF bytes. Output: positive page count. Errors: 422 invalid/encrypted/textless PDF. */
+    private static int validateNormalizedPdf(byte[] content) {
+        if (content.length < 5 || content[0] != '%' || content[1] != 'P' || content[2] != 'D'
+                || content[3] != 'F' || content[4] != '-') {
+            throw new ValidationException("INVALID_PDF", "Tệp đầu ra không phải PDF hợp lệ.");
+        }
+        try (PDDocument pdf = Loader.loadPDF(content)) {
+            int pageCount = pdf.getNumberOfPages();
+            if (pageCount == 0 || new PDFTextStripper().getText(pdf).isBlank()) {
+                throw new ValidationException("PDF_TEXT_REQUIRED", "PDF phải có lớp văn bản; không nhận tài liệu chỉ có ảnh.");
+            }
+            return pageCount;
+        } catch (IOException exception) {
+            throw new ValidationException("INVALID_PDF", "Không thể đọc PDF đầu ra hoặc tệp đang được bảo vệ bằng mật khẩu.");
         }
     }
 
@@ -332,6 +414,10 @@ public class CourseMaterialLibraryService {
     public Download downloadForStudent(UUID studentId, UUID documentId) {
         CourseMaterialDocument document = documents.findByIdAndDeletedAtIsNull(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("DOCUMENT_NOT_FOUND", "Không tìm thấy học liệu."));
+        if (document.isSlidePdf()) {
+            throw new ApiException(HttpStatus.CONFLICT, "SLIDE_DOWNLOAD_NOT_ALLOWED",
+                    "Slide chỉ được xem trong trình xem của hệ thống, không hỗ trợ tải xuống.");
+        }
         Set<UUID> approved = new LinkedHashSet<>(enrollments.findByStudentIdAndStatus(studentId, EnrollmentStatus.APPROVED)
                 .stream().map(item -> item.getCourseOfferingId()).toList());
         boolean allowed = publications.findByDocumentIdAndStatus(documentId, "PUBLISHED").stream()
@@ -339,6 +425,98 @@ public class CourseMaterialLibraryService {
                 .anyMatch(offering -> offering != null && approved.contains(offering.getId()) && offering.getStatus() != CourseOfferingStatus.LOCKED);
         if (!allowed) throw new ForbiddenException("ENROLLMENT_REQUIRED", "Bạn không có quyền xem tài liệu này.");
         return download(document);
+    }
+
+    /**
+     * Args: authenticated studentId, SLIDE_PDF documentId and required 1-based pageNumber.
+     * Input: READY slide PDF published to one ACTIVE Course Offering where the Student has APPROVED enrollment.
+     * Output: one PNG slide image plus its page number and total slide count; no source PDF or storage key is exposed.
+     * Errors: 403 unauthorized scope, 404 missing document, 409 non-slide/non-ready material,
+     * 422 page outside the PDF, 502 unreadable/render failure, 503 storage unavailable. Side effect: none.
+     */
+    @Transactional(readOnly = true)
+    public SlideImage renderStudentSlide(UUID studentId, UUID documentId, int pageNumber) {
+        TutorScope scope = authorizeTutor(studentId, documentId, pageNumber);
+        CourseMaterialDocument document = documents.findByIdAndDeletedAtIsNull(scope.documentId())
+                .orElseThrow(() -> new ResourceNotFoundException("DOCUMENT_NOT_FOUND", "Không tìm thấy học liệu."));
+        try (InputStream input = requireStorage().get(document.getStorageKey());
+             PDDocument pdf = Loader.loadPDF(input.readAllBytes());
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            if (pageNumber > pdf.getNumberOfPages()) {
+                throw new ValidationException("INVALID_PAGE", "Trang tài liệu không hợp lệ.");
+            }
+            BufferedImage image = new PDFRenderer(pdf)
+                    .renderImageWithDPI(pageNumber - 1, 144, ImageType.RGB);
+            if (!ImageIO.write(image, "png", output)) {
+                throw new IOException("No PNG writer is available");
+            }
+            return new SlideImage(output.toByteArray(), pageNumber, pdf.getNumberOfPages());
+        } catch (ValidationException exception) {
+            throw exception;
+        } catch (IOException | RuntimeException exception) {
+            if (exception instanceof ApiException apiException) throw apiException;
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "SLIDE_RENDER_FAILED",
+                    "Không thể hiển thị trang slide. Vui lòng thử lại.");
+        }
+    }
+
+    /**
+     * Args: authenticated studentId, SLIDE_PDF documentId and required 1-based pageNumber.
+     * Input: the same READY, published and enrollment-authorized slide scope used by the image Viewer.
+     * Output: page dimensions and positioned text runs used only to provide browser text selection.
+     * Errors: 403 unauthorized scope, 404 missing document, 409 non-slide/non-ready material,
+     * 422 invalid page, 502 extraction failure, 503 storage unavailable. Side effect: none.
+     */
+    @Transactional(readOnly = true)
+    public SlideTextLayer extractStudentSlideText(UUID studentId, UUID documentId, int pageNumber) {
+        TutorScope scope = authorizeTutor(studentId, documentId, pageNumber);
+        CourseMaterialDocument document = documents.findByIdAndDeletedAtIsNull(scope.documentId())
+                .orElseThrow(() -> new ResourceNotFoundException("DOCUMENT_NOT_FOUND", "Không tìm thấy học liệu."));
+        try (InputStream input = requireStorage().get(document.getStorageKey());
+             PDDocument pdf = Loader.loadPDF(input.readAllBytes())) {
+            var page = pdf.getPage(pageNumber - 1);
+            float pageWidth = page.getCropBox().getWidth();
+            float pageHeight = page.getCropBox().getHeight();
+            if (Math.floorMod(page.getRotation(), 180) != 0) {
+                float swap = pageWidth;
+                pageWidth = pageHeight;
+                pageHeight = swap;
+            }
+            List<SlideTextItem> items = new ArrayList<>();
+            PDFTextStripper stripper = new PDFTextStripper() {
+                @Override
+                protected void writeString(String text, List<TextPosition> positions) throws IOException {
+                    if (text == null || text.isBlank() || positions == null || positions.isEmpty()
+                            || items.size() >= 1000) return;
+                    float left = Float.MAX_VALUE;
+                    float top = Float.MAX_VALUE;
+                    float right = 0;
+                    float bottom = 0;
+                    for (TextPosition position : positions) {
+                        float x = position.getXDirAdj();
+                        float height = Math.max(1f, position.getHeightDir());
+                        float y = position.getYDirAdj() - height;
+                        left = Math.min(left, x);
+                        top = Math.min(top, y);
+                        right = Math.max(right, x + Math.max(1f, position.getWidthDirAdj()));
+                        bottom = Math.max(bottom, y + height);
+                    }
+                    if (left != Float.MAX_VALUE && right > left && bottom > top) {
+                        items.add(new SlideTextItem(text, left, Math.max(0, top),
+                                right - left, bottom - top));
+                    }
+                }
+            };
+            stripper.setStartPage(pageNumber);
+            stripper.setEndPage(pageNumber);
+            stripper.setSortByPosition(true);
+            stripper.getText(pdf);
+            return new SlideTextLayer(pageNumber, pageWidth, pageHeight, List.copyOf(items));
+        } catch (IOException | RuntimeException exception) {
+            if (exception instanceof ApiException apiException) throw apiException;
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "SLIDE_TEXT_EXTRACTION_FAILED",
+                    "Không thể tạo lớp chữ cho slide. Vui lòng thử lại.");
+        }
     }
 
     /**
@@ -417,9 +595,39 @@ public class CourseMaterialLibraryService {
         return name.length() <= 255 ? name : name.substring(name.length() - 255);
     }
 
+    /** Args: original PPTX filename. Output: safe filename ending in .pdf. Errors: none. */
+    private static String normalizedPdfName(String input) {
+        String safe = sanitizeFileName(input);
+        String base = safe.toLowerCase(Locale.ROOT).endsWith(".pptx")
+                ? safe.substring(0, safe.length() - 5)
+                : safe;
+        if (base.isBlank()) base = "presentation";
+        if (base.length() > 251) base = base.substring(base.length() - 251);
+        return base + ".pdf";
+    }
+
     /** Download result returned only after authorization. */
     public record Download(String fileName, String contentType, long sizeBytes, boolean inlineAllowed,
                            InputStream content) { }
+
+    /** Authorized PNG representation of one slide; source PDF bytes are never returned to the Student. */
+    public record SlideImage(byte[] content, int pageNumber, int totalSlides) {
+        public SlideImage {
+            content = content.clone();
+        }
+
+        @Override
+        public byte[] content() {
+            return content.clone();
+        }
+    }
+
+    /** Positioned selectable text for one authorized slide page. */
+    public record SlideTextLayer(int pageNumber, float pageWidth, float pageHeight,
+                                 List<SlideTextItem> items) { }
+
+    /** One text run in PDF points relative to the adjusted page coordinate system. */
+    public record SlideTextItem(String text, float x, float y, float width, float height) { }
 
     /** Authorized immutable values used to call Python without exposing storage metadata. */
     public record TutorScope(UUID documentId, int documentVersion, UUID ownerId, String documentName,

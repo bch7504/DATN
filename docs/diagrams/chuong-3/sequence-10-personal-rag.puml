@@ -1,11 +1,14 @@
 @startuml
-' Palette: sequence; based on the Visual Paradigm guide samples (see README).
+' Palette: sequence; monochrome Visual Paradigm-style interaction.
 ' Monochrome: true
 ' Interaction: Trợ lý tài liệu cá nhân
+' InteractionFrame: none
 skinparam defaultFontColor #000000
 skinparam ArrowColor #000000
 skinparam ActorBackgroundColor #FFFFFF
 skinparam ActorBorderColor #000000
+skinparam ControlBackgroundColor #FFFFFF
+skinparam ControlBorderColor #000000
 skinparam NoteBackgroundColor #FFFFFF
 skinparam NoteBorderColor #000000
 skinparam ParticipantBackgroundColor #FFFFFF
@@ -25,49 +28,104 @@ skinparam shadowing false
 skinparam linetype ortho
 skinparam backgroundColor white
 skinparam defaultFontName Arial
-skinparam defaultFontSize 15
-skinparam roundcorner 10
+skinparam defaultFontSize 14
+skinparam roundcorner 0
 hide footbox
 autonumber
-autoactivate on
 
 actor Student
-participant ":Web" as Web
-participant ":Java Backend" as Java
-participant ":Single Agent" as Agent
-participant ":AI Tools" as Tools
-participant ":pgvector (ai)" as DB
-participant ":Model Provider" as LLM
+boundary "«view»\n:PersonalDocumentsView" as DocumentsPage
+boundary "«view»\n:PersonalAssistantView" as AssistantPanel
+boundary "«view»\n:CitationView" as CitationPanel
+boundary "«view»\n:QuizDraftReviewView" as QuizReview
+control "PersonalAssistantDAO" as Controller
+control "ConversationDAO" as Service
+control "ConversationScopeDAO" as ScopeService
+control "AiGatewayDAO" as AiClient
+control "OrchestratorDAO" as Agent
+control "AskDocumentDAO" as AskTool
+control "SummarizeDocumentDAO" as SummaryTool
+control "GenerateQuizDAO" as QuizTool
+control "DocumentIndexDAO" as Retriever
+control "GroundingValidationDAO" as Validator
+entity ":PersonalDocument" as Document
+entity ":ChatConversation" as Conversation
+entity ":DocumentIndex" as Index
+entity ":DocumentChunk" as Chunk
+entity ":ChatMessage" as Message
+entity ":AgentRun" as Run
+boundary "«external system»\nModel Provider" as Model
 
-Student -> Web : Chọn Personal PDF và gửi yêu cầu tự nhiên
-Web -> Java : POST /student/chat/conversations/{id}/messages
-Java -> Java : Kiểm owner, READY, snapshot/version
-alt Không được phép
-  Java --> Web : Lỗi access theo contract
-else Scope hợp lệ
-  Java -> Agent : POST /internal/v1/personal-assistant/runs
-  Agent -> Agent : Nhận diện capability và lập tool args
-  alt Thiếu tham số bắt buộc
-    Agent --> Java : NEEDS_CLARIFICATION + missingFields
-  else Đủ tham số
-    Agent -> Tools : ask_document / summarize_document / generate_quiz
-    Tools -> LLM : Embed query cùng index version
-    LLM --> Tools : Query vector
-    Tools -> DB : Retrieval có filter authorized scope
-    DB --> Tools : Evidence theo trang
-    alt Không đủ evidence
-      Tools --> Agent : NO_EVIDENCE
-    else Có evidence
-      Tools -> LLM : Evidence + output schema
-      LLM --> Tools : Answer / Summary / QuizDraft
-      Tools -> Tools : Validate schema và grounding
-      Tools --> Agent : Structured result + page citations
-    end
-    Agent --> Java : AssistantResponse
-  end
-  Java -> Java : Revalidate; lưu message hoặc Quiz REVIEW_REQUIRED
-  Java --> Web : AssistantResponse
-  Web --> Student : Nội dung, citation, câu hỏi bổ sung hoặc Quiz draft
+Student -> DocumentsPage : selectDocuments(ids)
+Student -> DocumentsPage : openAssistant()
+DocumentsPage -> AssistantPanel : open(ids)
+Student -> AssistantPanel : submitPrompt(message)
+AssistantPanel -> Controller ++ : postMessage(conversationId, MessageRequest)
+Controller -> Service ++ : run(studentId, conversationId, request)
+Service -> ScopeService ++ : loadAuthorizedSnapshot(studentId, conversationId)
+ScopeService -> Conversation : load conversation owned by Student
+loop Mỗi tài liệu đã chọn
+  ScopeService -> Document : kiểm owner, READY và version
 end
-return Hoàn tất tương tác
+alt Phạm vi không hợp lệ
+  ScopeService --> Service -- : ACCESS_DENIED / invalid scope
+  Service --> Controller -- : lỗi theo contract
+  Controller --> AssistantPanel -- : hiển thị lỗi truy cập
+else Phạm vi hợp lệ
+  ScopeService --> Service -- : AuthorizedScope
+  Service -> AiClient ++ : runAssistant(InternalAssistantRequest)
+  AiClient -> Agent ++ : run(request)
+  Agent -> Agent : selectTool(message)
+  Agent -> Run : ghi selectedTool và trạng thái RUNNING
+  alt Thiếu tham số bắt buộc
+    Agent --> AiClient : NEEDS_CLARIFICATION
+  else Tool hỏi đáp
+    Agent -> AskTool ++ : execute(AskArgs, scope)
+    AskTool -> Retriever ++ : search(scope, query)
+    Retriever -> Index : kiểm document/version/index status
+    Retriever -> Chunk : hybrid retrieval trong authorized scope
+    Retriever -> Model : embedding/rerank query
+    Model --> Retriever : vector/rerank scores
+    Retriever --> AskTool -- : EvidenceSet theo trang
+    AskTool -> Model : sinh câu trả lời từ evidence
+    Model --> AskTool : AnswerResult
+    AskTool -> Validator : validate(answer, evidence)
+    AskTool --> Agent -- : ANSWERED hoặc NO_EVIDENCE
+  else Tool tóm tắt
+    Agent -> SummaryTool ++ : execute(SummaryArgs, scope)
+    SummaryTool -> Retriever ++ : search(scope, summary query)
+    Retriever -> Index : kiểm document/version/index status
+    Retriever -> Chunk : lấy evidence theo trang
+    Retriever --> SummaryTool -- : EvidenceSet
+    SummaryTool -> Model : sinh tóm tắt có căn cứ
+    Model --> SummaryTool : SummaryResult
+    SummaryTool -> Validator : validate(summary, evidence)
+    SummaryTool --> Agent -- : SUMMARIZED hoặc NO_EVIDENCE
+  else Tool tạo Quiz
+    Agent -> QuizTool ++ : execute(QuizArgs, scope)
+    QuizTool -> Retriever ++ : search(scope, quiz constraints)
+    Retriever -> Index : kiểm document/version/index status
+    Retriever -> Chunk : lấy evidence theo trang
+    Retriever --> QuizTool -- : EvidenceSet
+    QuizTool -> Model : sinh QuizDraft theo JSON Schema
+    Model --> QuizTool : QuizDraft
+    QuizTool -> Validator : validate(draft, evidence)
+    QuizTool --> Agent -- : QUIZ_CREATED hoặc NO_EVIDENCE
+  end
+  Agent --> AiClient -- : AssistantResponse
+  AiClient --> Service -- : AssistantResponse
+  Service -> ScopeService ++ : validateResult(scope, response)
+  ScopeService --> Service -- : citation/scope hợp lệ
+  Service -> Message : lưu message hoặc Quiz REVIEW_REQUIRED
+  Service --> Controller -- : AssistantResponse
+  Controller --> AssistantPanel -- : showAnswer(response)
+  opt Có citation
+    Student -> AssistantPanel : chọn citation
+    AssistantPanel -> CitationPanel : open(citation)
+    CitationPanel --> Student : hiển thị nguồn theo pageNumber
+  end
+  opt Có QuizDraft
+    AssistantPanel -> QuizReview : showDraft(response.quizDraft)
+  end
+end
 @enduml

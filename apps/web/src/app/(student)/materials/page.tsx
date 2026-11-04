@@ -18,6 +18,7 @@ export default function StudentMaterialsPage() {
   const [selectedOfferingId, setSelectedOfferingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const selectedOffering = offerings.find((offering) => offering.id === selectedOfferingId) ?? null;
   const selectedOfferingMaterials = selectedOffering
@@ -71,6 +72,32 @@ export default function StudentMaterialsPage() {
     else window.history.replaceState({ ...historyState, studyflowDetail: undefined }, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
     setSelectedOfferingId(offeringId);
     setErrorMsg(null);
+  };
+
+  /**
+   * @param document authorized REFERENCE_PDF selected by the Student
+   * @returns Promise<void>; downloads the PDF through Java and releases the temporary browser URL
+   * @throws no error to React; API failures are rendered in the page alert
+   */
+  const downloadReference = async (document: TeacherDocument): Promise<void> => {
+    if (downloadingId) return;
+    setDownloadingId(document.id);
+    setErrorMsg(null);
+    try {
+      const blob = await materialApi.downloadReference(document.id);
+      const url = URL.createObjectURL(blob);
+      const anchor = window.document.createElement("a");
+      anchor.href = url;
+      anchor.download = document.fileName || `${document.title}.pdf`;
+      window.document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Không thể tải tài liệu PDF.");
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   return (
@@ -151,15 +178,17 @@ export default function StudentMaterialsPage() {
                         href={`/materials/${document.id}/viewer`}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
                       >
-                        <BookOpen className="h-4 w-4" /> Xem slide & hỏi AI
+                        <BookOpen className="h-4 w-4" /> Xem slide
                       </Link>
                     ) : (
-                      <a
-                        href={materialApi.getDownloadUrl(document.id, true)}
+                      <button
+                        type="button"
+                        disabled={downloadingId === document.id}
+                        onClick={() => void downloadReference(document)}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
                       >
-                        <Download className="h-4 w-4" /> Tải tài liệu
-                      </a>
+                        <Download className="h-4 w-4" /> {downloadingId === document.id ? "Đang tải..." : "Tải xuống"}
+                      </button>
                     )}
                   </div>
                 </article>

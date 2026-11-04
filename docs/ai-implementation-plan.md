@@ -1,6 +1,8 @@
 # StudyFlow — Kế hoạch thay đổi và triển khai AI Service
 
-**Trạng thái cập nhật 23/10/2026:** Python AI Service đã có Hybrid RAG, LangChain rerank và guardrails, với 88/88 kiểm thử mặc định đạt, một ca PostgreSQL/pgvector tích hợp opt-in đạt. Bốn PDF môn Kỹ thuật số đã được lập chỉ mục thật; 12 ca live đạt retrieval recall@8 = 100% và `NO_EVIDENCE` = 100%, nhưng citation location precision mới đạt 64,29%. Local AI Service tự nạp `.env` ở root, trong khi biến môi trường tiến trình vẫn có ưu tiên cao hơn.
+> Kế hoạch mở rộng: xem [Implementation Plan — Quiz Assignment và Trí tuệ tài liệu](quiz-assignment-document-intelligence-plan.md). Tool nhập đề và artifact ảnh Quiz đã có source; Java đã có source/test chuyển Teacher PPTX thành PDF qua Gotenberg. Python vẫn chỉ nhận PDF đã chuẩn hóa và không xử lý PPTX.
+
+**Trạng thái cập nhật 03/11/2026:** Python AI Service đã có Hybrid RAG, bước xếp hạng lại bằng LLM với structured output, LangChain orchestration và guardrails; bộ kiểm thử hiện đạt 95 ca, một ca PostgreSQL/pgvector được bỏ qua khi không bật chế độ tích hợp. Bốn PDF môn Kỹ thuật số đã được lập chỉ mục thật. Kết quả 12 ca live ngày 23/10 (recall@8 = 100%, `NO_EVIDENCE` = 100%, citation location precision = 64,29%) là baseline **trước LLM reranker**, không được dùng làm điểm sau nâng cấp. Local AI Service tự nạp `.env` ở root, trong khi biến môi trường tiến trình vẫn có ưu tiên cao hơn.
 **Phạm vi:** Python AI Service và các contract Java ↔ Python liên quan đến Personal PDF Assistant, Course Material AI Tutor và AI Quiz Generator.
 
 ## 0. Trạng thái hiện tại và kế hoạch làm tiếp
@@ -12,9 +14,9 @@
 | API nội bộ | Đã có health, index, deindex, job polling, Personal Assistant, Course Material Tutor và Quiz Generator theo schema version 3 |
 | Xử lý PDF | Đã có kiểm tra PDF có lớp văn bản, tách nội dung theo trang, chunk, embedding 1024 chiều và lưu pgvector |
 | Personal Assistant | Đã có bộ điều phối một agent để chọn hỏi đáp, tóm tắt hoặc tạo Quiz; có hỏi lại khi thiếu thông tin |
-| Retrieval/Grounding | Đã có vector search + full-text search, RRF, LangChain rerank, giới hạn phạm vi tài liệu, `NO_EVIDENCE`, citation theo trang và kiểm tra lại nguồn |
+| Retrieval/Grounding | Đã có vector search + full-text search, RRF, LLM reranker có output schema, LangChain orchestration, giới hạn phạm vi tài liệu, `NO_EVIDENCE`, citation theo trang và kiểm tra lại nguồn |
 | Quiz | Đã kiểm tra đúng `MCQ_SINGLE`, bốn phương án, một đáp án đúng, citation và chống tạo trùng |
-| Kiểm thử | Có 88 ca mặc định đạt; migration hybrid và pgvector integration test đã đạt trên PostgreSQL local; bộ 12 câu tiếng Việt đã chạy live |
+| Kiểm thử | Có 95 ca mặc định đạt và một ca tích hợp được bỏ qua; migration hybrid và pgvector integration test đã đạt trên PostgreSQL local; bộ 12 câu tiếng Việt mới là baseline trước LLM reranker |
 
 ### 0.2. Thứ tự triển khai tiếp theo
 
@@ -23,13 +25,15 @@
 | 1 | AI-N1 — PostgreSQL thật | **Đã chạy:** 6 migration, vector 1024 chiều, HNSW cosine, `tsvector`/GIN, index lặp và Hybrid retrieval | Tiếp tục giữ role AI cô lập khỏi schema `app` |
 | 2 | AI-N2 — Worker và Storage | **Đã có code/test:** signed URL, validation PDF, lease/retry/fencing, index/deindex | Còn stress test nhiều worker và revoke đồng thời |
 | 3 | AI-N3 — Java contract v3 | **Đã đối chiếu:** DTO, credential, request ID, schema version, timeout và idempotency | Duy trì contract test hai phía khi schema thay đổi |
-| 4 | AI-N4 — E2E Personal Assistant | **Đã có luồng và test phân quyền:** hỏi đáp, tóm tắt, tạo Quiz | Chạy lại provider thật sau Hybrid RAG |
-| 5 | AI-N5 — E2E Course AI | **Đã có luồng và contract:** Tutor Student, Quiz Teacher, scope enrollment/publication | Chạy lại provider thật sau Hybrid RAG |
+| 4 | AI-N4 — E2E Personal Assistant | **Đã có luồng và test phân quyền:** hỏi đáp, tóm tắt, tạo Quiz | Chạy lại provider thật sau LLM reranker |
+| 5 | AI-N5 — E2E Course AI | **Đã có luồng, contract và Java HTTP E2E cho memory:** Tutor Student, Quiz Teacher, scope enrollment/publication | Chạy lại provider thật sau LLM reranker |
 | 6 | AI-N6 — Provider thật | **Đã chạy lại:** Hybrid RAG dùng `openai/gpt-5.6-luna` và `openai/text-embedding-3-large` | Tiếp tục theo dõi timeout/refusal/chi phí trên nhiều tài liệu hơn |
-| 7 | AI-N7 — Evaluation | **Đã chạy:** 12 ca tiếng Việt, recall@8 100%, `NO_EVIDENCE` 100%, citation location 64,29% | Cải thiện citation, tách final holdout và người đánh giá chấm groundedness/factual correctness |
+| 7 | AI-N7 — Evaluation | **Baseline trước LLM reranker:** 12 ca tiếng Việt, recall@8 100%, `NO_EVIDENCE` 100%, citation location 64,29% | Chạy lại development set, tách final holdout và người đánh giá chấm groundedness/factual correctness |
 | 8 | AI-N8 — Hoàn thiện | Kiểm thử tải, crash recovery, metrics, retention, Docker và hướng dẫn demo | Demo end-to-end lặp lại được; có báo cáo latency/lỗi/chi phí và checklist vận hành |
 
 ### 0.3. Phạm vi của đợt triển khai gần nhất
+
+**Đính chính trạng thái dữ liệu ngày 03/11/2026:** Bốn PDF đã từng được lập chỉ mục, nhưng lần kiểm tra gần nhất ghi nhận index thử nghiệm ở trạng thái `DELETED`, không còn chunk. Vì vậy AI-N6 chưa được nghiệm thu lại sau LLM reranker. Cần khôi phục index qua luồng có phân quyền, xác nhận `READY` và có chunk trước khi chạy lại AI-N4/AI-N5/AI-N7. Các điểm baseline phía trên chỉ là kết quả lịch sử, không chứng minh chất lượng runtime hiện tại.
 
 Mốc gần nhất là hiệu chỉnh `AI-N7`: phân tích các citation sai trang, điều chỉnh ranking/citation selection trên development set, sau đó đánh giá lại bằng final holdout và chấm groundedness độc lập. Unit test vẫn không gọi OpenRouter và không dùng tài liệu người dùng.
 
@@ -38,8 +42,8 @@ Mốc gần nhất là hiệu chỉnh `AI-N7`: phân tích các citation sai tra
 ### 1.1. Nguồn tài liệu
 
 - Personal Document chỉ nhận PDF có lớp văn bản.
-- Course Material của Teacher chỉ nhận PDF; Teacher phải xuất slide thành PDF trước khi tải lên.
-- Không xử lý PPTX, không render slide artifact và không dùng `slideNumber` trong pipeline AI mới.
+- Course Material của Teacher nhận PDF hoặc PPTX; Java bắt buộc chuyển PPTX thành PDF, kiểm tra text layer rồi mới lưu/index.
+- Python không xử lý PPTX, không render slide artifact và không dùng `slideNumber`; pipeline AI chỉ nhận PDF đã chuẩn hóa từ Java.
 - Citation của mọi luồng AI thống nhất theo `documentId + documentVersion + pageNumber + chunkId`.
 - Hai loại PDF dùng chung parser/chunker/embedding nhưng luôn tách bằng `sourceType` và authorized scope.
 
@@ -72,7 +76,7 @@ Personal Document Assistant
 - Agent chỉ chọn tool và trích xuất tham số; không quyết định quyền, lifecycle hoặc kết quả học tập.
 - Java là system of record và bộ não nghiệp vụ.
 - Python thực hiện document intelligence, retrieval, generation, citation và evaluation.
-- Single Orchestrator dùng bộ phân loại structured output và allowlist ba công cụ. LangChain Core hiện được dùng trong pipeline rerank; chưa đưa LangGraph vào runtime vì luồng chỉ cho phép đúng một công cụ mỗi lượt và không cần graph nhiều bước.
+- Single Orchestrator dùng bộ phân loại structured output và allowlist bốn công cụ: hỏi đáp PDF, tóm tắt PDF, sinh Quiz có nguồn và nhập Quiz từ văn bản. LangChain Core hiện được dùng trong pipeline rerank; chưa đưa LangGraph vào runtime vì mỗi lượt chỉ gọi đúng một công cụ và không cần graph nhiều bước.
 - Không dùng Deep Agents, sub-agent hoặc Supervisor nhiều agent trong MVP.
 
 ## 2. Kiến trúc mục tiêu
@@ -277,7 +281,7 @@ retrieval đúng phạm vi
 
 ### 6.1. Agent được phép
 
-- Hiểu prompt và chọn một trong ba tool.
+- Hiểu prompt và chọn một trong bốn tool; `IMPORT_QUIZ_FROM_TEXT` không truy xuất PDF và không tạo citation giả.
 - Trích xuất instruction, page range, question count, difficulty và summary style.
 - Hỏi lại khi thiếu tham số hoặc prompt có nhiều mục tiêu.
 - Dùng history gần đây để hiểu câu hỏi nối tiếp của RAG.
@@ -311,7 +315,7 @@ Kết quả phải qua Pydantic validation. Tool name ngoài allowlist, tham s�
 
 ## 7. Course Material PDF và AI Tutor
 
-Teacher tải Course Material dưới dạng PDF vào Course Offering. Student có enrollment `APPROVED` được dùng viewer, note và AI Tutor theo trang.
+Teacher tải Course Material dưới dạng PDF vào Course Offering và chọn loại tài liệu. Chỉ `SLIDE_PDF` được lập chỉ mục, mở Viewer, Note và AI Tutor cho Student có enrollment `APPROVED`. `REFERENCE_PDF` chỉ tải xuống và không gửi sang Python.
 
 ```text
 Student mở trang PDF
@@ -326,9 +330,16 @@ Student mở trang PDF
 - Teacher không có AI Tutor.
 - Tên nghiệp vụ mới: `Course Material AI Tutor`; không dùng `Slide AI Tutor` trong contract mới.
 
+Memory của Tutor tuân theo contract Java–Python hiện hành:
+
+- Long-term memory: Java lưu hội thoại theo Student, document và version; mỗi lần đọc lại đều kiểm tra quyền.
+- Short-term memory: Java gửi tối đa 12 lượt USER/ASSISTANT gần nhất trong phạm vi tài liệu hiện tại.
+- Working memory: Python kết hợp câu hỏi, trang hiện tại, scope và history để viết lại truy vấn rồi tìm evidence; context này chỉ tồn tại trong request.
+- History giúp hiểu câu hỏi nối tiếp, không được xem là nguồn chứng minh hoặc mở rộng phạm vi tài liệu. Citation phải lấy từ PDF được cấp quyền.
+
 ## 8. Teacher AI Quiz Generator
 
-Teacher chỉ có một chức năng AI: sinh Quiz từ Course Material PDF thuộc Course Offering mình sở hữu.
+Teacher chỉ có một chức năng AI: sinh Quiz từ `SLIDE_PDF READY` thuộc Course Offering mình sở hữu. `REFERENCE_PDF` không được dùng làm nguồn sinh Quiz.
 
 ```text
 Teacher chọn Course Offering
@@ -377,6 +388,8 @@ indexVersion
 - PDF mã hóa: `PDF_ENCRYPTED`.
 - PDF không có text layer: `PDF_TEXT_REQUIRED`.
 - OCR ngoài phạm vi MVP.
+- Vision chỉ bổ sung mô tả cho trang đã nằm trong PDF hợp lệ; caption không được dùng để vượt qua kiểm tra text layer.
+- Mỗi trang Vision có timeout và giới hạn pixel, context, caption; lỗi provider giữ nguyên text gốc và ghi trạng thái fallback an toàn thay vì đưa thông báo lỗi vào index.
 - Reindex tạo version mới và activate nguyên tử; không trộn vector giữa các version.
 
 ## 10. Contract Java ↔ Python cần thay đổi
@@ -491,29 +504,29 @@ Mọi response phải có schema rõ, safe error code và không trả prompt n�
 - lỗi production được thêm vào regression set;
 - evaluator dùng đúng evidence snapshot của production flow, không retrieval lại để chấm.
 
-## 15. Tài liệu cần đồng bộ sau khi duyệt kế hoạch
+## 15. Tài liệu chuẩn và quy tắc duy trì đồng bộ
 
-Kế hoạch này đang thay đổi các quyết định cũ. Trước khi triển khai code phải đồng bộ:
+Phương án MVP v2 đã là baseline hiện hành. Danh mục dưới đây là các tài liệu phải đối chiếu khi thay đổi phạm vi hoặc contract; không phải danh sách công việc chưa thực hiện:
 
 1. `AGENTS.md`: bỏ PPTX/slide-specific rule; thêm PDF Course Material, Single Agent và Teacher Quiz.
 2. `docs/specification.md`: cập nhật role/function/source matrix.
 3. `docs/specs/02-student-learning.md`: PDF Viewer, Page Note và Course Material Tutor.
-4. `docs/specs/03-personal-ai-and-quiz.md`: agent ba tool, Summary và Quiz trong chat.
+4. `docs/specs/03-personal-ai-and-quiz.md`: Single Agent bốn tool, Summary, Quiz có nguồn và nhập Quiz từ văn bản trong chat.
 5. `docs/specs/05-teacher-content.md`: PDF-only và Teacher Quiz Generator.
 6. `docs/api-plan.md`: endpoint/schema version mới.
 7. `docs/database-plan.md`: source type, page metadata, agent run/evidence snapshot nếu lưu.
-8. `docs/architecture.md` và `docs/low-level-design.md`: bỏ PPTX pipeline và multi-agent wording.
+8. `docs/architecture.md` và `docs/low-level-design.md`: Python bỏ pipeline PPTX/multi-agent; Java được phép chuẩn hóa Teacher PPTX thành PDF trước ranh giới AI.
 9. `docs/frontend-implementation-plan.md` và `docs/demo-flow.md`: UI chatbot ba chức năng, PDF viewer và Teacher Quiz form.
 10. Báo cáo Chương 1–3 và toàn bộ diagram có nhắc PPTX, slide citation hoặc Teacher không có Quiz.
 
-Không sửa code trước khi specification và API contract mới được duyệt, vì thay đổi này đi qua Frontend, Java Backend, Python AI Service và database metadata.
+Khi có thay đổi mới xuyên service, cập nhật specification và API contract trước implementation, rồi cập nhật báo cáo và diagram tương ứng. Tài liệu lịch sử có nhãn `SUPERSEDED` không dùng làm chuẩn triển khai.
 
 ## 16. Ngoài phạm vi MVP
 
 - Multi-agent/sub-agent delegation.
 - Teacher Personal PDF Chatbot.
 - Teacher AI Tutor.
-- PPTX/DOCX/OCR.
+- Python xử lý PPTX trực tiếp, lưu/phục vụ PPTX gốc, DOCX hoặc OCR. Java chỉ được chuyển Teacher PPTX thành PDF trước khi lưu/index.
 - Nhiều tool call trong cùng một lượt chat.
 - Agent tự lập kế hoạch học tập.
 - AI grading, tự publish Quiz hoặc tự cập nhật progress.

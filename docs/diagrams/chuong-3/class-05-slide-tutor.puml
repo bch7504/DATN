@@ -1,6 +1,7 @@
 @startuml
+' Palette: class; black-and-white View-DAO-Entity report style.
 ' Hình 3.5 - Thiết kế lớp Course Material Tutor.
-' Bố cục một mặt phẳng: View ở trên, Control ở giữa, Entity/DTO ở dưới.
+' Bố cục một mặt phẳng: View ở trên, DAO ở giữa, Entity ở dưới.
 skinparam backgroundColor white
 skinparam defaultFontName Arial
 skinparam defaultFontSize 14
@@ -21,56 +22,57 @@ skinparam ranksep 52
 hide circle
 top to bottom direction
 
-class CourseMaterialLibraryPage <<view>> {
+class CourseMaterialLibraryView <<view>> {
   +loadMaterials(): CourseMaterial[]
   +openSlide(documentId: UUID): void
   +downloadReference(documentId: UUID): void
 }
-class SlideViewerPage <<view>> {
+class SlideViewerView <<view>> {
   +showPage(pageNumber: Integer): void
   +selectText(): String
   +toggleTutor(): void
   +toggleNotes(): void
 }
-class AiTutorPanel <<view>> {
+class AiTutorView <<view>> {
+  +open(documentId: UUID, pageNumber: Integer): void
   +ask(question: String): void
   +showAnswer(response: AnswerResponse): void
   +openCitation(citation: PageCitation): void
 }
-class PageNotePanel <<view>> {
+class PageNoteView <<view>> {
   +loadNote(pageNumber: Integer): void
   +saveNote(content: String): void
 }
 
-class StudentMaterialController <<controller>> {
+class StudentMaterialDAO <<DAO>> {
   +listMaterials(studentId: UUID): CourseMaterial[]
   +renderSlide(documentId: UUID, pageNumber: Integer): PageImage
   +getTextLayer(documentId: UUID, pageNumber: Integer): TextLayer
 }
-class CourseMaterialTutorController <<controller>> {
+class CourseMaterialTutorDAO <<DAO>> {
   +ask(documentId: UUID, pageNumber: Integer, body: PageQuestion): AnswerResponse
 }
-class PageNoteController <<controller>> {
+class PageNoteDAO <<DAO>> {
   +get(documentId: UUID, pageNumber: Integer): PageNote
   +save(documentId: UUID, pageNumber: Integer, body: SaveNoteRequest): PageNote
 }
-class MaterialAccessPolicy <<control>> {
+class MaterialAccessDAO <<DAO>> {
   +authorizeView(studentId: UUID, documentId: UUID, pageNumber: Integer): PageScope
   +authorizeTutor(studentId: UUID, documentId: UUID, pageNumber: Integer): PageScope
 }
-class CourseMaterialTutorService <<control>> {
+class TutorConversationDAO <<DAO>> {
   +ask(studentId: UUID, documentId: UUID, pageNumber: Integer, question: String): AnswerResponse
 }
-class AiClient <<adapter>> {
+class AiGatewayDAO <<DAO>> {
   +askCourseMaterial(scope: PageScope, question: String): AnswerResponse
 }
-class CourseMaterialTutorPipeline <<control>> {
+class TutorPipelineDAO <<DAO>> {
   +run(scope: PageScope, question: String): AnswerResponse
 }
-class ScopedRetriever <<control>> {
+class DocumentIndexDAO <<DAO>> {
   +search(scope: PageScope, query: String): EvidenceSet
 }
-class GroundingValidator <<control>> {
+class GroundingValidationDAO <<DAO>> {
   +validate(answer: GeneratedAnswer, evidence: EvidenceSet): ValidationResult
 }
 
@@ -125,46 +127,61 @@ class DocumentChunk <<entity>> {
   -chunkIndex: Integer
   -embedding: Vector[1024]
 }
-class PageQuestion <<DTO>> {
+class PageQuestion <<entity>> {
   +question: String
 }
-class PageScope <<DTO>> {
+class PageScope <<entity>> {
   +documentId: UUID
   +documentVersion: Integer
   +courseOfferingId: UUID
   +currentPage: Integer
   +allowedPageNumbers: Integer[]
 }
-class AnswerResponse <<DTO>> {
+class AnswerResponse <<entity>> {
   +status: AnswerStatus
   +answer: String?
   +citations: PageCitation[]
 }
-class PageCitation <<DTO>> {
+class PageCitation <<entity>> {
   +documentId: UUID
   +pageNumber: Integer
   +excerpt: String
 }
 
-' View navigation and View-to-Control dependencies.
-CourseMaterialLibraryPage --> SlideViewerPage
-SlideViewerPage --> AiTutorPanel
-SlideViewerPage --> PageNotePanel
-CourseMaterialLibraryPage ..> StudentMaterialController
-SlideViewerPage ..> StudentMaterialController
-AiTutorPanel ..> CourseMaterialTutorController
-AiTutorPanel ..> PageQuestion
-PageNotePanel ..> PageNoteController
+' Giữ ba vùng thị giác như mẫu: View trên, DAO giữa, Entity dưới.
+CourseMaterialLibraryView -[hidden]right- SlideViewerView
+SlideViewerView -[hidden]right- AiTutorView
+AiTutorView -[hidden]right- PageNoteView
+StudentMaterialDAO -[hidden]right- CourseMaterialTutorDAO
+CourseMaterialTutorDAO -[hidden]right- PageNoteDAO
+PageNoteDAO -[hidden]right- MaterialAccessDAO
+MaterialAccessDAO -[hidden]right- TutorConversationDAO
+AiGatewayDAO -[hidden]right- TutorPipelineDAO
+TutorPipelineDAO -[hidden]right- DocumentIndexDAO
+DocumentIndexDAO -[hidden]right- GroundingValidationDAO
+CourseMaterialLibraryView -[hidden]down- StudentMaterialDAO
+StudentMaterialDAO -[hidden]down- AiGatewayDAO
+AiGatewayDAO -[hidden]down- Student
 
-' Control flow.
-StudentMaterialController ..> MaterialAccessPolicy
-CourseMaterialTutorController ..> CourseMaterialTutorService
-CourseMaterialTutorService ..> MaterialAccessPolicy
-CourseMaterialTutorService ..> AiClient
-PageNoteController ..> MaterialAccessPolicy
-AiClient ..> CourseMaterialTutorPipeline : internal HTTP
-CourseMaterialTutorPipeline ..> ScopedRetriever
-CourseMaterialTutorPipeline ..> GroundingValidator
+' View navigation and View-to-DAO dependencies.
+CourseMaterialLibraryView --> SlideViewerView
+SlideViewerView --> AiTutorView
+SlideViewerView --> PageNoteView
+CourseMaterialLibraryView ..> StudentMaterialDAO
+SlideViewerView ..> StudentMaterialDAO
+AiTutorView ..> CourseMaterialTutorDAO
+AiTutorView ..> PageQuestion
+PageNoteView ..> PageNoteDAO
+
+' DAO flow.
+StudentMaterialDAO ..> MaterialAccessDAO
+CourseMaterialTutorDAO ..> TutorConversationDAO
+TutorConversationDAO ..> MaterialAccessDAO
+TutorConversationDAO ..> AiGatewayDAO
+PageNoteDAO ..> MaterialAccessDAO
+AiGatewayDAO ..> TutorPipelineDAO : internal HTTP
+TutorPipelineDAO ..> DocumentIndexDAO
+TutorPipelineDAO ..> GroundingValidationDAO
 
 ' Entity associations, aggregation and composition.
 Student "1" -- "0..*" CourseEnrollment
@@ -180,25 +197,25 @@ CourseMaterial "1" -- "1" DocumentIndex
 DocumentIndex "1" *-- "1..*" DocumentChunk
 AnswerResponse "1" *-- "0..*" PageCitation
 
-' Control-to-Entity dependencies.
-MaterialAccessPolicy ..> CourseEnrollment
-MaterialAccessPolicy ..> DocumentPublication
-MaterialAccessPolicy ..> CourseMaterial
-MaterialAccessPolicy ..> PageScope
-StudentMaterialController ..> DocumentPage
-PageNoteController ..> PageNote
-StudentMaterialController ..> LearningProgress
-ScopedRetriever ..> DocumentIndex
-ScopedRetriever ..> DocumentChunk
-CourseMaterialTutorService ..> AnswerResponse
+' DAO-to-Entity dependencies.
+MaterialAccessDAO ..> CourseEnrollment
+MaterialAccessDAO ..> DocumentPublication
+MaterialAccessDAO ..> CourseMaterial
+MaterialAccessDAO ..> PageScope
+StudentMaterialDAO ..> DocumentPage
+PageNoteDAO ..> PageNote
+StudentMaterialDAO ..> LearningProgress
+DocumentIndexDAO ..> DocumentIndex
+DocumentIndexDAO ..> DocumentChunk
+TutorConversationDAO ..> AnswerResponse
 
-note right of MaterialAccessPolicy
+note right of MaterialAccessDAO
   Viewer và Tutor chỉ dùng SLIDE_PDF đã công bố
   cho Student có enrollment APPROVED.
   REFERENCE_PDF chỉ được tải xuống.
 end note
 
-note right of CourseMaterialTutorPipeline
+note right of TutorPipelineDAO
   Ưu tiên trang đang xem trong phạm vi được cấp quyền.
   Thiếu bằng chứng trả NO_EVIDENCE;
   trích dẫn phải đúng trang PDF.

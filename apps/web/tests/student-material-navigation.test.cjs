@@ -20,6 +20,7 @@ test("Student PDF library lists approved classes before class-specific materials
     assert.match(page, /Tài liệu giảng viên đã công bố cho lớp/);
     assert.match(page, /materialType === "SLIDE_PDF"/);
     assert.match(page, /Xem slide/);
-    assert.match(page, /Tải tài liệu/);
+    assert.match(page, /Tải xuống/);
+    assert.match(page, /materialApi\.downloadReference/);
   });
 });

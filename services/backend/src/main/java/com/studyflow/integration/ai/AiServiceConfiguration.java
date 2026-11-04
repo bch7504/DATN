@@ -17,7 +17,7 @@ public class AiServiceConfiguration {
     /**
      * Args: server-only AI properties, Boot RestClient builder and ObjectMapper.
      * Input: an absolute HTTP(S) base URL, token of at least 16 characters and positive timeouts.
-     * Output: schema-v3 AI gateway. Errors: invalid configuration fails startup when integration is enabled.
+     * Output: schema-v4 AI gateway. Errors: invalid configuration fails startup when integration is enabled.
      */
     @Bean
     @ConditionalOnProperty(prefix = "studyflow.ai", name = "enabled", havingValue = "true")

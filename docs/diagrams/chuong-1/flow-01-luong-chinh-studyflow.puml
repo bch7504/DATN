@@ -1,0 +1,48 @@
+@startuml
+' Palette: main-flow; strict black-and-white report style.
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam defaultFontColor #000000
+skinparam shadowing false
+skinparam linetype ortho
+skinparam ArrowColor #000000
+skinparam RectangleBorderColor #000000
+skinparam RectangleBackgroundColor #FFFFFF
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam nodesep 32
+skinparam ranksep 44
+top to bottom direction
+
+actor Student
+rectangle "Đăng nhập và phân quyền" as Login
+rectangle "Chọn nguồn học tập" as Sources {
+  rectangle "Course Material PDF" as CoursePdf
+  rectangle "Personal PDF" as PersonalPdf
+}
+rectangle "Đọc PDF • Ghi chú\nStudy Session" as Study
+rectangle "AI hỗ trợ theo nguồn được phép" as AiSupport {
+  rectangle "Personal Assistant" as PersonalAssistant
+  rectangle "Course Material Tutor" as CourseTutor
+  rectangle "Quiz AI" as QuizAi
+}
+rectangle "Làm Quiz" as Attempt
+rectangle "Chấm điểm và lưu lịch sử\nJava Backend thực hiện" as Score
+rectangle "Dashboard và tiến độ\nDaily Goal • Study Streak" as Dashboard
+rectangle "Kế hoạch và lịch ôn tập\nStudent chủ động quyết định" as Plan
+rectangle "Teacher\nTạo Course Offering\nCông bố học liệu PDF\nSinh và duyệt Quiz lớp\nQuản lý enrollment" as Teacher
+rectangle "Admin\nQuản lý tài khoản\nMôn học • Học kỳ\nGiám sát hệ thống" as Admin
+
+Student -down-> Login
+Login -down-> Sources
+Sources -down-> Study
+Study -down-> AiSupport
+AiSupport -down-> Attempt
+Attempt -down-> Score
+Score -down-> Dashboard
+Dashboard -down-> Plan
+Plan -left-> Study : Ôn lại và đánh giá lại
+Teacher -right-> CoursePdf
+Admin -left-> Login
+@enduml

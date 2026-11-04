@@ -16,6 +16,7 @@ import com.studyflow.integration.ai.AiContracts.IndexArtifact;
 import com.studyflow.integration.ai.AiContracts.JobAcceptedResponse;
 import com.studyflow.integration.ai.AiContracts.JobResponse;
 import com.studyflow.integration.ai.AiContracts.JobStatus;
+import com.studyflow.integration.ai.AiContracts;
 import com.studyflow.integration.ai.AiServiceClient;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
 import com.studyflow.user.domain.*;
@@ -71,7 +72,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "studyflow.notifications.email-scan-delay=3600000",
         "studyflow.assignments.attachment-cleanup-delay=3600000",
         "studyflow.ai.allow-insecure-local-storage-url=true",
-        "studyflow.ai.document-scan-delay=100",
+        "studyflow.ai.document-scheduling-enabled=false",
+        "studyflow.ai.document-scan-delay=3600000",
         "logging.level.root=ERROR", "spring.main.banner-mode=off"
 })
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -121,12 +123,14 @@ class RealHttpApiTest {
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final Map<String, String> codes = new ConcurrentHashMap<>();
     private final Map<String, byte[]> objects = new ConcurrentHashMap<>();
+    private final List<AiContracts.CourseMaterialAskRequest> tutorRequests =
+            Collections.synchronizedList(new ArrayList<>());
     private final Set<String> called = new TreeSet<>();
     private String teacher, student, admin, otherTeacher, otherStudent;
     private UUID studentId, subjectId, semesterId;
 
     /** No args. Input: isolated synthetic accounts, PDF and approved class passed to Node through stdin.
-     * Output: void; runs the actual frontend API client against this Java HTTP server.
+     * Output: void; runs four actual frontend API-client scenarios against this Java HTTP server.
      * Opt-in: -Dstudyflow.web.contract=true; requires Node and installed frontend test dependencies.
      * Errors: child timeout/nonzero exit fails test; cookies stay in memory and are never printed.
      */
@@ -134,30 +138,50 @@ class RealHttpApiTest {
     @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "studyflow.web.contract", matches = "true")
     void actualFrontendClientAgainstJavaHttp() throws Exception {
         String offeringId = approvedCourse();
+        byte[] pdf = syntheticPdf();
+        UUID readyDocumentId = seedReadyCourseMaterial(pdf);
         Process process = new ProcessBuilder("node", "tests/java-integration.cjs")
                 .directory(Path.of("../../apps/web").toFile()).redirectErrorStream(true).start();
         try {
             try (OutputStream input = process.getOutputStream()) {
                 json.writeValue(input, Map.of("baseUrl", "http://127.0.0.1:" + port + "/api/v1",
                         "teacher", teacher, "student", student, "studentId", studentId,
-                        "offeringId", offeringId, "pdfBase64", Base64.getEncoder().encodeToString(syntheticPdf())));
+                        "offeringId", offeringId, "readyDocumentId", readyDocumentId,
+                        "pdfBase64", Base64.getEncoder().encodeToString(pdf)));
             }
             assertThat(process.waitFor(60, java.util.concurrent.TimeUnit.SECONDS)).as("Frontend client timeout").isTrue();
             String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             output.lines().filter(line -> line.startsWith("WEB_JAVA_")).forEach(System.out::println);
             assertThat(process.exitValue()).as("Actual frontend client integration (see WEB_JAVA status)").isZero();
-            assertThat(output.lines().filter(line -> line.startsWith("WEB_JAVA_PASS")).count()).isEqualTo(3);
+            assertThat(output.lines().filter(line -> line.startsWith("WEB_JAVA_PASS")).count()).isEqualTo(4);
         } finally {
             if (process.isAlive()) process.destroyForcibly();
         }
     }
 
-    /** No args; seeds isolated accounts/catalog and external adapter doubles. Output void; errors abort setup. */
+    /**
+     * Args: none.
+     * Input: isolated PostgreSQL schema created by Hibernate plus forward SQL resources V15, V21, V23 and V24.
+     * Output: void; installs AI Quiz/tutor/image tables and seeds only synthetic external adapter doubles.
+     * Errors: missing or invalid migration resources abort the test setup before any HTTP scenario runs.
+     */
     @BeforeAll
     void prepareIsolatedFixtures() throws Exception {
         new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
                 new org.springframework.core.io.ClassPathResource(
                         "db/migration/V15__create_personal_assistant_and_ai_quiz_tables.sql"))
+                .execute(dataSource);
+        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                new org.springframework.core.io.ClassPathResource(
+                        "db/migration/V21__create_course_material_tutor_memory.sql"))
+                .execute(dataSource);
+        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                new org.springframework.core.io.ClassPathResource(
+                        "db/migration/V23__add_ai_quiz_question_images.sql"))
+                .execute(dataSource);
+        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                new org.springframework.core.io.ClassPathResource(
+                        "db/migration/V24__allow_imported_text_student_quiz_mode.sql"))
                 .execute(dataSource);
         doAnswer(call -> { codes.put(call.getArgument(0), call.getArgument(2)); return null; })
                 .when(mail).send(any(), any(), any(), any());
@@ -180,6 +204,64 @@ class RealHttpApiTest {
             String requestId = call.getArgument(1);
             return new JobResponse(requestId, jobId, JobStatus.SUCCEEDED, 1, null,
                     new IndexArtifact(1, 1, "openai/text-embedding-3-large", 1024, "pdf-v1"));
+        });
+        when(ai.askCourseMaterial(any(), any())).thenAnswer(call -> {
+            AiContracts.CourseMaterialAskRequest request = call.getArgument(0);
+            String requestId = call.getArgument(1);
+            tutorRequests.add(request);
+            AiContracts.AuthorizedDocument document = request.document();
+            return new AiContracts.CourseMaterialAskResponse(requestId,
+                    new AiContracts.GroundedAnswerResult(AiContracts.AnswerStatus.ANSWERED,
+                            "Câu trả lời tổng hợp từ trang đang xem.",
+                            List.of(new AiContracts.Citation(document.documentId(),
+                                    document.documentVersion(), request.currentPageNumber(),
+                                    "Trích đoạn kiểm thử tổng hợp."))));
+        });
+        when(ai.generateQuiz(any(), any(), any())).thenAnswer(call -> {
+            AiContracts.QuizGenerationRequest request = call.getArgument(0);
+            String requestId = call.getArgument(1);
+            AiContracts.AuthorizedDocument document = request.documents().get(0);
+            int pageNumber = document.allowedPages() == null || document.allowedPages().isEmpty()
+                    ? 1 : document.allowedPages().get(0);
+            List<AiContracts.QuizQuestionDraft> questions = java.util.stream.IntStream
+                    .range(0, request.generationArgs().questionCount())
+                    .mapToObj(index -> new AiContracts.QuizQuestionDraft(
+                            "Câu hỏi tổng hợp số " + (index + 1) + "?",
+                            List.of("Phương án A", "Phương án B", "Phương án C", "Phương án D"),
+                            1,
+                            "Phương án B đúng theo tài liệu tổng hợp.",
+                            List.of(new AiContracts.Citation(
+                                    document.documentId(), document.documentVersion(), pageNumber,
+                                    "Trích đoạn nguồn tổng hợp cho câu " + (index + 1) + "."))))
+                    .toList();
+            return new AiContracts.QuizGenerationResponse(
+                    requestId,
+                    AiContracts.QuizGenerationStatus.DRAFT_CREATED,
+                    new AiContracts.QuizDraft(
+                            "MCQ_SINGLE", AiContracts.QuizDraftSource.PDF_GROUNDED,
+                            "Quiz Kỹ thuật số tổng hợp", questions));
+        });
+        when(ai.runPersonalAssistant(any(), any())).thenAnswer(call -> {
+            String requestId = call.getArgument(1);
+            var question = new AiContracts.QuizQuestionDraft(
+                    "Theo nội dung người học nhập, 2 + 2 bằng bao nhiêu?",
+                    List.of("3", "4", "5", "6"),
+                    1,
+                    "Văn bản người học cung cấp đánh dấu phương án 4.",
+                    List.of());
+            var quiz = new AiContracts.QuizDraft(
+                    "MCQ_SINGLE",
+                    AiContracts.QuizDraftSource.IMPORTED_TEXT,
+                    "Bộ câu hỏi nhập từ văn bản",
+                    List.of(question));
+            var result = new AiContracts.AssistantRunResult(
+                    AiContracts.AssistantTool.IMPORT_QUIZ_FROM_TEXT,
+                    AiContracts.AssistantRunStatus.QUIZ_CREATED,
+                    null,
+                    List.of(),
+                    quiz,
+                    null);
+            return new AiContracts.PersonalAssistantRunResponse(requestId, result);
         });
         teacher = seedAndLogin("qa-teacher", UserRole.TEACHER);
         student = seedAndLogin("qa-student", UserRole.STUDENT);
@@ -320,6 +402,188 @@ class RealHttpApiTest {
         attachmentCleanupJob.deletePending();
     }
 
+    /**
+     * Args: none.
+     * Input: one synthetic published Teacher Quiz image backed by the in-memory storage double.
+     * Output: void; proves owner and APPROVED Student can stream the PNG while unrelated actors cannot.
+     * Errors: any wrong status, body or security header fails the HTTP contract test.
+     */
+    @Test
+    void quizImageDownloadEnforcesOwnerAndEnrollmentOverHttp() throws Exception {
+        String offeringId = approvedCourse();
+        QuizImageFixture fixture = seedPublishedTeacherQuizImage(UUID.fromString(offeringId));
+
+        HttpResponse<byte[]> teacherDownload = send(
+                "GET", "/api/v1/quiz-images/" + fixture.imageId(), teacher, null);
+        assertThat(teacherDownload.statusCode()).isEqualTo(200);
+        assertThat(teacherDownload.body()).isEqualTo(fixture.png());
+        assertThat(teacherDownload.headers().firstValue("Content-Type")).contains("image/png");
+        assertThat(teacherDownload.headers().firstValue("Content-Disposition")).contains("inline");
+        assertThat(teacherDownload.headers().firstValue("Cache-Control")).contains("no-store");
+        assertThat(teacherDownload.headers().firstValue("X-Content-Type-Options")).contains("nosniff");
+
+        HttpResponse<byte[]> studentDownload = send(
+                "GET", "/api/v1/quiz-images/" + fixture.imageId(), student, null);
+        assertThat(studentDownload.statusCode()).isEqualTo(200);
+        assertThat(studentDownload.body()).isEqualTo(fixture.png());
+
+        expect(send("GET", "/api/v1/quiz-images/" + fixture.imageId(), otherStudent, null), 404);
+        expect(send("GET", "/api/v1/quiz-images/" + fixture.imageId(), otherTeacher, null), 404);
+        expect(send("GET", "/api/v1/quiz-images/" + fixture.imageId(), admin, null), 404);
+        expect(send("GET", "/api/v1/quiz-images/" + fixture.imageId(), null, null), 401);
+    }
+
+    /**
+     * Args: none.
+     * Input: one synthetic READY Personal PDF and a synthetic structured AI response sourced from pasted text.
+     * Output: void; proves HTTP import creates a REVIEW_REQUIRED draft without PDF citation or image metadata.
+     * Errors: malformed provenance, options, lifecycle or persistence fails the scenario.
+     */
+    @Test
+    void importedTextQuizBecomesReviewDraftOverHttp() throws Exception {
+        UUID documentId = seedReadyPersonalDocument(studentId);
+        JsonNode conversation = expect(send(
+                "POST",
+                "/api/v1/student/chat/conversations",
+                student,
+                Map.of("selectedDocumentIds", List.of(documentId), "title", "Synthetic import")),
+                201);
+        String conversationId = conversation.path("id").asText();
+        JsonNode response = expect(send(
+                "POST",
+                "/api/v1/student/chat/conversations/" + conversationId + "/messages",
+                student,
+                Map.of("message", "Nhập câu hỏi: 2 + 2 bằng bao nhiêu? A. 3 B. 4 C. 5 D. 6. Đáp án B.")),
+                200);
+
+        assertThat(response.path("status").asText()).isEqualTo("QUIZ_CREATED");
+        assertThat(response.path("capability").asText()).isEqualTo("IMPORT_QUIZ_FROM_TEXT");
+        assertThat(response.path("content").asText()).contains("chưa được kiểm chứng");
+        assertThat(response.path("citations").size()).isZero();
+        assertThat(response.path("quizDraft").path("status").asText()).isEqualTo("REVIEW_REQUIRED");
+        String quizId = response.path("quizDraft").path("quizId").asText();
+        assertThat(quizId).isNotBlank();
+
+        JsonNode review = expect(send("GET", "/api/v1/review/quizzes/" + quizId, student, null), 200);
+        assertThat(review.path("status").asText()).isEqualTo("REVIEW_REQUIRED");
+        assertThat(review.path("questions").size()).isEqualTo(1);
+        assertThat(review.path("questions").get(0).path("options").size()).isEqualTo(4);
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM app.ai_quiz_citations citation "
+                        + "JOIN app.ai_quiz_questions question ON question.id = citation.question_id "
+                        + "WHERE question.quiz_id = ?",
+                Integer.class,
+                UUID.fromString(quizId))).isZero();
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM app.ai_quiz_question_images image "
+                        + "JOIN app.ai_quiz_questions question ON question.id = image.question_id "
+                        + "WHERE question.quiz_id = ?",
+                Integer.class,
+                UUID.fromString(quizId))).isZero();
+    }
+
+    /**
+     * Args: none.
+     * Input: an owned READY SLIDE_PDF, an APPROVED Student and a synthetic grounded Python response.
+     * Output: void; proves Teacher generation/publication is attachable to an Assignment, Java scores the
+     * Student attempt, and Teacher statistics/detail expose the current result and per-question wrong rate.
+     * Errors: any authorization, lifecycle, four-option, answer-key secrecy, score or citation mismatch fails.
+     */
+    @Test
+    void teacherQuizAssignmentRunsFromGenerationThroughTeacherReportOverHttp() throws Exception {
+        String offeringId = approvedCourse();
+        UUID documentId = seedReadyCourseMaterial();
+        JsonNode draft = expect(send(
+                "POST",
+                "/api/v1/teacher/quizzes/generations",
+                teacher,
+                Map.of(
+                        "documentIds", List.of(documentId),
+                        "courseOfferingId", UUID.fromString(offeringId),
+                        "instruction", "Tạo một câu hỏi về nội dung tổng hợp.",
+                        "questionCount", 1,
+                        "difficulty", "MEDIUM",
+                        "topic", "Kỹ thuật số",
+                        "pageFrom", 1,
+                        "pageTo", 1),
+                Map.of("Idempotency-Key", "qa-teacher-quiz-" + UUID.randomUUID())),
+                200);
+        assertThat(draft.path("status").asText()).isEqualTo("REVIEW_REQUIRED");
+        assertThat(draft.path("questions").size()).isEqualTo(1);
+        assertThat(draft.path("questions").get(0).path("options").size()).isEqualTo(4);
+        String quizId = draft.path("id").asText();
+
+        JsonNode publishedQuiz = expect(send(
+                "POST", "/api/v1/teacher/quizzes/" + quizId + "/publish", teacher, null), 200);
+        assertThat(publishedQuiz.path("status").asText()).isEqualTo("PUBLISHED");
+
+        JsonNode assignment = expect(send(
+                "POST",
+                "/api/v1/teacher/course-offerings/" + offeringId + "/assignments",
+                teacher,
+                Map.of(
+                        "title", "Quiz Kỹ thuật số tổng hợp",
+                        "description", "Bài tập Quiz tổng hợp dùng cho kiểm thử HTTP.",
+                        "dueAt", Instant.now().plusSeconds(86400).toString(),
+                        "type", "QUIZ",
+                        "quizId", UUID.fromString(quizId))),
+                201);
+        String assignmentId = assignment.path("id").asText();
+        assertThat(assignment.path("quizId").asText()).isEqualTo(quizId);
+        expect(send("POST", "/api/v1/teacher/assignments/" + assignmentId + "/publish", teacher, null), 200);
+
+        expect(send("POST", "/api/v1/student/assignments/" + assignmentId + "/quiz-attempts",
+                otherStudent, null), 403);
+        JsonNode attempt = expect(send(
+                "POST", "/api/v1/student/assignments/" + assignmentId + "/quiz-attempts",
+                student, null), 201);
+        assertThat(attempt.path("totalQuestions").asInt()).isEqualTo(1);
+        JsonNode takingQuestion = attempt.path("questions").get(0);
+        assertThat(takingQuestion.path("options").size()).isEqualTo(4);
+        assertThat(takingQuestion.has("correctOptionIndex")).isFalse();
+        assertThat(takingQuestion.has("explanation")).isFalse();
+        String attemptId = attempt.path("attemptId").asText();
+        String questionId = takingQuestion.path("id").asText();
+
+        JsonNode result = expect(send(
+                "POST",
+                "/api/v1/student/assignments/" + assignmentId + "/quiz-submissions",
+                student,
+                Map.of(
+                        "attemptId", UUID.fromString(attemptId),
+                        "answers", Map.of(UUID.fromString(questionId), 0))),
+                200);
+        assertThat(result.path("score").decimalValue()).isEqualByComparingTo("0.00");
+        assertThat(result.path("correctAnswersCount").asInt()).isZero();
+        assertThat(result.path("totalQuestionsCount").asInt()).isEqualTo(1);
+        JsonNode review = result.path("questionReviews").get(0);
+        assertThat(review.path("selectedOptionIndex").asInt()).isZero();
+        assertThat(review.path("correctOptionIndex").asInt()).isEqualTo(1);
+        assertThat(review.path("correct").asBoolean()).isFalse();
+        assertThat(review.path("citations").get(0).path("documentId").asText())
+                .isEqualTo(documentId.toString());
+        assertThat(review.path("citations").get(0).path("pageNumber").asInt()).isEqualTo(1);
+
+        JsonNode statistics = expect(send(
+                "GET", "/api/v1/teacher/assignments/" + assignmentId + "/submissions",
+                teacher, null), 200);
+        assertThat(statistics.path("submittedCount").asInt()).isEqualTo(1);
+        assertThat(statistics.path("questionAnalytics").get(0).path("submissionCount").asInt()).isEqualTo(1);
+        assertThat(statistics.path("questionAnalytics").get(0).path("wrongCount").asInt()).isEqualTo(1);
+        assertThat(statistics.path("questionAnalytics").get(0).path("wrongRatePercent").asDouble())
+                .isEqualTo(100.0);
+
+        JsonNode teacherDetail = expect(send(
+                "GET",
+                "/api/v1/teacher/assignments/" + assignmentId + "/submissions/" + studentId
+                        + "/quiz-attempt",
+                teacher,
+                null),
+                200);
+        assertThat(teacherDetail.path("attemptId").asText()).isEqualTo(attemptId);
+        assertThat(teacherDetail.path("score").decimalValue()).isEqualByComparingTo("0.00");
+    }
+
     @Test
     void submissionWorksWithPrepublishedAssignmentFixture() throws Exception {
         String id = assignmentPublishedBeforeEnrollment();
@@ -360,7 +624,8 @@ class RealHttpApiTest {
     void privatePdfPublicationAndStudentDownloadThroughHttp() throws Exception {
         String offering = approvedCourse();
         byte[] pdf = syntheticPdf();
-        String doc = expect(multipart("/api/v1/teacher/documents", teacher, "file", pdf, "Synthetic PDF"), 201).path("id").asText();
+        String doc = expect(multipart("/api/v1/teacher/documents", teacher, "file", pdf,
+                "Synthetic PDF", "REFERENCE_PDF"), 201).path("id").asText();
         assertThat(expect(send("GET", "/api/v1/teacher/notifications?size=100", teacher, null), 200)
                 .path("items").findValuesAsText("type")).contains("TEACHER_MATERIAL_UPLOADED");
         expect(send("GET", "/api/v1/teacher/documents", teacher, null), 200);
@@ -393,13 +658,46 @@ class RealHttpApiTest {
 
     @Test
     void unpublishedAndForeignDocumentsReturn403Not500() throws Exception {
-        String doc = expect(multipart("/api/v1/teacher/documents", teacher, "file", syntheticPdf(), "Private PDF"), 201).path("id").asText();
+        String doc = expect(multipart("/api/v1/teacher/documents", teacher, "file", syntheticPdf(),
+                "Private PDF", "REFERENCE_PDF"), 201).path("id").asText();
         var deniedStudent = send("GET", "/api/v1/student/materials/" + doc + "/download", student, null);
         var deniedTeacher = send("GET", "/api/v1/teacher/documents/" + doc + "/download", otherTeacher, null);
         org.assertj.core.api.SoftAssertions softly = new org.assertj.core.api.SoftAssertions();
         softly.assertThat(deniedStudent.statusCode()).as("unpublished document student access").isEqualTo(403);
         softly.assertThat(deniedTeacher.statusCode()).as("other teacher document access").isEqualTo(403);
         softly.assertAll();
+    }
+
+    @Test
+    void courseMaterialTutorPersistsAndReusesConversationHistoryOverHttp() throws Exception {
+        String offering = approvedCourse();
+        String doc = expect(multipart("/api/v1/teacher/documents", teacher, "file", syntheticPdf(),
+                "Tutor slide PDF", "SLIDE_PDF"), 201).path("id").asText();
+        new org.springframework.transaction.support.TransactionTemplate(transactions).executeWithoutResult(status ->
+                documents.findById(UUID.fromString(doc)).orElseThrow().markReady(1, Instant.now()));
+        expect(send("POST", "/api/v1/teacher/documents/" + doc + "/publications", teacher,
+                Map.of("courseOfferingIds", List.of(offering))), 204);
+
+        JsonNode first = expect(send("POST", "/api/v1/student/materials/" + doc + "/pages/1/tutor", student,
+                Map.of("question", "Khái niệm chính của trang này là gì?")), 200);
+        assertThat(first.path("status").asText()).isEqualTo("ANSWERED");
+        assertThat(first.path("citations").get(0).path("pageNumber").asInt()).isEqualTo(1);
+
+        JsonNode firstHistory = expect(send("GET", "/api/v1/student/materials/" + doc + "/tutor/history",
+                student, null), 200);
+        assertThat(firstHistory.path("conversationId").asText()).isNotBlank();
+        assertThat(firstHistory.path("messages").size()).isEqualTo(2);
+        assertThat(firstHistory.path("messages").get(0).path("role").asText()).isEqualTo("USER");
+        assertThat(firstHistory.path("messages").get(1).path("role").asText()).isEqualTo("ASSISTANT");
+
+        expect(send("POST", "/api/v1/student/materials/" + doc + "/pages/1/tutor", student,
+                Map.of("question", "Ý đó có ứng dụng gì?")), 200);
+        JsonNode continuedHistory = expect(send("GET", "/api/v1/student/materials/" + doc + "/tutor/history",
+                student, null), 200);
+        assertThat(continuedHistory.path("messages").size()).isEqualTo(4);
+        assertThat(tutorRequests).hasSizeGreaterThanOrEqualTo(2);
+        assertThat(tutorRequests.get(tutorRequests.size() - 2).history()).isEmpty();
+        assertThat(tutorRequests.get(tutorRequests.size() - 1).history()).hasSize(2);
     }
 
     @Test
@@ -648,6 +946,116 @@ class RealHttpApiTest {
     }
 
     /**
+     * Args: offeringId of a class owned by the synthetic Teacher with an APPROVED synthetic Student.
+     * Input: isolated app schema and in-memory storage double; no user or production document is read.
+     * Output: identifiers and bytes for one published Teacher Quiz image fixture.
+     * Side effects: inserts synthetic document/Quiz/question/image rows and stores one valid 1x1 PNG.
+     * Errors: missing fixture accounts, constraint violations or storage setup failures abort the test.
+     */
+    private QuizImageFixture seedPublishedTeacherQuizImage(UUID offeringId) {
+        UUID teacherId = users.findByIdentifier("qa-teacher").orElseThrow().id();
+        Instant now = Instant.now();
+        UUID documentId = UUID.randomUUID();
+        UUID quizId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        UUID imageId = UUID.randomUUID();
+        String objectKey = "qa/quiz-images/" + imageId + ".png";
+        java.sql.Timestamp timestamp = java.sql.Timestamp.from(now);
+        byte[] png = Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+
+        jdbc.update("""
+                INSERT INTO app.documents
+                    (id, owner_id, owner_role, document_scope, file_name, display_name, file_type,
+                     mime_type, file_size, storage_key, processing_status, document_version,
+                     page_count, created_at, updated_at)
+                VALUES (?, ?, 'TEACHER', 'COURSE_MATERIAL', ?, ?, 'PDF', 'application/pdf', ?, ?,
+                        'READY', 1, 1, ?, ?)
+                """, documentId, teacherId, "synthetic-quiz-source.pdf", "Synthetic Quiz Source",
+                128L, "qa/documents/" + documentId + ".pdf", timestamp, timestamp);
+        jdbc.update("""
+                INSERT INTO app.ai_quiz_drafts
+                    (id, owner_id, mode, prompt, title, status, destination_type,
+                     course_offering_id, created_at, accepted_at)
+                VALUES (?, ?, 'COURSE_TEACHER', ?, ?, 'PUBLISHED', 'COURSE_OFFERING', ?, ?, ?)
+                """, quizId, teacherId, "Synthetic image question", "Synthetic published Quiz",
+                offeringId, timestamp, timestamp);
+        jdbc.update("""
+                INSERT INTO app.ai_quiz_questions
+                    (id, quiz_id, position, question_text, explanation, correct_option_index)
+                VALUES (?, ?, 0, ?, ?, 0)
+                """, questionId, quizId, "Synthetic image question?", "Synthetic explanation.");
+        jdbc.update("""
+                INSERT INTO app.ai_quiz_question_images
+                    (id, question_id, document_id, document_version, page_number,
+                     bbox_x, bbox_y, bbox_width, bbox_height, object_key, alt_text, created_at)
+                VALUES (?, ?, ?, 1, 1, 0.1, 0.1, 0.5, 0.5, ?, ?, ?)
+                """, imageId, questionId, documentId, objectKey, "Synthetic diagram", timestamp);
+        objects.put(objectKey, png);
+        return new QuizImageFixture(imageId, png);
+    }
+
+    /** Immutable output contract for the synthetic private Quiz image fixture. */
+    private record QuizImageFixture(UUID imageId, byte[] png) { }
+
+    /**
+     * Args: ownerId of the isolated synthetic Student.
+     * Input: app schema only; no file content or production upload is read.
+     * Output: UUID of one READY Personal PDF metadata fixture.
+     * Side effects: inserts one synthetic document row. Errors: database constraints abort the test.
+     */
+    private UUID seedReadyPersonalDocument(UUID ownerId) {
+        UUID documentId = UUID.randomUUID();
+        java.sql.Timestamp timestamp = java.sql.Timestamp.from(Instant.now());
+        jdbc.update("""
+                INSERT INTO app.documents
+                    (id, owner_id, owner_role, document_scope, file_name, display_name, file_type,
+                     mime_type, file_size, storage_key, processing_status, document_version,
+                     page_count, created_at, updated_at)
+                VALUES (?, ?, 'STUDENT', 'PERSONAL', ?, ?, 'PDF', 'application/pdf', ?, ?,
+                        'READY', 1, 1, ?, ?)
+                """, documentId, ownerId, "synthetic-personal.pdf", "Synthetic Personal PDF",
+                128L, "qa/personal/" + documentId + ".pdf", timestamp, timestamp);
+        return documentId;
+    }
+
+    /**
+     * Args: none.
+     * Input: isolated synthetic Teacher account and repository; no external or user file is read.
+     * Output: UUID of one READY version-1 SLIDE_PDF with one page.
+     * Side effects: stores only synthetic Course Material metadata. Errors: repository failures abort setup.
+     */
+    private UUID seedReadyCourseMaterial() {
+        return seedReadyCourseMaterial(new byte[] { 1 });
+    }
+
+    /**
+     * Args: synthetic PDF bytes to expose through the in-memory storage double.
+     * Input: isolated Teacher account only. Output: READY SLIDE_PDF UUID backed by those exact bytes.
+     * Side effects: stores synthetic metadata and bytes. Errors: repository failures abort setup.
+     */
+    private UUID seedReadyCourseMaterial(byte[] content) {
+        UUID teacherId = users.findByIdentifier("qa-teacher").orElseThrow().id();
+        UUID documentId = UUID.randomUUID();
+        Instant now = Instant.now();
+        String objectKey = "qa/course-materials/" + documentId + ".pdf";
+        var document = new com.studyflow.document.domain.CourseMaterialDocument(
+                documentId,
+                teacherId,
+                "synthetic-digital-technique.pdf",
+                "Synthetic Digital Technique Slides",
+                objectKey,
+                content.length,
+                1,
+                com.studyflow.document.domain.CourseMaterialType.SLIDE_PDF,
+                now);
+        document.markReady(1, now);
+        documents.save(document);
+        objects.put(objectKey, Arrays.copyOf(content, content.length));
+        return documentId;
+    }
+
+    /**
      * No args. Output: published assignment ID with student subsequently approved, using HTTP only.
      * Separate downstream fixture avoids blocking submission tests on the known publication-notification failure.
      * Does not assert that publication with existing students succeeds. Errors abort scenario.
@@ -700,11 +1108,22 @@ class RealHttpApiTest {
 
     /** Args: upload path/session, file part name and synthetic bytes, optional title. Output: HTTP response; errors fail test. */
     private HttpResponse<byte[]> multipart(String path, String session, String field, byte[] bytes, String title) throws Exception {
+        return multipart(path, session, field, bytes, title, "SLIDE_PDF");
+    }
+
+    /**
+     * Args: upload path/session, file part name, synthetic bytes, optional title and material type.
+     * Input: materialType is used only by the teacher document endpoint and must be a supported enum value.
+     * Output: raw HTTP response. Side effects: sends one multipart request to the test server.
+     * Errors: request construction or transport failures propagate to the test.
+     */
+    private HttpResponse<byte[]> multipart(String path, String session, String field, byte[] bytes, String title,
+                                           String materialType) throws Exception {
         String boundary = "qa-" + UUID.randomUUID();
         ByteArrayOutputStream body = new ByteArrayOutputStream();
         if (title != null) body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\n" + title + "\r\n").getBytes(StandardCharsets.UTF_8));
         if (path.equals("/api/v1/teacher/documents")) {
-            body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"materialType\"\r\n\r\nSLIDE_PDF\r\n")
+            body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"materialType\"\r\n\r\n" + materialType + "\r\n")
                     .getBytes(StandardCharsets.UTF_8));
         }
         body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + field + "\"; filename=\"synthetic.pdf\"\r\nContent-Type: application/pdf\r\n\r\n").getBytes(StandardCharsets.UTF_8));

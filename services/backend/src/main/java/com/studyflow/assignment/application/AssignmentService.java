@@ -103,6 +103,11 @@ public class AssignmentService {
         }
         Instant now = clock.instant();
         validateDueAt(input.dueAt(), now);
+        if ((input.type() != null && input.type() != com.studyflow.assignment.domain.AssignmentType.ESSAY)
+                || input.quizId() != null) {
+            throw new ValidationException("QUIZ_ASSIGNMENT_ENDPOINT_REQUIRED",
+                    "Bài tập trắc nghiệm phải được tạo từ Quiz đã duyệt.");
+        }
         CourseAssignment assignment = new CourseAssignment(UUID.randomUUID(), offeringId, teacherId,
                 input.title().trim(), input.description().trim(), input.dueAt(),
                 input.dueAt().minus(DEFAULT_REMINDER_LEAD), now);
@@ -192,6 +197,7 @@ public class AssignmentService {
     @Transactional
     public AssignmentSubmission submit(UUID studentId, UUID assignmentId, AssignmentRequests.SubmitAnswer input) {
         CourseAssignment assignment = requireStudentAssignment(studentId, assignmentId);
+        requireEssayAssignment(assignment);
         Instant now = clock.instant();
         SubmissionStatus status = now.isAfter(assignment.getDueAt()) ? SubmissionStatus.LATE : SubmissionStatus.ON_TIME;
         AssignmentSubmission submission = submissions.findByAssignmentIdAndStudentId(assignmentId, studentId)
@@ -230,6 +236,7 @@ public class AssignmentService {
             throw new ValidationException("INVALID_ATTACHMENT_COUNT", "Mỗi lần nộp phải đính kèm từ 1 đến 5 tệp.");
         }
         CourseAssignment assignment = requireStudentAssignment(studentId, assignmentId);
+        requireEssayAssignment(assignment);
         AssignmentAttachmentStorage storage = attachmentStorageProvider.getIfAvailable();
         if (storage == null) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_NOT_CONFIGURED",
@@ -384,13 +391,23 @@ public class AssignmentService {
                     submission == null ? null : submission.getSubmittedAt(),
                     submission == null ? null : submission.getStatus(),
                     submission == null ? null : submission.getAnswerText(),
+                    submission == null ? null : submission.getScore(),
+                    submission == null ? null : submission.getQuizAttemptId(),
                     submission == null ? List.of() : listAttachments(submission.getId())));
         }
         long submitted = results.stream().filter(result -> "SUBMITTED".equals(result.submissionState())).count();
         long onTime = results.stream().filter(result -> result.status() == SubmissionStatus.ON_TIME).count();
         long late = results.stream().filter(result -> result.status() == SubmissionStatus.LATE).count();
-        return new AssignmentResponses.AssignmentStats(assignmentId, assignment.getTitle(), assignment.getDueAt(),
-                results.size(), submitted, onTime, late, results.size() - submitted, results);
+        return new AssignmentResponses.AssignmentStats(assignmentId, assignment.getTitle(), assignment.getType(),
+                assignment.getQuizId(), assignment.getDueAt(),
+                results.size(), submitted, onTime, late, results.size() - submitted, results, List.of());
+    }
+
+    private static void requireEssayAssignment(CourseAssignment assignment) {
+        if (assignment.getType() != com.studyflow.assignment.domain.AssignmentType.ESSAY) {
+            throw new ConflictException("QUIZ_SUBMISSION_ENDPOINT_REQUIRED",
+                    "Bài tập trắc nghiệm phải được nộp bằng luồng làm Quiz.");
+        }
     }
 
     /**

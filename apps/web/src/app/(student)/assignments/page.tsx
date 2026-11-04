@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState, type ReactElement } from "react";
+import Link from "next/link";
 import { AlertCircle, ArrowLeft, ClipboardList, Download, Paperclip, Upload } from "lucide-react";
 import { assignmentApi, CourseAssignment } from "@/lib/api-client";
+import { MathText } from "@/components/quiz/math-text";
+import type { StartQuizAttemptResponse, SubmitAttemptResponse } from "@/types/quiz";
 
 const ACCEPTED = ".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.pptx";
 
@@ -13,16 +16,24 @@ const ACCEPTED = ".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.pptx";
 export default function StudentAssignmentsPage(): ReactElement {
   const [items, setItems] = useState<CourseAssignment[]>([]);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
+  const [offeringFilter, setOfferingFilter] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<Record<string, File[]>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState("");
+  const [quizAttempt, setQuizAttempt] = useState<StartQuizAttemptResponse | null>(null);
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
+  const [quizResult, setQuizResult] = useState<SubmitAttemptResponse | null>(null);
 
   /** Args: none. Input: browser Back/Forward and `assignmentId` in the current URL. Output: void; restores the selected assignment. Errors: none. */
   useEffect(() => {
-    const syncSelection = (): void => setSelectedAssignmentId(new URLSearchParams(window.location.search).get("assignmentId"));
+    const syncSelection = (): void => {
+      const params = new URLSearchParams(window.location.search);
+      setSelectedAssignmentId(params.get("assignmentId"));
+      setOfferingFilter(params.get("offeringId"));
+    };
     syncSelection();
     window.addEventListener("popstate", syncSelection);
     return () => window.removeEventListener("popstate", syncSelection);
@@ -58,6 +69,9 @@ export default function StudentAssignmentsPage(): ReactElement {
     setSelectedAssignmentId(assignmentId);
     setError("");
     setSuccess("");
+    setQuizAttempt(null);
+    setQuizAnswers({});
+    setQuizResult(null);
   }
 
   /** Args: none. Input: current selection and browser history. Output: void; returns to the horizontal list and retains drafts.
@@ -92,6 +106,32 @@ export default function StudentAssignmentsPage(): ReactElement {
     finally { setBusy(null); }
   }
 
+  /** Args: published QUIZ assignment. Input: authenticated approved Student. Output: questions without answer keys. Errors: shown in-page. */
+  async function startQuiz(item: CourseAssignment): Promise<void> {
+    setBusy(item.id); setError(""); setSuccess(""); setQuizResult(null);
+    try {
+      setQuizAttempt(await assignmentApi.startQuiz(item.id));
+      setQuizAnswers({});
+    } catch (e) { setError(e instanceof Error ? e.message : "Không bắt đầu được bài trắc nghiệm."); }
+    finally { setBusy(null); }
+  }
+
+  /** Args: current QUIZ assignment. Input: one selected option for every displayed question. Output: Java-scored result. Errors: incomplete answer/API failures. */
+  async function submitQuiz(item: CourseAssignment): Promise<void> {
+    if (!quizAttempt) return;
+    if (quizAttempt.questions.some((question) => quizAnswers[question.id] === undefined)) {
+      setError("Hãy chọn một đáp án cho tất cả câu hỏi."); return;
+    }
+    setBusy(item.id); setError(""); setSuccess("");
+    try {
+      const result = await assignmentApi.submitQuiz(item.id, quizAttempt.attemptId, quizAnswers);
+      setQuizResult(result);
+      setSuccess(`Đã nộp bài. Điểm của bạn: ${(result.score / 10).toFixed(1)}/10.`);
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : "Nộp bài trắc nghiệm chưa thành công."); }
+    finally { setBusy(null); }
+  }
+
   function priorAttachments(item: CourseAssignment): NonNullable<CourseAssignment["submission"]>["attachments"] {
     return item.submission?.attachments || [];
   }
@@ -104,7 +144,10 @@ export default function StudentAssignmentsPage(): ReactElement {
     return Date.parse(item.dueAt) <= now ? "Quá hạn · Chưa nộp" : "Chưa nộp";
   }
 
-  const selectedItem = items.find((item) => item.id === selectedAssignmentId) ?? null;
+  const filteredItems = offeringFilter
+    ? items.filter((item) => item.courseOfferingId === offeringFilter)
+    : items;
+  const selectedItem = filteredItems.find((item) => item.id === selectedAssignmentId) ?? null;
 
   /** Args: selected files and current assignment. Input: metadata only; Java revalidates bytes and access.
    * Output: void, updates selection or an error. Limits: 5 files, 10 MiB each, 25 MiB total including existing files.
@@ -128,21 +171,25 @@ export default function StudentAssignmentsPage(): ReactElement {
   }
 
   return <main className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
-    <header><p className="text-xs font-bold uppercase tracking-[.18em] text-red-600">Bài tập lớp học</p><h1 className="mt-1 text-2xl font-extrabold text-slate-900">Bài tập về nhà</h1><p className="mt-2 text-sm text-slate-500">Xem hạn nộp, gửi câu trả lời và đính kèm ảnh hoặc tài liệu.</p></header>
+    <header>
+      {offeringFilter && <Link href={`/course-offerings?offeringId=${offeringFilter}`} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-red-700"><ArrowLeft className="h-4 w-4" />Quay lại lớp học phần</Link>}
+      <p className="text-xs font-bold uppercase tracking-[.18em] text-red-600">Bài tập lớp học</p><h1 className="mt-1 text-2xl font-extrabold text-slate-900">Bài tập về nhà</h1><p className="mt-2 text-sm text-slate-500">Xem hạn nộp, gửi câu trả lời và đính kèm ảnh hoặc tài liệu.</p>
+    </header>
     {error && <div role="alert" className="flex gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"><AlertCircle className="h-5 w-5 shrink-0" />{error}</div>}
     {success && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{success}</p>}
     <button disabled={busy !== null || loading} onClick={() => void load()} className="text-sm text-red-700 underline">Tải lại bài tập</button>
     {loading && <p role="status">Đang tải bài tập...</p>}
-    {!loading && !items.length && !error && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500"><ClipboardList className="mx-auto mb-3 h-8 w-8" />Hiện chưa có bài tập được giao.</div>}
-    {!loading && items.length > 0 && !selectedItem && <section aria-label="Danh sách bài tập" className="space-y-3">
-      <div className="flex items-center justify-between gap-3"><h2 className="font-bold text-slate-800">Bài tập của bạn</h2><span className="text-xs text-slate-500">{items.length} bài tập</span></div>
+    {!loading && !filteredItems.length && !error && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500"><ClipboardList className="mx-auto mb-3 h-8 w-8" />Hiện chưa có bài tập được giao.</div>}
+    {!loading && filteredItems.length > 0 && !selectedItem && <section aria-label="Danh sách bài tập" className="space-y-3">
+      <div className="flex items-center justify-between gap-3"><h2 className="font-bold text-slate-800">Bài tập của lớp học phần</h2><span className="text-xs text-slate-500">{filteredItems.length} bài tập</span></div>
       <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory">
-        {items.map((item) => {
+        {filteredItems.map((item) => {
           const submitted = !!item.submission;
           const overdue = !submitted && Date.parse(item.dueAt) <= Date.now();
           return <button key={item.id} type="button" onClick={() => openAssignment(item.id)} className="w-64 shrink-0 snap-start rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-red-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-200">
             <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${submitted ? "bg-emerald-50 text-emerald-700" : overdue ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>{assignmentStatus(item, Date.now())}</span>
-            <span className="mt-3 block truncate font-bold text-slate-900">{item.title}</span>
+            <span className="mt-3 block text-[11px] font-bold uppercase tracking-wide text-red-700">{item.type === "QUIZ" ? "Trắc nghiệm" : "Tự luận / tệp"}</span>
+            <span className="mt-1 block truncate font-bold text-slate-900">{item.title}</span>
             <span className="mt-1 block text-xs text-slate-500">Hạn nộp: {new Date(item.dueAt).toLocaleString("vi-VN")}</span>
             <span className="mt-3 block text-xs font-semibold text-red-700">Bấm để xem và nộp bài →</span>
           </button>;
@@ -158,10 +205,14 @@ export default function StudentAssignmentsPage(): ReactElement {
         <article key={item.id} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">{item.title}</h2><p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{item.description}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${prior ? "bg-emerald-50 text-emerald-700" : Date.parse(item.dueAt) <= Date.now() ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>{assignmentStatus(item, Date.now())}</span></div>
         <p className="text-sm text-slate-500">Hạn nộp: {new Date(item.dueAt).toLocaleString("vi-VN")}</p>
-        {prior && <div className="rounded-xl bg-slate-50 p-4 text-sm"><p className="font-semibold text-slate-700">Bài đã nộp {prior.submittedAt ? `lúc ${new Date(prior.submittedAt).toLocaleString("vi-VN")}` : ""}</p>{prior.answerText && <p className="mt-2 whitespace-pre-wrap">{prior.answerText}</p>}{prior.attachments?.map((file) => <button key={file.id} type="button" onClick={() => void download(item, file.id, file.fileName)} className="mt-2 mr-3 inline-flex items-center gap-1 text-red-700 hover:underline"><Download className="h-4 w-4" />{file.fileName}</button>)}</div>}
-        <label className="block text-sm font-semibold text-slate-700">Câu trả lời <span className="font-normal text-slate-400">(không bắt buộc nếu có đính kèm)</span><textarea value={answers[item.id] || ""} onChange={(e) => setAnswers((current) => ({ ...current, [item.id]: e.target.value }))} rows={3} maxLength={20000} className="mt-2 w-full rounded-xl border border-slate-300 p-3 font-normal outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" placeholder="Nhập câu trả lời của bạn..." /></label>
-        <div><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Paperclip className="h-4 w-4" />Chọn ảnh / tệp<input type="file" disabled={busy !== null} multiple accept={ACCEPTED} className="sr-only" onChange={(e) => { selectFiles(item, Array.from(e.target.files || [])); e.target.value = ""; }} /></label><p className="mt-2 text-xs text-slate-500">Tối đa 5 tệp cho cả bài nộp, 10 MB mỗi tệp, 25 MB tổng. PDF, ảnh PNG/JPG, DOCX, XLSX hoặc PPTX. Tệp mới được thêm vào bài nộp hiện tại.</p>{selected.map((file) => <p key={`${file.name}-${file.size}`} className="mt-1 text-sm text-slate-600">{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</p>)}</div>
-        <button type="button" disabled={busy !== null || loading} onClick={() => void submit(item)} className="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"><Upload className="h-4 w-4" />{busy === item.id ? "Đang nộp..." : prior ? "Cập nhật bài nộp" : "Nộp bài"}</button>
+        {prior && <div className="rounded-xl bg-slate-50 p-4 text-sm"><p className="font-semibold text-slate-700">Bài đã nộp {prior.submittedAt ? `lúc ${new Date(prior.submittedAt).toLocaleString("vi-VN")}` : ""}</p>{prior.score !== null && <p className="mt-2 text-lg font-extrabold text-red-700">Điểm: {(prior.score / 10).toFixed(1)}/10</p>}{prior.answerText && <p className="mt-2 whitespace-pre-wrap">{prior.answerText}</p>}{prior.attachments?.map((file) => <button key={file.id} type="button" onClick={() => void download(item, file.id, file.fileName)} className="mt-2 mr-3 inline-flex items-center gap-1 text-red-700 hover:underline"><Download className="h-4 w-4" />{file.fileName}</button>)}</div>}
+        {item.type === "QUIZ" ? <div className="space-y-4">
+          {!quizAttempt && <button type="button" disabled={busy !== null} onClick={() => void startQuiz(item)} className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{busy === item.id ? "Đang mở đề..." : prior ? "Làm lượt mới" : "Bắt đầu làm Quiz"}</button>}
+          {quizAttempt && !quizResult && <><div className="space-y-4">{quizAttempt.questions.map((question, index) => <fieldset key={question.id} className="rounded-xl border border-slate-200 p-4"><legend className="px-1 font-bold text-slate-900">Câu {index + 1}. <MathText text={question.questionText} /></legend><div className="mt-3 grid gap-2">{question.options.map((option) => <label key={option.index} className="flex cursor-pointer gap-3 rounded-lg border border-slate-200 p-3 text-sm"><input type="radio" name={question.id} checked={quizAnswers[question.id] === option.index} onChange={() => setQuizAnswers((current) => ({ ...current, [question.id]: option.index }))} /><span>{String.fromCharCode(65 + option.index)}. <MathText text={option.text} /></span></label>)}</div></fieldset>)}</div><button type="button" disabled={busy !== null} onClick={() => void submitQuiz(item)} className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{busy === item.id ? "Đang chấm..." : "Nộp bài trắc nghiệm"}</button></>}
+          {quizResult && <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-lg font-extrabold text-emerald-800">{(quizResult.score / 10).toFixed(1)}/10 · đúng {quizResult.correctAnswersCount}/{quizResult.totalQuestionsCount} câu</p>{quizResult.questionReviews.map((review) => <div key={review.questionId} className="rounded-lg bg-white p-3 text-sm"><p className="font-bold">Câu {review.questionOrder}: {review.isCorrect ? "Đúng" : "Sai"}</p><MathText text={review.explanation} className="mt-1 text-slate-600" />{review.citations.map((citation) => <p key={`${citation.documentId}-${citation.pageNumber}`} className="mt-1 text-xs text-slate-500">Nguồn trang {citation.pageNumber}: <MathText text={citation.excerpt} /></p>)}</div>)}</div>}
+        </div> : <><label className="block text-sm font-semibold text-slate-700">Câu trả lời <span className="font-normal text-slate-400">(không bắt buộc nếu có đính kèm)</span><textarea value={answers[item.id] || ""} onChange={(e) => setAnswers((current) => ({ ...current, [item.id]: e.target.value }))} rows={3} maxLength={20000} className="mt-2 w-full rounded-xl border border-slate-300 p-3 font-normal outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" placeholder="Nhập câu trả lời của bạn..." /></label>
+        <div><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"><Paperclip className="h-4 w-4" />Chọn ảnh / tệp<input type="file" disabled={busy !== null} multiple accept={ACCEPTED} className="sr-only" onChange={(e) => { selectFiles(item, Array.from(e.target.files || [])); e.target.value = ""; }} /></label><p className="mt-2 text-xs text-slate-500">Tối đa 5 tệp cho cả bài nộp, 10 MB mỗi tệp, 25 MB tổng.</p>{selected.map((file) => <p key={`${file.name}-${file.size}`} className="mt-1 text-sm text-slate-600">{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</p>)}</div>
+        <button type="button" disabled={busy !== null || loading} onClick={() => void submit(item)} className="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"><Upload className="h-4 w-4" />{busy === item.id ? "Đang nộp..." : prior ? "Cập nhật bài nộp" : "Nộp bài"}</button></>}
         </article>
       </section>;
     })()}

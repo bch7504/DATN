@@ -150,7 +150,12 @@ class QuizReviewServiceTest {
         QuizQuestion q1 = new QuizQuestion(Q1_ID, QUIZ_ID, "Câu 1?", "A", "B", "C", "D", 0, "Giải thích 1", 1, Instant.now(fixedClock));
         QuizQuestionSource source = new QuizQuestionSource(UUID.randomUUID(), Q1_ID, DOC_ID, 8, "Trích dẫn trang 8", Instant.now(fixedClock));
 
-        when(quizRepository.findByCourseOfferingIdAndStatusInOrderByCreatedAtDesc(eq(OFFERING_ID), any()))
+        CourseEnrollment enrollment = new CourseEnrollment(UUID.randomUUID(), OFFERING_ID, STUDENT_ID);
+        enrollment.approve(UUID.randomUUID());
+        when(enrollmentRepository.findByCourseOfferingIdAndStudentId(OFFERING_ID, STUDENT_ID))
+                .thenReturn(Optional.of(enrollment));
+        when(quizRepository.findByCourseOfferingIdAndCreatedByAndCreatorRoleAndStatusOrderByCreatedAtDesc(
+                OFFERING_ID, STUDENT_ID, QuizCreatorRole.STUDENT, QuizStatus.READY))
                 .thenReturn(List.of(quiz));
         when(quizAttemptRepository.findByQuizIdInAndStudentIdOrderByCreatedAtDesc(any(), eq(STUDENT_ID)))
                 .thenReturn(List.of(attempt));

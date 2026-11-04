@@ -33,6 +33,7 @@ public final class QuizApiModels {
 
     public record Option(String id, String text) { }
     public record Citation(UUID documentId, String documentName, Integer pageNumber, String excerpt) { }
+    public record QuestionImage(UUID id, String url, String altText) { }
     public record Question(
             UUID id,
             String questionText,
@@ -40,7 +41,8 @@ public final class QuizApiModels {
             List<Option> options,
             String correctOptionId,
             String explanation,
-            Citation citation
+            Citation citation,
+            QuestionImage image
     ) { }
 
     public record Draft(

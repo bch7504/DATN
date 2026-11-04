@@ -73,13 +73,13 @@ test("FE-M4: Personal Document Assistant Contract & UI Policies", async (t) => {
     assert.equal(validateDocScope(mockDocs, elevenIds).code, "TOO_MANY_DOCUMENTS");
   });
 
-  await t.test("Message input constraints: non-empty, max 2000 characters", () => {
+  await t.test("Message input constraints: non-empty, max 4000 characters", () => {
     function validateMessage(msg) {
       const clean = msg?.trim();
       if (!clean || clean.length === 0) {
         return { valid: false, code: "EMPTY_MESSAGE" };
       }
-      if (clean.length > 2000) {
+      if (clean.length > 4000) {
         return { valid: false, code: "MESSAGE_TOO_LONG" };
       }
       return { valid: true, sanitized: clean };
@@ -91,9 +91,30 @@ test("FE-M4: Personal Document Assistant Contract & UI Policies", async (t) => {
 
     assert.equal(validateMessage("Chuẩn hóa dữ liệu là gì?").valid, true);
 
-    const longMessage = "A".repeat(2001);
+    const longMessage = "A".repeat(4001);
     assert.equal(validateMessage(longMessage).valid, false);
     assert.equal(validateMessage(longMessage).code, "MESSAGE_TOO_LONG");
+  });
+
+  await t.test("Single Agent exposes imported-text Quiz as a fourth review-only capability", () => {
+    const assistantSource = fs.readFileSync(
+      path.join(process.cwd(), "src/components/personal-documents/personal-document-assistant.tsx"),
+      "utf8",
+    );
+    const chatTypes = fs.readFileSync(
+      path.join(process.cwd(), "src/types/chat.ts"),
+      "utf8",
+    );
+    const apiClient = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/api-client.ts"),
+      "utf8",
+    );
+
+    assert.match(chatTypes, /"IMPORT_QUIZ_FROM_TEXT"/);
+    assert.match(assistantSource, /Nhập Quiz từ văn bản/);
+    assert.match(assistantSource, /maxLength=\{4000\}/);
+    assert.match(assistantSource, /chưa được kiểm chứng/);
+    assert.match(apiClient, /text\.length > 4000/);
   });
 
   await t.test("Grounding and NO_EVIDENCE: off-topic queries return NO_EVIDENCE without hallucination", () => {

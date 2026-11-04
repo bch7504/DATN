@@ -33,7 +33,7 @@ Web không gọi Python, database, Object Storage hoặc provider. Java là syst
 | Course Material PDF | Python extract/chunk/embed theo trang | Student Viewer/Page Note/Tutor; Teacher tạo Quiz |
 | Personal PDF | Python extract/chunk/embed theo trang | Student owner hỏi, tóm tắt và tạo Quiz |
 
-Upload flow: Java kiểm MIME/signature/size/owner → Object Storage → internal index job → Python activate index version → Java đánh dấu `READY`. Không nhận PPTX/DOCX; OCR ngoài MVP.
+Upload flow cho `SLIDE_PDF`: Java kiểm extension/signature/size/owner; nếu đầu vào là PPTX thì gọi Gotenberg/LibreOffice, kiểm tra lại PDF đầu ra có trang và text layer → Object Storage chỉ lưu PDF → internal index job → Python activate index version → Java đánh dấu `READY`. `REFERENCE_PDF` nhận PDF/PPTX nhưng chỉ lưu PDF đã chuẩn hóa và phục vụ tải xuống, không gửi index job; không có Viewer/Note/Tutor/AI Quiz hoặc page progress. Personal Document vẫn chỉ nhận PDF text-layer. Không nhận DOCX; OCR ngoài MVP.
 
 Publication/revoke kiểm document owner và Course Offering owner. Re-public cùng cặp cập nhật quan hệ cũ, không duplicate file.
 

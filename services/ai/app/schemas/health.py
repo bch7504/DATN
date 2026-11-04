@@ -14,7 +14,7 @@ class HealthResponse(BaseModel):
     version: str
     status: Literal["UP"]
     readiness: Literal["READY", "NOT_READY"]
-    schema_version: Literal["3"] = Field(serialization_alias="schemaVersion")
+    schema_version: Literal["4"] = Field(serialization_alias="schemaVersion")
     request_id: str = Field(serialization_alias="requestId")
     missing_configuration: tuple[str, ...] = Field(
         default=(),

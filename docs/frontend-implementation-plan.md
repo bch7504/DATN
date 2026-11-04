@@ -1,7 +1,9 @@
 # StudyFlow — Kế hoạch triển khai Frontend
 
+> Đợt đang triển khai: [Quiz Assignment và Trí tuệ tài liệu](quiz-assignment-document-intelligence-plan.md). Source đã có luồng Teacher duyệt và giao Quiz thành Assignment, Student làm/nộp trong Bài tập, Teacher xem điểm/đúng-sai/tỷ lệ sai. KaTeX đã render an toàn nội dung Quiz; còn nghiệm thu E2E, image artifact và các mốc Document Intelligence.
+
 **Người phụ trách:** Chủ dự án, thực hiện theo boundary `FRONTEND_AGENT`.
-**Trạng thái cập nhật 23/10/2026:** Frontend đã bỏ hoàn toàn chế độ demo lúc chạy và chỉ gọi Java `/api/v1`. Build, lint và 91 kiểm thử đạt. Bộ E2E HTTP dùng frontend client thật qua Java đạt 21/21 ca cho Student, Teacher và Admin. MVP hiện cố định một học kỳ hoạt động với 7 môn.
+**Trạng thái cập nhật 03/11/2026:** Frontend đã bỏ hoàn toàn chế độ demo lúc chạy và chỉ gọi Java `/api/v1`. Typecheck, lint và 102 kiểm thử đạt. Luồng Quiz Assignment đã nối API Java, hiển thị công thức bằng KaTeX `trust: false` và Personal Assistant có lựa chọn nhập Quiz từ văn bản. Backend HTTP E2E và migration V22 đã đạt trên Testcontainers; browser E2E vẫn cần chạy lại. MVP hiện cố định một học kỳ hoạt động với 7 môn.
 
 ## 0. Trạng thái hiện tại và kế hoạch làm tiếp
 
@@ -100,7 +102,7 @@ Chỉ `/chat` giữ redirect tương thích tới `/personal-documents#personal-
 
 ### 4.1 Course Material PDF
 
-- Upload chỉ nhận PDF có text layer; không nhận PPTX/DOCX/PDF scan.
+- Teacher Course Material nhận PDF hoặc PPTX; Java chuyển PPTX thành PDF. Personal Document vẫn chỉ nhận PDF có text layer; không nhận DOCX/PDF scan.
 - Form upload bắt buộc chọn loại: `SLIDE_PDF` được xử lý/lập chỉ mục; `REFERENCE_PDF` chỉ lưu và tải xuống.
 - Card hiển thị loại, processing status, số trang và publication. Chỉ card `SLIDE_PDF READY` có CTA `Tạo Quiz bằng AI`.
 - Teacher không có Personal Chatbot hoặc AI Tutor.
@@ -137,7 +139,7 @@ Chỉ `/chat` giữ redirect tương thích tới `/personal-documents#personal-
 ## 7. Kiểm thử
 
 - Role guard/navigation; Student không thấy Teacher AI Quiz Studio.
-- Teacher/Personal upload từ chối PPTX/DOCX và file vượt giới hạn.
+- Teacher upload chấp nhận PDF/PPTX và từ chối DOCX/file vượt giới hạn; Personal upload tiếp tục từ chối PPTX/DOCX.
 - Enrollment/publication/page scope cho Slide Viewer, Note và Tutor; `REFERENCE_PDF` luôn download-only và Tutor trả `MATERIAL_NOT_TUTORABLE`.
 - Assistant route đúng ask/summary/quiz, hỏi lại khi thiếu tham số, citation đúng source và không có direct AI URL.
 - Teacher Quiz chỉ dùng `SLIDE_PDF`/Course Offering sở hữu; page range và count hợp lệ; không tự publish.

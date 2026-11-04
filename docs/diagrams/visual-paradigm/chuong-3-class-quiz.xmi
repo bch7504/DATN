@@ -1,0 +1,684 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmi:XMI xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:uml="http://schema.omg.org/spec/UML/2.1">
+  <uml:Model xmi:id="id_AI_Quiz" name="AI Quiz">
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizCreateView" name="QuizCreateView">
+      <ownedComment xmi:id="id_QuizCreateView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_QuizCreateView_operation_0" name="selectDocuments" visibility="public">
+        <ownedParameter xmi:id="id_QuizCreateView_operation_0_parameter_0" name="ids" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizCreateView_operation_0_parameter_0_lower" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizCreateView_operation_0_parameter_0_upper" value="*"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizCreateView_operation_1" name="setConstraints" visibility="public">
+        <ownedParameter xmi:id="id_QuizCreateView_operation_1_parameter_0" name="count" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizCreateView_operation_1_parameter_1" name="difficulty" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#Difficulty"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizCreateView_operation_1_parameter_2" name="topic" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizCreateView_operation_1_parameter_2_lower" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizCreateView_operation_1_parameter_2_upper" value="1"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizCreateView_operation_2" name="submit" visibility="public">
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizStatusView" name="QuizStatusView">
+      <ownedComment xmi:id="id_QuizStatusView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_QuizStatusView_operation_0" name="poll" visibility="public">
+        <ownedParameter xmi:id="id_QuizStatusView_operation_0_parameter_0" name="quizId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizStatusView_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizSummary"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizStatusView_operation_1" name="showFailure" visibility="public">
+        <ownedParameter xmi:id="id_QuizStatusView_operation_1_parameter_0" name="errorCode" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizReviewView" name="QuizReviewView">
+      <ownedComment xmi:id="id_QuizReviewView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_QuizReviewView_operation_0" name="showQuestions" visibility="public">
+        <ownedParameter xmi:id="id_QuizReviewView_operation_0_parameter_0" name="quiz" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizSummary"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizReviewView_operation_1" name="acceptStudent" visibility="public">
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizReviewView_operation_2" name="publishTeacher" visibility="public">
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizReviewView_operation_3" name="reject" visibility="public">
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizAttemptView" name="QuizAttemptView">
+      <ownedComment xmi:id="id_QuizAttemptView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_QuizAttemptView_operation_0" name="start" visibility="public">
+        <ownedParameter xmi:id="id_QuizAttemptView_operation_0_parameter_0" name="quizId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizAttemptView_operation_0_return" name="return" direction="return" type="id_QuizAttempt">
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizAttemptView_operation_1" name="selectAnswer" visibility="public">
+        <ownedParameter xmi:id="id_QuizAttemptView_operation_1_parameter_0" name="questionId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizAttemptView_operation_1_parameter_1" name="optionIndex" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizAttemptView_operation_2" name="submit" visibility="public">
+        <ownedParameter xmi:id="id_QuizAttemptView_operation_2_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizResult"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizResultView" name="QuizResultView">
+      <ownedComment xmi:id="id_QuizResultView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_QuizResultView_operation_0" name="showScore" visibility="public">
+        <ownedParameter xmi:id="id_QuizResultView_operation_0_parameter_0" name="result" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizResult"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizResultView_operation_1" name="showReviewSources" visibility="public">
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizDAO" name="QuizDAO">
+      <ownedComment xmi:id="id_QuizDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_QuizDAO_operation_0" name="generate" visibility="public">
+        <ownedParameter xmi:id="id_QuizDAO_operation_0_parameter_0" name="body" direction="in" type="id_QuizRequest">
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AcceptedQuiz"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizDAO_operation_1" name="getStatus" visibility="public">
+        <ownedParameter xmi:id="id_QuizDAO_operation_1_parameter_0" name="id" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizDAO_operation_1_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizSummary"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizDAO_operation_2" name="accept" visibility="public">
+        <ownedParameter xmi:id="id_QuizDAO_operation_2_parameter_0" name="id" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizDAO_operation_2_parameter_1" name="body" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AcceptQuizRequest"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizDAO_operation_2_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizSummary"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizDAO_operation_3" name="publish" visibility="public">
+        <ownedParameter xmi:id="id_QuizDAO_operation_3_parameter_0" name="id" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizDAO_operation_3_parameter_1" name="body" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#PublishQuizRequest"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizDAO_operation_3_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizSummary"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizLifecycleDAO" name="QuizLifecycleDAO">
+      <ownedComment xmi:id="id_QuizLifecycleDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_QuizLifecycleDAO_operation_0" name="create" visibility="public">
+        <ownedParameter xmi:id="id_QuizLifecycleDAO_operation_0_parameter_0" name="actorId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizLifecycleDAO_operation_0_parameter_1" name="request" direction="in" type="id_QuizRequest">
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizLifecycleDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AcceptedQuiz"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizLifecycleDAO_operation_1" name="acceptStudent" visibility="public">
+        <ownedParameter xmi:id="id_QuizLifecycleDAO_operation_1_parameter_0" name="studentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizLifecycleDAO_operation_1_parameter_1" name="id" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizLifecycleDAO_operation_1_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizSummary"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizLifecycleDAO_operation_2" name="publishTeacher" visibility="public">
+        <ownedParameter xmi:id="id_QuizLifecycleDAO_operation_2_parameter_0" name="teacherId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizLifecycleDAO_operation_2_parameter_1" name="id" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizLifecycleDAO_operation_2_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizSummary"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizGenerationJobDAO" name="QuizGenerationJobDAO">
+      <ownedComment xmi:id="id_QuizGenerationJobDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_QuizGenerationJobDAO_operation_0" name="execute" visibility="public">
+        <ownedParameter xmi:id="id_QuizGenerationJobDAO_operation_0_parameter_0" name="quizId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizGenerationJobDAO_operation_0_parameter_1" name="runId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizGenerationJobDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#JobResult"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizAttemptDAO" name="QuizAttemptDAO">
+      <ownedComment xmi:id="id_QuizAttemptDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_QuizAttemptDAO_operation_0" name="start" visibility="public">
+        <ownedParameter xmi:id="id_QuizAttemptDAO_operation_0_parameter_0" name="quizId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizAttemptDAO_operation_0_return" name="return" direction="return" type="id_QuizAttempt">
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizAttemptDAO_operation_1" name="submit" visibility="public">
+        <ownedParameter xmi:id="id_QuizAttemptDAO_operation_1_parameter_0" name="attemptId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizAttemptDAO_operation_1_parameter_1" name="body" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#SubmitAttemptRequest"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizAttemptDAO_operation_1_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizResult"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizScoringDAO" name="QuizScoringDAO">
+      <ownedComment xmi:id="id_QuizScoringDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_QuizScoringDAO_operation_0" name="score" visibility="public">
+        <ownedParameter xmi:id="id_QuizScoringDAO_operation_0_parameter_0" name="studentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizScoringDAO_operation_0_parameter_1" name="attemptId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizScoringDAO_operation_0_parameter_2" name="answers" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#SubmittedAnswer"/>
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizScoringDAO_operation_0_parameter_2_lower" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizScoringDAO_operation_0_parameter_2_upper" value="*"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizScoringDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizResult"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizAccessDAO" name="QuizAccessDAO">
+      <ownedComment xmi:id="id_QuizAccessDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_QuizAccessDAO_operation_0" name="authorizeGeneration" visibility="public">
+        <ownedParameter xmi:id="id_QuizAccessDAO_operation_0_parameter_0" name="actorId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizAccessDAO_operation_0_parameter_1" name="request" direction="in" type="id_QuizRequest">
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizAccessDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AuthorizedScope"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizAccessDAO_operation_1" name="authorizeAttempt" visibility="public">
+        <ownedParameter xmi:id="id_QuizAccessDAO_operation_1_parameter_0" name="studentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizAccessDAO_operation_1_parameter_1" name="quizId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_AiGatewayDAO" name="AiGatewayDAO">
+      <ownedComment xmi:id="id_AiGatewayDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_AiGatewayDAO_operation_0" name="generate" visibility="public">
+        <ownedParameter xmi:id="id_AiGatewayDAO_operation_0_parameter_0" name="request" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#InternalQuizRequest"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_AiGatewayDAO_operation_0_return" name="return" direction="return" type="id_QuizDraft">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizGeneratorDAO" name="QuizGeneratorDAO">
+      <ownedComment xmi:id="id_QuizGeneratorDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_QuizGeneratorDAO_operation_0" name="generate" visibility="public">
+        <ownedParameter xmi:id="id_QuizGeneratorDAO_operation_0_parameter_0" name="scope" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AuthorizedScope"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizGeneratorDAO_operation_0_parameter_1" name="constraints" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizConstraints"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizGeneratorDAO_operation_0_return" name="return" direction="return" type="id_QuizDraft">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_DocumentIndexDAO" name="DocumentIndexDAO">
+      <ownedComment xmi:id="id_DocumentIndexDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_DocumentIndexDAO_operation_0" name="search" visibility="public">
+        <ownedParameter xmi:id="id_DocumentIndexDAO_operation_0_parameter_0" name="scope" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AuthorizedScope"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_DocumentIndexDAO_operation_0_parameter_1" name="constraints" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizConstraints"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_DocumentIndexDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#EvidenceSet"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizValidationDAO" name="QuizValidationDAO">
+      <ownedComment xmi:id="id_QuizValidationDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_QuizValidationDAO_operation_0" name="validate" visibility="public">
+        <ownedParameter xmi:id="id_QuizValidationDAO_operation_0_parameter_0" name="draft" direction="in" type="id_QuizDraft">
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizValidationDAO_operation_0_parameter_1" name="evidence" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#EvidenceSet"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_QuizValidationDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#ValidationResult"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_Student" name="Student">
+      <ownedComment xmi:id="id_Student_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_Student_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Student_attribute_1" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UserStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_Teacher" name="Teacher">
+      <ownedComment xmi:id="id_Teacher_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_Teacher_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Teacher_attribute_1" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UserStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_CourseOffering" name="CourseOffering">
+      <ownedComment xmi:id="id_CourseOffering_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_CourseOffering_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_CourseOffering_attribute_1" name="teacherId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_CourseOffering_attribute_2" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#OfferingStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_Document" name="Document">
+      <ownedComment xmi:id="id_Document_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_Document_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Document_attribute_1" name="ownerId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Document_attribute_2" name="version" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Document_attribute_3" name="scope" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#DocumentScope"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_Quiz" name="Quiz">
+      <ownedComment xmi:id="id_Quiz_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_Quiz_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Quiz_attribute_1" name="createdBy" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Quiz_attribute_2" name="generationType" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#GenerationType"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Quiz_attribute_3" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizStatus"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Quiz_attribute_4" name="questionCount" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizSource" name="QuizSource">
+      <ownedComment xmi:id="id_QuizSource_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_QuizSource_attribute_0" name="quizId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizSource_attribute_1" name="documentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizSource_attribute_2" name="documentVersion" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizSource_attribute_3" name="pageRange" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#PageRange"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizSource_attribute_3_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizSource_attribute_3_upper" value="1"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizQuestion" name="QuizQuestion">
+      <ownedComment xmi:id="id_QuizQuestion_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_QuizQuestion_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizQuestion_attribute_1" name="content" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#Text"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizQuestion_attribute_2" name="options" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizQuestion_attribute_2_lower" value="4"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizQuestion_attribute_2_upper" value="4"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizQuestion_attribute_3" name="correctOptionIndex" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizQuestion_attribute_4" name="explanation" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#Text"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizQuestionSource" name="QuizQuestionSource">
+      <ownedComment xmi:id="id_QuizQuestionSource_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_QuizQuestionSource_attribute_0" name="questionId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizQuestionSource_attribute_1" name="documentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizQuestionSource_attribute_2" name="pageNumber" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizQuestionSource_attribute_3" name="excerpt" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#Text"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizAttempt" name="QuizAttempt">
+      <ownedComment xmi:id="id_QuizAttempt_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_QuizAttempt_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizAttempt_attribute_1" name="studentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizAttempt_attribute_2" name="startedAt" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#DateTime"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizAttempt_attribute_3" name="submittedAt" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#DateTime"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizAttempt_attribute_3_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizAttempt_attribute_3_upper" value="1"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizAttempt_attribute_4" name="score" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#Decimal"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizAttempt_attribute_4_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizAttempt_attribute_4_upper" value="1"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizAnswer" name="QuizAnswer">
+      <ownedComment xmi:id="id_QuizAnswer_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_QuizAnswer_attribute_0" name="attemptId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizAnswer_attribute_1" name="questionId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizAnswer_attribute_2" name="selectedOptionIndex" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizAnswer_attribute_3" name="isCorrect" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Boolean"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizRequest" name="QuizRequest">
+      <ownedComment xmi:id="id_QuizRequest_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_QuizRequest_attribute_0" name="mode" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#GenerationMode"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizRequest_attribute_1" name="selectedDocumentIds" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizRequest_attribute_1_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizRequest_attribute_1_upper" value="10"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizRequest_attribute_2" name="questionCount" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizRequest_attribute_3" name="difficulty" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#Difficulty"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizRequest_attribute_4" name="topic" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizRequest_attribute_4_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizRequest_attribute_4_upper" value="1"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizRequest_attribute_5" name="pageRange" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#PageRange"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizRequest_attribute_5_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizRequest_attribute_5_upper" value="1"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_QuizRequest_attribute_6" name="instructions" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizRequest_attribute_6_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizRequest_attribute_6_upper" value="1"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizDraft" name="QuizDraft">
+      <ownedComment xmi:id="id_QuizDraft_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_QuizDraft_attribute_0" name="questions" visibility="public" type="id_McqSingleQuestion">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizDraft_attribute_0_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizDraft_attribute_0_upper" value="*"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_McqSingleQuestion" name="McqSingleQuestion">
+      <ownedComment xmi:id="id_McqSingleQuestion_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_McqSingleQuestion_attribute_0" name="content" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_McqSingleQuestion_attribute_1" name="options" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_McqSingleQuestion_attribute_1_lower" value="4"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_McqSingleQuestion_attribute_1_upper" value="4"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_McqSingleQuestion_attribute_2" name="correctOptionIndex" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_McqSingleQuestion_attribute_3" name="explanation" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_McqSingleQuestion_attribute_4" name="sources" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#PageCitation"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_McqSingleQuestion_attribute_4_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_McqSingleQuestion_attribute_4_upper" value="*"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_0_QuizCreateView_QuizStatusView" name="" memberEnd="id_relationship_0_QuizCreateView_QuizStatusView_source id_relationship_0_QuizCreateView_QuizStatusView_target">
+      <ownedEnd xmi:id="id_relationship_0_QuizCreateView_QuizStatusView_source" type="id_QuizCreateView" association="id_relationship_0_QuizCreateView_QuizStatusView" aggregation="none">
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_0_QuizCreateView_QuizStatusView_target" type="id_QuizStatusView" association="id_relationship_0_QuizCreateView_QuizStatusView">
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_1_QuizStatusView_QuizReviewView" name="" memberEnd="id_relationship_1_QuizStatusView_QuizReviewView_source id_relationship_1_QuizStatusView_QuizReviewView_target">
+      <ownedEnd xmi:id="id_relationship_1_QuizStatusView_QuizReviewView_source" type="id_QuizStatusView" association="id_relationship_1_QuizStatusView_QuizReviewView" aggregation="none">
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_1_QuizStatusView_QuizReviewView_target" type="id_QuizReviewView" association="id_relationship_1_QuizStatusView_QuizReviewView">
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_2_QuizReviewView_QuizAttemptView" name="" memberEnd="id_relationship_2_QuizReviewView_QuizAttemptView_source id_relationship_2_QuizReviewView_QuizAttemptView_target">
+      <ownedEnd xmi:id="id_relationship_2_QuizReviewView_QuizAttemptView_source" type="id_QuizReviewView" association="id_relationship_2_QuizReviewView_QuizAttemptView" aggregation="none">
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_2_QuizReviewView_QuizAttemptView_target" type="id_QuizAttemptView" association="id_relationship_2_QuizReviewView_QuizAttemptView">
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_3_QuizAttemptView_QuizResultView" name="" memberEnd="id_relationship_3_QuizAttemptView_QuizResultView_source id_relationship_3_QuizAttemptView_QuizResultView_target">
+      <ownedEnd xmi:id="id_relationship_3_QuizAttemptView_QuizResultView_source" type="id_QuizAttemptView" association="id_relationship_3_QuizAttemptView_QuizResultView" aggregation="none">
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_3_QuizAttemptView_QuizResultView_target" type="id_QuizResultView" association="id_relationship_3_QuizAttemptView_QuizResultView">
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_4_QuizCreateView_QuizRequest" name="" client="id_QuizCreateView" supplier="id_QuizRequest"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_5_QuizCreateView_QuizDAO" name="" client="id_QuizCreateView" supplier="id_QuizDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_6_QuizStatusView_QuizDAO" name="" client="id_QuizStatusView" supplier="id_QuizDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_7_QuizReviewView_QuizDAO" name="" client="id_QuizReviewView" supplier="id_QuizDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_8_QuizAttemptView_QuizAttemptDAO" name="" client="id_QuizAttemptView" supplier="id_QuizAttemptDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_9_QuizResultView_QuizAttemptDAO" name="" client="id_QuizResultView" supplier="id_QuizAttemptDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_10_QuizDAO_QuizLifecycleDAO" name="" client="id_QuizDAO" supplier="id_QuizLifecycleDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_11_QuizLifecycleDAO_QuizAccessDAO" name="" client="id_QuizLifecycleDAO" supplier="id_QuizAccessDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_12_QuizLifecycleDAO_QuizGenerationJobDAO" name="" client="id_QuizLifecycleDAO" supplier="id_QuizGenerationJobDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_13_QuizGenerationJobDAO_AiGatewayDAO" name="" client="id_QuizGenerationJobDAO" supplier="id_AiGatewayDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_14_AiGatewayDAO_QuizGeneratorDAO" name="internal HTTP" client="id_AiGatewayDAO" supplier="id_QuizGeneratorDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_15_QuizGeneratorDAO_DocumentIndexDAO" name="" client="id_QuizGeneratorDAO" supplier="id_DocumentIndexDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_16_QuizGeneratorDAO_QuizValidationDAO" name="" client="id_QuizGeneratorDAO" supplier="id_QuizValidationDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_17_QuizAttemptDAO_QuizScoringDAO" name="" client="id_QuizAttemptDAO" supplier="id_QuizScoringDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_18_QuizScoringDAO_QuizAccessDAO" name="" client="id_QuizScoringDAO" supplier="id_QuizAccessDAO"/>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_19_Student_Quiz" name="creates personal" memberEnd="id_relationship_19_Student_Quiz_source id_relationship_19_Student_Quiz_target">
+      <ownedEnd xmi:id="id_relationship_19_Student_Quiz_source" type="id_Student" association="id_relationship_19_Student_Quiz" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_19_Student_Quiz_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_19_Student_Quiz_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_19_Student_Quiz_target" type="id_Quiz" association="id_relationship_19_Student_Quiz">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_19_Student_Quiz_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_19_Student_Quiz_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_20_Teacher_Quiz" name="creates course" memberEnd="id_relationship_20_Teacher_Quiz_source id_relationship_20_Teacher_Quiz_target">
+      <ownedEnd xmi:id="id_relationship_20_Teacher_Quiz_source" type="id_Teacher" association="id_relationship_20_Teacher_Quiz" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_20_Teacher_Quiz_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_20_Teacher_Quiz_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_20_Teacher_Quiz_target" type="id_Quiz" association="id_relationship_20_Teacher_Quiz">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_20_Teacher_Quiz_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_20_Teacher_Quiz_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_21_CourseOffering_Quiz" name="review destination" memberEnd="id_relationship_21_CourseOffering_Quiz_source id_relationship_21_CourseOffering_Quiz_target">
+      <ownedEnd xmi:id="id_relationship_21_CourseOffering_Quiz_source" type="id_CourseOffering" association="id_relationship_21_CourseOffering_Quiz" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_21_CourseOffering_Quiz_source_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_21_CourseOffering_Quiz_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_21_CourseOffering_Quiz_target" type="id_Quiz" association="id_relationship_21_CourseOffering_Quiz">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_21_CourseOffering_Quiz_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_21_CourseOffering_Quiz_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_22_Quiz_QuizSource" name="" memberEnd="id_relationship_22_Quiz_QuizSource_source id_relationship_22_Quiz_QuizSource_target">
+      <ownedEnd xmi:id="id_relationship_22_Quiz_QuizSource_source" type="id_Quiz" association="id_relationship_22_Quiz_QuizSource" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_22_Quiz_QuizSource_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_22_Quiz_QuizSource_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_22_Quiz_QuizSource_target" type="id_QuizSource" association="id_relationship_22_Quiz_QuizSource">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_22_Quiz_QuizSource_target_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_22_Quiz_QuizSource_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_23_Document_QuizSource" name="" memberEnd="id_relationship_23_Document_QuizSource_source id_relationship_23_Document_QuizSource_target">
+      <ownedEnd xmi:id="id_relationship_23_Document_QuizSource_source" type="id_Document" association="id_relationship_23_Document_QuizSource" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_23_Document_QuizSource_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_23_Document_QuizSource_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_23_Document_QuizSource_target" type="id_QuizSource" association="id_relationship_23_Document_QuizSource">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_23_Document_QuizSource_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_23_Document_QuizSource_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_24_Quiz_QuizQuestion" name="" memberEnd="id_relationship_24_Quiz_QuizQuestion_source id_relationship_24_Quiz_QuizQuestion_target">
+      <ownedEnd xmi:id="id_relationship_24_Quiz_QuizQuestion_source" type="id_Quiz" association="id_relationship_24_Quiz_QuizQuestion" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_24_Quiz_QuizQuestion_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_24_Quiz_QuizQuestion_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_24_Quiz_QuizQuestion_target" type="id_QuizQuestion" association="id_relationship_24_Quiz_QuizQuestion">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_24_Quiz_QuizQuestion_target_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_24_Quiz_QuizQuestion_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_25_QuizQuestion_QuizQuestionSource" name="" memberEnd="id_relationship_25_QuizQuestion_QuizQuestionSource_source id_relationship_25_QuizQuestion_QuizQuestionSource_target">
+      <ownedEnd xmi:id="id_relationship_25_QuizQuestion_QuizQuestionSource_source" type="id_QuizQuestion" association="id_relationship_25_QuizQuestion_QuizQuestionSource" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_25_QuizQuestion_QuizQuestionSource_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_25_QuizQuestion_QuizQuestionSource_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_25_QuizQuestion_QuizQuestionSource_target" type="id_QuizQuestionSource" association="id_relationship_25_QuizQuestion_QuizQuestionSource">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_25_QuizQuestion_QuizQuestionSource_target_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_25_QuizQuestion_QuizQuestionSource_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_26_Document_QuizQuestionSource" name="" memberEnd="id_relationship_26_Document_QuizQuestionSource_source id_relationship_26_Document_QuizQuestionSource_target">
+      <ownedEnd xmi:id="id_relationship_26_Document_QuizQuestionSource_source" type="id_Document" association="id_relationship_26_Document_QuizQuestionSource" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_26_Document_QuizQuestionSource_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_26_Document_QuizQuestionSource_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_26_Document_QuizQuestionSource_target" type="id_QuizQuestionSource" association="id_relationship_26_Document_QuizQuestionSource">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_26_Document_QuizQuestionSource_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_26_Document_QuizQuestionSource_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_27_Quiz_QuizAttempt" name="" memberEnd="id_relationship_27_Quiz_QuizAttempt_source id_relationship_27_Quiz_QuizAttempt_target">
+      <ownedEnd xmi:id="id_relationship_27_Quiz_QuizAttempt_source" type="id_Quiz" association="id_relationship_27_Quiz_QuizAttempt" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_27_Quiz_QuizAttempt_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_27_Quiz_QuizAttempt_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_27_Quiz_QuizAttempt_target" type="id_QuizAttempt" association="id_relationship_27_Quiz_QuizAttempt">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_27_Quiz_QuizAttempt_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_27_Quiz_QuizAttempt_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_28_Student_QuizAttempt" name="" memberEnd="id_relationship_28_Student_QuizAttempt_source id_relationship_28_Student_QuizAttempt_target">
+      <ownedEnd xmi:id="id_relationship_28_Student_QuizAttempt_source" type="id_Student" association="id_relationship_28_Student_QuizAttempt" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_28_Student_QuizAttempt_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_28_Student_QuizAttempt_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_28_Student_QuizAttempt_target" type="id_QuizAttempt" association="id_relationship_28_Student_QuizAttempt">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_28_Student_QuizAttempt_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_28_Student_QuizAttempt_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_29_QuizAttempt_QuizAnswer" name="" memberEnd="id_relationship_29_QuizAttempt_QuizAnswer_source id_relationship_29_QuizAttempt_QuizAnswer_target">
+      <ownedEnd xmi:id="id_relationship_29_QuizAttempt_QuizAnswer_source" type="id_QuizAttempt" association="id_relationship_29_QuizAttempt_QuizAnswer" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_29_QuizAttempt_QuizAnswer_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_29_QuizAttempt_QuizAnswer_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_29_QuizAttempt_QuizAnswer_target" type="id_QuizAnswer" association="id_relationship_29_QuizAttempt_QuizAnswer">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_29_QuizAttempt_QuizAnswer_target_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_29_QuizAttempt_QuizAnswer_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_30_QuizQuestion_QuizAnswer" name="" memberEnd="id_relationship_30_QuizQuestion_QuizAnswer_source id_relationship_30_QuizQuestion_QuizAnswer_target">
+      <ownedEnd xmi:id="id_relationship_30_QuizQuestion_QuizAnswer_source" type="id_QuizQuestion" association="id_relationship_30_QuizQuestion_QuizAnswer" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_30_QuizQuestion_QuizAnswer_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_30_QuizQuestion_QuizAnswer_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_30_QuizQuestion_QuizAnswer_target" type="id_QuizAnswer" association="id_relationship_30_QuizQuestion_QuizAnswer">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_30_QuizQuestion_QuizAnswer_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_30_QuizQuestion_QuizAnswer_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_31_QuizDraft_McqSingleQuestion" name="" memberEnd="id_relationship_31_QuizDraft_McqSingleQuestion_source id_relationship_31_QuizDraft_McqSingleQuestion_target">
+      <ownedEnd xmi:id="id_relationship_31_QuizDraft_McqSingleQuestion_source" type="id_QuizDraft" association="id_relationship_31_QuizDraft_McqSingleQuestion" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_31_QuizDraft_McqSingleQuestion_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_31_QuizDraft_McqSingleQuestion_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_31_QuizDraft_McqSingleQuestion_target" type="id_McqSingleQuestion" association="id_relationship_31_QuizDraft_McqSingleQuestion">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_31_QuizDraft_McqSingleQuestion_target_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_31_QuizDraft_McqSingleQuestion_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_32_QuizAccessDAO_Student" name="" client="id_QuizAccessDAO" supplier="id_Student"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_33_QuizAccessDAO_Teacher" name="" client="id_QuizAccessDAO" supplier="id_Teacher"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_34_QuizAccessDAO_CourseOffering" name="" client="id_QuizAccessDAO" supplier="id_CourseOffering"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_35_QuizAccessDAO_Document" name="" client="id_QuizAccessDAO" supplier="id_Document"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_36_QuizLifecycleDAO_Quiz" name="" client="id_QuizLifecycleDAO" supplier="id_Quiz"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_37_QuizGenerationJobDAO_QuizSource" name="" client="id_QuizGenerationJobDAO" supplier="id_QuizSource"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_38_QuizGeneratorDAO_QuizDraft" name="" client="id_QuizGeneratorDAO" supplier="id_QuizDraft"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_39_QuizScoringDAO_QuizQuestion" name="" client="id_QuizScoringDAO" supplier="id_QuizQuestion"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_40_QuizScoringDAO_QuizAnswer" name="" client="id_QuizScoringDAO" supplier="id_QuizAnswer"/>
+  </uml:Model>
+</xmi:XMI>

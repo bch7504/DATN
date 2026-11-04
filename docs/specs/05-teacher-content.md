@@ -1,4 +1,4 @@
-# Feature Specification — Teacher Course Offering, PDF và AI Quiz
+# Feature Specification — Teacher Course Offering, PDF/PPTX và AI Quiz
 
 ## 1. Requirements
 
@@ -7,7 +7,7 @@
 | TCH-FR-001 | Teacher tự tạo Course Offering từ Subject + Semester active. |
 | TCH-FR-002 | Hệ thống sinh join code; owner regenerate/enable/disable. |
 | TCH-FR-003 | Owner approve/reject enrollment `PENDING`. |
-| TCH-FR-004 | Teacher chỉ upload Course Material PDF có text layer. |
+| TCH-FR-004 | Teacher upload Course Material PDF có text layer hoặc PPTX; Java chuyển PPTX thành PDF và kiểm tra text layer trước khi lưu/index. |
 | TCH-FR-005 | Owner public/revoke PDF vào Course Offering mình sở hữu. |
 | TCH-FR-006 | Teacher chọn PDF, số câu, độ khó, chủ đề và page range để sinh Quiz. |
 | TCH-FR-007 | Teacher review/sửa Quiz AI trước khi publish; AI không tự publish/chấm. |
@@ -20,7 +20,7 @@
 - `POST /api/v1/teacher/course-offerings/{id}/join-code/regenerate` và `PATCH .../join-code`.
 - `GET /api/v1/teacher/course-offerings/{id}/enrollments`.
 - `POST /api/v1/teacher/enrollments/{id}/approve|reject`.
-- `POST /api/v1/teacher/documents`: PDF có text layer ≤ giới hạn hệ thống → processing status.
+- `POST /api/v1/teacher/documents`: PDF có text layer hoặc PPTX ≤20 MiB → Java chuẩn hóa thành PDF → processing status.
 - `POST /api/v1/teacher/documents/{id}/publications`: `{courseOfferingIds}` owner-only.
 - `DELETE /api/v1/teacher/publications/{publicationId}`: revoke idempotent.
 
@@ -45,7 +45,7 @@
 ## 4. Acceptance
 
 - Teacher không sửa/public/tạo Quiz từ tài nguyên Teacher khác.
-- Upload PPTX/DOCX/PDF scan bị từ chối; PDF mã hóa/no text trả safe error.
+- Upload DOCX/PDF scan bị từ chối; PPTX lỗi, PDF mã hóa hoặc PDF đầu ra không có text layer trả safe error và không tạo object/metadata.
 - Một PDF public nhiều lớp không nhân bản object/index.
 - Quiz chỉ dùng page trong authorized PDF/range, đúng 4 options và một đáp án đúng.
 - Prompt injection trong PDF/instructions không đổi schema/scope.

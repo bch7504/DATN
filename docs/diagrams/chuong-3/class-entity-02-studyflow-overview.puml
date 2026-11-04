@@ -1,4 +1,5 @@
 @startuml
+' Palette: entity-class; black-and-white domain report style.
 ' Hình 3.2 - Biểu đồ lớp thực thể tổng quan StudyFlow.
 ' Đồng bộ với ERD vật lý; vai trò Student/Teacher/Admin được biểu diễn bằng thuộc tính role của User.
 skinparam backgroundColor white

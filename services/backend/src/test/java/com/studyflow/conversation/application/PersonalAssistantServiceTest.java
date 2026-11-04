@@ -17,6 +17,7 @@ import com.studyflow.document.domain.CourseMaterialDocumentRepository;
 import com.studyflow.integration.ai.AiContracts;
 import com.studyflow.integration.ai.AiServiceClient;
 import com.studyflow.review.application.AiQuizService;
+import com.studyflow.review.domain.QuizDraftData;
 import com.studyflow.review.domain.QuizDraftStore;
 import java.time.Clock;
 import java.time.Instant;
@@ -117,5 +118,42 @@ class PersonalAssistantServiceTest {
                         exception -> assertThat(exception.code()).isEqualTo("AI_INVALID_RESPONSE"));
 
         verify(conversations, never()).appendExchange(any(), any(), any(), any());
+    }
+
+    /** Imported text is accepted only with explicit provenance and no fabricated PDF citations. */
+    @Test
+    void persistsImportedTextQuizAsReviewDraft() {
+        UUID quizId = UUID.randomUUID();
+        var question = new AiContracts.QuizQuestionDraft(
+                "2 + 2 equals?", List.of("3", "4", "5", "6"), 1,
+                "The supplied text marks option B.", List.of());
+        var quiz = new AiContracts.QuizDraft(
+                "MCQ_SINGLE", AiContracts.QuizDraftSource.IMPORTED_TEXT,
+                "Imported Quiz", List.of(question));
+        var result = new AiContracts.AssistantRunResult(
+                AiContracts.AssistantTool.IMPORT_QUIZ_FROM_TEXT,
+                AiContracts.AssistantRunStatus.QUIZ_CREATED,
+                null,
+                List.of(),
+                quiz,
+                null);
+        var stored = new QuizDraftData(
+                quizId, studentId, "IMPORTED_TEXT_STUDENT", "Import text", "Imported Quiz",
+                "REVIEW_REQUIRED", null, null, List.of(),
+                List.of(new QuizDraftData.Question(
+                        UUID.randomUUID(), "2 + 2 equals?", List.of("3", "4", "5", "6"),
+                        1, "The supplied text marks option B.", List.of())),
+                NOW, null);
+        when(ai.runPersonalAssistant(any(), eq("request-3")))
+                .thenReturn(new AiContracts.PersonalAssistantRunResponse("request-3", result));
+        when(quizService.saveAssistantQuiz(eq(studentId), any(), any(), eq(quiz))).thenReturn(stored);
+        when(drafts.findOwned(studentId, quizId)).thenReturn(Optional.of(stored));
+
+        var response = service.send(studentId, conversationId, "Import this Quiz", "request-3");
+
+        assertThat(response.status()).isEqualTo("QUIZ_CREATED");
+        assertThat(response.capability()).isEqualTo("IMPORT_QUIZ_FROM_TEXT");
+        assertThat(response.citations()).isEmpty();
+        assertThat(response.content()).contains("chưa được kiểm chứng");
     }
 }

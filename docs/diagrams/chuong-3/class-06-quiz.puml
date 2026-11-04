@@ -1,6 +1,7 @@
 @startuml
+' Palette: class; black-and-white View-DAO-Entity report style.
 ' Hình 3.6 - Thiết kế lớp sinh, duyệt và làm Quiz.
-' Bố cục một mặt phẳng: View ở trên, Control ở giữa, Entity/DTO ở dưới.
+' Bố cục một mặt phẳng: View ở trên, DAO ở giữa, Entity ở dưới.
 skinparam backgroundColor white
 skinparam defaultFontName Arial
 skinparam defaultFontSize 14
@@ -21,66 +22,68 @@ skinparam ranksep 52
 hide circle
 top to bottom direction
 
-class QuizCreateForm <<view>> {
+class QuizCreateView <<view>> {
   +selectDocuments(ids: UUID[]): void
   +setConstraints(count: Integer, difficulty: Difficulty, topic: String?): void
   +submit(): void
 }
-class QuizGenerationStatus <<view>> {
+class QuizStatusView <<view>> {
   +poll(quizId: UUID): QuizSummary
   +showFailure(errorCode: String): void
 }
-class QuizReviewPage <<view>> {
+class QuizReviewView <<view>> {
   +showQuestions(quiz: QuizSummary): void
   +acceptStudent(): void
   +publishTeacher(): void
   +reject(): void
 }
-class QuizAttemptPage <<view>> {
+class QuizAttemptView <<view>> {
   +start(quizId: UUID): QuizAttempt
   +selectAnswer(questionId: UUID, optionIndex: Integer): void
   +submit(): QuizResult
 }
-class QuizResultPage <<view>> {
+class QuizResultView <<view>> {
   +showScore(result: QuizResult): void
   +showReviewSources(): void
 }
 
-class QuizController <<controller>> {
+class QuizDAO <<DAO>> {
   +generate(body: QuizRequest): AcceptedQuiz
   +getStatus(id: UUID): QuizSummary
   +accept(id: UUID, body: AcceptQuizRequest): QuizSummary
   +publish(id: UUID, body: PublishQuizRequest): QuizSummary
+  +reject(id: UUID): QuizSummary
 }
-class QuizService <<control>> {
+class QuizLifecycleDAO <<DAO>> {
   +create(actorId: UUID, request: QuizRequest): AcceptedQuiz
   +acceptStudent(studentId: UUID, id: UUID): QuizSummary
   +publishTeacher(teacherId: UUID, id: UUID): QuizSummary
+  +reject(actorId: UUID, id: UUID): QuizSummary
 }
-class QuizGenerationJob <<control>> {
+class QuizGenerationJobDAO <<DAO>> {
   +execute(quizId: UUID, runId: UUID): JobResult
 }
-class QuizAttemptController <<controller>> {
+class QuizAttemptDAO <<DAO>> {
   +start(quizId: UUID): QuizAttempt
   +submit(attemptId: UUID, body: SubmitAttemptRequest): QuizResult
 }
-class QuizScoringService <<control>> {
+class QuizScoringDAO <<DAO>> {
   +score(studentId: UUID, attemptId: UUID, answers: SubmittedAnswer[]): QuizResult
 }
-class QuizAccessPolicy <<control>> {
+class QuizAccessDAO <<DAO>> {
   +authorizeGeneration(actorId: UUID, request: QuizRequest): AuthorizedScope
   +authorizeAttempt(studentId: UUID, quizId: UUID): void
 }
-class AiClient <<adapter>> {
+class AiGatewayDAO <<DAO>> {
   +generate(request: InternalQuizRequest): QuizDraft
 }
-class QuizGenerator <<control>> {
+class QuizGeneratorDAO <<DAO>> {
   +generate(scope: AuthorizedScope, constraints: QuizConstraints): QuizDraft
 }
-class ScopedRetriever <<control>> {
+class DocumentIndexDAO <<DAO>> {
   +search(scope: AuthorizedScope, constraints: QuizConstraints): EvidenceSet
 }
-class QuizValidator <<control>> {
+class QuizValidationDAO <<DAO>> {
   +validate(draft: QuizDraft, evidence: EvidenceSet): ValidationResult
 }
 
@@ -142,7 +145,7 @@ class QuizAnswer <<entity>> {
   -selectedOptionIndex: Integer
   -isCorrect: Boolean
 }
-class QuizRequest <<DTO>> {
+class QuizRequest <<entity>> {
   +mode: GenerationMode
   +selectedDocumentIds: UUID[1..10]
   +questionCount: Integer
@@ -151,10 +154,10 @@ class QuizRequest <<DTO>> {
   +pageRange: PageRange?
   +instructions: String?
 }
-class QuizDraft <<DTO>> {
+class QuizDraft <<entity>> {
   +questions: McqSingleQuestion[]
 }
-class McqSingleQuestion <<DTO>> {
+class McqSingleQuestion <<entity>> {
   +content: String
   +options: String[4]
   +correctOptionIndex: Integer
@@ -162,28 +165,45 @@ class McqSingleQuestion <<DTO>> {
   +sources: PageCitation[]
 }
 
-' View navigation and View-to-Control dependencies.
-QuizCreateForm --> QuizGenerationStatus
-QuizGenerationStatus --> QuizReviewPage
-QuizReviewPage --> QuizAttemptPage
-QuizAttemptPage --> QuizResultPage
-QuizCreateForm ..> QuizRequest
-QuizCreateForm ..> QuizController
-QuizGenerationStatus ..> QuizController
-QuizReviewPage ..> QuizController
-QuizAttemptPage ..> QuizAttemptController
-QuizResultPage ..> QuizAttemptController
+' Giữ ba vùng thị giác như mẫu: View trên, DAO giữa, Entity dưới.
+QuizCreateView -[hidden]right- QuizStatusView
+QuizStatusView -[hidden]right- QuizReviewView
+QuizReviewView -[hidden]right- QuizAttemptView
+QuizAttemptView -[hidden]right- QuizResultView
+QuizDAO -[hidden]right- QuizLifecycleDAO
+QuizLifecycleDAO -[hidden]right- QuizGenerationJobDAO
+QuizGenerationJobDAO -[hidden]right- QuizAttemptDAO
+QuizAttemptDAO -[hidden]right- QuizScoringDAO
+QuizAccessDAO -[hidden]right- AiGatewayDAO
+AiGatewayDAO -[hidden]right- QuizGeneratorDAO
+QuizGeneratorDAO -[hidden]right- DocumentIndexDAO
+DocumentIndexDAO -[hidden]right- QuizValidationDAO
+QuizCreateView -[hidden]down- QuizDAO
+QuizDAO -[hidden]down- QuizAccessDAO
+QuizAccessDAO -[hidden]down- Student
 
-' Control flow.
-QuizController ..> QuizService
-QuizService ..> QuizAccessPolicy
-QuizService ..> QuizGenerationJob
-QuizGenerationJob ..> AiClient
-AiClient ..> QuizGenerator : internal HTTP
-QuizGenerator ..> ScopedRetriever
-QuizGenerator ..> QuizValidator
-QuizAttemptController ..> QuizScoringService
-QuizScoringService ..> QuizAccessPolicy
+' View navigation and View-to-DAO dependencies.
+QuizCreateView --> QuizStatusView
+QuizStatusView --> QuizReviewView
+QuizReviewView --> QuizAttemptView
+QuizAttemptView --> QuizResultView
+QuizCreateView ..> QuizRequest
+QuizCreateView ..> QuizDAO
+QuizStatusView ..> QuizDAO
+QuizReviewView ..> QuizDAO
+QuizAttemptView ..> QuizAttemptDAO
+QuizResultView ..> QuizAttemptDAO
+
+' DAO flow.
+QuizDAO ..> QuizLifecycleDAO
+QuizLifecycleDAO ..> QuizAccessDAO
+QuizLifecycleDAO ..> QuizGenerationJobDAO
+QuizGenerationJobDAO ..> AiGatewayDAO
+AiGatewayDAO ..> QuizGeneratorDAO : internal HTTP
+QuizGeneratorDAO ..> DocumentIndexDAO
+QuizGeneratorDAO ..> QuizValidationDAO
+QuizAttemptDAO ..> QuizScoringDAO
+QuizScoringDAO ..> QuizAccessDAO
 
 ' Entity associations, aggregation and composition.
 Student "1" -- "0..*" Quiz : creates personal
@@ -200,23 +220,23 @@ QuizAttempt "1" *-- "1..*" QuizAnswer
 QuizQuestion "1" -- "0..*" QuizAnswer
 QuizDraft "1" *-- "1..*" McqSingleQuestion
 
-' Control-to-Entity dependencies.
-QuizAccessPolicy ..> Student
-QuizAccessPolicy ..> Teacher
-QuizAccessPolicy ..> CourseOffering
-QuizAccessPolicy ..> Document
-QuizService ..> Quiz
-QuizGenerationJob ..> QuizSource
-QuizGenerator ..> QuizDraft
-QuizScoringService ..> QuizQuestion
-QuizScoringService ..> QuizAnswer
+' DAO-to-Entity dependencies.
+QuizAccessDAO ..> Student
+QuizAccessDAO ..> Teacher
+QuizAccessDAO ..> CourseOffering
+QuizAccessDAO ..> Document
+QuizLifecycleDAO ..> Quiz
+QuizGenerationJobDAO ..> QuizSource
+QuizGeneratorDAO ..> QuizDraft
+QuizScoringDAO ..> QuizQuestion
+QuizScoringDAO ..> QuizAnswer
 
-note right of QuizValidator
+note right of QuizValidationDAO
   Mỗi câu MCQ_SINGLE có đúng bốn lựa chọn,
   một đáp án đúng và nguồn nằm trong phạm vi được cấp quyền.
 end note
 
-note right of QuizScoringService
+note right of QuizScoringDAO
   Java chấm điểm và lưu từng attempt riêng.
   Python/LLM chỉ tạo bản nháp Quiz.
 end note

@@ -39,7 +39,7 @@ test("draft update and plan edit preserve method, path and payload", async () =>
   assert.equal(calls[3].options.method, "DELETE");
 });
 
-test("PDF invalid sizes never reach network; upload leaves multipart boundary to fetch", async () => {
+test("Teacher PDF/PPTX validation stays client-side; multipart boundary is left to fetch", async () => {
   let calls = 0;
   const client = loadClient(async (_url, options) => {
     calls++;
@@ -49,11 +49,13 @@ test("PDF invalid sizes never reach network; upload leaves multipart boundary to
     return Response.json({ id: "document", status: "READY" });
   }, "http://java.test/api/v1");
   await assert.rejects(client.teacherDocApi.uploadDocument(new File([], "empty.pdf"), "PDF fixture"), { code: "INVALID_FILE_SIZE" });
-  await assert.rejects(client.teacherDocApi.uploadDocument(new File(["x"], "wrong.pptx"), "PDF fixture"), { status: 415 });
+  await assert.rejects(client.teacherDocApi.uploadDocument(new File(["x"], "wrong.docx"), "PDF fixture"), { status: 415 });
   assert.equal(calls, 0);
   const result = await client.teacherDocApi.uploadDocument(new File(["synthetic bytes"], "sample.pdf"), "PDF fixture");
   assert.equal(result.status, "READY");
-  assert.equal(calls, 1);
+  const pptx = await client.teacherDocApi.uploadDocument(new File(["synthetic OOXML"], "slides.pptx"), "PDF fixture");
+  assert.equal(pptx.status, "READY");
+  assert.equal(calls, 2);
 });
 
 test("failed persisted feature requests propagate Java error envelopes without demo success", async () => {

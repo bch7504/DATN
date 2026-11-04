@@ -15,6 +15,7 @@ from app.repositories.run_repository import SqlAlchemyQuizRunRepository
 from app.services.assistant_runs import AssistantRunService
 from app.services.grounded_generation import GroundedAnswerService, GroundedQuizService
 from app.services.idempotent_quiz import IdempotentQuizGenerationService
+from app.services.imported_quiz import ImportedQuizService
 from app.services.orchestrator import PersonalAssistantOrchestrator
 from app.services.reranking import LangChainEvidenceReranker
 from app.services.retrieval import RetrievalService
@@ -120,7 +121,10 @@ def get_retrieval_service(
         embedding_dimensions=settings.embedding_dimensions,
         minimum_relevance=settings.retrieval_minimum_relevance,
         candidate_limit=settings.retrieval_candidate_limit,
-        reranker=LangChainEvidenceReranker(diversity_penalty=settings.rerank_diversity_penalty),
+        reranker=LangChainEvidenceReranker(
+            diversity_penalty=settings.rerank_diversity_penalty,
+            llm_client=provider,
+        ),
     )
 
 
@@ -177,7 +181,7 @@ def get_personal_assistant_orchestrator(
         provider: Structured intent classifier.
 
     Returns:
-        Single-agent orchestrator exposing only three allowed operations.
+        Single-agent orchestrator exposing only four allowed operations.
 
     Raises:
         None.
@@ -187,6 +191,7 @@ def get_personal_assistant_orchestrator(
         intent_client=provider,
         answer_service=answer_service,
         quiz_service=quiz_service,
+        import_service=ImportedQuizService(client=provider),
     )
 
 

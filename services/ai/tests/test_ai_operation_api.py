@@ -98,6 +98,7 @@ class StubAnswerService:
         instruction: str,
         scope: AuthorizedScope,
         retrieval_limit: int = 8,
+        history: tuple[ConversationTurn, ...] = (),
     ) -> GroundedAnswerResult:
         """Return the configured result after checking current-page context.
 
@@ -113,7 +114,12 @@ class StubAnswerService:
             ValueError: If required context is absent.
         """
 
-        if not instruction or scope.current_page_number is None or retrieval_limit < 1:
+        if (
+            not instruction
+            or scope.current_page_number is None
+            or retrieval_limit < 1
+            or len(history) > 12
+        ):
             raise ValueError("invalid stub input")
         return self._result
 
@@ -262,6 +268,10 @@ async def test_course_material_endpoint_preserves_current_page_scope(
                     "allowedPages": [4, 5],
                 },
                 "currentPageNumber": 4,
+                "history": [
+                    {"role": "USER", "content": "ACID là gì?"},
+                    {"role": "ASSISTANT", "content": "ACID gồm bốn thuộc tính."},
+                ],
                 "question": "Trang này giải thích điều gì?",
             },
         )

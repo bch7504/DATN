@@ -95,10 +95,22 @@ test("Personal study plan and calendar use persisted Java API data", async (t) =
     assert.match(planPage, /weekAssignments\.map\(\(assignment\) => <article/);
     assert.match(planPage, /assignment\.submission\.status === "LATE"/);
     assert.match(planPage, /assignmentStateLabel\(assignment, now\)/);
-    assert.match(planPage, /href="\/assignments"/);
-    assert.match(planPage, /\{!activePlan && \(/);
-    assert.match(planPage, /\{activePlan && \(\s*<section className="flex flex-wrap items-end/);
+    assert.match(planPage, /href=\{`\/assignments\?offeringId=\$\{assignment\.courseOfferingId\}&assignmentId=\$\{assignment\.id\}`\}/);
+    assert.match(planPage, /plans\.length > 0 \?/);
+    assert.match(planPage, /role="radiogroup" aria-label="Các kế hoạch cá nhân"/);
     const assignmentCards = planPage.slice(planPage.indexOf("{weekAssignments.map((assignment) => <article"), planPage.indexOf("{isScheduleModalOpen &&"));
     assert.doesNotMatch(assignmentCards, /toggleTask\(assignment\)|openEdit\(assignment\)|cancelItem\(assignment\)/);
+  });
+
+  await t.test("Plan choices appear after the weekly calendar and expose multiple plan actions", () => {
+    const calendarIndex = planPage.indexOf('aria-label="Chuyển tuần"');
+    const selectorIndex = planPage.indexOf('aria-labelledby="plan-selector-title"');
+    const taskListIndex = planPage.indexOf("Danh sách nhiệm vụ");
+    assert.ok(calendarIndex >= 0 && selectorIndex > calendarIndex && taskListIndex > selectorIndex);
+    assert.match(planPage, /plans\.map\(\(plan\) =>/);
+    assert.match(planPage, /onClick=\{\(\) => setSelectedPlanId\(plan\.id\)\}/);
+    assert.match(planPage, />Lưu kế hoạch</);
+    assert.match(planPage, />Lưu trữ kế hoạch</);
+    assert.match(planPage, /\+ Tạo kế hoạch khác/);
   });
 });

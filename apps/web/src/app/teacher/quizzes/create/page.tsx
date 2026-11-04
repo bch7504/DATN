@@ -2,13 +2,16 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, FileText, ListChecks, Loader2, Sparkles } from "lucide-react";
-import { teacherApi, teacherDocApi, teacherQuizApi } from "@/lib/api-client";
+import { assignmentApi, teacherApi, teacherDocApi, teacherQuizApi } from "@/lib/api-client";
 import type { TeacherDocument } from "@/types/material";
 import type { CourseOffering } from "@/types/course-offering";
 import type { QuizDraft } from "@/types/quiz";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
+import { MathText } from "@/components/quiz/math-text";
+import { QuizQuestionImage } from "@/components/quiz/quiz-question-image";
 
 type Difficulty = "EASY" | "MEDIUM" | "HARD";
 
@@ -25,6 +28,7 @@ interface TeacherQuizForm {
 
 /** Teacher UI for requesting a grounded MCQ_SINGLE draft from an owned Course Material PDF. */
 export default function TeacherQuizStudioPage(): React.JSX.Element {
+  const router = useRouter();
   const [documents, setDocuments] = useState<TeacherDocument[]>([]);
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +36,9 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
   const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<QuizDraft | null>(null);
+  const [assignmentTitle, setAssignmentTitle] = useState("");
+  const [assignmentDescription, setAssignmentDescription] = useState("Hoàn thành bộ câu hỏi trắc nghiệm sau buổi học.");
+  const [assignmentDueAt, setAssignmentDueAt] = useState("");
   const [form, setForm] = useState<TeacherQuizForm>({
     documentId: "",
     courseOfferingId: "",
@@ -123,6 +130,7 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
         pageTo: form.pageTo,
       });
       setDraft(created);
+      setAssignmentTitle(form.topic.trim() ? `Ôn tập: ${form.topic.trim()}` : `Quiz sau buổi học · ${selectedDocument.title}`);
     } catch (generateError: unknown) {
       setError(generateError instanceof Error ? generateError.message : "Không thể tạo bản nháp Quiz.");
     } finally {
@@ -142,6 +150,34 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
     } finally {
       setIsPublishing(false);
     }
+  }
+
+  /** Args: current reviewed draft and assignment form. Input: Teacher-owned class and future deadline.
+   * Output: publishes Quiz, creates/publishes its class assignment, then opens the assignment page.
+   * Errors: Java validation/ownership/state errors are displayed; no client-side scoring occurs.
+   */
+  async function publishAndAssign(): Promise<void> {
+    if (!draft || isPublishing) return;
+    if (!assignmentTitle.trim() || !assignmentDescription.trim() || !assignmentDueAt) {
+      setError("Hãy nhập tên bài, hướng dẫn và hạn nộp trước khi giao Quiz."); return;
+    }
+    const dueAt = new Date(assignmentDueAt);
+    if (Number.isNaN(dueAt.getTime()) || dueAt.getTime() <= Date.now()) {
+      setError("Hạn nộp phải là thời điểm trong tương lai."); return;
+    }
+    setIsPublishing(true); setError(null);
+    try {
+      const published = draft.status === "PUBLISHED" ? draft : await teacherQuizApi.publish(draft.id);
+      setDraft(published);
+      const assignment = await assignmentApi.create(form.courseOfferingId, {
+        title: assignmentTitle.trim(), description: assignmentDescription.trim(),
+        dueAt: dueAt.toISOString(), type: "QUIZ", quizId: published.id,
+      });
+      await assignmentApi.publish(assignment.id);
+      router.push(`/teacher/assignments?offeringId=${encodeURIComponent(form.courseOfferingId)}&assignmentId=${encodeURIComponent(assignment.id)}`);
+    } catch (publishError: unknown) {
+      setError(publishError instanceof Error ? publishError.message : "Không thể giao Quiz cho lớp.");
+    } finally { setIsPublishing(false); }
   }
 
   if (isLoading) {
@@ -212,9 +248,15 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900">
               <div className="flex items-center gap-2 font-bold"><CheckCircle2 className="h-5 w-5" /> Đã tạo bản nháp</div>
               <p className="mt-2 text-xs leading-5">Bản nháp {draft?.questions.length ?? form.questionCount} câu ở trạng thái <code>REVIEW_REQUIRED</code>.</p>
-              {draft && <div className="mt-3 max-h-72 space-y-2 overflow-y-auto">{draft.questions.map((question, index) => <div key={question.id} className="rounded-xl border border-emerald-200 bg-white p-3 text-xs text-slate-700"><strong>Câu {index + 1}.</strong> {question.questionText}<div className="mt-1 text-[11px] text-slate-500">Nguồn: trang {question.citation?.pageNumber ?? "—"}</div></div>)}</div>}
-              {draft?.status === "REVIEW_REQUIRED" && <button type="button" disabled={isPublishing} onClick={() => void publishDraft()} className="mt-3 w-full rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">{isPublishing ? "Đang công bố..." : "Duyệt và công bố Quiz"}</button>}
-              {draft?.status === "PUBLISHED" && <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs font-bold text-emerald-700">Quiz đã được công bố cho lớp.</p>}
+              {draft && <div className="mt-3 max-h-72 space-y-2 overflow-y-auto">{draft.questions.map((question, index) => <div key={question.id} className="space-y-2 rounded-xl border border-emerald-200 bg-white p-3 text-xs text-slate-700"><div><strong>Câu {index + 1}.</strong> <MathText text={question.questionText} /></div>{question.image && <QuizQuestionImage image={question.image} />}<div className="text-[11px] text-slate-500">Nguồn: trang {question.citation?.pageNumber ?? "—"}</div></div>)}</div>}
+              {(draft?.status === "REVIEW_REQUIRED" || draft?.status === "PUBLISHED") && <div className="mt-4 space-y-3 border-t border-emerald-200 pt-4">
+                <p className="font-bold text-slate-900">Giao bộ Quiz này thành bài tập</p>
+                <label className="block text-xs font-bold text-slate-700">Tên bài<input maxLength={200} value={assignmentTitle} onChange={(event) => setAssignmentTitle(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 font-normal" /></label>
+                <label className="block text-xs font-bold text-slate-700">Hạn nộp<input type="datetime-local" value={assignmentDueAt} onChange={(event) => setAssignmentDueAt(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 font-normal" /></label>
+                <label className="block text-xs font-bold text-slate-700">Hướng dẫn<textarea rows={2} maxLength={10000} value={assignmentDescription} onChange={(event) => setAssignmentDescription(event.target.value)} className="mt-1 w-full resize-none rounded-lg border border-slate-300 bg-white p-2 font-normal" /></label>
+                <button type="button" disabled={isPublishing} onClick={() => void publishAndAssign()} className="w-full rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">{isPublishing ? "Đang giao bài..." : "Duyệt và giao Quiz cho lớp"}</button>
+                {draft.status === "REVIEW_REQUIRED" && <button type="button" disabled={isPublishing} onClick={() => void publishDraft()} className="w-full rounded-xl border border-red-200 bg-white px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">Chỉ duyệt Quiz, chưa giao bài</button>}
+              </div>}
             </div>
           )}
         </aside>

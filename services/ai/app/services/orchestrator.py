@@ -12,10 +12,11 @@ from app.schemas.orchestration import (
     ConversationTurn,
 )
 from app.services.grounded_generation import GroundedAnswerService, GroundedQuizService
+from app.services.imported_quiz import ImportedQuizService
 
 
 class PersonalAssistantOrchestrator:
-    """Allow one classifier to select among three explicitly registered tools."""
+    """Allow one classifier to select among four explicitly registered tools."""
 
     def __init__(
         self,
@@ -23,6 +24,7 @@ class PersonalAssistantOrchestrator:
         intent_client: IntentClassificationClient,
         answer_service: GroundedAnswerService,
         quiz_service: GroundedQuizService,
+        import_service: ImportedQuizService | None = None,
         minimum_confidence: float = 0.65,
     ) -> None:
         """Create a constrained single-agent orchestrator.
@@ -31,6 +33,7 @@ class PersonalAssistantOrchestrator:
             intent_client: Structured intent classifier.
             answer_service: Tool for questions and summaries.
             quiz_service: Tool for grounded quiz drafts.
+            import_service: Tool for Quiz text supplied directly by the Student.
             minimum_confidence: Minimum classifier confidence for execution.
 
         Returns:
@@ -45,6 +48,7 @@ class PersonalAssistantOrchestrator:
         self._intent_client = intent_client
         self._answer_service = answer_service
         self._quiz_service = quiz_service
+        self._import_service = import_service
         self._minimum_confidence = minimum_confidence
 
     async def run(
@@ -94,6 +98,21 @@ class PersonalAssistantOrchestrator:
                 selected_tool=decision.selected_tool,
                 status=AssistantRunStatus.NEEDS_CLARIFICATION,
                 clarification_question=decision.clarification_question,
+            )
+        if decision.selected_tool is AssistantTool.IMPORT_QUIZ_FROM_TEXT:
+            if self._import_service is None:
+                raise RuntimeError("IMPORT_QUIZ_FROM_TEXT tool is not registered")
+            quiz = await self._import_service.import_text(source_text=normalized_message)
+            if isinstance(quiz, str):
+                return AssistantRunResult(
+                    selected_tool=AssistantTool.NEEDS_CLARIFICATION,
+                    status=AssistantRunStatus.NEEDS_CLARIFICATION,
+                    clarification_question=quiz,
+                )
+            return AssistantRunResult(
+                selected_tool=decision.selected_tool,
+                status=AssistantRunStatus.QUIZ_CREATED,
+                quiz=quiz,
             )
         if decision.selected_tool is AssistantTool.GENERATE_QUIZ:
             if decision.quiz_args is None:

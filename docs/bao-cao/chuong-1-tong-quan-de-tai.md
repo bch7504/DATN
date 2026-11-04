@@ -10,13 +10,13 @@ Từ thực tế đó, đề tài xây dựng StudyFlow — nền tảng web th�
 
 **Tên đề tài:** Xây dựng hệ thống hỗ trợ học tập và ôn luyện ứng dụng Trí tuệ Nhân tạo.
 
-Hình 1.1 phân biệt hai nguồn học liệu và những hoạt động chính trong phạm vi MVP.
+Hình 1.1 trình bày luồng học tập chính của StudyFlow, từ lúc Sinh viên đăng nhập, chọn nguồn tài liệu đến khi học, sử dụng AI, làm Quiz, theo dõi tiến độ và lập kế hoạch ôn lại.
 
-![Phạm vi StudyFlow](../diagrams/chuong-1/architecture-scope-01-pham-vi-studyflow.svg)
+![Biểu đồ luồng chính hệ thống](../diagrams/chuong-1/flow-01-luong-chinh-studyflow.png)
 
-*Hình 1.1. Phạm vi chức năng và các nhánh học tập của StudyFlow.*
+*Hình 1.1. Biểu đồ luồng chính hệ thống StudyFlow.*
 
-Hình cho thấy Course Material PDF và Personal PDF đi theo hai nhánh quyền riêng. Student Tutor chỉ dùng PDF lớp đã công bố; Personal Document Assistant dùng một Agent cho hỏi đáp, tóm tắt và tạo Quiz. Java ghi nhận sự kiện học tập và chấm Quiz, còn sinh viên chủ động quản lý Kế hoạch & Lịch. Đây là sơ đồ phạm vi nghiệp vụ, không phải trình tự API hoặc minh chứng implementation đã hoàn thành.
+Sau khi đăng nhập, Sinh viên chọn học liệu lớp hoặc PDF cá nhân, đọc tài liệu, ghi chú và thực hiện phiên học. Các chức năng AI hỗ trợ hỏi đáp, tóm tắt, giải thích hoặc tạo Quiz trên đúng nguồn được phép. Kết quả làm Quiz được hệ thống chấm và lưu lịch sử; Dashboard phản ánh tiến độ, Daily Goal và Study Streak. Từ đó, Sinh viên chủ động sắp xếp kế hoạch, lịch ôn tập và quay lại học hoặc đánh giá lại. Teacher cung cấp lớp học phần, học liệu và Quiz lớp; Admin quản lý danh mục, tài khoản và giám sát hệ thống.
 
 StudyFlow tổ chức môn học theo `Semester → Course Offering → Documents`. Teacher tự tạo Course Offering, quản lý join code, duyệt Student, public Course Material PDF và sinh Quiz AI. Student đọc PDF của lớp, ghi chú/hỏi Tutor theo trang; trang Tài liệu cá nhân đồng thời cho phép quản lý Personal PDF, hỏi đáp, tóm tắt và tạo Quiz. Admin quản lý danh mục, tài khoản và giám sát hệ thống.
 
@@ -51,7 +51,7 @@ Xây dựng nền tảng web hỗ trợ sinh viên quản lý hoạt động t�
 ### 1.5.1. Trong phạm vi MVP
 
 - Web responsive cho ba vai trò.
-- Course Material PDF: Student được duyệt xem web, lưu Note và dùng AI Tutor; Teacher không có Tutor.
+- Course Material: Teacher tải PDF hoặc PPTX; hệ thống chuyển PPTX thành PDF. Student được duyệt chỉ xem PDF đã chuẩn hóa trên web, lưu Note và dùng AI Tutor; Teacher không có Tutor.
 - Course Material PDF: được index theo trang; Student có enrollment `APPROVED` được Viewer, lưu Page Note và dùng Tutor sau khi Teacher public.
 - Personal Document: chỉ PDF có text layer.
 - Personal Assistant, Course Material Tutor và Quiz AI có citation trang trong authorized scope.
@@ -61,7 +61,7 @@ Xây dựng nền tảng web hỗ trợ sinh viên quản lý hoạt động t�
 
 ### 1.5.2. Ngoài phạm vi MVP
 
-PPTX/DOCX, OCR cho PDF scan, Topic Mastery, Teacher chatbot/Tutor, Exam/Mock Exam, recommendation tự động, AI điều phối kế hoạch, XP, badge, level, achievement, leaderboard và mô hình multi-agent không thuộc MVP.
+Xử lý PPTX trực tiếp trong Python/AI, lưu/phục vụ PPTX gốc, DOCX, OCR cho PDF scan, Topic Mastery, Teacher chatbot/Tutor, Exam/Mock Exam, recommendation tự động, AI điều phối kế hoạch, XP, badge, level, achievement, leaderboard và mô hình multi-agent không thuộc MVP. Ngoại lệ: Java được phép chuyển Teacher PPTX thành PDF trước khi lưu/index.
 
 ## 1.6. Phương pháp thực hiện
 
