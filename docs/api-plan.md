@@ -1,5 +1,9 @@
 # StudyFlow — API Plan
 
+Kho Ôn tập theo lớp chỉ trả Quiz `creatorRole=STUDENT`, `createdBy` bằng Student đăng nhập và `status=READY`. Bộ lọc áp dụng đồng nhất cho danh sách, thống kê và câu sai; mọi truy vấn theo lớp phải kiểm enrollment `APPROVED`. Quiz Teacher không thuộc kho cá nhân.
+
+> Contract mở rộng đang triển khai: [Quiz Assignment và Trí tuệ tài liệu](quiz-assignment-document-intelligence-plan.md), mục 5. Q1–Q4 và D4 đã được đưa vào source và qua kiểm thử service/contract; browser E2E, provider thật và các mốc Document Intelligence còn lại vẫn đang tiếp tục.
+
 Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1`; Python chỉ mở `/internal/v1` cho Java.
 
 ## 1. Quy ước chung
@@ -85,9 +89,11 @@ Business/error:
 |---|---|---|
 | GET | `/api/v1/student/materials` | Trả `{items,page,size,totalItems,totalPages}` gồm PDF đã công bố cho lớp Student được duyệt |
 | GET | `/api/v1/student/course-offerings/{offeringId}/materials` | Enrollment `APPROVED`; chỉ publication active trong lớp đó |
-| GET | `/api/v1/student/materials/{documentId}/download` | `SLIDE_PDF` được stream inline cho Viewer; `REFERENCE_PDF` chỉ cho tải attachment; không trả storage key/URL |
+| GET | `/api/v1/student/materials/{documentId}/download` | Chỉ `REFERENCE_PDF`; Java kiểm tra enrollment rồi trả attachment. Gọi với `SLIDE_PDF` trả `409 SLIDE_DOWNLOAD_NOT_ALLOWED` |
+| GET | `/api/v1/student/materials/{documentId}/slides/{pageNumber}` | Chỉ `SLIDE_PDF`; Java kiểm tra enrollment/publication rồi render đúng một trang thành PNG cho Viewer, trả `X-Total-Slides`; không trả tệp PDF hoặc storage key |
+| GET | `/api/v1/student/materials/{documentId}/slides/{pageNumber}/text-layer` | Trả kích thước trang và các đoạn chữ có tọa độ để Student bôi đen/copy trên đúng trang đang xem; không trả PDF nguồn |
 
-Course Material chỉ nhận tệp PDF có text layer nhưng bắt buộc phân loại `SLIDE_PDF|REFERENCE_PDF`. `SLIDE_PDF` được xem từng trang như slide, ghi nhận trang và hỏi đáp bằng AI Tutor; `REFERENCE_PDF` chỉ được tải xuống và không được lập chỉ mục hoặc gửi sang Tutor. Response học liệu luôn có `materialType` để Frontend không tự suy đoán quyền từ tên tệp.
+Course Material chỉ nhận tệp PDF có text layer nhưng bắt buộc phân loại `SLIDE_PDF|REFERENCE_PDF`. `SLIDE_PDF` được xem từng trang như slide PNG trong Viewer, không có API tải tệp nguồn cho Student, đồng thời hỗ trợ ghi nhận trang và hỏi đáp bằng AI Tutor; `REFERENCE_PDF` chỉ được tải xuống và không được lập chỉ mục hoặc gửi sang Tutor. Response học liệu luôn có `materialType` để Frontend không tự suy đoán quyền từ tên tệp.
 
 Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ khi offering `ARCHIVED`, trừ khi `LOCKED`, publication revoked hoặc policy retention chặn.
 
@@ -96,8 +102,13 @@ Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ k
 - `GET/PUT /api/v1/student/materials/{documentId}/pages/{number}/note`
 - `POST /api/v1/student/materials/{documentId}/pages/{number}/view-events` với `Idempotency-Key`
 - `POST /api/v1/student/materials/{documentId}/pages/{number}/tutor`
+- `GET /api/v1/student/materials/{documentId}/tutor/history`
 
 Endpoint Tutor chỉ chấp nhận tài liệu `SLIDE_PDF`. Frontend chỉ gọi endpoint Java này; Java xác thực Student, enrollment `APPROVED`, publication, trạng thái Course Offering và `materialType` trước khi chuyển phạm vi tài liệu tối thiểu sang Python `/internal/v1/course-materials/ask`. Java kiểm tra lại `documentId`, `documentVersion` và `pageNumber` của mọi citation trước khi trả về trình duyệt. Gọi Tutor cho `REFERENCE_PDF` trả `409 MATERIAL_NOT_TUTORABLE`.
+
+Text-layer response dùng schema cố định `{pageNumber,pageWidth,pageHeight,items[]}`; mỗi item gồm `{text,x,y,width,height}` theo hệ tọa độ của trang. Frontend chỉ dùng dữ liệu này làm lớp chữ chọn/copy đặt trên ảnh trang PDF. Lỗi trích xuất trả `502 SLIDE_TEXT_EXTRACTION_FAILED`; Viewer vẫn có thể hiển thị ảnh trang nếu lớp chữ tạm thời lỗi.
+
+Page Note thuộc riêng Student và từng trang. `GET` trả `{documentId,pageNumber,content,updatedAt}`; khi chưa lưu, `content=""` và `updatedAt=null`. `PUT` nhận `{content}` tối đa 5.000 ký tự; nội dung trống xóa ghi chú đã lưu. Java kiểm tra lại quyền xem slide trước mỗi lần đọc/ghi; Student khác, Teacher và Admin không đọc được ghi chú này.
 
 Tutor request:
 
@@ -109,12 +120,30 @@ Tutor response:
 
 ```json
 {
+  "conversationId":"conv_...",
   "status":"ANSWERED",
   "answer":"...",
   "citations":[{"documentId":"doc_1","pageNumber":12,"excerpt":"..."}],
   "traceId":"req_..."
 }
 ```
+
+Course Material Tutor sử dụng ba lớp memory có ranh giới rõ ràng:
+
+- **Long-term memory:** Java lưu một conversation theo Student + document + documentVersion và lưu
+  từng cặp tin nhắn cùng pageNumber/citation. `GET .../tutor/history` trả lịch sử đã được Java kiểm
+  quyền lại để Viewer khôi phục khi mở lại tài liệu. Khi documentVersion thay đổi, Java tạo conversation
+  mới; không trộn lịch sử giữa các phiên bản.
+- **Short-term memory:** trước mỗi lần gọi Python, Java chỉ gửi tối đa 12 lượt USER/ASSISTANT gần nhất
+  của conversation hiện tại. Không chuyển system prompt, token, vector hoặc nội dung ngoài conversation.
+- **Working memory:** Python dùng câu hỏi hiện tại, currentPageNumber, authorized scope và short-term
+  history để viết lại câu hỏi nối tiếp thành truy vấn độc lập, retrieval và dựng evidence. Working memory
+  chỉ tồn tại trong một request, không được lưu như nguồn kiến thức và không được mở rộng quyền.
+
+`GET /api/v1/student/materials/{documentId}/tutor/history` trả
+`{conversationId,documentId,documentVersion,messages[]}`; mỗi message gồm
+`{id,role,pageNumber,content,status,citations,createdAt}`. Student chỉ đọc được conversation của chính
+mình khi enrollment/publication vẫn hợp lệ. Python không sở hữu hoặc tự tải long-term memory.
 
 Thiếu evidence trả `status=NO_EVIDENCE`, `answer=null`, `citations=[]`. Java tự dựng allowed page/document scope sau khi kiểm enrollment/publication. Teacher không sử dụng endpoint Tutor này.
 
@@ -172,7 +201,7 @@ UX và contract lấy cảm hứng từ evidence-scoped workspace của repo tha
 }
 ```
 
-- `capability` là `ASK_DOCUMENT|SUMMARIZE_DOCUMENT|CREATE_QUIZ|NEEDS_CLARIFICATION`; cùng một composer được Single Agent định tuyến sang đúng tool.
+- `capability` là `ASK_DOCUMENT|SUMMARIZE_DOCUMENT|CREATE_QUIZ|IMPORT_QUIZ_FROM_TEXT|NEEDS_CLARIFICATION`; cùng một composer được Single Agent định tuyến sang đúng một tool.
 - `NO_EVIDENCE` trả answer an toàn và citations rỗng; không đoán ngoài nguồn. Yêu cầu thiếu tham số trả `NEEDS_CLARIFICATION` cùng `missingFields`.
 - Với `CREATE_QUIZ`, response trả `quizDraft:{quizId,questionCount,status:"REVIEW_REQUIRED"}`; Java validate/lưu draft trước khi trả.
 - Java load conversation owner/scope, gọi Python, revalidate mọi citation và structured output rồi mới lưu User/Assistant messages.
@@ -190,6 +219,7 @@ History chỉ owner đọc; response có selected source metadata và messages/c
 
 - Student nhập prompt tự do trong conversation đã gắn 1–10 Personal PDF `READY`; Agent nhận diện ý định và gọi tool `generate_quiz` bằng structured args.
 - Nếu thiếu `questionCount` hoặc phạm vi cần thiết, trả `NEEDS_CLARIFICATION`; không tự đoán giá trị quan trọng.
+- Khi Student dán bộ câu hỏi/đáp án và yêu cầu nhập đề, Agent gọi `IMPORT_QUIZ_FROM_TEXT`. Tool chỉ đọc phần văn bản trong message, trả `QuizDraft` có `sourceType=IMPORTED_TEXT`, citation rỗng và trạng thái Java `REVIEW_REQUIRED`; không truy xuất PDF, không tạo nguồn giả và không tự chấp nhận Quiz.
 - Prompt và conversation là dữ liệu không tin cậy, không được thay system instruction, schema `MCQ_SINGLE`, authorized scope hoặc citation rule.
 - Tạo thành công trả Quiz `REVIEW_REQUIRED`; Student mở Review Hub để duyệt/chấp nhận. AI không chấm điểm.
 
@@ -199,7 +229,9 @@ History chỉ owner đọc; response có selected source metadata và messages/c
 - `POST /api/v1/quizzes`: input `{selectedDocumentIds:string[],prompt:string}`; 1–10 ID duy nhất, PDF `READY` thuộc Student, prompt trim 1–500 ký tự. Số câu/độ khó/chủ đề được Student diễn đạt trong prompt; Java/Python phải validate, không coi prompt là system instruction.
 - Header `Idempotency-Key` cho mỗi lần gửi chủ động; retry cùng thao tác phải giữ key. Java tạo cùng một Quiz ID từ actor + request đã chuẩn hóa + key, nên retry trả lại draft đã lưu và không gọi Python lần hai.
 - Java gọi Python đồng bộ trong request này. Output `200 QuizDraft` ở trạng thái `REVIEW_REQUIRED`; nếu không đủ bằng chứng trả `422 NO_EVIDENCE` và không lưu draft giả.
-- `GET /api/v1/review/quizzes/{id}`: owner-only, output `200 QuizDraft` gồm `{id,prompt,sourceDocumentIds,status,questions,createdAt}`. Luồng hiện tại sinh đồng bộ nên draft được lưu trực tiếp ở `REVIEW_REQUIRED`; mỗi câu có `{id,type:"MCQ_SINGLE",questionText,options:[{id,text}],correctOptionId,explanation,citation:{documentId,documentName,pageNumber,excerpt}}`, đúng 4 options và đúng một ID đáp án thuộc options.
+- `GET /api/v1/review/quizzes/{id}`: owner-only, output `200 QuizDraft` gồm `{id,prompt,sourceDocumentIds,status,questions,createdAt}`. Luồng hiện tại sinh đồng bộ nên draft được lưu trực tiếp ở `REVIEW_REQUIRED`; mỗi câu có `{id,type:"MCQ_SINGLE",questionText,options:[{id,text}],correctOptionId,explanation,citation,image?}`, đúng 4 options và đúng một ID đáp án thuộc options. `citation` giữ `{documentId,documentName,pageNumber,excerpt}`; `image` là tùy chọn và chỉ có `{id,altText,url}` để browser tải qua Java, không chứa object key.
+- `GET /api/v1/quiz-images/{imageId}`: Java kiểm lại quyền đối với Quiz ở mỗi lần đọc rồi stream `image/png` với `Cache-Control: private`; Student chỉ đọc ảnh của Quiz cá nhân mình sở hữu hoặc Quiz lớp thuộc Course Offering đang có enrollment `APPROVED`, Teacher chỉ đọc ảnh của Quiz mình tạo. Không trả URL Object Storage.
+- Ảnh Quiz chỉ được tạo cho câu `PDF_GROUNDED` khi câu hỏi thật sự phụ thuộc bằng chứng hình/sơ đồ trên một trang đã được cấp quyền. Java dựng PNG từ đúng PDF version/page do Python trả, lưu trong private Object Storage và lưu metadata `{documentId,documentVersion,pageNumber,bbox,objectKey,altText}`. `IMPORTED_TEXT` không được có image. Nếu ảnh được khai báo nhưng không thể materialize hoặc vượt scope, toàn bộ draft bị từ chối; không lưu câu hỏi có ảnh hỏng.
 - Errors dùng error envelope chung: `401`, `404 QUIZ_NOT_FOUND`, `409 DOCUMENT_NOT_READY|DOCUMENT_SCOPE_CHANGED`, `422 INVALID_QUIZ_PROMPT|INVALID_DOCUMENT_SELECTION|NO_EVIDENCE`, `503 AI_SERVICE_UNAVAILABLE`. FE giữ input và cho thử lại; không tự tạo câu trả lời production.
 - Java dựng scope và gọi pipeline sinh Quiz nội bộ; không tạo conversation. Cùng lifecycle review/accept/attempt với Quiz sinh từ hỏi đáp. Regenerate trả ID mới, FE tiếp tục theo dõi ID đó.
 - Java đã triển khai owner scope, revalidate citation, lưu conversation/Quiz và gọi đúng internal Python API; fixture demo vẫn chỉ dùng khi `NEXT_PUBLIC_DEMO_MODE=true`.
@@ -383,6 +415,7 @@ Chỉ nhận PDF có text layer. Hệ thống kiểm document owner và ownershi
   - Input `{documentIds:[...],courseOfferingId,questionCount:1..30,difficulty,topic?,pageFrom,pageTo,instruction}`.
   - Java kiểm Teacher sở hữu document và Course Offering, tài liệu `SLIDE_PDF` ở trạng thái `READY`, page range hợp lệ; `REFERENCE_PDF` không được dùng làm nguồn sinh Quiz AI.
   - Java kiểm lại kết quả trước khi lưu: đúng `MCQ_SINGLE`, đúng số câu đã chọn, mỗi câu đúng 4 phương án khác nhau, chỉ một đáp án đúng và mọi citation đều nằm trong đúng tài liệu/phiên bản/khoảng trang Teacher đã cấp.
+  - Mỗi câu có tối đa một `image`. Python chỉ chọn `imageEvidenceId` từ evidence đã cấp; Java tự dựng `documentId/version/page/bbox` từ evidence tin cậy, kiểm lại scope, render PNG và lưu private Object Storage. Browser chỉ nhận endpoint Java `/api/v1/quiz-images/{imageId}`.
   - Output `200 QuizDraft` với `REVIEW_REQUIRED`; mutation bắt buộc có `Idempotency-Key`.
 - `GET /api/v1/review/quizzes/{quizId}` trả draft/status cho đúng Teacher owner.
 - `POST /api/v1/teacher/quizzes/{quizId}/publish` revalidate Teacher/lớp, chuyển draft sang `PUBLISHED` và trả `200 QuizDraft`.
@@ -392,19 +425,22 @@ Chỉ nhận PDF có text layer. Hệ thống kiểm document owner và ownershi
 
 | Method | Endpoint | Contract |
 |---|---|---|
-| POST | `/api/v1/teacher/course-offerings/{offeringId}/assignments` | `{title,description,dueAt}` → `201` bản nháp; lớp phải thuộc Teacher và đang hoạt động |
+| POST | `/api/v1/teacher/course-offerings/{offeringId}/assignments` | `{title,description,dueAt,type?,quizId?}` → `201` bản nháp; mặc định `ESSAY`; `QUIZ` bắt buộc trỏ tới Quiz Teacher đã `PUBLISHED` trong đúng lớp |
 | PUT | `/api/v1/teacher/assignments/{assignmentId}` | Thay toàn bộ `{title,description,dueAt}` khi còn `DRAFT` → `200` |
 | POST | `/api/v1/teacher/assignments/{assignmentId}/publish` | `DRAFT → PUBLISHED`; sinh viên `APPROVED` trong lớp được thông báo bài mới và nhận nhắc hạn trước 24 giờ |
 | GET | `/api/v1/teacher/course-offerings/{offeringId}/assignments` | Danh sách bản nháp/đã công bố của lớp do Teacher sở hữu |
 | GET | `/api/v1/teacher/assignments/{assignmentId}/submissions` | `200` tổng số đúng hạn/nộp muộn/chưa nộp và danh sách mọi Student hiện `APPROVED` trong lớp; người được duyệt sau hạn mà chưa nộp vẫn thuộc nhóm chưa nộp |
 | GET | `/api/v1/student/assignments` | Bài đã công bố thuộc lớp Student `APPROVED`, kèm trạng thái nộp của chính mình |
+| POST | `/api/v1/student/assignments/{assignmentId}/quiz-attempts` | Tạo lượt làm cho bài `QUIZ` đã công bố → `201` câu hỏi không kèm đáp án đúng; Quiz Teacher không thể bắt đầu từ `/review` |
+| POST | `/api/v1/student/assignments/{assignmentId}/quiz-submissions` | `{attemptId,answers:{questionId:optionIndex}}` → `200` kết quả Java chấm; attempt phải thuộc đúng Student, Quiz và Assignment |
 | POST | `/api/v1/student/assignments/{assignmentId}/submissions` | `{answerText}` → `200`; cho phép nộp/cập nhật câu trả lời dạng văn bản, tự ghi `ON_TIME` hoặc `LATE` |
 | POST | `/api/v1/student/assignments/{assignmentId}/submissions/attachments` | `multipart/form-data`: `answerText?`, 1–5 phần `files`; ảnh/tệp được kiểm tra và lưu riêng tư, trả metadata attachment |
 | GET | `/api/v1/student/assignments/{assignmentId}/submissions/attachments/{attachmentId}/download` | Student chỉ tải tệp thuộc bài nộp của chính mình; Java kiểm tra enrollment và stream nội dung |
 | GET | `/api/v1/teacher/assignments/{assignmentId}/submissions/{studentId}/attachments/{attachmentId}/download` | Teacher owner tải tệp của bài nộp trong lớp mình |
+| GET | `/api/v1/teacher/assignments/{assignmentId}/submissions/{studentId}/quiz-attempt` | Teacher owner xem điểm, câu đúng/sai, giải thích và citation của lượt Quiz hiện tại |
 
 - Thành công: tạo bản nháp `201 Assignment`; các GET, PUT, publish, submit và download trả `200` với DTO/stream tương ứng; lỗi `401` phiên không hợp lệ, `403` sai quyền/không có enrollment, `404` không tìm thấy hoặc không thuộc owner, `409` sai trạng thái lớp/bản nháp, `413 ATTACHMENT_REQUEST_TOO_LARGE`, `422` body/file không hợp lệ, `502 ATTACHMENT_STORAGE_FAILED`, `503 STORAGE_NOT_CONFIGURED`. Không có API chấm điểm bài tập.
-- `Assignment` response gồm `{id,courseOfferingId,title,description,dueAt,status,publishedAt,createdAt,updatedAt,submission}`; `submission` chỉ có trong danh sách Student và chứa `{id,answerText,submittedAt,status,attachments[]}` của chính Student. `AssignmentStats` gồm `{assignmentId,title,dueAt,approvedStudentCount,submittedCount,onTimeCount,lateCount,notSubmittedCount,students[]}`; mỗi phần tử `students[]` có `{studentId,fullName,email,submissionState,submittedAt,status,answerText,attachments[]}`. `approvedStudentCount` là số Student hiện `APPROVED` trong lớp, không phụ thuộc thời điểm duyệt. Người được duyệt sau `dueAt` mà chưa nộp có `submissionState=NOT_SUBMITTED` và được tính vào `notSubmittedCount`; nếu đã nộp sau hạn thì thuộc nhóm `LATE`. `submittedCount = onTimeCount + lateCount`; các số đếm phản ánh bài nộp hiện tại, không giữ lịch sử lần nộp. Mỗi attachment trả `{id,fileName,contentType,sizeBytes}`; không trả khóa hoặc URL lưu trữ.
+- `Assignment` response gồm `{id,courseOfferingId,title,description,type,quizId,dueAt,status,publishedAt,createdAt,updatedAt,submission}`; `submission` chỉ có trong danh sách Student và chứa `{id,answerText,submittedAt,status,score,quizAttemptId,attachments[]}` của chính Student. `AssignmentStats` gồm `{assignmentId,title,type,quizId,dueAt,approvedStudentCount,submittedCount,onTimeCount,lateCount,notSubmittedCount,students[],questionAnalytics[]}`; mỗi phần tử `students[]` có thêm `score` và `quizAttemptId`. Với bài `QUIZ`, `questionAnalytics[]` chứa `{questionId,questionOrder,questionText,submissionCount,wrongCount,wrongRatePercent}` và chỉ tính attempt hiện đang gắn với bài nộp của mỗi Student, không đếm lặp lượt cũ. `approvedStudentCount` là số Student hiện `APPROVED` trong lớp, không phụ thuộc thời điểm duyệt. Người được duyệt sau `dueAt` mà chưa nộp có `submissionState=NOT_SUBMITTED` và được tính vào `notSubmittedCount`; nếu đã nộp sau hạn thì thuộc nhóm `LATE`. `submittedCount = onTimeCount + lateCount`; các số đếm phản ánh bài nộp hiện tại. Mỗi attachment trả `{id,fileName,contentType,sizeBytes}`; không trả khóa hoặc URL lưu trữ.
 - DTO giới hạn: `title` 1–200 ký tự, `description` 1–10.000 ký tự, `answerText` 1–20.000 ký tự; `dueAt` là ISO-8601 và phải ở tương lai khi tạo/sửa.
 - Không nhận `teacherId`/`studentId` từ body; danh tính lấy từ JWT. Chỉ câu trả lời của Student thuộc enrollment `APPROVED` được chấp nhận.
 - Nhận PDF, PNG, JPG/JPEG, DOCX, XLSX, PPTX; tối đa 10 MB/tệp, 5 tệp/bài nộp và 25 MB tổng. Server kiểm tra phần mở rộng + signature đầu tệp, không tin MIME type client gửi; file trả về dưới dạng attachment với `nosniff`.
@@ -451,9 +487,9 @@ Idempotency-Key: ...   # index/deindex/Quiz generation
 | POST `/internal/v1/documents/index` | document/version, pipeline, owner?, signed URL, MIME | `202 {requestId,jobId,status}` |
 | POST `/internal/v1/documents/deindex` | document/version/pipeline | Idempotent job |
 | GET `/internal/v1/jobs/{jobId}` | job ID | status/attempt/error/artifact metadata |
-| POST `/internal/v1/personal-assistant/runs` | userId, conversationId, authorized Personal PDF/version scope, history window, untrusted message | selected tool + `ANSWERED|SUMMARIZED|QUIZ_CREATED|NEEDS_CLARIFICATION|NO_EVIDENCE`, page citations và structured payload |
-| POST `/internal/v1/course-materials/ask` | user/document/current page/allowed page scope/question | `ANSWERED|NO_EVIDENCE` + page citations |
-| POST `/internal/v1/quizzes/generate` | actorId, mode `PERSONAL_STUDENT|COURSE_TEACHER`, authorized document/version/page scope, structured generation args | Structured `MCQ_SINGLE` draft; mỗi câu đúng 4 options, một correctOptionIndex và page citation |
+| POST `/internal/v1/personal-assistant/runs` | userId, conversationId, authorized Personal PDF/version scope, history window, untrusted message | selected tool + `ANSWERED|SUMMARIZED|QUIZ_CREATED|NEEDS_CLARIFICATION|NO_EVIDENCE`, page citations hoặc Quiz `PDF_GROUNDED|IMPORTED_TEXT` có cấu trúc |
+| POST `/internal/v1/course-materials/ask` | user/document/current page/allowed page scope, tối đa 12 lượt history và câu hỏi hiện tại | `ANSWERED|NO_EVIDENCE` + page citations; Python chỉ dùng history để viết lại truy vấn, không coi history là evidence |
+| POST `/internal/v1/quizzes/generate` | actorId, mode `PERSONAL_STUDENT|COURSE_TEACHER`, authorized document/version/page scope, structured generation args | Structured `MCQ_SINGLE` draft; mỗi câu đúng 4 options, một correctOptionIndex, page citation và tối đa một image reference lấy từ chính evidence đã cấp |
 | GET `/internal/v1/health` | common headers | Liveness/readiness |
 
 Quy tắc `signedUrl` của endpoint index:
@@ -469,11 +505,12 @@ Quy tắc `signedUrl` của endpoint index:
 - Index/deindex trả `202 {requestId,jobId,status}` sau khi nhận job, không giữ request chờ xử lý xong. Java poll `GET /internal/v1/jobs/{jobId}` với backoff; cập nhật document `READY` khi index thành công hoặc `FAILED` với safe error code khi thất bại. Browser chỉ poll trạng thái document qua Java.
 - Contract trên là schema version mới thay cho hai endpoint `personal-rag/ask` và `slides/ask`. Contract test Java/Python phải bao phủ tool routing, scope của hai chế độ Quiz, output 4 options và vòng đời job.
 
-- Retrieval dùng hai nhánh trong cùng authorized scope: pgvector cosine và PostgreSQL full-text search. Kết quả được hợp nhất bằng RRF, LangChain rerank theo độ liên quan/trang hiện tại/độ đa dạng, rồi filter lại document/version/owner/source/page để defense in depth.
+- Retrieval dùng hai nhánh trong cùng authorized scope: pgvector cosine và PostgreSQL full-text search. Kết quả được hợp nhất bằng RRF; LangChain điều phối OpenRouter LLM reranker với structured output, rồi filter lại document/version/owner/source/page để defense in depth. Reranker chỉ xếp hạng evidence đã được cấp quyền.
 - Citation được dựng từ retrieved chunk, deduplicate và validate document/location/excerpt bằng code.
+- Image reference không nhận trực tiếp `documentId/page/bbox` do model phát sinh. Model chỉ được chọn một `imageEvidenceId`; Python ánh xạ ID đó về evidence đã cấp và trả `{documentId,documentVersion,pageNumber,bbox:{x,y,width,height},altText}`. Bản đầu dùng toàn trang với bbox chuẩn hóa `{0,0,1,1}`; Java revalidate rồi materialize PNG. Câu không phụ thuộc hình để `image=null`.
 - Document content được delimit và xem là untrusted evidence, không phải instruction.
 - Khi evidence thiếu, trả `NO_EVIDENCE` mà không gọi model để bịa.
-- Single Orchestrator Agent chỉ được gọi tool đã đăng ký. Router confidence thấp hoặc thiếu trường bắt buộc phải trả `NEEDS_CLARIFICATION`, không tự mở rộng scope.
+- Single Orchestrator Agent chỉ được gọi bốn tool đã đăng ký. Router confidence thấp hoặc thiếu trường bắt buộc phải trả `NEEDS_CLARIFICATION`, không tự mở rộng scope. `IMPORT_QUIZ_FROM_TEXT` không được dùng nội dung PDF hoặc gắn citation; Java phân biệt rõ với `GENERATE_QUIZ` có nguồn.
 - Reviewer nếu dùng chỉ đánh giá grounding trên cùng evidence snapshot; rewrite tối đa một lần theo kế hoạch AI, sau đó trả kết quả có căn cứ hoặc `NO_EVIDENCE`; không được mở rộng scope.
 - Python response không trả provider payload, prompt, token hoặc user-visible Agent Trace.
 
@@ -482,5 +519,5 @@ Quy tắc `signedUrl` của endpoint index:
 - Poll/job GET retry có backoff giới hạn.
 - Index/deindex key: `documentId:version:pipeline:operation`.
 - Không retry mù LLM request sau timeout; Java dùng request/run identity để chống tạo duplicate Quiz/message.
-- Thay wire shape phải tăng schema version và cập nhật contract test Java/Python.
+- Wire shape có image reference sử dụng `X-Schema-Version: 4`; Java/Python phải từ chối version khác và contract test hai phía phải kiểm cả image hợp lệ, image vượt scope và Quiz nhập văn bản không có image.
 - Job polling không trả signed URL/content; internal error chỉ có safe code + trace ID.

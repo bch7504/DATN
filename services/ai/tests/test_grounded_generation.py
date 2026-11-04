@@ -13,16 +13,22 @@ from app.schemas.grounding import (
     GeneratedAnswer,
     GeneratedQuiz,
     GeneratedQuizQuestion,
+    ImportedQuizQuestion,
+    ImportedQuizResult,
     QuizDifficulty,
+    QuizDraftSource,
     QuizGenerationArgs,
     RetrievedEvidence,
 )
 from app.schemas.orchestration import (
     AssistantRunStatus,
     AssistantTool,
+    ConversationRole,
+    ConversationTurn,
     IntentDecision,
 )
 from app.services.grounded_generation import GroundedAnswerService, GroundedQuizService
+from app.services.imported_quiz import ImportedQuizService
 from app.services.orchestrator import PersonalAssistantOrchestrator
 from app.services.retrieval import RetrievalService
 
@@ -133,6 +139,21 @@ class FakeAnswerClient:
 
         self.result = result
         self.call_count = 0
+        self.last_instruction: str | None = None
+        self.contextualize_count = 0
+
+    async def contextualize_query(
+        self,
+        *,
+        question: str,
+        history: tuple[ConversationTurn, ...],
+        current_page_number: int,
+    ) -> str:
+        """Return a deterministic standalone query from bounded synthetic memory."""
+        if not question.strip() or not history or current_page_number < 1:
+            raise ValueError("working memory is invalid")
+        self.contextualize_count += 1
+        return "Isolation trong ACID có ý nghĩa gì?"
 
     async def generate_answer(
         self,
@@ -156,6 +177,7 @@ class FakeAnswerClient:
         if not instruction.strip() or not evidence:
             raise ValueError("instruction and evidence are required")
         self.call_count += 1
+        self.last_instruction = instruction
         return self.result
 
 
@@ -199,6 +221,25 @@ class FakeQuizClient:
 
         if not evidence or args.question_count < 1:
             raise ValueError("quiz args and evidence are required")
+        self.call_count += 1
+        return self.result
+
+
+class FakeImportedQuizClient:
+    """Deterministic imported-text Quiz provider fake."""
+
+    def __init__(self, result: ImportedQuizResult) -> None:
+        """Create the fake. Args: result. Returns: None. Raises: none."""
+        self.result = result
+        self.call_count = 0
+
+    async def import_quiz(self, *, source_text: str) -> ImportedQuizResult:
+        """Return configured result.
+
+        Args: source_text. Returns: result. Raises: ValueError.
+        """
+        if not source_text.strip():
+            raise ValueError("source text is required")
         self.call_count += 1
         return self.result
 
@@ -448,6 +489,55 @@ async def test_answer_builds_citation_only_from_authorized_evidence() -> None:
 
 
 @pytest.mark.anyio
+async def test_answer_rewrites_follow_up_with_short_term_working_memory() -> None:
+    """Bounded history resolves references but grounded evidence still supplies all facts."""
+
+    owner_id = uuid4()
+    document_id = uuid4()
+    evidence = _evidence(document_id=document_id, owner_id=owner_id)
+    answer_client = FakeAnswerClient(
+        GeneratedAnswer(
+            answer="Isolation kiểm soát ảnh hưởng giữa các giao dịch đồng thời.",
+            cited_evidence_ids=(evidence.evidence_id,),
+        )
+    )
+    service = GroundedAnswerService(
+        retrieval_service=_retrieval_service((evidence,)),
+        generation_client=answer_client,
+    )
+    scope = AuthorizedScope(
+        actor_id=owner_id,
+        documents=(
+            AuthorizedDocument(
+                document_id=document_id,
+                document_version=1,
+                owner_id=owner_id,
+                source_type=SourceType.PERSONAL_PDF,
+            ),
+        ),
+        current_document_id=document_id,
+        current_page_number=2,
+    )
+    history = (
+        ConversationTurn(role=ConversationRole.USER, content="Isolation là gì?"),
+        ConversationTurn(
+            role=ConversationRole.ASSISTANT,
+            content="Isolation là một thuộc tính của ACID.",
+        ),
+    )
+
+    result = await service.answer(
+        instruction="Nó có ý nghĩa gì?",
+        scope=scope,
+        history=history,
+    )
+
+    assert result.status is AnswerStatus.ANSWERED
+    assert answer_client.contextualize_count == 1
+    assert answer_client.last_instruction == "Isolation trong ACID có ý nghĩa gì?"
+
+
+@pytest.mark.anyio
 async def test_answer_rejects_provider_citation_outside_evidence() -> None:
     """Confirm unknown provider evidence identifiers fail closed."""
 
@@ -500,6 +590,79 @@ async def test_quiz_has_four_options_one_answer_and_grounded_citation() -> None:
     assert len(result.questions[0].options) == 4
     assert result.questions[0].correct_option_index == 0
     assert result.questions[0].citations[0].page_number == 2
+
+
+@pytest.mark.anyio
+async def test_quiz_maps_visual_evidence_to_trusted_full_page_image() -> None:
+    """A provider may select a visual only by an authorized evidence identifier."""
+
+    owner_id = uuid4()
+    document_id = uuid4()
+    evidence = _evidence(document_id=document_id, owner_id=owner_id).model_copy(
+        update={"excerpt": "[Sơ đồ/Hình ảnh trang 2]: Mạch gồm hai cổng AND."}
+    )
+    generated_question = GeneratedQuizQuestion(
+        question="Sơ đồ dùng cổng logic nào?",
+        options=("AND", "OR", "NOT", "XOR"),
+        correct_option_index=0,
+        explanation="Chú thích hình xác định hai cổng AND.",
+        cited_evidence_ids=(evidence.evidence_id,),
+        image_evidence_id=evidence.evidence_id,
+        image_alt_text="Sơ đồ hai cổng AND trên trang 2",
+    )
+    service = GroundedQuizService(
+        retrieval_service=_retrieval_service((evidence,)),
+        generation_client=FakeQuizClient(
+            GeneratedQuiz(title="Ôn tập sơ đồ", questions=(generated_question,))
+        ),
+    )
+
+    result = await service.generate(
+        instruction="Tạo một câu hỏi dùng sơ đồ",
+        args=QuizGenerationArgs(question_count=1, difficulty=QuizDifficulty.MEDIUM),
+        scope=_scope(document_id=document_id, owner_id=owner_id),
+    )
+
+    assert result is not None
+    image = result.questions[0].image
+    assert image is not None
+    assert image.document_id == document_id
+    assert image.page_number == 2
+    assert image.bbox.model_dump() == {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0,
+    }
+
+
+@pytest.mark.anyio
+async def test_quiz_rejects_image_reference_for_non_visual_evidence() -> None:
+    """Text-only evidence cannot be turned into an image artifact by the model."""
+
+    owner_id = uuid4()
+    document_id = uuid4()
+    evidence = _evidence(document_id=document_id, owner_id=owner_id)
+    question = GeneratedQuizQuestion(
+        question="Nội dung nào đúng?",
+        options=("A", "B", "C", "D"),
+        correct_option_index=0,
+        explanation="Theo nội dung văn bản.",
+        cited_evidence_ids=(evidence.evidence_id,),
+        image_evidence_id=evidence.evidence_id,
+        image_alt_text="Ảnh không có thật",
+    )
+    service = GroundedQuizService(
+        retrieval_service=_retrieval_service((evidence,)),
+        generation_client=FakeQuizClient(GeneratedQuiz(title="Quiz", questions=(question,))),
+    )
+
+    with pytest.raises(RuntimeError, match="without a visual caption"):
+        await service.generate(
+            instruction="Tạo một câu",
+            args=QuizGenerationArgs(question_count=1, difficulty=QuizDifficulty.EASY),
+            scope=_scope(document_id=document_id, owner_id=owner_id),
+        )
 
 
 def test_quiz_question_rejects_duplicate_options() -> None:
@@ -715,3 +878,90 @@ async def test_personal_quiz_tool_runs_only_with_complete_structured_args(has_ar
     if has_args:
         assert result.quiz is not None
         assert result.quiz.questions[0].citations[0].document_id == document_id
+
+
+@pytest.mark.anyio
+async def test_orchestrator_imports_student_text_without_pdf_citations() -> None:
+    """The fourth tool creates an explicitly ungrounded review draft and never invents citation."""
+
+    owner_id, document_id = uuid4(), uuid4()
+    imported_client = FakeImportedQuizClient(
+        ImportedQuizResult(
+            title="Đề nhập thủ công",
+            questions=(
+                ImportedQuizQuestion(
+                    question="Giá trị của $2+2$ là bao nhiêu?",
+                    options=("3", "4", "5", "6"),
+                    correct_option_index=1,
+                    explanation="Đáp án được ghi rõ trong văn bản nhập là 4.",
+                ),
+            ),
+        )
+    )
+    retrieval = _retrieval_service(())
+    orchestrator = PersonalAssistantOrchestrator(
+        intent_client=FakeIntentClient(
+            IntentDecision(
+                selected_tool=AssistantTool.IMPORT_QUIZ_FROM_TEXT,
+                confidence=0.99,
+            )
+        ),
+        answer_service=GroundedAnswerService(
+            retrieval_service=retrieval,
+            generation_client=FakeAnswerClient(GeneratedAnswer(answer=None)),
+        ),
+        quiz_service=GroundedQuizService(
+            retrieval_service=retrieval,
+            generation_client=FakeQuizClient(_unused_generated_quiz()),
+        ),
+        import_service=ImportedQuizService(client=imported_client),
+    )
+
+    result = await orchestrator.run(
+        message="Nhập câu hỏi: 2+2? A.3 B.4 C.5 D.6. Đáp án B.",
+        scope=_scope(document_id=document_id, owner_id=owner_id),
+    )
+
+    assert result.status is AssistantRunStatus.QUIZ_CREATED
+    assert result.selected_tool is AssistantTool.IMPORT_QUIZ_FROM_TEXT
+    assert result.quiz is not None
+    assert result.quiz.source_type is QuizDraftSource.IMPORTED_TEXT
+    assert result.quiz.questions[0].citations == ()
+    assert imported_client.call_count == 1
+
+
+@pytest.mark.anyio
+async def test_imported_quiz_missing_answer_requests_clarification() -> None:
+    """Incomplete pasted questions ask the Student again instead of guessing an answer."""
+
+    owner_id, document_id = uuid4(), uuid4()
+    imported_client = FakeImportedQuizClient(
+        ImportedQuizResult(clarification_question="Bạn hãy bổ sung đáp án đúng cho câu hỏi đã dán.")
+    )
+    retrieval = _retrieval_service(())
+    orchestrator = PersonalAssistantOrchestrator(
+        intent_client=FakeIntentClient(
+            IntentDecision(
+                selected_tool=AssistantTool.IMPORT_QUIZ_FROM_TEXT,
+                confidence=0.99,
+            )
+        ),
+        answer_service=GroundedAnswerService(
+            retrieval_service=retrieval,
+            generation_client=FakeAnswerClient(GeneratedAnswer(answer=None)),
+        ),
+        quiz_service=GroundedQuizService(
+            retrieval_service=retrieval,
+            generation_client=FakeQuizClient(_unused_generated_quiz()),
+        ),
+        import_service=ImportedQuizService(client=imported_client),
+    )
+
+    result = await orchestrator.run(
+        message="Nhập câu hỏi: 2+2? A.3 B.4 C.5 D.6.",
+        scope=_scope(document_id=document_id, owner_id=owner_id),
+    )
+
+    assert result.status is AssistantRunStatus.NEEDS_CLARIFICATION
+    assert result.selected_tool is AssistantTool.NEEDS_CLARIFICATION
+    assert result.clarification_question is not None
