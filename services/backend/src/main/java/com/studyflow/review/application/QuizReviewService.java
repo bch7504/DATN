@@ -279,7 +279,9 @@ public class QuizReviewService {
                 }
             }
 
-            result.add(new CourseOfferingReviewSummaryDTO(offeringId, quizCount, avgScore, latestAttemptAt));
+            if (quizCount > 0) {
+                result.add(new CourseOfferingReviewSummaryDTO(offeringId, quizCount, avgScore, latestAttemptAt));
+            }
         }
 
         return result;

@@ -76,6 +76,11 @@ Study Plan vẫn hoạt động độc lập khi không chọn lớp học phầ
 
 ## Kiểm tra luồng học liệu và giới hạn tải lên
 
+- Mỗi lần Maven chạy đến pha `generate-resources`, build tự xóa riêng bản sao Flyway trong
+  `target/classes/db/migration` rồi chép lại từ `src/main/resources`. Cơ chế này ngăn migration
+  cũ còn sót sau khi merge hoặc đổi tên file làm Flyway báo trùng version; không xóa source hay
+  migration đã ghi trong cơ sở dữ liệu.
+
 - Công bố học liệu kiểm tra toàn bộ lớp được chọn trước khi cập nhật. Gửi lại cùng danh sách không đổi thời điểm công bố; danh sách rỗng gỡ công bố khỏi mọi lớp, còn danh sách `null` bị từ chối.
 - Mỗi lần sinh viên tải học liệu đều kiểm tra lại đăng ký đã được duyệt, công bố còn hiệu lực và lớp không bị khóa. Thu hồi công bố chặn yêu cầu tải mới; không thu hồi được bản PDF người dùng đã tải trước đó.
 - Nếu giao dịch lưu thông tin PDF bị hủy, hệ thống thử xóa tệp vừa tải lên. Không xóa khi kết quả giao dịch chưa xác định; khi dọn tệp thất bại, cần đối soát tệp dư với kho lưu trữ. Lỗi dọn tệp không che mất lỗi cơ sở dữ liệu ban đầu.

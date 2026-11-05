@@ -236,6 +236,15 @@ export default function StudentPlanPage() {
     if (activePlan) router.push(`/plan/${encodeURIComponent(activePlan.id)}/items/new?type=TASK&date=${dateInputValue(weekOffset === 0 ? new Date() : weekStart)}`);
   }
 
+  /** Args: one active Student-owned plan ID. Input: the visible plan selector.
+   * Output: void; updates the selected plan and mirrors it in the URL for refresh/back navigation.
+   * Errors: none; Java ownership is revalidated when the page reloads plan data.
+   */
+  function selectPlan(planId: string): void {
+    setSelectedPlanId(planId);
+    router.replace(`/plan?planId=${encodeURIComponent(planId)}&date=${encodeURIComponent(dateInputValue(weekStart))}`);
+  }
+
   /** Args: owned visible plan item. Input: current server status and lateCompleted flag.
    * Output: void; updates status through Java, then refreshes calendar and bell.
    * Errors: locked late completions are ignored; API errors are shown without changing local state.
@@ -377,7 +386,7 @@ export default function StudentPlanPage() {
             {plans.length > 0 ? <div role="radiogroup" aria-label="Các kế hoạch cá nhân" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {plans.map((plan) => {
                 const selected = plan.id === activePlan?.id;
-                return <button key={plan.id} type="button" role="radio" aria-checked={selected} disabled={saving} onClick={() => setSelectedPlanId(plan.id)} className={`rounded-2xl border p-4 text-left ${selected ? "border-red-700 bg-red-50 ring-1 ring-red-700" : "border-slate-200 bg-white"}`}>
+                return <button key={plan.id} type="button" role="radio" aria-checked={selected} disabled={saving} onClick={() => selectPlan(plan.id)} className={`rounded-2xl border p-4 text-left ${selected ? "border-red-700 bg-red-50 ring-1 ring-red-700" : "border-slate-200 bg-white"}`}>
                   <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${selected ? "bg-red-700 text-white" : "bg-slate-100 text-slate-600"}`}>{selected ? "Đang chọn" : "Chọn kế hoạch"}</span>
                   <span className="mt-2 block text-sm font-bold text-slate-900">{plan.title}</span>
                   <span className="mt-1 block text-xs text-slate-500">Ngày kế hoạch: {new Date(`${plan.startDate}T00:00:00`).toLocaleDateString("vi-VN")}</span>
@@ -387,19 +396,14 @@ export default function StudentPlanPage() {
               <CalendarCheck className="mx-auto h-8 w-8 text-slate-400" />
               <p className="mt-2 text-sm font-bold text-slate-800">Bạn chưa có kế hoạch cá nhân</p>
               <p className="mt-1 text-xs text-slate-500">Tạo kế hoạch đầu tiên để thêm lịch tự học, ôn Quiz và nhiệm vụ.</p>
-              <label className="mx-auto mt-4 block max-w-sm text-left text-sm">Tên kế hoạch<input required maxLength={200} value={newPlanTitle} onChange={(event) => setNewPlanTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 p-2" /></label>
-              <label className="mx-auto mt-3 block max-w-sm text-left text-sm">Ngày kế hoạch<input required type="date" value={newPlanDate} onChange={(event) => setNewPlanDate(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 p-2" /></label>
-              <button type="button" disabled={saving || !newPlanTitle.trim() || !newPlanDate} onClick={() => void createPlan()} className="mt-4 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{saving ? "Đang tạo..." : "Tạo kế hoạch cá nhân"}</button>
+              <Link href="/plan/new" className="mt-4 inline-flex rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white">Tạo kế hoạch cá nhân</Link>
             </div>}
 
-            {activePlan && <div className="grid gap-4 border-t border-slate-100 pt-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-              <form onSubmit={(event) => void renamePlan(event)} className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
-                <label className="text-sm font-semibold text-slate-700">Tên kế hoạch<input required maxLength={200} value={planTitle} onChange={(event) => setPlanTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 p-2 font-normal" /></label>
-                <label className="text-sm font-semibold text-slate-700">Ngày kế hoạch<input required type="date" value={planDate} onChange={(event) => setPlanDate(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 p-2 font-normal" /></label>
-                <div className="flex flex-wrap gap-2 sm:col-span-2"><button disabled={saving || !planTitle.trim() || !planDate} className="rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Lưu kế hoạch</button><button type="button" disabled={saving} onClick={requestArchivePlan} className="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">Lưu trữ kế hoạch</button></div>
-              </form>
-              <details className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm lg:w-80"><summary className="cursor-pointer font-bold text-red-700">+ Tạo kế hoạch khác</summary><label className="mt-3 block font-semibold text-slate-700">Tên kế hoạch<input required maxLength={200} value={newPlanTitle} onChange={(event) => setNewPlanTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-2 font-normal" /></label><label className="mt-3 block font-semibold text-slate-700">Ngày kế hoạch<input required type="date" value={newPlanDate} onChange={(event) => setNewPlanDate(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-2 font-normal" /></label><button type="button" disabled={saving || !newPlanTitle.trim() || !newPlanDate} onClick={() => void createPlan()} className="mt-3 rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Tạo kế hoạch</button></details>
-            </div>}
+            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+              <Link href="/plan/new" className="rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white">Tạo kế hoạch mới</Link>
+              {activePlan && <Link href={`/plan/${encodeURIComponent(activePlan.id)}/edit`} className="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700">Sửa kế hoạch đang chọn</Link>}
+              {activePlan && <button type="button" disabled={saving} onClick={requestArchivePlan} className="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">Lưu trữ kế hoạch</button>}
+            </div>
           </section>
 
           <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

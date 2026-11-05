@@ -127,6 +127,31 @@
         <directory>${studyflow.build.directory}</directory>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>remove-stale-flyway-migrations</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!--
+                                  A renamed migration can otherwise remain under target/classes and
+                                  make Flyway see both the old and current version after a branch merge.
+                                  Only generated Flyway resources are removed; process-resources copies
+                                  the authoritative src/main/resources migrations immediately afterward.
+                                -->
+                                <delete dir="${project.build.outputDirectory}/db/migration" quiet="true"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>

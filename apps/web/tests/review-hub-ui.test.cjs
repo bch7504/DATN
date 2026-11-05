@@ -2,6 +2,20 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const loadClient = require("./helpers/load-api-client.cjs");
+
+test("Review Hub only exposes Course Offerings containing the current Student's READY quiz", async () => {
+  const offering = (id, name) => ({ id, code: id.toUpperCase(), name, subjectId: `subject-${id}`, semesterId: "semester-1", teacherName: "Teacher", status: "ACTIVE", createdAt: "2030-01-01T00:00:00Z" });
+  const client = loadClient(async (url) => {
+    if (url.endsWith("/student/course-offerings?page=0&size=100")) return Response.json([offering("off1", "Có Quiz"), offering("off2", "Không có Quiz")]);
+    if (url.endsWith("/review/course-offerings")) return Response.json([{ courseOfferingId: "off1", quizCount: 1, averageScore: null, latestAttemptAt: null }]);
+    if (url.endsWith("/review/personal-quizzes")) return Response.json([]);
+    throw new Error(`Unexpected URL ${url}`);
+  }, "http://java.test/api/v1");
+
+  const summaries = await client.reviewApi.getCourseSummaries();
+  assert.deepEqual(summaries.map((item) => item.courseOfferingId), ["PERSONAL", "off1"]);
+});
 
 test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
   await t.test("Quiz MCQ_SINGLE contract: exactly one correct option per question", () => {
@@ -214,6 +228,10 @@ test("FE-M5: Quiz, 2-Level Review Hub & Assessment Rules", async (t) => {
     assert.equal(editor.includes("studyPlanApi.updateItem"), true);
     assert.equal(source.includes("studyPlanApi.permanentlyDeleteItem"), true);
     assert.equal(source.includes("isDemoMode()"), false);
+    assert.equal(source.includes('href="/plan/new"'), true);
+    assert.equal(source.includes("/edit`}"), true);
+    assert.equal(source.includes("value={planTitle}"), false);
+    assert.equal(source.includes("value={newPlanTitle}"), false);
   });
 
 });

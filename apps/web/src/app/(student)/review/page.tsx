@@ -64,11 +64,11 @@ export default function StudentReviewLevel1Page(): React.ReactElement {
               <RotateCcw className="w-5 h-5" />
             </span>
             <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
-              Không gian Ôn tập & Quiz theo Môn học
+              Kho Quiz &amp; Ôn tập cá nhân
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Danh sách lớp học phần bạn đã được duyệt; dữ liệu Quiz và lịch sử sẽ xuất hiện khi backend hỗ trợ.
+            Chỉ hiển thị Quiz do chính bạn tạo và đã chấp nhận. Lớp học phần chỉ xuất hiện khi bạn lưu Quiz cá nhân vào lớp đó.
           </p>
         </div>
         {summaries.some((summary) => summary.quizDataAvailable !== false) && (
@@ -103,7 +103,7 @@ export default function StudentReviewLevel1Page(): React.ReactElement {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {!summaries.length && !loadError && <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">Bạn chưa được duyệt tham gia lớp học phần nào.</div>}
+          {!summaries.length && !loadError && <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">Bạn chưa có Quiz cá nhân đã được chấp nhận.</div>}
           {summaries.map((summary) => {
             const isPersonal = summary.isPersonal;
             const hasReviewItems = (summary.reviewItemsCount ?? 0) > 0;

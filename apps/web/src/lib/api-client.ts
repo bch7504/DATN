@@ -1122,7 +1122,7 @@ export const quizApi = {
  */
 export const reviewApi = {
     /** Args: none. Input: authenticated Student session.
-     * Output: approved offerings plus persisted Java Quiz summaries and personal Quiz group.
+     * Output: personal Quiz group plus only Course Offerings containing the current Student's READY Quiz.
      * Errors: ApiClientError for auth, permission or server failures; no local fallback.
      */
     async getCourseSummaries(): Promise<CourseReviewSummary[]> {
@@ -1132,9 +1132,11 @@ export const reviewApi = {
             apiFetch<Array<{ id: string }>>("/review/personal-quizzes")
         ]);
         const summaryMap = new Map(backendSummaries.map((summary) => [summary.courseOfferingId, summary]));
-        const summaries = offerings.map((offering): CourseReviewSummary => {
+        const summaries = offerings.flatMap((offering): CourseReviewSummary[] => {
             const summary = summaryMap.get(offering.id);
-            return {
+            if (!summary || summary.quizCount <= 0)
+                return [];
+            return [{
                 courseOfferingId: offering.id,
                 courseCode: offering.code,
                 courseName: offering.name,
@@ -1146,7 +1148,7 @@ export const reviewApi = {
                 averageScore: summary?.averageScore ?? null,
                 latestAttemptAt: summary?.latestAttemptAt || undefined,
                 quizDataAvailable: true
-            };
+            }];
         });
         summaries.unshift({
             courseOfferingId: "PERSONAL",

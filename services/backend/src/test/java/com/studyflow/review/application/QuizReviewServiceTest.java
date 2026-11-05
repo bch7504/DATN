@@ -177,4 +177,20 @@ class QuizReviewServiceTest {
         assertThat(item.citations().get(0).pageNumber()).isEqualTo(8);
         assertThat(item.citations().get(0).excerpt()).isEqualTo("Trích dẫn trang 8");
     }
+
+    @Test
+    @DisplayName("review summary omits approved offerings without the current Student's READY quiz")
+    void reviewSummaryOmitsEmptyOfferings() {
+        CourseEnrollment enrollment = new CourseEnrollment(UUID.randomUUID(), OFFERING_ID, STUDENT_ID);
+        enrollment.approve(UUID.randomUUID());
+        when(enrollmentRepository.findByStudentIdAndStatus(STUDENT_ID, EnrollmentStatus.APPROVED))
+                .thenReturn(List.of(enrollment));
+        when(enrollmentRepository.findByCourseOfferingIdAndStudentId(OFFERING_ID, STUDENT_ID))
+                .thenReturn(Optional.of(enrollment));
+        when(quizRepository.findByCourseOfferingIdAndCreatedByAndCreatorRoleAndStatusOrderByCreatedAtDesc(
+                OFFERING_ID, STUDENT_ID, QuizCreatorRole.STUDENT, QuizStatus.READY))
+                .thenReturn(List.of());
+
+        assertThat(service.getEnrolledCourseOfferingsReview(STUDENT_ID)).isEmpty();
+    }
 }

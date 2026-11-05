@@ -3,10 +3,6 @@ package com.studyflow.material.api;
 import com.studyflow.document.api.DocumentListResponse;
 import com.studyflow.document.api.TeacherDocumentResponse;
 import com.studyflow.document.application.CourseMaterialLibraryService;
-import com.studyflow.note.api.PageNoteResponse;
-import com.studyflow.note.api.SavePageNoteRequest;
-import com.studyflow.note.application.CourseMaterialPageNoteService;
-import jakarta.validation.Valid;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -21,8 +17,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -33,12 +27,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 @PreAuthorize("hasRole('STUDENT')")
 public class StudentCourseMaterialController {
     private final CourseMaterialLibraryService service;
-    private final CourseMaterialPageNoteService notes;
 
-    public StudentCourseMaterialController(CourseMaterialLibraryService service,
-                                           CourseMaterialPageNoteService notes) {
+    public StudentCourseMaterialController(CourseMaterialLibraryService service) {
         this.service = service;
-        this.notes = notes;
     }
 
     /** Input: authenticated Student JWT. Output: page-zero list from approved classes. Errors: 401/403. */
@@ -105,21 +96,6 @@ public class StudentCourseMaterialController {
             @PathVariable UUID documentId,
             @PathVariable int pageNumber) {
         return service.extractStudentSlideText(userId(jwt), documentId, pageNumber);
-    }
-
-    /** Input: authorized Student and slide page. Output: own note or an empty note. Errors: 401/403/404/409/422. */
-    @GetMapping("/materials/{documentId}/pages/{pageNumber}/note")
-    public PageNoteResponse getNote(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID documentId,
-                                    @PathVariable int pageNumber) {
-        return notes.get(userId(jwt), documentId, pageNumber);
-    }
-
-    /** Input: authorized Student, slide page and content up to 5,000 chars. Output: saved own note. Errors: 401/403/404/409/422. */
-    @PutMapping("/materials/{documentId}/pages/{pageNumber}/note")
-    public PageNoteResponse saveNote(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID documentId,
-                                     @PathVariable int pageNumber,
-                                     @Valid @RequestBody SavePageNoteRequest request) {
-        return notes.save(userId(jwt), documentId, pageNumber, request.content());
     }
 
     private static UUID userId(Jwt jwt) {

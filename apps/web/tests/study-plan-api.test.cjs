@@ -113,9 +113,9 @@ test("Personal study plan and calendar use persisted Java API data", async (t) =
     const taskListIndex = planPage.indexOf("Danh sách nhiệm vụ");
     assert.ok(calendarIndex >= 0 && selectorIndex > calendarIndex && taskListIndex > selectorIndex);
     assert.match(planPage, /plans\.map\(\(plan\) =>/);
-    assert.match(planPage, /onClick=\{\(\) => setSelectedPlanId\(plan\.id\)\}/);
-    assert.match(planPage, />Lưu kế hoạch</);
+    assert.match(planPage, /onClick=\{\(\) => selectPlan\(plan\.id\)\}/);
+    assert.match(planPage, />Sửa kế hoạch đang chọn</);
     assert.match(planPage, />Lưu trữ kế hoạch</);
-    assert.match(planPage, /\+ Tạo kế hoạch khác/);
+    assert.match(planPage, /Tạo kế hoạch mới/);
   });
 });
