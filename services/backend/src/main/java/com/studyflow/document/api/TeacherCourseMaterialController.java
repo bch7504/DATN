@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-/** Public Java API for a Teacher's private Course Material PDF library. */
+/** Public Java API for a Teacher's private Course Material library normalized to PDF. */
 @RestController
 @RequestMapping("/api/v1/teacher/documents")
 @PreAuthorize("hasRole('TEACHER')")
@@ -34,11 +34,18 @@ public class TeacherCourseMaterialController {
 
     public TeacherCourseMaterialController(CourseMaterialLibraryService service) { this.service = service; }
 
-    /** Input: authenticated Teacher JWT and multipart PDF/title. Output: HTTP 201 safe metadata. Errors: 401/403/413/415/422/502/503. */
+    /**
+     * Args: authenticated Teacher JWT, required PDF/PPTX file <=20 MiB, title and material type.
+     * Input: Teacher Course Material; PPTX is converted internally and only normalized PDF is persisted.
+     * Output: HTTP 201 safe PDF metadata. Side effects: private object and metadata creation.
+     * Errors: 401/403 auth, 413 size, 415 media/PPTX, 422 PDF/title/type,
+     * 502 converter/storage, 503 missing converter/storage, or 504 conversion timeout.
+     */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<TeacherDocumentResponse> upload(@AuthenticationPrincipal Jwt jwt,
-            @RequestPart("file") MultipartFile file, @RequestParam("title") String title) {
-        CourseMaterialDocument document = service.upload(userId(jwt), file, title);
+            @RequestPart("file") MultipartFile file, @RequestParam("title") String title,
+            @RequestParam("materialType") String materialType) {
+        CourseMaterialDocument document = service.upload(userId(jwt), file, title, materialType);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.listTeacher(userId(jwt)).stream()
                 .filter(item -> item.id().equals(document.getId())).findFirst().orElseThrow());
     }
@@ -80,7 +87,10 @@ public class TeacherCourseMaterialController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType(file.contentType()));
         headers.setContentLength(file.sizeBytes());
-        headers.setContentDisposition(ContentDisposition.inline().filename(file.fileName(), StandardCharsets.UTF_8).build());
+        ContentDisposition.Builder disposition = file.inlineAllowed()
+                ? ContentDisposition.inline()
+                : ContentDisposition.attachment();
+        headers.setContentDisposition(disposition.filename(file.fileName(), StandardCharsets.UTF_8).build());
         headers.set("X-Content-Type-Options", "nosniff");
         return new ResponseEntity<>(body, headers, HttpStatus.OK);
     }

@@ -23,8 +23,11 @@ test("Teacher PDF library lists owned classes before class-specific materials", 
     assert.doesNotMatch(page, /Tài liệu riêng có thể thêm vào lớp/);
   });
 
-  await t.test("A new class PDF is uploaded privately and publication requires confirmation", () => {
-    assert.match(upload, /teacherDocApi\.uploadDocument\(file, title\.trim\(\)\)/);
+  await t.test("A new class PDF/PPTX is normalized privately and publication requires confirmation", () => {
+    assert.match(upload, /teacherDocApi\.uploadDocument\(file, title\.trim\(\), materialType\)/);
+    assert.match(upload, /value="REFERENCE_PDF"/);
+    assert.match(upload, /application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation/);
+    assert.match(upload, /PPTX được Java chuyển thành PDF/);
     assert.match(upload, /router\.replace\(`\/teacher\/documents\/publications\//);
     assert.match(publication, /teacherDocApi\.publishDocument\(document\.id, selected\)/);
     assert.doesNotMatch(upload, /teacherDocApi\.publishDocument/);

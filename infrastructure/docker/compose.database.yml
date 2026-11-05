@@ -68,6 +68,13 @@ services:
     volumes:
       - studyflow-object-data:/data
 
+  presentation-converter:
+    image: gotenberg/gotenberg:8.39.0
+    container_name: studyflow-presentation-converter
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PRESENTATION_CONVERTER_PORT:-3001}:3000"
+
 volumes:
   studyflow-postgres-data:
     name: studyflow-postgres-data

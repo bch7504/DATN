@@ -69,5 +69,5 @@ def valid_headers() -> dict[str, str]:
     return {
         "Authorization": f"Bearer {TEST_SERVICE_TOKEN}",
         "X-Request-Id": "req_health_001",
-        "X-Schema-Version": "3",
+        "X-Schema-Version": "4",
     }

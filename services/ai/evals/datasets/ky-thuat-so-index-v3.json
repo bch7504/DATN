@@ -1,0 +1,26 @@
+{
+  "datasetId": "ky-thuat-so-index-v3",
+  "pipelineVersion": "pdf-layout-vision-v3",
+  "documents": [
+    {
+      "fileName": "Chương 1 - Hệ đếm.pdf",
+      "documentId": "bcffa3fa-4b65-4e6c-8cf0-c90d07ba7c13",
+      "documentVersion": 1
+    },
+    {
+      "fileName": "Chương 2 - Cổng logic.pdf",
+      "documentId": "ee28d935-78fe-4720-b048-05f3768d89f2",
+      "documentVersion": 1
+    },
+    {
+      "fileName": "Chương 3 - Mạch logic tổ hợp.pdf",
+      "documentId": "e44f56d9-b5a7-4685-bae9-27e61a1f684c",
+      "documentVersion": 1
+    },
+    {
+      "fileName": "Chương 4 - Mạch logic tuần tự.pdf",
+      "documentId": "1ca137c3-7263-411d-a007-c6a5f59f2c57",
+      "documentVersion": 1
+    }
+  ]
+}

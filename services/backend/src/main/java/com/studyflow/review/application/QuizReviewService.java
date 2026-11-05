@@ -130,9 +130,7 @@ public class QuizReviewService {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN_OFFERING", "Bn cha tham gia l>p h?c ph n nAy");
         }
 
-        List<Quiz> quizzes = quizRepository.findByCourseOfferingIdAndStatusInOrderByCreatedAtDesc(
-                courseOfferingId, List.of(QuizStatus.READY, QuizStatus.PUBLISHED)
-        );
+        List<Quiz> quizzes = ownPracticeQuizzes(courseOfferingId, studentId);
         return toSummaries(quizzes, studentId);
     }
 
@@ -142,9 +140,7 @@ public class QuizReviewService {
      */
     @Transactional(readOnly = true)
     public List<WrongAnswerReviewItemDTO> getWrongAnswerReviewItems(UUID courseOfferingId, UUID studentId) {
-        List<Quiz> quizzes = quizRepository.findByCourseOfferingIdAndStatusInOrderByCreatedAtDesc(
-                courseOfferingId, List.of(QuizStatus.READY, QuizStatus.PUBLISHED)
-        );
+        List<Quiz> quizzes = ownPracticeQuizzes(courseOfferingId, studentId);
         if (quizzes.isEmpty()) {
             return List.of();
         }
@@ -260,9 +256,7 @@ public class QuizReviewService {
         List<CourseOfferingReviewSummaryDTO> result = new ArrayList<>();
         for (CourseEnrollment e : enrollments) {
             UUID offeringId = e.getCourseOfferingId();
-            List<Quiz> quizzes = quizRepository.findByCourseOfferingIdAndStatusInOrderByCreatedAtDesc(
-                    offeringId, List.of(QuizStatus.READY, QuizStatus.PUBLISHED)
-            );
+            List<Quiz> quizzes = ownPracticeQuizzes(offeringId, studentId);
             int quizCount = quizzes.size();
             BigDecimal avgScore = null;
             Instant latestAttemptAt = null;
@@ -291,4 +285,16 @@ public class QuizReviewService {
         return result;
     }
 
+    /** Args: offeringId and authenticated studentId, both required UUIDs.
+     * Input: current approved enrollment. Output: own READY Student quizzes only.
+     * Errors: FORBIDDEN_OFFERING when enrollment is not approved; persistence errors propagate. */
+    private List<Quiz> ownPracticeQuizzes(UUID offeringId, UUID studentId) {
+        boolean approved = enrollmentRepository.findByCourseOfferingIdAndStudentId(offeringId, studentId)
+                .map(enrollment -> enrollment.getStatus() == EnrollmentStatus.APPROVED).orElse(false);
+        if (!approved) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN_OFFERING", "Enrollment must be approved.");
+        }
+        return quizRepository.findByCourseOfferingIdAndCreatedByAndCreatorRoleAndStatusOrderByCreatedAtDesc(
+                offeringId, studentId, QuizCreatorRole.STUDENT, QuizStatus.READY);
+    }
 }

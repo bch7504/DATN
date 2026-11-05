@@ -37,7 +37,7 @@ Chứng minh end-to-end: `Course Offering → Enrollment → Course Material PDF
 
 - Join code sai/lớp khóa không tạo enrollment; `PENDING/REJECTED` không đọc Course Material.
 - Teacher không public/tạo Quiz từ PDF hoặc Course Offering của Teacher khác.
-- Upload PPTX/DOCX, PDF mã hóa hoặc PDF không có text layer bị từ chối/lỗi an toàn.
+- Upload Teacher PPTX hợp lệ được Java chuyển thành PDF; DOCX, PPTX lỗi, PDF mã hóa hoặc PDF/PDF đầu ra không có text layer bị từ chối an toàn và không tạo học liệu.
 - Teacher không có chatbot cá nhân và không có Course Material AI Tutor.
 - Citation ngoài authorized document/version/page bị Java từ chối.
 - Single Agent không được gọi tool ngoài ba tool đăng ký; confidence thấp/thiếu tham số phải hỏi lại.
@@ -56,4 +56,4 @@ Chứng minh end-to-end: `Course Offering → Enrollment → Course Material PDF
 - [ ] Review item chỉ từ answer sai; attempt mới không ghi đè lịch sử.
 - [ ] Streak chỉ tính Page/Task/Quiz hợp lệ; Daily Goal chưa đủ vẫn có thể duy trì Streak.
 - [ ] Kế hoạch & Lịch đúng FE mock; không có AI recommendation tự động.
-- [ ] Không có PPTX/DOCX/OCR, multi-agent, Topic Mastery, Exam, XP/badge/leaderboard trong MVP.
+- [ ] Python không nhận PPTX; Java chỉ chuyển Teacher PPTX thành PDF. Không có DOCX/OCR, multi-agent, Topic Mastery, Exam, XP/badge/leaderboard trong MVP.

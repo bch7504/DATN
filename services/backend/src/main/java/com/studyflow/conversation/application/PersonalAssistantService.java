@@ -102,8 +102,8 @@ public class PersonalAssistantService {
             String requestId
     ) {
         String normalized = message == null ? "" : message.trim();
-        if (normalized.isEmpty() || normalized.length() > 2000) {
-            throw new ValidationException("INVALID_MESSAGE", "Nội dung phải có từ 1 đến 2000 ký tự.");
+        if (normalized.isEmpty() || normalized.length() > 4000) {
+            throw new ValidationException("INVALID_MESSAGE", "Nội dung phải có từ 1 đến 4000 ký tự.");
         }
         PersonalConversationData conversation = requireOwned(studentId, conversationId);
         List<CourseMaterialDocument> scope = currentScope(studentId, conversation.documents());
@@ -152,8 +152,11 @@ public class PersonalAssistantService {
                             new PersonalConversationData.Citation(citation.documentId(), citation.documentVersion(),
                                     citation.pageNumber(), citation.excerpt())));
             citations.addAll(unique.values());
-            content = "Đã tạo bản nháp Quiz gồm " + quiz.questions().size()
-                    + " câu. Hãy kiểm tra trước khi chấp nhận.";
+            content = result.selectedTool() == AiContracts.AssistantTool.IMPORT_QUIZ_FROM_TEXT
+                    ? "Đã nhập bản nháp Quiz gồm " + quiz.questions().size()
+                            + " câu từ văn bản bạn cung cấp. Nội dung chưa được kiểm chứng; hãy kiểm tra trước khi chấp nhận."
+                    : "Đã tạo bản nháp Quiz gồm " + quiz.questions().size()
+                            + " câu. Hãy kiểm tra trước khi chấp nhận.";
         } else if (result.status() == AiContracts.AssistantRunStatus.NEEDS_CLARIFICATION) {
             content = result.clarificationQuestion();
         } else if (result.status() == AiContracts.AssistantRunStatus.NO_EVIDENCE) {
@@ -243,7 +246,13 @@ public class PersonalAssistantService {
                 }
             }
             case QUIZ_CREATED -> {
-                if (result.selectedTool() != AiContracts.AssistantTool.GENERATE_QUIZ || result.quiz() == null) {
+                boolean grounded = result.selectedTool() == AiContracts.AssistantTool.GENERATE_QUIZ
+                        && result.quiz() != null
+                        && result.quiz().sourceType() == AiContracts.QuizDraftSource.PDF_GROUNDED;
+                boolean imported = result.selectedTool() == AiContracts.AssistantTool.IMPORT_QUIZ_FROM_TEXT
+                        && result.quiz() != null
+                        && result.quiz().sourceType() == AiContracts.QuizDraftSource.IMPORTED_TEXT;
+                if (!grounded && !imported) {
                     throw invalidAssistantResponse();
                 }
             }
@@ -329,6 +338,7 @@ public class PersonalAssistantService {
 
     private static String capability(AiContracts.AssistantTool tool) {
         if (tool == AiContracts.AssistantTool.GENERATE_QUIZ) return "CREATE_QUIZ";
+        if (tool == AiContracts.AssistantTool.IMPORT_QUIZ_FROM_TEXT) return "IMPORT_QUIZ_FROM_TEXT";
         return tool.name();
     }
 }

@@ -6,6 +6,8 @@ from collections.abc import Sequence
 
 import httpx
 from openai import APIConnectionError, APIStatusError
+from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.clients.http_document_download import HttpDocumentDownloadClient
@@ -84,29 +86,41 @@ async def run_worker(*, once: bool, poll_seconds: float | None = None) -> None:
                             worker = DocumentIndexWorker(
                                 download_client=downloader,
                                 embedding_client=provider,
+                                vision_client=provider,
+                                enable_vision=settings.ai_enable_image_extraction,
                                 index_repository=FencedIndexRepository(session, claim),
                                 embedding_model=settings.openrouter_embedding_model,
                                 embedding_dimensions=settings.embedding_dimensions,
+                                max_vision_pages=settings.ai_vision_max_pages_per_document,
+                                vision_timeout_seconds=settings.ai_vision_timeout_seconds,
+                                max_vision_context_characters=(
+                                    settings.ai_vision_max_context_characters
+                                ),
+                                max_vision_caption_characters=(
+                                    settings.ai_vision_max_caption_characters
+                                ),
+                                max_vision_render_pixels=settings.ai_vision_max_render_pixels,
                             )
                             artifact = await worker.execute(claim.command)
                             repository.finish(claim, artifact=artifact)
                     except Exception as error:
                         session.rollback()
-                        code = (
-                            error.code if isinstance(error, PdfProcessingError) else "INDEX_FAILED"
-                        )
+                        code = safe_index_error_code(error)
                         try:
                             if retryable_index_error(error):
                                 repository.retry(
                                     claim,
                                     max_attempts=settings.job_max_attempts,
                                     base_seconds=settings.job_retry_base_seconds,
+                                    terminal_error_code=code,
                                 )
                             else:
                                 repository.finish(claim, error_code=code)
                         except RuntimeError:
                             # An expired/revoked claim must not overwrite another worker's result.
                             session.rollback()
+                    finally:
+                        session.commit()
             if once:
                 return
             if claim is None:
@@ -131,6 +145,32 @@ def retryable_index_error(error: Exception) -> bool:
     if isinstance(error, APIStatusError):
         return error.status_code == 429 or error.status_code >= 500
     return False
+
+
+def safe_index_error_code(error: Exception) -> str:
+    """Map an indexing exception to a stable code without leaking sensitive details.
+
+    Args:
+        error: Exception raised by PDF parsing, storage download, embedding, or persistence.
+
+    Returns:
+        A machine-readable code safe to expose through the internal job API.
+
+    Raises:
+        None.
+    """
+
+    if isinstance(error, PdfProcessingError):
+        return error.code
+    if isinstance(error, (APIConnectionError, APIStatusError)):
+        return "EMBEDDING_PROVIDER_FAILED"
+    if isinstance(error, (httpx.TransportError, httpx.HTTPStatusError)):
+        return "DOCUMENT_DOWNLOAD_FAILED"
+    if isinstance(error, SQLAlchemyError):
+        return "INDEX_PERSISTENCE_FAILED"
+    if isinstance(error, (ValueError, RuntimeError, ValidationError)):
+        return "INDEX_VALIDATION_FAILED"
+    return "INDEX_FAILED"
 
 
 def main(argv: Sequence[str] | None = None) -> int:

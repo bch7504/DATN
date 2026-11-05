@@ -12,15 +12,19 @@ import com.studyflow.courseoffering.domain.CourseOffering;
 import com.studyflow.courseoffering.domain.CourseOfferingRepository;
 import com.studyflow.document.domain.CourseMaterialDocument;
 import com.studyflow.document.domain.CourseMaterialDocumentRepository;
+import com.studyflow.document.domain.CourseMaterialType;
 import com.studyflow.enrollment.domain.CourseEnrollment;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
+import com.studyflow.integration.document.PresentationToPdfConverter;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
 import com.studyflow.notification.application.port.NotificationStore;
 import com.studyflow.notification.domain.NotificationType;
 import com.studyflow.publication.domain.DocumentPublication;
 import com.studyflow.publication.domain.DocumentPublicationRepository;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -29,6 +33,11 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.beans.factory.ObjectProvider;
 
 /**
@@ -55,12 +64,13 @@ class CourseMaterialAccessTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         ObjectProvider<AssignmentAttachmentStorage> provider = mock(ObjectProvider.class);
+        ObjectProvider<PresentationToPdfConverter> converterProvider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(storage);
         service = new CourseMaterialLibraryService(documents, publications, offerings, enrollments,
-                provider, notifications,
+                provider, converterProvider, notifications,
                 Clock.fixed(now, ZoneOffset.UTC));
         document = new CourseMaterialDocument(UUID.randomUUID(), teacher, "lesson.pdf", "Lesson",
-                "synthetic-key", 8, 1, now);
+                "synthetic-key", 8, 1, CourseMaterialType.REFERENCE_PDF, now);
         document.markReady(1, now);
         offering = new CourseOffering(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), teacher,
                 "TEST-01", "Synthetic course", "synthetic-hash", "0001");
@@ -167,6 +177,34 @@ class CourseMaterialAccessTest {
         verify(storage, times(1)).get(any());
     }
 
+    /** No args. Input: approved Student and one published slide PDF. Output: PNG slide while source download is rejected. */
+    @Test
+    void approvedStudentViewsRenderedSlideButCannotDownloadSourcePdf() throws Exception {
+        byte[] pdfBytes = onePagePdf();
+        document = new CourseMaterialDocument(UUID.randomUUID(), teacher, "slides.pdf", "Slides",
+                "slide-key", pdfBytes.length, 1, CourseMaterialType.SLIDE_PDF, now);
+        document.markReady(1, now);
+        publication = new DocumentPublication(UUID.randomUUID(), document.getId(), offering.getId(), teacher,
+                now.minusSeconds(3600));
+        when(documents.findByIdAndDeletedAtIsNull(document.getId())).thenReturn(Optional.of(document));
+        when(publications.findByDocumentIdAndStatus(document.getId(), "PUBLISHED")).thenReturn(List.of(publication));
+        when(storage.get("slide-key")).thenAnswer(invocation -> new ByteArrayInputStream(pdfBytes));
+        approveStudent();
+
+        var image = service.renderStudentSlide(student, document.getId(), 1);
+        var textLayer = service.extractStudentSlideText(student, document.getId(), 1);
+
+        assertThat(image.pageNumber()).isEqualTo(1);
+        assertThat(image.totalSlides()).isEqualTo(1);
+        assertThat(image.content()).startsWith((byte) 0x89, (byte) 0x50, (byte) 0x4E, (byte) 0x47);
+        assertThat(textLayer.pageNumber()).isEqualTo(1);
+        assertThat(textLayer.items()).extracting(CourseMaterialLibraryService.SlideTextItem::text)
+                .anyMatch(text -> text.contains("Digital logic"));
+        assertThatThrownBy(() -> service.downloadForStudent(student, document.getId()))
+                .isInstanceOf(ApiException.class)
+                .extracting("code").isEqualTo("SLIDE_DOWNLOAD_NOT_ALLOWED");
+    }
+
     @Test
     void approvedStudentCannotAccessLockedClass() {
         approveStudent();
@@ -210,5 +248,22 @@ class CourseMaterialAccessTest {
         CourseEnrollment enrollment = new CourseEnrollment(UUID.randomUUID(), offering.getId(), student);
         enrollment.approve(teacher);
         when(enrollments.findByStudentIdAndStatus(student, EnrollmentStatus.APPROVED)).thenReturn(List.of(enrollment));
+    }
+
+    /** No args. Output: one-page synthetic PDF bytes. Errors: IOException if PDFBox cannot serialize the fixture. */
+    private static byte[] onePagePdf() throws IOException {
+        try (PDDocument pdf = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            PDPage page = new PDPage();
+            pdf.addPage(page);
+            try (PDPageContentStream content = new PDPageContentStream(pdf, page)) {
+                content.beginText();
+                content.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 18);
+                content.newLineAtOffset(72, 700);
+                content.showText("Digital logic");
+                content.endText();
+            }
+            pdf.save(output);
+            return output.toByteArray();
+        }
     }
 }

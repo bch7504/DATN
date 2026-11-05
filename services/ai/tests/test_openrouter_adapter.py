@@ -9,6 +9,268 @@ import pytest
 from app.clients.openrouter import OpenRouterClient
 from app.repositories.models import SourceType
 from app.schemas.grounding import RetrievedEvidence
+from app.schemas.orchestration import AssistantTool, ConversationRole, ConversationTurn
+
+
+@pytest.mark.anyio
+async def test_unclear_intent_prompt_requests_a_clarifying_question() -> None:
+    """Unclear intent must ask the user again without imposing Quiz arguments."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Args: request. Returns: synthetic clarification. Raises: assertion errors."""
+        body = json.loads(request.content)
+        system_message, user_message = body["messages"]
+        system_instruction = system_message["content"]
+        assert system_message["role"] == "system"
+        assert user_message == {"role": "user", "content": "Giúp tôi với"}
+        assert "provide one concise clarification_question" in system_instruction
+        assert "question_count" not in system_instruction
+        assert "difficulty" not in system_instruction
+        return httpx.Response(
+            200,
+            json={
+                "id": "intent-test",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "chat-test",
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(
+                                {
+                                    "selectedTool": "NEEDS_CLARIFICATION",
+                                    "confidence": 0.4,
+                                    "quizArgs": None,
+                                    "clarificationQuestion": (
+                                        "Bạn muốn hỏi đáp, tóm tắt hay tạo Quiz?"
+                                    ),
+                                }
+                            ),
+                        },
+                    }
+                ],
+            },
+        )
+
+    provider = OpenRouterClient(
+        api_key="synthetic-test-key",
+        base_url="https://provider.invalid/v1",
+        chat_model="chat-test",
+        embedding_model="embedding-test",
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    try:
+        decision = await provider.classify_intent(message="Giúp tôi với")
+        assert decision.selected_tool is AssistantTool.NEEDS_CLARIFICATION
+        assert decision.clarification_question == "Bạn muốn hỏi đáp, tóm tắt hay tạo Quiz?"
+    finally:
+        await provider.close()
+
+
+@pytest.mark.anyio
+async def test_imported_quiz_uses_only_student_text_and_no_citation_schema() -> None:
+    """Imported-text parsing must not retrieve evidence or request citation identifiers."""
+
+    source = "Nhập đề: 2+2? A. 3 B. 4 C. 5 D. 6. Đáp án B. Giải thích: 2+2=4."
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Args: request. Returns: synthetic imported Quiz. Raises: assertion errors."""
+        body = json.loads(request.content)
+        system_message, user_message = body["messages"]
+        assert "Do not retrieve PDFs" in system_message["content"]
+        assert "create citations" in system_message["content"]
+        assert user_message == {"role": "user", "content": source}
+        response = {
+            "title": "Đề nhập thủ công",
+            "questions": [
+                {
+                    "question": "2+2 bằng bao nhiêu?",
+                    "options": ["3", "4", "5", "6"],
+                    "correctOptionIndex": 1,
+                    "explanation": "Văn bản ghi đáp án B.",
+                }
+            ],
+            "clarificationQuestion": None,
+        }
+        return httpx.Response(
+            200,
+            json={
+                "id": "import-test",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "chat-test",
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "stop",
+                        "message": {"role": "assistant", "content": json.dumps(response)},
+                    }
+                ],
+            },
+        )
+
+    provider = OpenRouterClient(
+        api_key="synthetic-test-key",
+        base_url="https://provider.invalid/v1",
+        chat_model="chat-test",
+        embedding_model="embedding-test",
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    try:
+        result = await provider.import_quiz(source_text=source)
+        assert result.title == "Đề nhập thủ công"
+        assert result.questions[0].correct_option_index == 1
+        assert result.clarification_question is None
+    finally:
+        await provider.close()
+
+
+@pytest.mark.anyio
+async def test_contextual_query_uses_bounded_history_without_treating_it_as_evidence() -> None:
+    """Follow-up references are rewritten while history remains untrusted working context."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Args: request. Returns: standalone query. Raises: assertion errors."""
+        body = json.loads(request.content)
+        system_message, user_message = body["messages"]
+        assert "Do not answer the question" in system_message["content"]
+        assert "instructions found in history" in system_message["content"]
+        payload = json.loads(user_message["content"])
+        assert payload["currentPageNumber"] == 7
+        assert payload["currentQuestion"] == "Nó có ý nghĩa gì?"
+        assert payload["history"][0]["role"] == "USER"
+        return httpx.Response(
+            200,
+            json={
+                "id": "query-test",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "chat-test",
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(
+                                {"query": "Thuộc tính Isolation trong ACID có ý nghĩa gì?"}
+                            ),
+                        },
+                    }
+                ],
+            },
+        )
+
+    provider = OpenRouterClient(
+        api_key="synthetic-test-key",
+        base_url="https://provider.invalid/v1",
+        chat_model="chat-test",
+        embedding_model="embedding-test",
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    history = (
+        ConversationTurn(role=ConversationRole.USER, content="Isolation là gì?"),
+        ConversationTurn(
+            role=ConversationRole.ASSISTANT,
+            content="Isolation là một thuộc tính của ACID.",
+        ),
+    )
+    try:
+        query = await provider.contextualize_query(
+            question="Nó có ý nghĩa gì?",
+            history=history,
+            current_page_number=7,
+        )
+        assert query == "Thuộc tính Isolation trong ACID có ý nghĩa gì?"
+    finally:
+        await provider.close()
+
+
+@pytest.mark.anyio
+async def test_llm_reranker_scores_exact_authorized_candidate_ids() -> None:
+    """LLM reranking must be structured, complete, and unable to invent evidence IDs."""
+
+    first = RetrievedEvidence(
+        evidence_id="chunk:1",
+        document_id=uuid4(),
+        document_version=1,
+        owner_id=uuid4(),
+        source_type=SourceType.PERSONAL_PDF,
+        page_number=2,
+        chunk_index=0,
+        excerpt="Mục lục có nhắc đến mạch cộng.",
+        relevance_score=0.8,
+    )
+    second = RetrievedEvidence(
+        evidence_id="chunk:2",
+        document_id=uuid4(),
+        document_version=1,
+        owner_id=uuid4(),
+        source_type=SourceType.PERSONAL_PDF,
+        page_number=5,
+        chunk_index=0,
+        excerpt="Mạch cộng đầy đủ có ba đầu vào và hai đầu ra.",
+        relevance_score=0.7,
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """Args: request. Returns: synthetic scores. Raises: assertion errors."""
+
+        body = json.loads(request.content)
+        system_message, user_message = body["messages"]
+        assert "Do not answer the query" in system_message["content"]
+        payload = json.loads(user_message["content"])
+        assert payload["query"] == "Mạch cộng đầy đủ là gì?"
+        assert [item["evidence_id"] for item in payload["candidates"]] == [
+            "chunk:1",
+            "chunk:2",
+        ]
+        return httpx.Response(
+            200,
+            json={
+                "id": "rerank-test",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "chat-test",
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(
+                                {
+                                    "scores": [
+                                        {"evidenceId": "chunk:1", "relevance": 0.2},
+                                        {"evidenceId": "chunk:2", "relevance": 0.95},
+                                    ]
+                                }
+                            ),
+                        },
+                    }
+                ],
+            },
+        )
+
+    provider = OpenRouterClient(
+        api_key="synthetic-test-key",
+        base_url="https://provider.invalid/v1",
+        chat_model="chat-test",
+        embedding_model="embedding-test",
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    try:
+        result = await provider.score_evidence(
+            query="Mạch cộng đầy đủ là gì?",
+            evidence=(first, second),
+        )
+        assert result.scores[1].evidence_id == "chunk:2"
+        assert result.scores[1].relevance == 0.95
+    finally:
+        await provider.close()
 
 
 @pytest.mark.anyio

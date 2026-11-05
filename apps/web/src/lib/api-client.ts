@@ -2,7 +2,7 @@ import { getApiUrl } from "./env";
 import { User, LoginRequest, RegisterRequest, RegistrationStatusResponse, VerifyRegistrationRequest, ResendVerificationRequest, } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
 import { Subject, Semester, CourseOffering, CourseEnrollment, CreateOfferingRequest, } from "@/types/course-offering";
-import { TeacherDocument, PersonalDocument, CourseMaterialTutorResponse, } from "@/types/material";
+import { TeacherDocument, PersonalDocument, CourseMaterialTutorHistory, CourseMaterialTutorResponse, CourseMaterialType, PageNote, SlideTextLayer, } from "@/types/material";
 import { ChatConversation, ChatMessage, CreateConversationRequest, SendMessageRequest, } from "@/types/chat";
 import { Quiz, QuizDraft, QuizAttempt, CreateQuizDraftRequest, AcceptQuizRequest, SubmitQuizAttemptRequest, StartQuizAttemptResponse, SubmitAttemptResponse, } from "@/types/quiz";
 import { ReviewItem, CourseReviewSummary, CourseReviewWorkspace, DailyGoalProgress, DailyGoalConfig, StudyStreak, } from "@/types/review";
@@ -355,11 +355,15 @@ export type AssignmentSubmission = {
     answerText: string | null;
     submittedAt: string;
     status: "ON_TIME" | "LATE";
+    score: number | null;
+    quizAttemptId: string | null;
     attachments: AssignmentAttachment[];
 };
 export type CourseAssignment = {
     id: string;
     courseOfferingId: string;
+    type: "ESSAY" | "QUIZ";
+    quizId: string | null;
     title: string;
     description: string;
     dueAt: string;
@@ -376,11 +380,15 @@ export type AssignmentStudentResult = {
     submittedAt: string | null;
     status: "ON_TIME" | "LATE" | null;
     answerText: string | null;
+    score: number | null;
+    quizAttemptId: string | null;
     attachments: AssignmentAttachment[];
 };
 export type AssignmentStats = {
     assignmentId: string;
     title: string;
+    type: "ESSAY" | "QUIZ";
+    quizId: string | null;
     dueAt: string;
     approvedStudentCount: number;
     submittedCount: number;
@@ -388,6 +396,14 @@ export type AssignmentStats = {
     lateCount: number;
     notSubmittedCount: number;
     students: AssignmentStudentResult[];
+    questionAnalytics: Array<{
+        questionId: string;
+        questionOrder: number;
+        questionText: string;
+        submissionCount: number;
+        wrongCount: number;
+        wrongRatePercent: number;
+    }>;
 };
 /** Assignment API client: all file transfers are proxied by the permission-checking Java API. */
 export const assignmentApi = {
@@ -398,6 +414,8 @@ export const assignmentApi = {
         title: string;
         description: string;
         dueAt: string;
+        type?: "ESSAY" | "QUIZ";
+        quizId?: string | null;
     }): Promise<CourseAssignment> => apiFetch(`/teacher/course-offerings/${encodeURIComponent(offeringId)}/assignments`, { method: "POST", body: JSON.stringify(input) }),
     /** Args: owned draft ID, complete title/description/future dueAt. Output: saved draft. Errors: API validation/ownership/state failures. */
     update: (assignmentId: string, input: {
@@ -411,6 +429,12 @@ export const assignmentApi = {
     stats: (assignmentId: string): Promise<AssignmentStats> => apiFetch(`/teacher/assignments/${encodeURIComponent(assignmentId)}/submissions`),
     /** Lists published assignments in approved classes. @returns assignments and own submission @throws ApiClientError */
     listForStudent: (): Promise<CourseAssignment[]> => apiFetch("/student/assignments"),
+    /** Starts a published class Quiz assignment and returns questions without answer keys. */
+    startQuiz: (assignmentId: string): Promise<StartQuizAttemptResponse> => apiFetch(`/student/assignments/${encodeURIComponent(assignmentId)}/quiz-attempts`, { method: "POST" }),
+    /** Submits selected options for an existing assignment attempt; Java calculates the score. */
+    submitQuiz: (assignmentId: string, attemptId: string, answers: Record<string, number>): Promise<SubmitAttemptResponse> => apiFetch(`/student/assignments/${encodeURIComponent(assignmentId)}/quiz-submissions`, {
+        method: "POST", body: JSON.stringify({ attemptId, answers })
+    }),
     /** Uploads a text response and 1-5 attachments. @param assignmentId assignment ID @param answerText optional response @param files selected files @returns saved submission @throws ApiClientError */
     submit: (assignmentId: string, answerText: string, files: File[]): Promise<AssignmentSubmission> => {
         if (files.length === 0) {
@@ -427,7 +451,9 @@ export const assignmentApi = {
     /** Downloads a student-owned attachment through Java. @param assignmentId assignment ID @param attachmentId attachment ID @returns Blob @throws ApiClientError */
     downloadForStudent: (assignmentId: string, attachmentId: string): Promise<Blob> => apiDownload(`/student/assignments/${encodeURIComponent(assignmentId)}/submissions/attachments/${encodeURIComponent(attachmentId)}/download`),
     /** Downloads a student attachment as owning teacher. @param assignmentId assignment ID @param studentId student ID @param attachmentId attachment ID @returns Blob @throws ApiClientError */
-    downloadForTeacher: (assignmentId: string, studentId: string, attachmentId: string): Promise<Blob> => apiDownload(`/teacher/assignments/${encodeURIComponent(assignmentId)}/submissions/${encodeURIComponent(studentId)}/attachments/${encodeURIComponent(attachmentId)}/download`)
+    downloadForTeacher: (assignmentId: string, studentId: string, attachmentId: string): Promise<Blob> => apiDownload(`/teacher/assignments/${encodeURIComponent(assignmentId)}/submissions/${encodeURIComponent(studentId)}/attachments/${encodeURIComponent(attachmentId)}/download`),
+    /** Reads Java-scored question detail for one Student in a Teacher-owned Quiz assignment. */
+    quizAttemptDetail: (assignmentId: string, studentId: string): Promise<SubmitAttemptResponse> => apiFetch(`/teacher/assignments/${encodeURIComponent(assignmentId)}/submissions/${encodeURIComponent(studentId)}/quiz-attempt`)
 };
 /**
  * Args: untrusted JSON from register/resend endpoint. Input: Java OTP timing response.
@@ -582,10 +608,54 @@ export const materialApi = {
             : "/student/materials";
         return fetchAllPages<TeacherDocument>(endpoint);
     },
-    /** Returns the Java route that checks class enrollment before streaming the PDF. */
-    getDownloadUrl(documentId: string, asAttachment = false): string {
-        const query = asAttachment ? "?download=true" : "";
-        return `${getApiUrl()}/student/materials/${encodeURIComponent(documentId)}/download${query}`;
+    /**
+     * Downloads one REFERENCE_PDF after Java validates the current Student and enrollment.
+     * @param documentId required Course Material identifier classified as REFERENCE_PDF
+     * @returns the authorized PDF as a browser Blob
+     * @throws ApiClientError for invalid session, scope, type or storage failure
+     */
+    downloadReference(documentId: string): Promise<Blob> {
+        return apiDownload(`/student/materials/${encodeURIComponent(documentId)}/download`);
+    },
+    /**
+     * Loads one 1-based SLIDE_PDF page as PNG through the authenticated Java API.
+     * @param documentId required Course Material identifier classified as SLIDE_PDF
+     * @param pageNumber required positive 1-based page number
+     * @returns PNG bytes for the selected slide
+     * @throws ApiClientError for invalid page, session, scope, type or rendering failure
+     */
+    getSlideImage(documentId: string, pageNumber: number): Promise<Blob> {
+        if (!Number.isInteger(pageNumber) || pageNumber < 1) {
+            throw new ApiClientError(422, {
+                code: "INVALID_PAGE_NUMBER",
+                message: "Số slide phải là số nguyên lớn hơn hoặc bằng 1."
+            });
+        }
+        return apiDownload(`/student/materials/${encodeURIComponent(documentId)}/slides/${pageNumber}`);
+    },
+    /**
+     * Loads positioned text for selection over one rendered slide image.
+     * @param documentId required authorized SLIDE_PDF identifier
+     * @param pageNumber required positive 1-based slide number
+     * @returns page dimensions and bounded text runs; never source PDF bytes
+     * @throws ApiClientError for invalid page, session, scope or extraction failure
+     */
+    getSlideTextLayer(documentId: string, pageNumber: number): Promise<SlideTextLayer> {
+        return apiFetch<SlideTextLayer>(`/student/materials/${encodeURIComponent(documentId)}/slides/${pageNumber}/text-layer`);
+    },
+    /** Args: authorized slide and page. Output: own persisted note or empty content. Errors: Java access/API errors. */
+    getPageNote(documentId: string, pageNumber: number): Promise<PageNote> {
+        return apiFetch<PageNote>(`/student/materials/${encodeURIComponent(documentId)}/pages/${pageNumber}/note`);
+    },
+    /** Args: authorized slide/page and content <=5,000 chars. Output: saved own note. Errors: Java validation/access errors. */
+    savePageNote(documentId: string, pageNumber: number, content: string): Promise<PageNote> {
+        if (content.length > 5000) {
+            throw new ApiClientError(422, { code: "NOTE_TOO_LONG", message: "Ghi chú không được vượt quá 5.000 ký tự." });
+        }
+        return apiFetch<PageNote>(`/student/materials/${encodeURIComponent(documentId)}/pages/${pageNumber}/note`, {
+            method: "PUT",
+            body: JSON.stringify({ content })
+        });
     },
     /**
      * Sends one page-aware question to Java. Java validates enrollment/publication
@@ -612,6 +682,16 @@ export const materialApi = {
             });
         }
         return apiFetch<CourseMaterialTutorResponse>(`/student/materials/${encodeURIComponent(documentId)}/pages/${pageNumber}/tutor`, { method: "POST", body: JSON.stringify({ question: normalizedQuestion }) });
+    },
+    /** Args: authorized Course Material ID. Output: Java-owned long-term Tutor history. Errors: access/API failures. */
+    getTutorHistory(documentId: string): Promise<CourseMaterialTutorHistory> {
+        if (!documentId.trim()) {
+            throw new ApiClientError(422, {
+                code: "INVALID_DOCUMENT_ID",
+                message: "Mã tài liệu không hợp lệ."
+            });
+        }
+        return apiFetch<CourseMaterialTutorHistory>(`/student/materials/${encodeURIComponent(documentId)}/tutor/history`);
     }
 };
 /**
@@ -732,20 +812,30 @@ export const teacherApi = {
     getDocumentDownloadUrl(documentId: string): string {
         return `${getApiUrl()}/teacher/documents/${encodeURIComponent(documentId)}/download`;
     },
-    async uploadDocument(file: File, title: string): Promise<TeacherDocument> {
-        const isPdf = file.name.toLowerCase().endsWith(".pdf");
-        if (!isPdf) {
+    /**
+     * Uploads one Teacher Course Material source through Java.
+     * @param file required PDF or PPTX, non-empty and at most 20 MiB
+     * @param title required display title validated again by Java
+     * @param materialType required SLIDE_PDF or REFERENCE_PDF
+     * @returns normalized PDF metadata; a PPTX source is converted server-side and never stored as PPTX
+     * @throws ApiClientError for invalid input, conversion, storage, authentication or authorization errors
+     */
+    async uploadDocument(file: File, title: string, materialType: CourseMaterialType): Promise<TeacherDocument> {
+        const lowerName = file.name.toLowerCase();
+        const supported = lowerName.endsWith(".pdf") || lowerName.endsWith(".pptx");
+        if (!supported) {
             throw new ApiClientError(415, {
                 code: "UNSUPPORTED_MEDIA_TYPE",
-                message: "Giáº£ng viÃªn chá»‰ táº£i lÃªn Course Material dáº¡ng PDF cÃ³ lá»›p vÄƒn báº£n."
+                message: "Giảng viên chỉ tải lên học liệu dạng PDF hoặc PPTX."
             });
         }
         if (file.size === 0 || file.size > 20 * 1024 * 1024) {
-            throw new ApiClientError(422, { code: "INVALID_FILE_SIZE", message: "Chọn tệp PDF không rỗng, tối đa 20 MB." });
+            throw new ApiClientError(422, { code: "INVALID_FILE_SIZE", message: "Chọn tệp PDF/PPTX không rỗng, tối đa 20 MB." });
         }
         const formData = new FormData();
         formData.append("file", file);
         formData.append("title", title);
+        formData.append("materialType", materialType);
         return apiFetch<TeacherDocument>("/teacher/documents", {
             method: "POST",
             body: formData
@@ -938,10 +1028,10 @@ export const chatApi = {
                 message: "Ná»™i dung cÃ¢u há»i khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng."
             });
         }
-        if (text.length > 2000) {
+        if (text.length > 4000) {
             throw new ApiClientError(422, {
                 code: "MESSAGE_TOO_LONG",
-                message: "Ná»™i dung cÃ¢u há»i vÆ°á»£t quÃ¡ giá»›i háº¡n cho phÃ©p (tá»‘i Ä‘a 2000 kÃ½ tá»±)."
+                message: "Nội dung vượt quá giới hạn cho phép (tối đa 4000 ký tự)."
             });
         }
         return await apiFetch<ChatMessage>(`/student/chat/conversations/${conversationId}/messages`, {

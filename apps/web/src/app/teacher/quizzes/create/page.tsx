@@ -117,7 +117,7 @@ export default function TeacherQuizStudioPage(): React.JSX.Element {
         pageFrom: form.pageFrom,
         pageTo: form.pageTo,
       });
-      router.push(`/teacher/quizzes/${encodeURIComponent(created.id)}`);
+      router.push(`/teacher/quizzes/${encodeURIComponent(created.id)}?offeringId=${encodeURIComponent(form.courseOfferingId)}`);
     } catch (generateError: unknown) {
       setError(generateError instanceof Error ? generateError.message : "Không thể tạo bản nháp Quiz.");
     } finally {

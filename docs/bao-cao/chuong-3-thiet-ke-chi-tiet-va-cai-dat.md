@@ -10,13 +10,15 @@ Các sơ đồ trong chương thể hiện phương án thiết kế dự kiến
 
 Hình 3.1 cho biết hệ thống gồm những phần nào, mỗi phần chịu trách nhiệm về việc gì và dữ liệu được chuyển theo hướng nào. Các mũi tên chỉ hướng trao đổi thông tin, không phải thứ tự thao tác của người dùng.
 
-![Kiến trúc StudyFlow](../diagrams/chuong-3/component-01-kien-truc-he-thong.svg)
+![Kiến trúc StudyFlow](../diagrams/chuong-3/component-01-kien-truc-he-thong.png)
 
 *Hình 3.1. Kiến trúc tổng thể và ranh giới trách nhiệm của StudyFlow.*
 
 Trang web là nơi người dùng thực hiện các thao tác. Mọi yêu cầu từ trang web đều được gửi đến hệ thống chính để kiểm tra tài khoản, quyền sử dụng tài liệu và các quy tắc học tập. Hệ thống chính cũng chịu trách nhiệm quản lý bộ câu hỏi từ lúc tạo đến lúc sử dụng, chấm điểm, ghi nhận tiến độ và quản lý kế hoạch học tập.
 
 Phần AI chỉ nhận đúng tài liệu và phạm vi trang mà hệ thống chính đã cho phép. Phần này đọc nội dung PDF, tìm đoạn liên quan, trả lời câu hỏi, giải thích bài học, chỉ rõ trang nguồn và tạo bản nháp bộ câu hỏi. Phần AI không được tự xem thông tin cá nhân, kết quả học tập hoặc dữ liệu quản lý của Sinh viên.
+
+Các logo đơn sắc đặt dưới từng khối cho biết công nghệ triển khai tương ứng: Next.js và TypeScript cho giao diện; Spring Boot và Java cho hệ thống chính; FastAPI, Python và LangChain cho phần AI; PostgreSQL, pgvector và S3 cho dữ liệu; OpenRouter cung cấp mô hình chat và embedding.
 
 Dữ liệu được lưu trong cùng một hệ thống nhưng chia thành hai khu vực tách biệt: một khu vực chứa thông tin người dùng và hoạt động học tập, khu vực còn lại phục vụ việc xử lý tài liệu bằng AI. Mỗi phần chỉ được sử dụng khu vực dữ liệu thuộc trách nhiệm của mình. Tệp PDF gốc và các hình ảnh dùng để xem tài liệu được lưu trong một kho tệp riêng; cơ sở dữ liệu chỉ lưu thông tin mô tả và vị trí của tệp. Khóa dùng để kết nối với dịch vụ AI chỉ được giữ tại phần xử lý AI và không bao giờ được gửi xuống trình duyệt của người dùng.
 
@@ -42,17 +44,17 @@ Việc tách hệ thống chính và phần AI giúp nhóm có thể thay đổi
 
 ## 3.2. Thiết kế thực thể và quan hệ nghiệp vụ
 
-### 3.2.1. Sơ đồ thực thể tổng quan
+### 3.2.1. Biểu đồ thiết kế lớp thực thể
 
-Hình 3.2 trình bày những nhóm thông tin quan trọng của hệ thống dưới dạng các bảng và đường liên kết. Biểu tượng chiếc khóa cho biết trường dùng để nhận diện một bản ghi. Đường nối và ký hiệu ở hai đầu cho biết một bản ghi có thể liên quan đến một hay nhiều bản ghi khác.
+Hình 3.2 trình bày các lớp thực thể của hệ thống và mối quan hệ nghiệp vụ giữa chúng. Mỗi khung thể hiện tên lớp cùng các thuộc tính chính. Ba vai trò Student, Teacher và Admin được biểu diễn bằng thuộc tính `role` của lớp User để thống nhất với bảng `users` trong ERD. Hình thoi đặc đặt ở phía thực thể sở hữu thể hiện quan hệ hợp thành; đường liền thể hiện liên kết nghiệp vụ; đường nét đứt có mũi tên chỉ dùng cho tham chiếu logic từ dữ liệu AI sang dữ liệu nghiệp vụ. Các con số ở hai đầu đường nối cho biết một đối tượng có thể liên quan với bao nhiêu đối tượng khác.
 
-![Sơ đồ Entity tổng quan StudyFlow](../diagrams/chuong-3/erd-logical-02-entity-overview.svg)
+![Biểu đồ thiết kế lớp thực thể StudyFlow](../diagrams/chuong-3/class-entity-02-studyflow-overview.png)
 
-*Hình 3.2. Các nhóm thông tin chính và quan hệ giữa chúng.*
+*Hình 3.2. Biểu đồ thiết kế lớp thực thể tổng quan của StudyFlow.*
 
-Một lớp học phần gắn với một môn học, một học kỳ và một Giảng viên. Sinh viên tham gia lớp thông qua yêu cầu tham gia và chỉ được sử dụng học liệu khi đã được chấp nhận. Tài liệu luôn có chủ sở hữu; việc Giảng viên công bố tài liệu cho lớp không làm thay đổi chủ sở hữu của tài liệu đó. PDF cá nhân của Sinh viên cũng không tự trở thành học liệu chung khi được dùng để hỏi đáp hoặc tạo câu hỏi.
+Biểu đồ được bố trí theo các quan hệ dữ liệu chính của hệ thống nhưng không chia thành khung khu vực. Một lớp học phần gắn với một môn học, một học kỳ và một tài khoản Giảng viên; Sinh viên tham gia thông qua bản ghi ghi danh. Lớp học phần liên hệ với bản công bố tài liệu, Quiz và mục kế hoạch học. Tài liệu luôn có chủ sở hữu; việc Giảng viên công bố tài liệu cho lớp không làm thay đổi chủ sở hữu của tài liệu đó. PDF cá nhân của Sinh viên cũng không tự trở thành học liệu chung khi được dùng để hỏi đáp hoặc tạo câu hỏi.
 
-Bộ câu hỏi cá nhân có thể không gắn với lớp học phần. Một Sinh viên có thể chưa đặt mục tiêu hằng ngày mà vẫn sử dụng các chức năng học tập khác. Bộ câu hỏi đang được tạo có thể chưa có câu hỏi; chỉ bộ đã được kiểm tra đầy đủ mới được chuyển sang bước ôn tập hoặc công bố. Việc xóa một thông tin không được tự động xóa toàn bộ lịch sử liên quan nếu chưa có quy tắc rõ ràng.
+Bộ câu hỏi cá nhân có thể không gắn với lớp học phần. Các lớp AI ở cuối sơ đồ chỉ lưu chỉ mục tài liệu, đoạn nội dung và lần xử lý; chúng liên hệ với dữ liệu học tập bằng mã tài liệu, phiên bản và mã hội thoại chứ không sở hữu tài khoản, kết quả làm bài hay kế hoạch học. Biểu đồ lớp này mô tả cấu trúc nghiệp vụ ở mức thiết kế; sơ đồ cơ sở dữ liệu vật lý tại mục 3.3 mới mô tả bảng, khóa và kiểu cột triển khai.
 
 ### 3.2.2. Các quy tắc bảo đảm dữ liệu đúng
 
@@ -68,11 +70,11 @@ Bộ câu hỏi cá nhân có thể không gắn với lớp học phần. Một
 
 Hình 3.3 trình bày 31 bảng dự kiến: 27 bảng lưu thông tin người dùng và hoạt động học tập, cùng 4 bảng phục vụ việc xử lý AI. Trong hình, PK là trường nhận diện duy nhất của một bản ghi; FK là trường dùng để liên kết sang bảng khác; trường cho phép để trống được đánh dấu riêng.
 
-![ERD StudyFlow](../diagrams/chuong-3/erd-physical-03-studyflow-overview.svg)
+![ERD StudyFlow](../diagrams/chuong-3/erd-physical-03-studyflow-overview.png)
 
 *Hình 3.3. Sơ đồ tổng quan gồm 27 bảng dữ liệu học tập và 4 bảng dữ liệu AI.*
 
-Hai khu vực dữ liệu dùng các mã tài liệu và phiên bản để đối chiếu nhưng không liên kết cứng vào nhau. Cách này giúp phần AI không thể tự đi sang khu vực dữ liệu học tập để đọc thông tin người dùng. Do sơ đồ có nhiều bảng, hình nên được đặt ở trang ngang hoặc phụ lục khổ lớn và ưu tiên dùng bản SVG để chữ không bị mờ khi phóng to.
+Hai khu vực dữ liệu dùng các mã tài liệu và phiên bản để đối chiếu nhưng không liên kết cứng vào nhau. Cách này giúp phần AI không thể tự đi sang khu vực dữ liệu học tập để đọc thông tin người dùng. Do sơ đồ có nhiều bảng, hình nên được đặt ở trang ngang hoặc phụ lục khổ lớn và dùng bản PNG độ phân giải cao để chữ vẫn rõ khi chèn báo cáo.
 
 Đây là thiết kế dự kiến, chưa phải ảnh chụp từ cơ sở dữ liệu đã vận hành. Độ dài văn bản, trường bắt buộc và một số nhóm trường kết hợp sẽ được chốt khi tạo cơ sở dữ liệu thực tế.
 
@@ -124,37 +126,37 @@ Mục tiêu mỗi ngày cho phép đặt từ 0 đến 100 trang, 0 đến 200 c
 
 ## 3.4. Thiết kế chi tiết ba chức năng AI
 
-Các sơ đồ lớp trong mục này cho biết những nhóm xử lý cần có và trách nhiệm của từng nhóm. Tên trong sơ đồ là tên dự kiến để hỗ trợ lập trình, không có nghĩa toàn bộ các phần đó đã được xây dựng.
+Các sơ đồ lớp trong mục này sử dụng mô hình View–DAO–Entity theo form thống nhất của báo cáo. Các lớp được trình bày trên một mặt phẳng, không chia thành các khung riêng: View nằm ở phía trên, DAO ở giữa và Entity ở phía dưới. Nhóm View thể hiện màn hình người dùng thao tác. Nhóm DAO đại diện cho các điểm truy cập, kiểm tra phạm vi và trao đổi dữ liệu với phần nghiệp vụ hoặc phần AI; ký hiệu này không có nghĩa Frontend được phép gọi cơ sở dữ liệu trực tiếp, vì mọi yêu cầu vẫn phải đi qua API Java. Nhóm Entity thể hiện dữ liệu được lưu hoặc truyền giữa các bước. Đường phụ thuộc, liên kết, kết tập và hợp thành dùng ký hiệu UML tương ứng. Tên trong sơ đồ là tên thiết kế phục vụ báo cáo, không khẳng định toàn bộ các lớp đã được triển khai đầy đủ.
 
 ### 3.4.1. Hỏi đáp và tóm tắt tài liệu cá nhân — AI-F01
 
-Hình 3.4 cho thấy cách hệ thống kiểm tra chủ sở hữu tài liệu, lấy nội dung cuộc trò chuyện và chuyển phần được phép sang AI.
+Hình 3.4 cho thấy đầy đủ đường đi từ trang Tài liệu cá nhân và bảng hội thoại, qua lớp kiểm tra phạm vi và Single Agent, đến các thực thể tài liệu, hội thoại, chỉ mục và kết quả trả về.
 
-![Lớp Personal RAG](../diagrams/chuong-3/class-04-personal-rag.svg)
+![Lớp Personal RAG](../diagrams/chuong-3/class-04-personal-rag.png)
 
-*Hình 3.4. Các nhóm xử lý chức năng hỏi đáp và tóm tắt tài liệu cá nhân.*
+*Hình 3.4. Biểu đồ lớp View–DAO–Entity của chức năng hỏi đáp, tóm tắt và tạo Quiz từ tài liệu cá nhân.*
 
-Sinh viên gửi yêu cầu cùng danh sách PDF đã chọn. Hệ thống chính kiểm tra tài liệu có thuộc Sinh viên hay không và lấy phần trò chuyện cần thiết. Phần AI xác định người dùng muốn hỏi đáp, tóm tắt hay tạo bộ câu hỏi, sau đó chỉ thực hiện đúng một việc. Kết quả phải nêu rõ trạng thái, nội dung và trang nguồn; hệ thống chính kiểm tra lại trước khi hiển thị hoặc lưu.
+Sinh viên chọn PDF và nhập yêu cầu ngay trên trang Tài liệu cá nhân. Lớp View gửi yêu cầu qua DAO của hệ thống chính. Các DAO kiểm tra tài liệu có thuộc Sinh viên hay không, cố định phiên bản và phạm vi hội thoại, sau đó điểm truy cập AI chọn đúng một khả năng hỏi đáp, tóm tắt hoặc tạo Quiz. Các Entity lưu quan hệ giữa Sinh viên, tài liệu, hội thoại, tin nhắn, chỉ mục và lần chạy; kết quả phải có trạng thái và trang nguồn trước khi giao diện hiển thị.
 
 ### 3.4.2. Hỏi đáp tài liệu bài giảng — AI-F02
 
-Hình 3.5 làm rõ việc Sinh viên chỉ được hỏi trên tài liệu đã công bố cho lớp học phần mà mình được tham gia.
+Hình 3.5 thể hiện từ thư viện học liệu, trình xem từng trang PDF, bảng ghi chú và AI Tutor đến lớp kiểm quyền, xử lý hỏi đáp và các entity lớp học phần, publication, tài liệu, trang, ghi chú và tiến độ.
 
-![Lớp Course Material PDF Tutor](../diagrams/chuong-3/class-05-slide-tutor.svg)
+![Lớp Course Material PDF Tutor](../diagrams/chuong-3/class-05-slide-tutor.png)
 
-*Hình 3.5. Các nhóm xử lý chức năng hỏi đáp tài liệu bài giảng.*
+*Hình 3.5. Biểu đồ lớp View–DAO–Entity của Viewer, ghi chú và Course Material AI Tutor.*
 
-Hệ thống chính xác định đúng phiên bản tài liệu, trang đang xem và những trang Sinh viên được phép sử dụng. Trình duyệt không thể tự mở rộng sang tài liệu hoặc trang khác. Sau khi AI trả kết quả, quyền sử dụng được kiểm tra lại để xử lý trường hợp tài liệu vừa bị thu hồi trong thời gian chờ.
+Giao diện phân biệt SLIDE_PDF để mở Viewer/Tutor và REFERENCE_PDF chỉ để tải xuống. Hệ thống chính xác định enrollment, publication, phiên bản tài liệu, trang đang xem và những trang Sinh viên được phép sử dụng. Phần AI chỉ tìm trong phạm vi này; sau khi AI trả kết quả, hệ thống chính kiểm tra lại quyền và citation trước khi hiển thị. Ghi chú và tiến độ là dữ liệu riêng do hệ thống chính quản lý, không phải kết quả do AI tự cập nhật.
 
 ### 3.4.3. Sinh bộ câu hỏi trắc nghiệm — AI-F03
 
-Hình 3.6 tách rõ việc AI tạo bản nháp với việc người dùng xem lại và hệ thống chấm điểm.
+Hình 3.6 thể hiện đầy đủ các màn hình tạo, theo dõi, duyệt, làm và xem kết quả Quiz; đồng thời tách lớp sinh bản nháp AI khỏi lớp chấm điểm của hệ thống chính.
 
-![Lớp sinh Quiz](../diagrams/chuong-3/class-06-quiz.svg)
+![Lớp sinh Quiz](../diagrams/chuong-3/class-06-quiz.png)
 
-*Hình 3.6. Các nhóm xử lý việc sinh và tiếp nhận bản nháp bộ câu hỏi.*
+*Hình 3.6. Biểu đồ lớp View–DAO–Entity của quá trình sinh, duyệt, làm và chấm Quiz.*
 
-Hệ thống chính tiếp nhận yêu cầu và theo dõi quá trình tạo. Phần AI trả về một bản nháp trong đó mỗi câu có bốn phương án, một đáp án đúng, lời giải thích và trang nguồn. Hệ thống chính kiểm tra toàn bộ bộ câu hỏi rồi mới chuyển sang trạng thái chờ người dùng xem lại. Việc chấp nhận, công bố, làm bài và chấm điểm không thuộc trách nhiệm của AI.
+Lớp View gửi cấu hình tạo Quiz và theo dõi trạng thái qua các DAO. DAO kiểm tra vai trò, tài liệu và lớp học phần trước khi giao công việc sinh bản nháp cho AI. Mỗi câu trong bản nháp phải có bốn phương án, một đáp án đúng, lời giải thích và trang nguồn. Các Entity lưu Quiz, nguồn, câu hỏi, lượt làm và câu trả lời. Hệ thống Java vẫn quản lý duyệt/công bố, tạo lượt làm và chấm điểm; phần AI không thực hiện các công việc này.
 
 ### 3.4.4. Quy định dữ liệu vào và kết quả trả về
 
@@ -180,7 +182,7 @@ Ba loại sơ đồ được sử dụng với ba mục đích khác nhau. Activ
 
 Hình 3.7 mô tả quá trình từ lúc Sinh viên gửi yêu cầu đến lúc nhận câu trả lời, bản tóm tắt hoặc bản nháp bộ câu hỏi.
 
-![Activity RAG](../diagrams/chuong-3/activity-07-personal-rag.svg)
+![Activity RAG](../diagrams/chuong-3/activity-07-personal-rag.png)
 
 *Hình 3.7. Các bước lựa chọn hỏi đáp, tóm tắt hoặc tạo bộ câu hỏi.*
 
@@ -190,7 +192,7 @@ Quyền sử dụng tài liệu được kiểm tra trước khi tìm nội dung
 
 Hình 3.8 thể hiện việc hỏi đáp trong phạm vi PDF đã được Giảng viên công bố cho lớp học phần.
 
-![Activity Tutor](../diagrams/chuong-3/activity-08-slide-tutor.svg)
+![Activity Tutor](../diagrams/chuong-3/activity-08-slide-tutor.png)
 
 *Hình 3.8. Các bước hỏi đáp tài liệu bài giảng theo trang.*
 
@@ -200,7 +202,7 @@ Hệ thống kiểm tra Sinh viên đã được chấp nhận vào lớp và t�
 
 Hình 3.9 mô tả quá trình tạo bản nháp, kiểm tra và chuyển quyền quyết định cho Sinh viên hoặc Giảng viên.
 
-![Activity Quiz](../diagrams/chuong-3/activity-09-quiz-generation.svg)
+![Activity Quiz](../diagrams/chuong-3/activity-09-quiz-generation.png)
 
 *Hình 3.9. Các bước sinh và xem lại bộ câu hỏi bằng AI.*
 
@@ -210,111 +212,233 @@ Hệ thống chính ghi nhận bộ câu hỏi ở trạng thái đang tạo đ�
 
 Hình 3.10 cho biết thứ tự trao đổi giữa Sinh viên, trang web, hệ thống chính, phần AI, nơi lưu dữ liệu tìm kiếm và dịch vụ AI bên ngoài.
 
-![Sequence RAG](../diagrams/chuong-3/sequence-10-personal-rag.svg)
+![Sequence RAG](../diagrams/chuong-3/sequence-10-personal-rag.png)
 
 *Hình 3.10. Thứ tự xử lý yêu cầu hỏi đáp tài liệu cá nhân.*
 
 Hệ thống phân biệt rõ bốn trường hợp: người dùng không có quyền, yêu cầu còn thiếu thông tin, tài liệu không đủ căn cứ và tài liệu có đủ căn cứ. AI có thể nhận biết người dùng muốn hỏi, tóm tắt hay tạo câu hỏi, nhưng hệ thống chính vẫn quyết định tài liệu nào được dùng và kiểm tra lại kết quả. Không đủ căn cứ thì không tạo nội dung.
 
+#### Diễn giải trình tự Hình 3.10
+
+Tại trang Tài liệu cá nhân sau khi đăng nhập, Sinh viên chọn các PDF cần sử dụng rồi mở trợ lý. Trình tự dưới đây ghi rõ View, DAO, Entity hoặc dịch vụ nào thực hiện từng thông điệp. Các nhánh hỏi đáp, tóm tắt và tạo Quiz là các lựa chọn thay thế.
+
+1. Tại `PersonalDocumentsView`, Sinh viên gọi `selectDocuments(ids)` để chọn các tài liệu cá nhân được phép sử dụng.
+2. Sinh viên gọi `openAssistant()` trên `PersonalDocumentsView` để mở chức năng trợ lý tài liệu cá nhân.
+3. `PersonalDocumentsView` gọi `open(ids)` của `PersonalAssistantView` để mở khu vực trợ lý với danh sách tài liệu đã chọn.
+4. Tại `PersonalAssistantView`, Sinh viên gọi `submitPrompt(message)` để gửi yêu cầu hỏi đáp, tóm tắt hoặc tạo Quiz.
+5. `PersonalAssistantView` gọi `postMessage(conversationId, MessageRequest)` của `PersonalAssistantDAO` để chuyển yêu cầu vào hệ thống chính.
+6. `PersonalAssistantDAO` gọi `run(studentId, conversationId, request)` của `ConversationDAO` để bắt đầu xử lý yêu cầu.
+7. `ConversationDAO` gọi `loadAuthorizedSnapshot(studentId, conversationId)` của `ConversationScopeDAO` để dựng phạm vi tài liệu được phép sử dụng.
+8. `ConversationScopeDAO` đọc thực thể `ChatConversation` để kiểm tra cuộc trò chuyện thuộc đúng Sinh viên đang yêu cầu.
+9. Với từng tài liệu đã chọn, `ConversationScopeDAO` đọc `PersonalDocument` để kiểm tra `owner`, trạng thái `READY` và phiên bản.
+10. Nếu phạm vi không hợp lệ, `ConversationScopeDAO` trả `ACCESS_DENIED/invalid scope` về `ConversationDAO`.
+11. `ConversationDAO` trả lỗi theo hợp đồng về `PersonalAssistantDAO`.
+12. `PersonalAssistantDAO` gọi phần hiển thị lỗi của `PersonalAssistantView`; giao diện thông báo lỗi và không gọi AI.
+13. Nếu phạm vi hợp lệ, `ConversationScopeDAO` trả `AuthorizedScope` về `ConversationDAO`.
+14. `ConversationDAO` gọi `runAssistant(InternalAssistantRequest)` của `AiGatewayDAO` để gửi yêu cầu đã có phạm vi sang dịch vụ AI.
+15. `AiGatewayDAO` gọi `run(request)` của `OrchestratorDAO` để bộ điều phối duy nhất tiếp nhận yêu cầu.
+16. `OrchestratorDAO` gọi nội bộ `selectTool(message)` để xác định công cụ hỏi đáp, tóm tắt hoặc tạo Quiz.
+17. `OrchestratorDAO` ghi `selectedTool` và trạng thái `RUNNING` vào thực thể `AgentRun`.
+18. Nếu yêu cầu thiếu tham số bắt buộc, `OrchestratorDAO` trả `NEEDS_CLARIFICATION` về `AiGatewayDAO` để yêu cầu Sinh viên bổ sung thông tin.
+19. Trong nhánh hỏi đáp, `OrchestratorDAO` gọi `execute(AskArgs, scope)` của `AskDocumentDAO`.
+20. `AskDocumentDAO` gọi `search(scope, query)` của `DocumentIndexDAO` để tìm bằng chứng cho câu hỏi.
+21. `DocumentIndexDAO` đọc `DocumentIndex` để kiểm tra đúng tài liệu, đúng phiên bản và chỉ mục đã sẵn sàng.
+22. `DocumentIndexDAO` tìm trong `DocumentChunk` bằng phương pháp kết hợp từ khóa và độ tương đồng, chỉ trong phạm vi được cấp.
+23. `DocumentIndexDAO` gửi truy vấn sang `Model Provider` để tạo biểu diễn tìm kiếm và xếp hạng lại kết quả.
+24. `Model Provider` trả điểm tương đồng và thứ tự xếp hạng về `DocumentIndexDAO`.
+25. `DocumentIndexDAO` trả `EvidenceSet` kèm số trang về `AskDocumentDAO`.
+26. `AskDocumentDAO` yêu cầu `Model Provider` sinh câu trả lời chỉ từ `EvidenceSet`.
+27. `Model Provider` trả `AnswerResult` về `AskDocumentDAO`.
+28. `AskDocumentDAO` gọi `validate(answer, evidence)` của `GroundingValidationDAO` để kiểm tra câu trả lời và nguồn.
+29. `AskDocumentDAO` trả `ANSWERED` hoặc `NO_EVIDENCE` về `OrchestratorDAO`.
+30. Trong nhánh tóm tắt, `OrchestratorDAO` gọi `execute(SummaryArgs, scope)` của `SummarizeDocumentDAO`.
+31. `SummarizeDocumentDAO` gọi `search(scope, summary query)` của `DocumentIndexDAO` để lấy nội dung cần tóm tắt.
+32. `DocumentIndexDAO` đọc `DocumentIndex` để kiểm tra tài liệu, phiên bản và trạng thái chỉ mục.
+33. `DocumentIndexDAO` đọc các `DocumentChunk` theo trang trong phạm vi tài liệu đã chọn.
+34. `DocumentIndexDAO` trả `EvidenceSet` về `SummarizeDocumentDAO`.
+35. `SummarizeDocumentDAO` yêu cầu `Model Provider` sinh bản tóm tắt có căn cứ.
+36. `Model Provider` trả `SummaryResult` về `SummarizeDocumentDAO`.
+37. `SummarizeDocumentDAO` gọi `validate(summary, evidence)` của `GroundingValidationDAO` để kiểm tra bản tóm tắt và nguồn.
+38. `SummarizeDocumentDAO` trả `SUMMARIZED` hoặc `NO_EVIDENCE` về `OrchestratorDAO`.
+39. Trong nhánh tạo Quiz, `OrchestratorDAO` gọi `execute(QuizArgs, scope)` của `GenerateQuizDAO`.
+40. `GenerateQuizDAO` gọi `search(scope, quiz constraints)` của `DocumentIndexDAO` để tìm nội dung theo điều kiện tạo Quiz.
+41. `DocumentIndexDAO` đọc `DocumentIndex` để kiểm tra đúng tài liệu, phiên bản và trạng thái chỉ mục.
+42. `DocumentIndexDAO` đọc các `DocumentChunk` phù hợp theo từng trang.
+43. `DocumentIndexDAO` trả `EvidenceSet` về `GenerateQuizDAO`.
+44. `GenerateQuizDAO` yêu cầu `Model Provider` sinh `QuizDraft` theo cấu trúc JSON đã quy định.
+45. `Model Provider` trả `QuizDraft` về `GenerateQuizDAO`.
+46. `GenerateQuizDAO` gọi `validate(draft, evidence)` của `GroundingValidationDAO` để kiểm tra cấu trúc, đáp án và nguồn.
+47. `GenerateQuizDAO` trả `QUIZ_CREATED` hoặc `NO_EVIDENCE` về `OrchestratorDAO`.
+48. `OrchestratorDAO` đóng gói kết quả thành `AssistantResponse` và trả về `AiGatewayDAO`.
+49. `AiGatewayDAO` trả `AssistantResponse` về `ConversationDAO` của hệ thống chính.
+50. `ConversationDAO` gọi `validateResult(scope, response)` của `ConversationScopeDAO` để kiểm tra lại phạm vi và trích dẫn.
+51. `ConversationScopeDAO` xác nhận citation và phạm vi hợp lệ rồi trả kết quả về `ConversationDAO`.
+52. `ConversationDAO` lưu phản hồi vào `ChatMessage`; nếu có Quiz thì ghi trạng thái `REVIEW_REQUIRED`.
+53. `ConversationDAO` trả `AssistantResponse` về `PersonalAssistantDAO`.
+54. `PersonalAssistantDAO` gọi `showAnswer(response)` của `PersonalAssistantView` để hiển thị kết quả.
+55. Nếu có trích dẫn, Sinh viên chọn citation trên `PersonalAssistantView`.
+56. `PersonalAssistantView` gọi `open(citation)` của `CitationView`.
+57. `CitationView` hiển thị `documentId`, `pageNumber` và đoạn trích nguồn cho Sinh viên.
+58. Nếu phản hồi chứa `QuizDraft`, `PersonalAssistantView` gọi `showDraft(response.quizDraft)` của `QuizDraftReviewView` để Sinh viên xem lại.
+
 ### 3.5.5. Thứ tự xử lý câu hỏi về tài liệu bài giảng
 
 Hình 3.11 cho biết một câu hỏi đi từ trang đọc PDF đến hệ thống chính, phần AI và quay trở lại Sinh viên như thế nào.
 
-![Sequence Tutor](../diagrams/chuong-3/sequence-11-slide-tutor.svg)
+![Sequence Tutor](../diagrams/chuong-3/sequence-11-slide-tutor.png)
 
 *Hình 3.11. Thứ tự xử lý câu hỏi về tài liệu bài giảng.*
 
 Mỗi lần hỏi đều phải kiểm tra quyền hiện tại, kể cả khi Sinh viên đã hỏi trước đó trong cùng cuộc trò chuyện. Nếu Giảng viên thu hồi tài liệu trong lúc chờ, kết quả không được trả về. Nguồn của câu trả lời phải xác định đúng tài liệu và số trang.
 
+#### Diễn giải trình tự Hình 3.11
+
+Tại trình xem tài liệu bài giảng sau khi đăng nhập và vào lớp học phần, Sinh viên mở một trang PDF rồi bật AI Tutor. Trình tự dưới đây ghi rõ View, DAO, Entity và dịch vụ tham gia. Nhánh từ chối quyền và nhánh xử lý hợp lệ là hai trường hợp thay thế.
+
+1. Tại `SlideViewerView`, Sinh viên gọi `showPage(pageNumber)` để mở trang PDF muốn học.
+2. Sinh viên gọi `toggleTutor()` trên `SlideViewerView` để hiện khu vực AI Tutor.
+3. `SlideViewerView` gọi `open(documentId, pageNumber)` của `AiTutorView` để mở Tutor với đúng tài liệu và trang hiện tại.
+4. Tại `AiTutorView`, Sinh viên gọi `ask(question)` để gửi câu hỏi.
+5. `AiTutorView` gọi `ask(documentId, pageNumber, PageQuestion)` của `CourseMaterialTutorDAO` để chuyển câu hỏi vào hệ thống chính.
+6. `CourseMaterialTutorDAO` gọi `ask(studentId, documentId, pageNumber, question)` của `TutorConversationDAO` để bắt đầu xử lý.
+7. `TutorConversationDAO` gọi `authorizeTutor(studentId, documentId, pageNumber)` của `MaterialAccessDAO` để kiểm tra quyền.
+8. `MaterialAccessDAO` đọc `CourseEnrollment` để kiểm tra trạng thái tham gia lớp là `APPROVED`.
+9. `MaterialAccessDAO` đọc `DocumentPublication` để kiểm tra tài liệu vẫn ở trạng thái `PUBLISHED`.
+10. `MaterialAccessDAO` đọc `CourseMaterial` để kiểm tra loại `SLIDE_PDF`, trạng thái `READY` và đúng phiên bản.
+11. Nếu không còn quyền hoặc tài liệu không hỗ trợ Tutor, `MaterialAccessDAO` trả `ACCESS_DENIED/MATERIAL_NOT_TUTORABLE` về `TutorConversationDAO`.
+12. `TutorConversationDAO` trả lỗi theo hợp đồng về `CourseMaterialTutorDAO`.
+13. `CourseMaterialTutorDAO` yêu cầu `AiTutorView` hiển thị lỗi; luồng dừng và không gọi dịch vụ AI.
+14. Nếu hợp lệ, `MaterialAccessDAO` tạo `PageScope` và trả về `TutorConversationDAO`.
+15. `TutorConversationDAO` gọi `askCourseMaterial(scope, question)` của `AiGatewayDAO` để gửi câu hỏi cùng phạm vi sang dịch vụ AI.
+16. `AiGatewayDAO` gọi `run(scope, question)` của `TutorPipelineDAO` để khởi chạy quy trình hỏi đáp.
+17. `TutorPipelineDAO` gọi `search(scope, question)` của `DocumentIndexDAO` để tìm nội dung liên quan.
+18. `DocumentIndexDAO` đọc `DocumentIndex` để kiểm tra đúng tài liệu, phiên bản và trạng thái chỉ mục.
+19. `DocumentIndexDAO` tìm các `DocumentChunk` trong `allowedPageNumbers` bằng tìm kiếm kết hợp.
+20. `DocumentIndexDAO` gửi câu hỏi tới `Model Provider` để tạo biểu diễn tìm kiếm và xếp hạng lại.
+21. `Model Provider` trả điểm và thứ tự xếp hạng về `DocumentIndexDAO`.
+22. `DocumentIndexDAO` trả `EvidenceSet` kèm số trang về `TutorPipelineDAO`.
+23. Nếu bằng chứng không đủ, `TutorPipelineDAO` trả `NO_EVIDENCE` về `AiGatewayDAO`.
+24. Nếu có bằng chứng, `TutorPipelineDAO` yêu cầu `Model Provider` sinh câu trả lời chỉ từ bằng chứng.
+25. `Model Provider` trả `GeneratedAnswer` và danh sách citation về `TutorPipelineDAO`.
+26. `TutorPipelineDAO` gọi `validate(answer, evidence)` của `GroundingValidationDAO`.
+27. Nếu citation hoặc mức độ bám nguồn không hợp lệ, `GroundingValidationDAO` trả `invalid` về `TutorPipelineDAO`.
+28. `TutorPipelineDAO` chuyển kết quả không hợp lệ thành `NO_EVIDENCE` và trả về `AiGatewayDAO`.
+29. Nếu kết quả hợp lệ, `GroundingValidationDAO` trả `valid` về `TutorPipelineDAO`.
+30. `TutorPipelineDAO` tạo `AnswerResponse(ANSWERED)` và trả về `AiGatewayDAO`.
+31. `AiGatewayDAO` trả `AnswerResponse` về `TutorConversationDAO`.
+32. `TutorConversationDAO` gọi lại `authorizeTutor(...)` của `MaterialAccessDAO` để kiểm tra quyền ngay trước khi trả kết quả.
+33. `MaterialAccessDAO` đọc `DocumentPublication` để xác nhận tài liệu chưa bị thu hồi.
+34. `MaterialAccessDAO` xác nhận quyền hiện tại hợp lệ và trả kết quả về `TutorConversationDAO`.
+35. `TutorConversationDAO` trả `AnswerResponse` về `CourseMaterialTutorDAO`.
+36. `CourseMaterialTutorDAO` gọi `showAnswer(response)` của `AiTutorView`.
+37. `AiTutorView` hiển thị câu trả lời và citation theo trang cho Sinh viên.
+38. Khi Sinh viên chọn một citation, Sinh viên gọi `openCitation(citation)` trên `AiTutorView`.
+39. `AiTutorView` mở đúng trang và hiển thị đoạn nội dung đã được dùng làm nguồn.
+
 ### 3.5.6. Thứ tự tạo và duyệt bộ câu hỏi
 
 Hình 3.12 phân biệt thời điểm hệ thống tiếp nhận yêu cầu, thời gian AI tạo nội dung và thao tác xem lại của người dùng.
 
-![Sequence Quiz](../diagrams/chuong-3/sequence-12-quiz.svg)
+![Sequence Quiz](../diagrams/chuong-3/sequence-12-quiz.png)
 
 *Hình 3.12. Thứ tự tạo bản nháp và duyệt bộ câu hỏi cho Sinh viên hoặc Giảng viên.*
 
 Trang web chỉ hỏi tình trạng từ hệ thống chính. Mỗi yêu cầu có mã riêng để lỗi mạng hoặc việc thử lại không tạo ra nhiều bộ giống nhau. Sinh viên chấp nhận bộ cá nhân trước khi ôn; Giảng viên xem lại, chỉnh sửa và công bố bộ câu hỏi của lớp. PDF cá nhân dùng làm nguồn không vì vậy mà trở thành học liệu chung.
 
-### 3.5.7. Luồng tham gia lớp học phần
+#### Diễn giải trình tự Hình 3.12
 
-Hình 3.13 thể hiện quá trình từ lúc Sinh viên nhập mã tham gia đến lúc Giảng viên chấp nhận hoặc từ chối.
+Tại giao diện tạo Quiz sau khi đăng nhập, Sinh viên hoặc Giảng viên chọn tài liệu nguồn và cấu hình bộ câu hỏi. Trình tự dưới đây ghi rõ View, DAO, Entity và dịch vụ thực hiện từng bước. Các nhánh lỗi, Sinh viên duyệt, Giảng viên duyệt và hết thời gian chờ là các trường hợp thay thế.
 
-![Activity enrollment](../diagrams/chuong-3/activity-13-course-enrollment.svg)
+1. Tại `QuizCreateView`, Sinh viên hoặc Giảng viên gọi `selectDocuments(ids)` để chọn các PDF làm nguồn.
+2. Người dùng gọi `setConstraints(count, difficulty, topic)` trên `QuizCreateView` để đặt số câu, độ khó và chủ đề.
+3. `QuizCreateView` gọi `generate(QuizRequest)` của `QuizDAO` để gửi yêu cầu tạo Quiz.
+4. `QuizDAO` gọi `create(actorId, request)` của `QuizLifecycleDAO` để tạo một yêu cầu sinh Quiz mới.
+5. `QuizLifecycleDAO` gọi `authorizeGeneration(actorId, request)` của `QuizAccessDAO` để kiểm tra quyền và cấu hình.
+6. Với từng nguồn, `QuizAccessDAO` đọc `Document` để kiểm tra chủ sở hữu hoặc trạng thái công bố, trạng thái `READY` và phiên bản.
+7. Nếu quyền hoặc cấu hình không hợp lệ, `QuizAccessDAO` trả lỗi validation/access về `QuizLifecycleDAO`.
+8. `QuizLifecycleDAO` trả lỗi theo hợp đồng về `QuizDAO`.
+9. `QuizDAO` yêu cầu `QuizCreateView` hiển thị lỗi và không tạo công việc AI.
+10. Nếu hợp lệ, `QuizAccessDAO` tạo `AuthorizedScope` và trả về `QuizLifecycleDAO`.
+11. `QuizLifecycleDAO` tạo thực thể `Quiz` với trạng thái `GENERATING` và gắn `runId`.
+12. `QuizLifecycleDAO` tạo `QuizSource` để lưu `documentId`, phiên bản và khoảng trang tại thời điểm yêu cầu.
+13. `QuizLifecycleDAO` gọi `execute(quizId, runId)` của `QuizGenerationJobDAO` để đưa việc sinh Quiz sang xử lý nền.
+14. `QuizLifecycleDAO` trả `AcceptedQuiz(202)` về `QuizDAO`.
+15. `QuizDAO` trả `quizId` và trạng thái `GENERATING` về `QuizCreateView`.
+16. `QuizGenerationJobDAO` gọi `generate(InternalQuizRequest)` của `AiGatewayDAO`.
+17. `AiGatewayDAO` gọi `generate(scope, constraints)` của `QuizGeneratorDAO`.
+18. `QuizGeneratorDAO` gọi `search(scope, constraints)` của `DocumentIndexDAO` để tìm bằng chứng.
+19. `DocumentIndexDAO` đọc `Document` để xác nhận đúng ảnh chụp nguồn đã lưu ở bước 12.
+20. `DocumentIndexDAO` gửi truy vấn tới `Model Provider` để tạo biểu diễn tìm kiếm và xếp hạng lại.
+21. `Model Provider` trả thứ tự các đoạn bằng chứng về `DocumentIndexDAO`.
+22. `DocumentIndexDAO` trả `EvidenceSet` kèm số trang về `QuizGeneratorDAO`.
+23. Nếu bằng chứng không đủ, `QuizGeneratorDAO` trả `NO_EVIDENCE` về `AiGatewayDAO`.
+24. `AiGatewayDAO` trả lỗi sinh nội dung về `QuizGenerationJobDAO`.
+25. `QuizGenerationJobDAO` cập nhật thực thể `Quiz` sang `GENERATION_FAILED`.
+26. Nếu đủ bằng chứng, `QuizGeneratorDAO` yêu cầu `Model Provider` sinh `MCQ_SINGLE` theo JSON Schema và bằng chứng.
+27. `Model Provider` trả `QuizDraft` về `QuizGeneratorDAO`.
+28. `QuizGeneratorDAO` gọi `validate(draft, evidence)` của `QuizValidationDAO`.
+29. Nếu bản nháp sai cấu trúc hoặc không bám nguồn, `QuizValidationDAO` trả `invalid` về `QuizGeneratorDAO`.
+30. `QuizGeneratorDAO` trả lỗi validation về `AiGatewayDAO`.
+31. `AiGatewayDAO` trả lỗi sinh nội dung về `QuizGenerationJobDAO`.
+32. `QuizGenerationJobDAO` cập nhật `Quiz` sang `GENERATION_FAILED`.
+33. Nếu bản nháp hợp lệ, `QuizValidationDAO` trả `valid` về `QuizGeneratorDAO`.
+34. `QuizGeneratorDAO` trả `QuizDraft` về `AiGatewayDAO`.
+35. `AiGatewayDAO` trả `QuizDraft` về `QuizGenerationJobDAO`.
+36. Với từng câu trong bản nháp, `QuizGenerationJobDAO` tạo `QuizQuestion` loại `MCQ_SINGLE` có đúng bốn lựa chọn.
+37. `QuizGenerationJobDAO` tạo `QuizQuestionSource` để lưu `documentId`, `pageNumber` và đoạn trích.
+38. `QuizGenerationJobDAO` cập nhật `Quiz` sang `REVIEW_REQUIRED` sau khi lưu đầy đủ câu hỏi.
+39. `QuizStatusView` gọi `getStatus(quizId)` của `QuizDAO` theo chu kỳ có giới hạn.
+40. `QuizDAO` đọc `Quiz` để lấy trạng thái và danh sách câu hỏi.
+41. Thực thể `Quiz` trả `QuizSummary` về `QuizDAO`.
+42. `QuizDAO` trả `QuizSummary` về `QuizStatusView`.
+43. Nếu trạng thái là `GENERATION_FAILED`, `QuizStatusView` gọi `showFailure(errorCode)` để hiển thị lỗi.
+44. Nếu đây là Quiz cá nhân ở trạng thái `REVIEW_REQUIRED`, `QuizStatusView` gọi `showQuestions(quiz)` của `QuizReviewView`.
+45. Tại `QuizReviewView`, Sinh viên gọi `acceptStudent()` khi đồng ý với bản nháp.
+46. `QuizReviewView` gọi `accept(quizId, AcceptQuizRequest)` của `QuizDAO`.
+47. `QuizDAO` gọi `acceptStudent(studentId, quizId)` của `QuizLifecycleDAO`.
+48. `QuizLifecycleDAO` cập nhật thực thể `Quiz` sang `READY`.
+49. `QuizLifecycleDAO` trả `QuizSummary` về `QuizDAO`.
+50. `QuizDAO` trả trạng thái mới về `QuizReviewView`.
+51. Nếu không sử dụng bản nháp, Sinh viên gọi `reject()` trên `QuizReviewView`.
+52. `QuizReviewView` gọi `reject(quizId)` của `QuizDAO`.
+53. `QuizDAO` gọi `reject(studentId, quizId)` của `QuizLifecycleDAO`.
+54. `QuizLifecycleDAO` cập nhật thực thể `Quiz` sang `REJECTED`.
+55. `QuizLifecycleDAO` trả `QuizSummary` về `QuizDAO`.
+56. `QuizDAO` trả trạng thái đã từ chối về `QuizReviewView`.
+57. Nếu đây là Quiz lớp ở trạng thái `REVIEW_REQUIRED`, `QuizStatusView` gọi `showQuestions(quiz)` của `QuizReviewView` cho Giảng viên.
+58. Tại `QuizReviewView`, Giảng viên gọi `publishTeacher()` khi đồng ý công bố.
+59. `QuizReviewView` gọi `publish(quizId, PublishQuizRequest)` của `QuizDAO`.
+60. `QuizDAO` gọi `publishTeacher(teacherId, quizId)` của `QuizLifecycleDAO`.
+61. `QuizLifecycleDAO` cập nhật thực thể `Quiz` sang `PUBLISHED`.
+62. `QuizLifecycleDAO` trả `QuizSummary` về `QuizDAO`.
+63. `QuizDAO` trả trạng thái đã công bố về `QuizReviewView`.
+64. Nếu không sử dụng bản nháp, Giảng viên gọi `reject()` trên `QuizReviewView`.
+65. `QuizReviewView` gọi `reject(quizId)` của `QuizDAO`.
+66. `QuizDAO` gọi `reject(teacherId, quizId)` của `QuizLifecycleDAO`.
+67. `QuizLifecycleDAO` cập nhật thực thể `Quiz` sang `REJECTED`.
+68. `QuizLifecycleDAO` trả `QuizSummary` về `QuizDAO`.
+69. `QuizDAO` trả trạng thái đã từ chối về `QuizReviewView`.
+70. Nếu vẫn là `GENERATING` sau số lần hỏi giới hạn, `QuizStatusView` gọi `showFailure("POLL_TIMEOUT")`; giao diện chỉ báo hết thời gian chờ và không tạo yêu cầu mới.
 
-*Hình 3.13. Các bước tham gia và xét duyệt lớp học phần.*
+### 3.5.7. Luồng chuẩn bị tài liệu
 
-Sinh viên không thể tự chuyển yêu cầu của mình sang trạng thái đã duyệt. Giảng viên sở hữu lớp là người quyết định. Sau khi được chấp nhận, mỗi lần mở học liệu vẫn phải kiểm tra lớp và tài liệu còn hoạt động; quyền không được cấp vĩnh viễn chỉ vì Sinh viên từng tham gia lớp.
+Hình 3.13 áp dụng cho cả PDF cá nhân và PDF bài giảng. Tài liệu được đọc theo từng trang để giữ nguồn chính xác.
 
-### 3.5.8. Luồng chuẩn bị tài liệu
+![Sequence index](../diagrams/chuong-3/sequence-14-document-indexing.png)
 
-Hình 3.14 áp dụng cho cả PDF cá nhân và PDF bài giảng. Tài liệu được đọc theo từng trang để giữ nguồn chính xác.
-
-![Sequence index](../diagrams/chuong-3/sequence-14-document-indexing.svg)
-
-*Hình 3.14. Tiếp nhận, chuẩn bị và đồng bộ trạng thái tài liệu.*
+*Hình 3.13. Tiếp nhận, chuẩn bị và đồng bộ trạng thái tài liệu.*
 
 Phần AI xác nhận đã nhận công việc trước, sau đó mới xử lý phía sau. Hệ thống chính định kỳ hỏi tình trạng và cập nhật cho người dùng. Chỉ PDF có thể đọc được chữ mới được chấp nhận. PDF bị khóa hoặc chỉ gồm hình ảnh phải được báo lỗi rõ ràng. Tài liệu xử lý xong vẫn cần Giảng viên chủ động công bố trước khi Sinh viên sử dụng.
 
-### 3.5.9. Các trạng thái của bộ câu hỏi
+### 3.5.8. Các trạng thái của bộ câu hỏi
 
-Hình 3.15 thể hiện những trạng thái mà một bộ câu hỏi có thể đi qua, tách biệt với các lần Sinh viên làm bài.
+Hình 3.14 thể hiện những trạng thái mà một bộ câu hỏi có thể đi qua, tách biệt với các lần Sinh viên làm bài.
 
-![State Quiz](../diagrams/chuong-3/state-machine-15-quiz-lifecycle.svg)
+![State Quiz](../diagrams/chuong-3/state-machine-15-quiz-lifecycle.png)
 
-*Hình 3.15. Trạng thái của bộ câu hỏi và điều kiện chuyển trạng thái.*
+*Hình 3.14. Trạng thái của bộ câu hỏi và điều kiện chuyển trạng thái.*
 
 Bộ câu hỏi chỉ chuyển từ đang tạo sang chờ duyệt khi toàn bộ câu hỏi hợp lệ. Sinh viên chấp nhận bộ cá nhân để bắt đầu ôn; Giảng viên công bố bộ của lớp sau khi xem lại. Mỗi lần làm bài tạo một lịch sử riêng và không đưa bộ câu hỏi quay lại trạng thái đang tạo. Yêu cầu tạo lại sinh một bộ mới, không ghi đè bộ cũ. Hệ thống chính chấm điểm, AI không chấm.
-
-### 3.5.10. Luồng Kế hoạch và Lịch
-
-Hình 3.16 mô tả việc Sinh viên tự tạo nhiệm vụ, đặt lịch và đánh dấu hoàn thành.
-
-![Activity Kế hoạch và Lịch](../diagrams/chuong-3/activity-16-study-plan.svg)
-
-*Hình 3.16. Các bước quản lý nhiệm vụ và lịch tuần.*
-
-Hệ thống kiểm tra nhiệm vụ có thuộc Sinh viên hay không trước khi lưu. Lịch tuần chỉ hiển thị các nhiệm vụ và lịch học đã được tạo, không tự ghi thêm hoạt động học. Chỉ thao tác hoàn tất nhiệm vụ hợp lệ mới được ghi nhận và một lần hoàn tất không được tính nhiều lần. AI không tự sắp xếp lịch.
-
-### 3.5.11. Luồng Dashboard và ghi nhận hoạt động học
-
-Hình 3.17 mô tả cách các hoạt động hợp lệ được tổng hợp thành tiến độ, mục tiêu trong ngày và chuỗi ngày học liên tiếp.
-
-![Activity Dashboard](../diagrams/chuong-3/activity-17-dashboard-events.svg)
-
-*Hình 3.17. Tổng hợp hoạt động học tập cho Dashboard.*
-
-Ngày học được xác định theo múi giờ của Sinh viên và mỗi hoạt động chỉ được tính một lần. Chỉ xem trang, hoàn tất nhiệm vụ và hoàn thành bài trắc nghiệm được dùng để duy trì chuỗi ngày học. Đăng nhập, ghi chú và hỏi AI không được tính. Dashboard hiển thị toàn bộ tiến độ chung và tiến độ của từng lớp học phần, có thể mở hoặc thu gọn các phần; hệ thống không có trang tiến độ riêng.
-
-### 3.5.12. Sequence Đăng ký Lớp học phần bằng Join Code — BE1-F01
-
-Hình 3.18 mô tả tương tác tuần tự giữa Student, Teacher, Web, Java Backend và Database trong luồng ghi danh lớp học phần.
-
-![Sequence BE1-F01 Enrollment](../diagrams/chuong-3/sequence-be1-f01-enrollment.png)
-
-*Hình 3.18. Biểu đồ tuần tự luồng đăng ký lớp học phần và xét duyệt ghi danh (BE1-F01).*
-
-Biểu đồ thể hiện ba giai đoạn chính: **(1)** Student nhập Join Code — Java tra cứu theo `join_code_hash`, kiểm tra `join_enabled` và trạng thái lớp `ACTIVE`, sau đó kiểm tra ràng buộc unique `(course_offering_id, student_id)` để tạo `CourseEnrollment` với trạng thái `PENDING`. **(2)** Teacher xem danh sách `PENDING`, Java xác minh `teacher_id` là owner của Course Offering, sau đó chuyển trạng thái sang `APPROVED` hoặc `REJECTED` và ghi `system_logs`. **(3)** Mỗi lần Student truy cập học liệu, Java kiểm tra lại trạng thái Enrollment hiện tại — không tin vào session cũ, chỉ APPROVED mới được phép.
-
-### 3.5.13. Sequence Engine tính toán Study Streak và Daily Goal — BE1-F02
-
-Hình 3.19 thể hiện hai luồng song song: cấu hình Daily Goal của Student và tổng hợp Streak khi truy vấn Dashboard.
-
-![Sequence BE1-F02 Streak Goal](../diagrams/chuong-3/sequence-be1-f02-streak-goal.png)
-
-*Hình 3.19. Biểu đồ tuần tự tính toán Study Streak và Daily Goal theo múi giờ người dùng (BE1-F02).*
-
-Điểm kỹ thuật trọng tâm: Java chuyển timestamp ghi sự kiện sang múi giờ `users.time_zone` của Student bằng `ZonedDateTime` trước khi lưu `activity_date` — đảm bảo Student ở UTC+7 tạo sự kiện lúc 23:59 giờ địa phương được ghi đúng ngày. Cơ chế `idempotency_key` ngăn ghi trùng sự kiện khi retry. Các sự kiện `LOGIN`, `NOTE`, `ASK_AI` không được tính vào Streak hoặc Daily Goal theo quy tắc nghiệp vụ. Khi tổng hợp Dashboard, Java đọc `activity_date` đã chuẩn hóa để đếm chuỗi ngày liên tiếp và tính `actual` từ DB — client không được tự cung cấp giá trị này.
-
-### 3.5.14. Sequence Engine Làm bài Quiz, Chấm điểm và Tổng hợp Nguồn ôn tập — BE1-F03
-
-Hình 3.20 mô tả toàn bộ vòng đời một lần làm Quiz: từ khi Student bắt đầu đến khi nhận kết quả và danh sách nguồn cần ôn lại.
-
-![Sequence BE1-F03 Quiz Scoring](../diagrams/chuong-3/sequence-be1-f03-quiz-scoring.png)
-
-*Hình 3.20. Biểu đồ tuần tự luồng làm bài, chấm điểm tự động và trích dẫn nguồn ôn tập (BE1-F03).*
-
-Java tạo `QuizAttempt` và trả danh sách câu hỏi **không kèm** `correctOptionIndex` để tránh lộ đáp án. Khi Student nộp bài, Java mở một Transaction: so sánh từng `selectedOptionIndex` với `correctOptionIndex` lưu trong DB, ghi `QuizAnswer` kèm `is_correct`, tính tổng điểm và ghi sự kiện `QUIZ_COMPLETED` **đúng một lần** theo `idempotency_key = attemptId`. Khung `loop` thể hiện chấm từng câu hỏi trong vòng lặp; khung `alt` xử lý submit lặp idempotent. Sau chấm điểm, Java truy vấn ngược `quiz_question_sources` để lấy `documentId` và `pageNumber` cho các câu trả lời sai, tổng hợp thành danh sách `reviewItems` — hoàn toàn dựa trên dữ liệu nguồn đã lưu, không dùng AI suy luận. Mỗi lần "Làm lại" tạo `QuizAttempt` mới, lịch sử cũ được bảo toàn.
 
 ## 3.6. Thiết kế bảo mật và phân quyền
 

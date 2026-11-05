@@ -1,7 +1,9 @@
 # StudyFlow — Kế hoạch triển khai Java Backend
 
+> Đợt đang triển khai: [Quiz Assignment và Trí tuệ tài liệu](quiz-assignment-document-intelligence-plan.md), mốc Q0–Q4. Source đã liên kết Quiz AI được Teacher công bố sang Quiz giao bài bằng cùng ID, giữ câu hỏi/citation, tách endpoint bắt đầu/nộp Quiz lớp, giữ Java làm nơi chấm điểm và trả báo cáo đúng/sai/tỷ lệ sai. Ca HTTP xuyên suốt và toàn bộ 25 kiểm thử HTTP đã đạt trên PostgreSQL Testcontainers; còn browser E2E.
+
 **Vai trò thực hiện:** `BACKEND_AGENT` theo `AGENTS.md`  
-**Trạng thái:** Kế hoạch và target structure; chưa scaffold dependency, migration hoặc chạy service  
+**Trạng thái cập nhật 05/11/2026:** Backend đã có source và test cho Auth, lớp học phần, Assignment/Quiz, Course Material Tutor, chuyển PPTX sang PDF và migration V21–V26. Bộ test sau khi hợp nhất chạy 292 ca, không có lỗi; 32 ca tích hợp dùng Docker được bỏ qua vì môi trường kiểm thử không kết nối được Docker. Luồng Teacher AI Quiz → Assignment → Student submit → Teacher report đã có test nghiệp vụ; kiểm thử HTTP thật cần chạy lại khi Docker sẵn sàng cho Testcontainers.
 **Baseline nghiệp vụ:** `Semester → Course Offering → Course Enrollment`
 
 ## 1. Mục tiêu và boundary
@@ -141,7 +143,7 @@ Teacher Quiz: GENERATING → REVIEW_REQUIRED → PUBLISHED | REJECTED → ARCHIV
           GENERATING → GENERATION_FAILED
 ```
 
-- Course Material PDF và Personal PDF đều gọi pipeline PDF theo `sourceType`; không nhận PPTX/DOCX.
+- Chỉ Course Material `SLIDE_PDF` và Personal PDF gọi pipeline AI theo `sourceType`; `REFERENCE_PDF` chỉ lưu/tải xuống, không index, Viewer/Tutor/AI Quiz hoặc page progress. Teacher Course Material nhận PDF/PPTX; Java chuyển PPTX thành PDF trước khi lưu/index. Personal Document không nhận PPTX; toàn hệ thống không nhận DOCX.
 - Java kiểm lại mọi citation/source/Quiz output trước khi lưu.
 - Quiz submit/scoring là transaction và không nhận score từ client/LLM.
 - Student Quiz có thể được yêu cầu qua Personal Assistant; Teacher Quiz dùng form có cấu trúc. Java vẫn khóa authorized source, mode, schema và validation.
@@ -161,7 +163,7 @@ Teacher Quiz: GENERATING → REVIEW_REQUIRED → PUBLISHED | REJECTED → ARCHIV
 
 - Endpoint dùng deny-by-default, role guard và resource-level access policy.
 - Không lộ sự tồn tại của resource ngoài scope; không trả storage key/internal AI metadata.
-- AI request có service credential, `X-Request-Id`, `X-Schema-Version: 3`, timeout và authorized document/version/location scope.
+- AI request có service credential, `X-Request-Id`, `X-Schema-Version: 4`, timeout và authorized document/version/location scope.
 - Job mutation có `Idempotency-Key`; retry chỉ cho thao tác an toàn/idempotent.
 - Upload kiểm extension, MIME thực, size và filename; signed URL tối đa 5 phút.
 - Log/audit không chứa document, prompt, answer, Note, password, token hoặc secret.

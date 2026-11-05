@@ -1,0 +1,583 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmi:XMI xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:uml="http://schema.omg.org/spec/UML/2.1">
+  <uml:Model xmi:id="id_Course_Material_Tutor" name="Course Material Tutor">
+    <packagedElement xmi:type="uml:Class" xmi:id="id_CourseMaterialLibraryView" name="CourseMaterialLibraryView">
+      <ownedComment xmi:id="id_CourseMaterialLibraryView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_CourseMaterialLibraryView_operation_0" name="loadMaterials" visibility="public">
+        <ownedParameter xmi:id="id_CourseMaterialLibraryView_operation_0_return" name="return" direction="return" type="id_CourseMaterial">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_CourseMaterialLibraryView_operation_0_return_lower" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_CourseMaterialLibraryView_operation_0_return_upper" value="*"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_CourseMaterialLibraryView_operation_1" name="openSlide" visibility="public">
+        <ownedParameter xmi:id="id_CourseMaterialLibraryView_operation_1_parameter_0" name="documentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_CourseMaterialLibraryView_operation_2" name="downloadReference" visibility="public">
+        <ownedParameter xmi:id="id_CourseMaterialLibraryView_operation_2_parameter_0" name="documentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_SlideViewerView" name="SlideViewerView">
+      <ownedComment xmi:id="id_SlideViewerView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_SlideViewerView_operation_0" name="showPage" visibility="public">
+        <ownedParameter xmi:id="id_SlideViewerView_operation_0_parameter_0" name="pageNumber" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_SlideViewerView_operation_1" name="selectText" visibility="public">
+        <ownedParameter xmi:id="id_SlideViewerView_operation_1_return" name="return" direction="return">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_SlideViewerView_operation_2" name="toggleTutor" visibility="public">
+      </ownedOperation>
+      <ownedOperation xmi:id="id_SlideViewerView_operation_3" name="toggleNotes" visibility="public">
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_AiTutorView" name="AiTutorView">
+      <ownedComment xmi:id="id_AiTutorView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_AiTutorView_operation_0" name="ask" visibility="public">
+        <ownedParameter xmi:id="id_AiTutorView_operation_0_parameter_0" name="question" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_AiTutorView_operation_1" name="showAnswer" visibility="public">
+        <ownedParameter xmi:id="id_AiTutorView_operation_1_parameter_0" name="response" direction="in" type="id_AnswerResponse">
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_AiTutorView_operation_2" name="openCitation" visibility="public">
+        <ownedParameter xmi:id="id_AiTutorView_operation_2_parameter_0" name="citation" direction="in" type="id_PageCitation">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_PageNoteView" name="PageNoteView">
+      <ownedComment xmi:id="id_PageNoteView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_PageNoteView_operation_0" name="loadNote" visibility="public">
+        <ownedParameter xmi:id="id_PageNoteView_operation_0_parameter_0" name="pageNumber" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_PageNoteView_operation_1" name="saveNote" visibility="public">
+        <ownedParameter xmi:id="id_PageNoteView_operation_1_parameter_0" name="content" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_StudentMaterialDAO" name="StudentMaterialDAO">
+      <ownedComment xmi:id="id_StudentMaterialDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_StudentMaterialDAO_operation_0" name="listMaterials" visibility="public">
+        <ownedParameter xmi:id="id_StudentMaterialDAO_operation_0_parameter_0" name="studentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_StudentMaterialDAO_operation_0_return" name="return" direction="return" type="id_CourseMaterial">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_StudentMaterialDAO_operation_0_return_lower" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_StudentMaterialDAO_operation_0_return_upper" value="*"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_StudentMaterialDAO_operation_1" name="renderSlide" visibility="public">
+        <ownedParameter xmi:id="id_StudentMaterialDAO_operation_1_parameter_0" name="documentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_StudentMaterialDAO_operation_1_parameter_1" name="pageNumber" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_StudentMaterialDAO_operation_1_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#PageImage"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_StudentMaterialDAO_operation_2" name="getTextLayer" visibility="public">
+        <ownedParameter xmi:id="id_StudentMaterialDAO_operation_2_parameter_0" name="documentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_StudentMaterialDAO_operation_2_parameter_1" name="pageNumber" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_StudentMaterialDAO_operation_2_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#TextLayer"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_CourseMaterialTutorDAO" name="CourseMaterialTutorDAO">
+      <ownedComment xmi:id="id_CourseMaterialTutorDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_CourseMaterialTutorDAO_operation_0" name="ask" visibility="public">
+        <ownedParameter xmi:id="id_CourseMaterialTutorDAO_operation_0_parameter_0" name="documentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_CourseMaterialTutorDAO_operation_0_parameter_1" name="pageNumber" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_CourseMaterialTutorDAO_operation_0_parameter_2" name="body" direction="in" type="id_PageQuestion">
+        </ownedParameter>
+        <ownedParameter xmi:id="id_CourseMaterialTutorDAO_operation_0_return" name="return" direction="return" type="id_AnswerResponse">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_PageNoteDAO" name="PageNoteDAO">
+      <ownedComment xmi:id="id_PageNoteDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_PageNoteDAO_operation_0" name="get" visibility="public">
+        <ownedParameter xmi:id="id_PageNoteDAO_operation_0_parameter_0" name="documentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_PageNoteDAO_operation_0_parameter_1" name="pageNumber" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_PageNoteDAO_operation_0_return" name="return" direction="return" type="id_PageNote">
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_PageNoteDAO_operation_1" name="save" visibility="public">
+        <ownedParameter xmi:id="id_PageNoteDAO_operation_1_parameter_0" name="documentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_PageNoteDAO_operation_1_parameter_1" name="pageNumber" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_PageNoteDAO_operation_1_parameter_2" name="body" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#SaveNoteRequest"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_PageNoteDAO_operation_1_return" name="return" direction="return" type="id_PageNote">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_MaterialAccessDAO" name="MaterialAccessDAO">
+      <ownedComment xmi:id="id_MaterialAccessDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_MaterialAccessDAO_operation_0" name="authorizeView" visibility="public">
+        <ownedParameter xmi:id="id_MaterialAccessDAO_operation_0_parameter_0" name="studentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_MaterialAccessDAO_operation_0_parameter_1" name="documentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_MaterialAccessDAO_operation_0_parameter_2" name="pageNumber" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_MaterialAccessDAO_operation_0_return" name="return" direction="return" type="id_PageScope">
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_MaterialAccessDAO_operation_1" name="authorizeTutor" visibility="public">
+        <ownedParameter xmi:id="id_MaterialAccessDAO_operation_1_parameter_0" name="studentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_MaterialAccessDAO_operation_1_parameter_1" name="documentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_MaterialAccessDAO_operation_1_parameter_2" name="pageNumber" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_MaterialAccessDAO_operation_1_return" name="return" direction="return" type="id_PageScope">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_TutorConversationDAO" name="TutorConversationDAO">
+      <ownedComment xmi:id="id_TutorConversationDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_TutorConversationDAO_operation_0" name="ask" visibility="public">
+        <ownedParameter xmi:id="id_TutorConversationDAO_operation_0_parameter_0" name="studentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_TutorConversationDAO_operation_0_parameter_1" name="documentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_TutorConversationDAO_operation_0_parameter_2" name="pageNumber" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_TutorConversationDAO_operation_0_parameter_3" name="question" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_TutorConversationDAO_operation_0_return" name="return" direction="return" type="id_AnswerResponse">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_AiGatewayDAO" name="AiGatewayDAO">
+      <ownedComment xmi:id="id_AiGatewayDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_AiGatewayDAO_operation_0" name="askCourseMaterial" visibility="public">
+        <ownedParameter xmi:id="id_AiGatewayDAO_operation_0_parameter_0" name="scope" direction="in" type="id_PageScope">
+        </ownedParameter>
+        <ownedParameter xmi:id="id_AiGatewayDAO_operation_0_parameter_1" name="question" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_AiGatewayDAO_operation_0_return" name="return" direction="return" type="id_AnswerResponse">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_TutorPipelineDAO" name="TutorPipelineDAO">
+      <ownedComment xmi:id="id_TutorPipelineDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_TutorPipelineDAO_operation_0" name="run" visibility="public">
+        <ownedParameter xmi:id="id_TutorPipelineDAO_operation_0_parameter_0" name="scope" direction="in" type="id_PageScope">
+        </ownedParameter>
+        <ownedParameter xmi:id="id_TutorPipelineDAO_operation_0_parameter_1" name="question" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_TutorPipelineDAO_operation_0_return" name="return" direction="return" type="id_AnswerResponse">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_DocumentIndexDAO" name="DocumentIndexDAO">
+      <ownedComment xmi:id="id_DocumentIndexDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_DocumentIndexDAO_operation_0" name="search" visibility="public">
+        <ownedParameter xmi:id="id_DocumentIndexDAO_operation_0_parameter_0" name="scope" direction="in" type="id_PageScope">
+        </ownedParameter>
+        <ownedParameter xmi:id="id_DocumentIndexDAO_operation_0_parameter_1" name="query" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_DocumentIndexDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#EvidenceSet"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_GroundingValidationDAO" name="GroundingValidationDAO">
+      <ownedComment xmi:id="id_GroundingValidationDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_GroundingValidationDAO_operation_0" name="validate" visibility="public">
+        <ownedParameter xmi:id="id_GroundingValidationDAO_operation_0_parameter_0" name="answer" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#GeneratedAnswer"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_GroundingValidationDAO_operation_0_parameter_1" name="evidence" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#EvidenceSet"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_GroundingValidationDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#ValidationResult"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_Student" name="Student">
+      <ownedComment xmi:id="id_Student_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_Student_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Student_attribute_1" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UserStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_CourseOffering" name="CourseOffering">
+      <ownedComment xmi:id="id_CourseOffering_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_CourseOffering_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_CourseOffering_attribute_1" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#OfferingStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_CourseEnrollment" name="CourseEnrollment">
+      <ownedComment xmi:id="id_CourseEnrollment_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_CourseEnrollment_attribute_0" name="studentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_CourseEnrollment_attribute_1" name="courseOfferingId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_CourseEnrollment_attribute_2" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#EnrollmentStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_CourseMaterial" name="CourseMaterial">
+      <ownedComment xmi:id="id_CourseMaterial_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_CourseMaterial_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_CourseMaterial_attribute_1" name="ownerId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_CourseMaterial_attribute_2" name="materialType" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#MaterialType"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_CourseMaterial_attribute_3" name="version" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_CourseMaterial_attribute_4" name="processingStatus" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#ProcessingStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_DocumentPublication" name="DocumentPublication">
+      <ownedComment xmi:id="id_DocumentPublication_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_DocumentPublication_attribute_0" name="documentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_DocumentPublication_attribute_1" name="courseOfferingId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_DocumentPublication_attribute_2" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#PublicationStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_DocumentPage" name="DocumentPage">
+      <ownedComment xmi:id="id_DocumentPage_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_DocumentPage_attribute_0" name="documentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_DocumentPage_attribute_1" name="pageNumber" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_PageNote" name="PageNote">
+      <ownedComment xmi:id="id_PageNote_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_PageNote_attribute_0" name="studentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PageNote_attribute_1" name="documentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PageNote_attribute_2" name="pageNumber" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PageNote_attribute_3" name="content" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#Text"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_LearningProgress" name="LearningProgress">
+      <ownedComment xmi:id="id_LearningProgress_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_LearningProgress_attribute_0" name="studentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_LearningProgress_attribute_1" name="documentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_LearningProgress_attribute_2" name="lastPage" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_LearningProgress_attribute_3" name="progressPercent" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#Decimal"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_DocumentIndex" name="DocumentIndex">
+      <ownedComment xmi:id="id_DocumentIndex_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_DocumentIndex_attribute_0" name="documentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_DocumentIndex_attribute_1" name="documentVersion" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_DocumentIndex_attribute_2" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#IndexStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_DocumentChunk" name="DocumentChunk">
+      <ownedComment xmi:id="id_DocumentChunk_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_DocumentChunk_attribute_0" name="pageNumber" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_DocumentChunk_attribute_1" name="chunkIndex" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_DocumentChunk_attribute_2" name="embedding" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#Vector"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_DocumentChunk_attribute_2_lower" value="1024"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_DocumentChunk_attribute_2_upper" value="1024"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_PageQuestion" name="PageQuestion">
+      <ownedComment xmi:id="id_PageQuestion_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_PageQuestion_attribute_0" name="question" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_PageScope" name="PageScope">
+      <ownedComment xmi:id="id_PageScope_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_PageScope_attribute_0" name="documentId" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PageScope_attribute_1" name="documentVersion" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PageScope_attribute_2" name="courseOfferingId" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PageScope_attribute_3" name="currentPage" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PageScope_attribute_4" name="allowedPageNumbers" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_PageScope_attribute_4_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_PageScope_attribute_4_upper" value="*"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_AnswerResponse" name="AnswerResponse">
+      <ownedComment xmi:id="id_AnswerResponse_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_AnswerResponse_attribute_0" name="status" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#AnswerStatus"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_AnswerResponse_attribute_1" name="answer" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_AnswerResponse_attribute_1_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_AnswerResponse_attribute_1_upper" value="1"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_AnswerResponse_attribute_2" name="citations" visibility="public" type="id_PageCitation">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_AnswerResponse_attribute_2_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_AnswerResponse_attribute_2_upper" value="*"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_PageCitation" name="PageCitation">
+      <ownedComment xmi:id="id_PageCitation_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_PageCitation_attribute_0" name="documentId" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PageCitation_attribute_1" name="pageNumber" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PageCitation_attribute_2" name="excerpt" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_0_CourseMaterialLibraryView_SlideViewerView" name="" memberEnd="id_relationship_0_CourseMaterialLibraryView_SlideViewerView_source id_relationship_0_CourseMaterialLibraryView_SlideViewerView_target">
+      <ownedEnd xmi:id="id_relationship_0_CourseMaterialLibraryView_SlideViewerView_source" type="id_CourseMaterialLibraryView" association="id_relationship_0_CourseMaterialLibraryView_SlideViewerView" aggregation="none">
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_0_CourseMaterialLibraryView_SlideViewerView_target" type="id_SlideViewerView" association="id_relationship_0_CourseMaterialLibraryView_SlideViewerView">
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_1_SlideViewerView_AiTutorView" name="" memberEnd="id_relationship_1_SlideViewerView_AiTutorView_source id_relationship_1_SlideViewerView_AiTutorView_target">
+      <ownedEnd xmi:id="id_relationship_1_SlideViewerView_AiTutorView_source" type="id_SlideViewerView" association="id_relationship_1_SlideViewerView_AiTutorView" aggregation="none">
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_1_SlideViewerView_AiTutorView_target" type="id_AiTutorView" association="id_relationship_1_SlideViewerView_AiTutorView">
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_2_SlideViewerView_PageNoteView" name="" memberEnd="id_relationship_2_SlideViewerView_PageNoteView_source id_relationship_2_SlideViewerView_PageNoteView_target">
+      <ownedEnd xmi:id="id_relationship_2_SlideViewerView_PageNoteView_source" type="id_SlideViewerView" association="id_relationship_2_SlideViewerView_PageNoteView" aggregation="none">
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_2_SlideViewerView_PageNoteView_target" type="id_PageNoteView" association="id_relationship_2_SlideViewerView_PageNoteView">
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_3_CourseMaterialLibraryView_StudentMaterialDAO" name="" client="id_CourseMaterialLibraryView" supplier="id_StudentMaterialDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_4_SlideViewerView_StudentMaterialDAO" name="" client="id_SlideViewerView" supplier="id_StudentMaterialDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_5_AiTutorView_CourseMaterialTutorDAO" name="" client="id_AiTutorView" supplier="id_CourseMaterialTutorDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_6_AiTutorView_PageQuestion" name="" client="id_AiTutorView" supplier="id_PageQuestion"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_7_PageNoteView_PageNoteDAO" name="" client="id_PageNoteView" supplier="id_PageNoteDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_8_StudentMaterialDAO_MaterialAccessDAO" name="" client="id_StudentMaterialDAO" supplier="id_MaterialAccessDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_9_CourseMaterialTutorDAO_TutorConversationDAO" name="" client="id_CourseMaterialTutorDAO" supplier="id_TutorConversationDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_10_TutorConversationDAO_MaterialAccessDAO" name="" client="id_TutorConversationDAO" supplier="id_MaterialAccessDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_11_TutorConversationDAO_AiGatewayDAO" name="" client="id_TutorConversationDAO" supplier="id_AiGatewayDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_12_PageNoteDAO_MaterialAccessDAO" name="" client="id_PageNoteDAO" supplier="id_MaterialAccessDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_13_AiGatewayDAO_TutorPipelineDAO" name="internal HTTP" client="id_AiGatewayDAO" supplier="id_TutorPipelineDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_14_TutorPipelineDAO_DocumentIndexDAO" name="" client="id_TutorPipelineDAO" supplier="id_DocumentIndexDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_15_TutorPipelineDAO_GroundingValidationDAO" name="" client="id_TutorPipelineDAO" supplier="id_GroundingValidationDAO"/>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_16_Student_CourseEnrollment" name="" memberEnd="id_relationship_16_Student_CourseEnrollment_source id_relationship_16_Student_CourseEnrollment_target">
+      <ownedEnd xmi:id="id_relationship_16_Student_CourseEnrollment_source" type="id_Student" association="id_relationship_16_Student_CourseEnrollment" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_16_Student_CourseEnrollment_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_16_Student_CourseEnrollment_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_16_Student_CourseEnrollment_target" type="id_CourseEnrollment" association="id_relationship_16_Student_CourseEnrollment">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_16_Student_CourseEnrollment_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_16_Student_CourseEnrollment_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_17_CourseOffering_CourseEnrollment" name="" memberEnd="id_relationship_17_CourseOffering_CourseEnrollment_source id_relationship_17_CourseOffering_CourseEnrollment_target">
+      <ownedEnd xmi:id="id_relationship_17_CourseOffering_CourseEnrollment_source" type="id_CourseOffering" association="id_relationship_17_CourseOffering_CourseEnrollment" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_17_CourseOffering_CourseEnrollment_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_17_CourseOffering_CourseEnrollment_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_17_CourseOffering_CourseEnrollment_target" type="id_CourseEnrollment" association="id_relationship_17_CourseOffering_CourseEnrollment">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_17_CourseOffering_CourseEnrollment_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_17_CourseOffering_CourseEnrollment_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_18_CourseOffering_DocumentPublication" name="" memberEnd="id_relationship_18_CourseOffering_DocumentPublication_source id_relationship_18_CourseOffering_DocumentPublication_target">
+      <ownedEnd xmi:id="id_relationship_18_CourseOffering_DocumentPublication_source" type="id_CourseOffering" association="id_relationship_18_CourseOffering_DocumentPublication" aggregation="shared">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_18_CourseOffering_DocumentPublication_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_18_CourseOffering_DocumentPublication_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_18_CourseOffering_DocumentPublication_target" type="id_DocumentPublication" association="id_relationship_18_CourseOffering_DocumentPublication">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_18_CourseOffering_DocumentPublication_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_18_CourseOffering_DocumentPublication_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_19_CourseMaterial_DocumentPublication" name="" memberEnd="id_relationship_19_CourseMaterial_DocumentPublication_source id_relationship_19_CourseMaterial_DocumentPublication_target">
+      <ownedEnd xmi:id="id_relationship_19_CourseMaterial_DocumentPublication_source" type="id_CourseMaterial" association="id_relationship_19_CourseMaterial_DocumentPublication" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_19_CourseMaterial_DocumentPublication_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_19_CourseMaterial_DocumentPublication_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_19_CourseMaterial_DocumentPublication_target" type="id_DocumentPublication" association="id_relationship_19_CourseMaterial_DocumentPublication">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_19_CourseMaterial_DocumentPublication_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_19_CourseMaterial_DocumentPublication_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_20_CourseMaterial_DocumentPage" name="" memberEnd="id_relationship_20_CourseMaterial_DocumentPage_source id_relationship_20_CourseMaterial_DocumentPage_target">
+      <ownedEnd xmi:id="id_relationship_20_CourseMaterial_DocumentPage_source" type="id_CourseMaterial" association="id_relationship_20_CourseMaterial_DocumentPage" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_20_CourseMaterial_DocumentPage_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_20_CourseMaterial_DocumentPage_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_20_CourseMaterial_DocumentPage_target" type="id_DocumentPage" association="id_relationship_20_CourseMaterial_DocumentPage">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_20_CourseMaterial_DocumentPage_target_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_20_CourseMaterial_DocumentPage_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_21_Student_PageNote" name="" memberEnd="id_relationship_21_Student_PageNote_source id_relationship_21_Student_PageNote_target">
+      <ownedEnd xmi:id="id_relationship_21_Student_PageNote_source" type="id_Student" association="id_relationship_21_Student_PageNote" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_21_Student_PageNote_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_21_Student_PageNote_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_21_Student_PageNote_target" type="id_PageNote" association="id_relationship_21_Student_PageNote">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_21_Student_PageNote_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_21_Student_PageNote_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_22_CourseMaterial_PageNote" name="" memberEnd="id_relationship_22_CourseMaterial_PageNote_source id_relationship_22_CourseMaterial_PageNote_target">
+      <ownedEnd xmi:id="id_relationship_22_CourseMaterial_PageNote_source" type="id_CourseMaterial" association="id_relationship_22_CourseMaterial_PageNote" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_22_CourseMaterial_PageNote_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_22_CourseMaterial_PageNote_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_22_CourseMaterial_PageNote_target" type="id_PageNote" association="id_relationship_22_CourseMaterial_PageNote">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_22_CourseMaterial_PageNote_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_22_CourseMaterial_PageNote_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_23_Student_LearningProgress" name="" memberEnd="id_relationship_23_Student_LearningProgress_source id_relationship_23_Student_LearningProgress_target">
+      <ownedEnd xmi:id="id_relationship_23_Student_LearningProgress_source" type="id_Student" association="id_relationship_23_Student_LearningProgress" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_23_Student_LearningProgress_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_23_Student_LearningProgress_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_23_Student_LearningProgress_target" type="id_LearningProgress" association="id_relationship_23_Student_LearningProgress">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_23_Student_LearningProgress_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_23_Student_LearningProgress_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_24_CourseMaterial_LearningProgress" name="" memberEnd="id_relationship_24_CourseMaterial_LearningProgress_source id_relationship_24_CourseMaterial_LearningProgress_target">
+      <ownedEnd xmi:id="id_relationship_24_CourseMaterial_LearningProgress_source" type="id_CourseMaterial" association="id_relationship_24_CourseMaterial_LearningProgress" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_24_CourseMaterial_LearningProgress_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_24_CourseMaterial_LearningProgress_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_24_CourseMaterial_LearningProgress_target" type="id_LearningProgress" association="id_relationship_24_CourseMaterial_LearningProgress">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_24_CourseMaterial_LearningProgress_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_24_CourseMaterial_LearningProgress_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_25_CourseMaterial_DocumentIndex" name="" memberEnd="id_relationship_25_CourseMaterial_DocumentIndex_source id_relationship_25_CourseMaterial_DocumentIndex_target">
+      <ownedEnd xmi:id="id_relationship_25_CourseMaterial_DocumentIndex_source" type="id_CourseMaterial" association="id_relationship_25_CourseMaterial_DocumentIndex" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_25_CourseMaterial_DocumentIndex_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_25_CourseMaterial_DocumentIndex_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_25_CourseMaterial_DocumentIndex_target" type="id_DocumentIndex" association="id_relationship_25_CourseMaterial_DocumentIndex">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_25_CourseMaterial_DocumentIndex_target_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_25_CourseMaterial_DocumentIndex_target_upper" value="1"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_26_DocumentIndex_DocumentChunk" name="" memberEnd="id_relationship_26_DocumentIndex_DocumentChunk_source id_relationship_26_DocumentIndex_DocumentChunk_target">
+      <ownedEnd xmi:id="id_relationship_26_DocumentIndex_DocumentChunk_source" type="id_DocumentIndex" association="id_relationship_26_DocumentIndex_DocumentChunk" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_26_DocumentIndex_DocumentChunk_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_26_DocumentIndex_DocumentChunk_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_26_DocumentIndex_DocumentChunk_target" type="id_DocumentChunk" association="id_relationship_26_DocumentIndex_DocumentChunk">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_26_DocumentIndex_DocumentChunk_target_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_26_DocumentIndex_DocumentChunk_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_27_AnswerResponse_PageCitation" name="" memberEnd="id_relationship_27_AnswerResponse_PageCitation_source id_relationship_27_AnswerResponse_PageCitation_target">
+      <ownedEnd xmi:id="id_relationship_27_AnswerResponse_PageCitation_source" type="id_AnswerResponse" association="id_relationship_27_AnswerResponse_PageCitation" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_27_AnswerResponse_PageCitation_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_27_AnswerResponse_PageCitation_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_27_AnswerResponse_PageCitation_target" type="id_PageCitation" association="id_relationship_27_AnswerResponse_PageCitation">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_27_AnswerResponse_PageCitation_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_27_AnswerResponse_PageCitation_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_28_MaterialAccessDAO_CourseEnrollment" name="" client="id_MaterialAccessDAO" supplier="id_CourseEnrollment"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_29_MaterialAccessDAO_DocumentPublication" name="" client="id_MaterialAccessDAO" supplier="id_DocumentPublication"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_30_MaterialAccessDAO_CourseMaterial" name="" client="id_MaterialAccessDAO" supplier="id_CourseMaterial"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_31_MaterialAccessDAO_PageScope" name="" client="id_MaterialAccessDAO" supplier="id_PageScope"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_32_StudentMaterialDAO_DocumentPage" name="" client="id_StudentMaterialDAO" supplier="id_DocumentPage"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_33_PageNoteDAO_PageNote" name="" client="id_PageNoteDAO" supplier="id_PageNote"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_34_StudentMaterialDAO_LearningProgress" name="" client="id_StudentMaterialDAO" supplier="id_LearningProgress"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_35_DocumentIndexDAO_DocumentIndex" name="" client="id_DocumentIndexDAO" supplier="id_DocumentIndex"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_36_DocumentIndexDAO_DocumentChunk" name="" client="id_DocumentIndexDAO" supplier="id_DocumentChunk"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_37_TutorConversationDAO_AnswerResponse" name="" client="id_TutorConversationDAO" supplier="id_AnswerResponse"/>
+  </uml:Model>
+</xmi:XMI>

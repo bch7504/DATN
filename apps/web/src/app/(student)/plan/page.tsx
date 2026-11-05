@@ -322,22 +322,6 @@ export default function StudentPlanPage() {
       {loading ? (
         <div className="flex justify-center py-16"><LoadingSpinner size="lg" text="Đang tải kế hoạch..." /></div>
       ) : <>
-      {!activePlan && (
-        <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-          <CalendarCheck className="mx-auto h-10 w-10 text-slate-400" />
-          <h2 className="mt-3 text-lg font-bold text-slate-900">Bạn chưa có kế hoạch học tập</h2>
-          <p className="mx-auto mt-1 max-w-lg text-sm text-slate-500">Tạo kế hoạch cá nhân để lưu lịch tự học, lịch ôn Quiz và nhiệm vụ cần hoàn thành.</p>
-          <Link href="/plan/new" className="mt-5 inline-flex rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white">Tạo kế hoạch cá nhân</Link>
-        </section>
-      )}
-        {activePlan && (
-          <section className="flex flex-wrap items-end gap-3 rounded-2xl border bg-white p-4">
-            <label className="text-sm">Chọn kế hoạch<select disabled={saving} value={activePlan.id} onChange={(event) => setSelectedPlanId(event.target.value)} className="ml-2 rounded-xl border p-2">{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.title}</option>)}</select></label>
-            <Link href={`/plan/${encodeURIComponent(activePlan.id)}/edit`} className="rounded-xl border border-slate-300 px-3 py-2 text-sm">Sửa kế hoạch</Link>
-            <button type="button" disabled={saving} onClick={requestArchivePlan} className="rounded-xl border border-red-300 px-3 py-2 text-sm text-red-700 disabled:opacity-50">Lưu trữ</button>
-            <Link href="/plan/new" className="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-700">Tạo kế hoạch khác</Link>
-          </section>
-        )}
           <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col justify-between gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:p-5">
               <div>
@@ -379,6 +363,43 @@ export default function StudentPlanPage() {
                 </section>;
               })}
             </div>
+          </section>
+
+          <section aria-labelledby="plan-selector-title" className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <div>
+                <h2 id="plan-selector-title" className="font-bold text-slate-900">Chọn kế hoạch cá nhân</h2>
+                <p className="mt-1 text-xs text-slate-500">Chọn một kế hoạch bên dưới để xem và quản lý lịch của kế hoạch đó.</p>
+              </div>
+              <span className="text-xs font-semibold text-slate-500">{plans.length} kế hoạch đang hoạt động</span>
+            </div>
+
+            {plans.length > 0 ? <div role="radiogroup" aria-label="Các kế hoạch cá nhân" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {plans.map((plan) => {
+                const selected = plan.id === activePlan?.id;
+                return <button key={plan.id} type="button" role="radio" aria-checked={selected} disabled={saving} onClick={() => setSelectedPlanId(plan.id)} className={`rounded-2xl border p-4 text-left ${selected ? "border-red-700 bg-red-50 ring-1 ring-red-700" : "border-slate-200 bg-white"}`}>
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${selected ? "bg-red-700 text-white" : "bg-slate-100 text-slate-600"}`}>{selected ? "Đang chọn" : "Chọn kế hoạch"}</span>
+                  <span className="mt-2 block text-sm font-bold text-slate-900">{plan.title}</span>
+                  <span className="mt-1 block text-xs text-slate-500">Ngày kế hoạch: {new Date(`${plan.startDate}T00:00:00`).toLocaleDateString("vi-VN")}</span>
+                </button>;
+              })}
+            </div> : <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center">
+              <CalendarCheck className="mx-auto h-8 w-8 text-slate-400" />
+              <p className="mt-2 text-sm font-bold text-slate-800">Bạn chưa có kế hoạch cá nhân</p>
+              <p className="mt-1 text-xs text-slate-500">Tạo kế hoạch đầu tiên để thêm lịch tự học, ôn Quiz và nhiệm vụ.</p>
+              <label className="mx-auto mt-4 block max-w-sm text-left text-sm">Tên kế hoạch<input required maxLength={200} value={newPlanTitle} onChange={(event) => setNewPlanTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 p-2" /></label>
+              <label className="mx-auto mt-3 block max-w-sm text-left text-sm">Ngày kế hoạch<input required type="date" value={newPlanDate} onChange={(event) => setNewPlanDate(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 p-2" /></label>
+              <button type="button" disabled={saving || !newPlanTitle.trim() || !newPlanDate} onClick={() => void createPlan()} className="mt-4 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{saving ? "Đang tạo..." : "Tạo kế hoạch cá nhân"}</button>
+            </div>}
+
+            {activePlan && <div className="grid gap-4 border-t border-slate-100 pt-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+              <form onSubmit={(event) => void renamePlan(event)} className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
+                <label className="text-sm font-semibold text-slate-700">Tên kế hoạch<input required maxLength={200} value={planTitle} onChange={(event) => setPlanTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 p-2 font-normal" /></label>
+                <label className="text-sm font-semibold text-slate-700">Ngày kế hoạch<input required type="date" value={planDate} onChange={(event) => setPlanDate(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 p-2 font-normal" /></label>
+                <div className="flex flex-wrap gap-2 sm:col-span-2"><button disabled={saving || !planTitle.trim() || !planDate} className="rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Lưu kế hoạch</button><button type="button" disabled={saving} onClick={requestArchivePlan} className="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">Lưu trữ kế hoạch</button></div>
+              </form>
+              <details className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm lg:w-80"><summary className="cursor-pointer font-bold text-red-700">+ Tạo kế hoạch khác</summary><label className="mt-3 block font-semibold text-slate-700">Tên kế hoạch<input required maxLength={200} value={newPlanTitle} onChange={(event) => setNewPlanTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-2 font-normal" /></label><label className="mt-3 block font-semibold text-slate-700">Ngày kế hoạch<input required type="date" value={newPlanDate} onChange={(event) => setNewPlanDate(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-2 font-normal" /></label><button type="button" disabled={saving || !newPlanTitle.trim() || !newPlanDate} onClick={() => void createPlan()} className="mt-3 rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Tạo kế hoạch</button></details>
+            </div>}
           </section>
 
           <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

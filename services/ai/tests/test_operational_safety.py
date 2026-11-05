@@ -3,11 +3,12 @@
 import httpx
 import pytest
 from fastapi import FastAPI
+from openai import APIConnectionError
 
 from app.core.observability import RequestMetrics
 from app.core.request_id import safe_request_id
 from app.pipelines.parsers.pdf import PdfProcessingError
-from app.workers.documents import retryable_index_error
+from app.workers.documents import retryable_index_error, safe_index_error_code
 
 
 @pytest.mark.anyio
@@ -40,6 +41,21 @@ def test_only_transient_document_transport_errors_retry(status: int, expected: b
     )
     assert retryable_index_error(error) is expected
     assert not retryable_index_error(PdfProcessingError(code="PDF_INVALID", message="Invalid PDF"))
+
+
+def test_index_error_codes_identify_safe_failure_stage() -> None:
+    """The worker exposes only stable stage codes, never exception details."""
+
+    request = httpx.Request("GET", "https://storage.example/document.pdf")
+    download_error = httpx.ConnectError("sensitive transport detail", request=request)
+    provider_error = APIConnectionError(request=request)
+
+    assert safe_index_error_code(download_error) == "DOCUMENT_DOWNLOAD_FAILED"
+    assert safe_index_error_code(provider_error) == "EMBEDDING_PROVIDER_FAILED"
+    assert (
+        safe_index_error_code(PdfProcessingError(code="PDF_INVALID", message="Invalid PDF"))
+        == "PDF_INVALID"
+    )
 
 
 @pytest.mark.anyio

@@ -162,6 +162,8 @@ Join code tạo enrollment PENDING; chỉ APPROVED mở học liệu. PENDING/RE
 
 ### S03 — Học liệu PDF (UI) — `/materials`
 
+Danh sách phân biệt rõ hai loại học liệu. `SLIDE_PDF` hiển thị CTA **Xem slide** và số trang; `REFERENCE_PDF` chỉ hiển thị CTA **Tải PDF**. Không dùng cùng một CTA “Mở PDF” cho cả hai loại.
+
 ```text
 ┌──────────────────────────────────────────────────────────────┐
 │ Học liệu PDF                                                 │
@@ -176,6 +178,8 @@ Join code tạo enrollment PENDING; chỉ APPROVED mở học liệu. PENDING/RE
 Route hỗ trợ truy cập học liệu; không tạo một nguồn tài liệu dùng chung ngoài quyền enrollment.
 
 ### S04 — PDF Viewer + Note/Tutor (UI) — `/materials/{documentId}/viewer`
+
+Route này chỉ nhận `SLIDE_PDF`. Mỗi trang PDF được trình bày như một slide; panel Tutor hỏi theo slide/trang hiện tại và citation vẫn dùng `documentId + pageNumber`. Nếu URL trỏ tới `REFERENCE_PDF`, FE quay về kho học liệu và hiển thị thông báo tài liệu chỉ hỗ trợ tải xuống.
 
 ```text
 ┌───────────────────────────────────────────────────────────────────┐
@@ -476,6 +480,8 @@ T03a — từ chối (Phụ): xác nhận người/lớp, lý do nếu contract 
 
 ### T04 — Kho học liệu PDF (UI) — `/teacher/documents`
 
+Khi tải lên, Teacher bắt buộc chọn **Slide PDF** hoặc **Tài liệu tham khảo**. Slide PDF được lập chỉ mục và có thể dùng cho Viewer/Tutor/Quiz; tài liệu tham khảo chỉ được công bố để Student tải xuống.
+
 ```text
 ┌──────────────────────────────────────────────────────────────┐
 │ Kho học liệu PDF                           [+ Tải PDF]      │
@@ -486,7 +492,7 @@ T03a — từ chối (Phụ): xác nhận người/lớp, lý do nếu contract 
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Nút **Tạo Quiz** mở T05 với PDF nguồn đã chọn. Không mở chatbot/Tutor.
+Nút **Tạo Quiz** chỉ xuất hiện với `SLIDE_PDF READY` và mở T05 với nguồn đã chọn. `REFERENCE_PDF` không có CTA này. Không mở chatbot/Tutor cho Teacher.
 
 T04a/T04b — tải PDF và công bố (Phụ, UI):
 
@@ -500,7 +506,7 @@ T04a/T04b — tải PDF và công bố (Phụ, UI):
 └─────────────────────────────┴────────────────────────────────┘
 ```
 
-Hai modal riêng. PROCESSING/FAILED không được coi là nguồn sẵn sàng. Thu hồi phải cập nhật quyền Student, không chỉ ẩn card FE.
+Hai modal riêng. Modal upload có trường loại học liệu bắt buộc. `SLIDE_PDF` ở PROCESSING/FAILED không được coi là nguồn sẵn sàng; `REFERENCE_PDF` không đi qua AI processing. Thu hồi phải cập nhật quyền Student, không chỉ ẩn card FE.
 
 ### T05 — AI Quiz Studio (UI form; review/publish TK) — `/teacher/quizzes/create`
 
@@ -518,7 +524,7 @@ Hai modal riêng. PROCESSING/FAILED không được coi là nguồn sẵn sàng.
 └───────────────────────────────────┴──────────────────────────┘
 ```
 
-Teacher tự chọn số câu, không cố định 15; UI hiện 5–30 theo plan/contract. Một PDF READY, trang hợp lệ, lớp đích thuộc Teacher. Form gọi Java để sinh bản nháp thật và chỉ cho công bố sau bước duyệt.
+Teacher tự chọn số câu, không cố định 15; UI hiện 5–30 theo plan/contract. Nguồn bắt buộc là một `SLIDE_PDF READY`, trang hợp lệ, lớp đích thuộc Teacher. Form gọi Java để sinh bản nháp thật và chỉ cho công bố sau bước duyệt.
 
 T05a/T05b — review và publish (Phụ, TK; chưa tạo route mới ngầm định):
 
@@ -756,7 +762,7 @@ Các đường dẫn source tương đối dưới `apps/web/src/app/`. Panel d�
 
 - Browser chỉ gọi Java `/api/v1`; không gọi Python, vector DB hoặc model provider trực tiếp.
 - Single Orchestrator chỉ phục vụ Personal Assistant Student; không multi-agent. Hỏi đáp, tóm tắt, Quiz phải grounded trên PDF được cấp quyền.
-- Course Material và Personal Document chỉ PDF có text layer; không PPTX/DOCX/OCR.
+- Teacher Course Material nhận PDF hoặc PPTX; Java chuyển PPTX thành PDF trước khi lưu/index. Personal Document chỉ nhận PDF có text layer; không DOCX/OCR.
 - Teacher chỉ AI Quiz Generator, không Personal Chatbot/AI Tutor.
 - Java sở hữu scoring, lifecycle, enrollment, progress, Streak và Daily Goal actual.
 - Các màn Admin còn thiếu API, persist draft từ chat, Note theo trang và các workflow chưa nối Java phải được triển khai/kiểm thử riêng. Không coi đầy đủ wireframe là đầy đủ code.
@@ -770,7 +776,7 @@ Các đường dẫn source tương đối dưới `apps/web/src/app/`. Panel d�
 | UI-2026-10-06 | Toàn bộ FE | Đổi tên tài liệu thành `ui-design.md`; tập trung Auth/Student/Teacher/Admin và khung phụ |
 | UI-2026-10-06 | S05/S06 | Kho mặc định; bấm Hỏi đáp mới mở AI bên trong; không có menu Assistant |
 | UI-2026-10-06 | S07–S09 | Khôi phục form sinh đề riêng; chat tạo Quiz là đường vào tùy chọn khác |
-| UI-2026-10-06 | T04/T05 | PDF-only, Teacher Quiz, không Teacher chatbot/Tutor |
+| UI-2026-11-04 | T04/T05 | Teacher upload PDF/PPTX; Java chuẩn hóa PPTX thành PDF; Teacher Quiz, không Teacher chatbot/Tutor |
 
 Mỗi lần sửa UI phải ghi thêm dòng (ngày, ID khung, cũ → mới, route/contract ảnh hưởng) thay vì xóa lịch sử.
 

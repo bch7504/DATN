@@ -3,8 +3,8 @@
  *
  * Args: node render-plantuml.mjs <dependency-prefix> [relative-stem] [output-relative-stem] [left,right,top,bottom].
  * Input: .puml files inside chuong-1/, chuong-2/ and chuong-3/ only.
- * Output: sibling .svg and .png files preserving per-diagram palettes; sources are never overwritten.
- * Exit: 0 on success, nonzero on failure; reruns replace generated images only.
+ * Output: sibling .png files preserving per-diagram palettes; sources are never overwritten.
+ * Exit: 0 on success, nonzero on failure; reruns replace generated PNG images only.
  * Errors: invalid paths, unavailable browser/package, syntax/render failures.
  */
 import fs from "node:fs/promises";
@@ -44,7 +44,7 @@ async function collectSources() {
 /**
  * @param {import('puppeteer-core').Browser} browser Local browser, already running.
  * @param {string} sourcePath Allowlisted absolute .puml source path.
- * @returns {Promise<string>} Rendered relative source name; writes sibling images.
+ * @returns {Promise<string>} Rendered relative source name; writes one sibling PNG image.
  * @throws {Error} Invalid source, renderer failure or filesystem/browser error.
  */
 async function renderSource(browser, sourcePath) {
@@ -72,7 +72,7 @@ async function renderSource(browser, sourcePath) {
     throw new Error(path.basename(sourcePath) + ": " + (result.error || result.svg?.replace(/<[^>]*>/g, " ").slice(-2200) || "No SVG returned"));
   }
   let renderedSvg = result.svg;
-  if (source.includes("' Palette: sequence")) {
+  if (source.includes("' Palette: sequence") && !source.includes("' InteractionFrame: none")) {
     const interactionName = source.match(/^' Interaction:\s*(.+)$/m)?.[1]?.trim();
     if (!interactionName) throw new Error(path.basename(sourcePath) + ": missing sequence interaction name");
     const rawOpening = renderedSvg.match(/<svg\b[^>]*>/)?.[0];
@@ -94,14 +94,20 @@ async function renderSource(browser, sourcePath) {
     const escapedName = interactionName
       .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
     const interactionFrame =
-      `<g data-sequence-frame="true" fill="none" stroke="#222222" stroke-width="1.50">` +
+      `<g data-sequence-frame="true" fill="none" stroke="#000000" stroke-width="1.50">` +
       `<rect x="${frameX}" y="${frameY}" width="${frameWidth}" height="${frameHeight}"/>` +
       `<path d="M${frameX},${frameY} H${frameX + 260} L${frameX + 245},${frameY + 30} H${frameX} Z" fill="#FFFFFF"/>` +
-      `</g><text x="${frameX + 10}" y="${frameY + 21}" font-size="15" font-weight="bold" fill="#111111" font-family="Arial">sd ${escapedName}</text>`;
+      `</g><text x="${frameX + 10}" y="${frameY + 21}" font-size="15" font-weight="bold" fill="#000000" font-family="Arial">sd ${escapedName}</text>`;
     renderedSvg = renderedSvg
       .replace(rawOpening, expandedOpening)
       .replace('<defs/>', `<defs/><g transform="translate(0 ${headerSpace})">`)
       .replace('</svg>', `</g>${interactionFrame}</svg>`);
+  }
+  // PlantUML's sequence renderer keeps #181818 for lifelines/activations even
+  // when their skinparams are black. Normalize that built-in color only for
+  // diagrams that explicitly opt into a strict black-and-white palette.
+  if (source.includes("' Monochrome: true")) {
+    renderedSvg = renderedSvg.replaceAll("#181818", "#000000");
   }
   let outputStem = sourcePath.slice(0, -5);
   if (selectedOutputStem) {
@@ -167,7 +173,6 @@ async function renderSource(browser, sourcePath) {
       `</g>`;
     svgMarkup = svgMarkup.replace('</svg>', activityFrame + '</svg>');
   }
-  await fs.writeFile(outputStem + ".svg", svgMarkup, "utf8");
   await page.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 2 });
   await page.setContent('<style>body{margin:0;background:white}</style>' + svgMarkup);
   await page.evaluate(() => document.fonts.ready);

@@ -122,6 +122,7 @@ async def ask_course_material(
         result = await answer_service.answer(
             instruction=payload.question,
             scope=payload.to_scope(),
+            history=payload.history,
         )
     except ValueError as error:
         raise ServiceError(

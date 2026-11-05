@@ -101,7 +101,7 @@ class DocumentIndexingServiceTest {
         verify(ai).indexDocument(any(), anyString(), anyString());
     }
 
-    /** Matching schema-v3 artifact metadata moves PROCESSING to READY and trusts extracted page count only. */
+    /** Matching schema-v4 artifact metadata moves PROCESSING to READY and trusts extracted page count only. */
     @Test
     void completesSuccessfulJob() {
         CourseMaterialDocument document = pendingDocument();

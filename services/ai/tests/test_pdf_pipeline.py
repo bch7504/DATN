@@ -7,7 +7,7 @@ from pypdf import PdfWriter
 from reportlab.pdfgen import canvas
 
 from app.pipelines.chunking import chunk_pages
-from app.pipelines.parsers.pdf import PdfProcessingError, extract_pdf_pages
+from app.pipelines.parsers.pdf import PdfProcessingError, _normalize_text, extract_pdf_pages
 from app.schemas.documents import ExtractedPage
 
 
@@ -74,6 +74,12 @@ def test_extract_pdf_pages_preserves_page_numbers() -> None:
         (1, "ACID guarantees transactions."),
         (2, "Isolation prevents conflicts."),
     ]
+
+
+def test_normalize_text_replaces_postgresql_unsupported_control_characters() -> None:
+    """Extracted NUL/control bytes cannot break otherwise valid PDF indexing."""
+
+    assert _normalize_text("Cổng\x00logic\x07 số\nDòng hai") == "Cổng logic số\nDòng hai"
 
 
 def test_extract_pdf_pages_rejects_encrypted_pdf() -> None:

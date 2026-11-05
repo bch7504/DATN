@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
@@ -18,6 +19,8 @@ public class AssignmentSubmission {
     @Column(name = "answer_text", columnDefinition = "TEXT") private String answerText;
     @Column(name = "submitted_at", nullable = false) private Instant submittedAt;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private SubmissionStatus status;
+    @Column(name = "score", precision = 5, scale = 2) private BigDecimal score;
+    @Column(name = "quiz_attempt_id") private UUID quizAttemptId;
     @Column(name = "created_at", nullable = false, updatable = false) private Instant createdAt;
     @Column(name = "updated_at", nullable = false) private Instant updatedAt;
 
@@ -48,10 +51,24 @@ public class AssignmentSubmission {
         updatedAt = now;
     }
 
+    /** Args: scored attempt ID and score in 0..100. Input: Java-scored Quiz result.
+     * Output: void; links the current submission to the latest attempt. Errors: invalid score/ID. */
+    public void attachQuizResult(UUID attemptId, BigDecimal resultScore, Instant now) {
+        if (attemptId == null || resultScore == null || resultScore.signum() < 0
+                || resultScore.compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw new IllegalArgumentException("Quiz attempt and score must be valid.");
+        }
+        quizAttemptId = attemptId;
+        score = resultScore;
+        updatedAt = now;
+    }
+
     public UUID getId() { return id; }
     public UUID getAssignmentId() { return assignmentId; }
     public UUID getStudentId() { return studentId; }
     public String getAnswerText() { return answerText; }
     public Instant getSubmittedAt() { return submittedAt; }
     public SubmissionStatus getStatus() { return status; }
+    public BigDecimal getScore() { return score; }
+    public UUID getQuizAttemptId() { return quizAttemptId; }
 }

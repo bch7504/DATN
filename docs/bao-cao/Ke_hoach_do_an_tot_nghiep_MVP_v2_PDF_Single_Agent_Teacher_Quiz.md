@@ -69,8 +69,9 @@ Chỉ Student `APPROVED` sử dụng trên Course Material PDF đã public. Retr
 
 ## 5. Tài liệu và tiến độ
 
-- Chỉ PDF có text layer; không nhận PPTX/DOCX và không OCR trong MVP.
-- Course Material PDF có Viewer/Page Note/Tutor/page progress.
+- Teacher Course Material nhận PDF có text layer hoặc PPTX; Java chuyển PPTX thành PDF và chỉ lưu/index PDF đã chuẩn hóa. Personal Document chỉ nhận PDF text-layer. Không nhận DOCX và không OCR trong MVP.
+- Course Material loại `SLIDE_PDF` có Viewer/Page Note/Tutor/page progress, không cho Student tải PDF gốc; Teacher chỉ dùng loại này làm nguồn sinh Quiz AI.
+- Course Material loại `REFERENCE_PDF` chỉ tải xuống; không Viewer, Note/Tutor, page progress hoặc lập chỉ mục AI.
 - Personal PDF chỉ thuộc owner và không tạo progress lớp.
 - Streak chỉ tính `VIEW_PAGE`, `STUDY_TASK_COMPLETED`, `QUIZ_COMPLETED`.
 - Daily Goal gồm Page/Quiz Question/Task; Java tính actual theo local date.

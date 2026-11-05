@@ -30,8 +30,8 @@ test("FE-F03: deadline notification UI uses only the Java public contract", () =
   assert.match(navigation, /\/teacher\/enrollments/);
   assert.match(navigation, /\/teacher\/assignments/);
   assert.match(navigation, /\/teacher\/documents/);
-  assert.match(navigation, /\/materials/);
   assert.match(navigation, /\/course-offerings/);
+  assert.doesNotMatch(navigation, /return \{ href: "\/materials"/);
   assert.match(types, /STUDENT_MATERIAL_PUBLISHED/);
   assert.match(types, /TEACHER_ASSIGNMENT_EXPIRED/);
   assert.match(types, /STUDENT_ENROLLMENT_APPROVED/);

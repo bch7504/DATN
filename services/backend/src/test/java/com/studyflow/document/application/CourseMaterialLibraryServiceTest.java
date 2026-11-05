@@ -10,18 +10,24 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doThrow;
 
+import com.studyflow.common.exception.ApiException;
 import com.studyflow.common.exception.ValidationException;
 import com.studyflow.courseoffering.domain.CourseOfferingRepository;
 import com.studyflow.document.domain.CourseMaterialDocument;
 import com.studyflow.document.domain.CourseMaterialDocumentRepository;
+import com.studyflow.document.domain.CourseMaterialType;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
+import com.studyflow.integration.document.PresentationToPdfConverter;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
 import com.studyflow.publication.domain.DocumentPublicationRepository;
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -37,6 +43,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 class CourseMaterialLibraryServiceTest {
     private CourseMaterialDocumentRepository documents;
     private AssignmentAttachmentStorage storage;
+    private PresentationToPdfConverter converter;
     private com.studyflow.notification.application.port.NotificationStore notifications;
     private CourseMaterialLibraryService service;
 
@@ -50,10 +57,14 @@ class CourseMaterialLibraryServiceTest {
         notifications = org.mockito.Mockito.mock(
                 com.studyflow.notification.application.port.NotificationStore.class);
         ObjectProvider<AssignmentAttachmentStorage> storageProvider = org.mockito.Mockito.mock(ObjectProvider.class);
+        ObjectProvider<PresentationToPdfConverter> converterProvider = org.mockito.Mockito.mock(ObjectProvider.class);
         storage = org.mockito.Mockito.mock(AssignmentAttachmentStorage.class);
+        converter = org.mockito.Mockito.mock(PresentationToPdfConverter.class);
         when(storageProvider.getIfAvailable()).thenReturn(storage);
+        when(converterProvider.getIfAvailable()).thenReturn(converter);
         service = new CourseMaterialLibraryService(documents, publications, offerings, enrollments,
-                storageProvider, notifications, Clock.fixed(Instant.parse("2026-10-15T00:00:00Z"), ZoneOffset.UTC));
+                storageProvider, converterProvider, notifications,
+                Clock.fixed(Instant.parse("2026-10-15T00:00:00Z"), ZoneOffset.UTC));
     }
 
     @Test
@@ -67,6 +78,8 @@ class CourseMaterialLibraryServiceTest {
 
         assertEquals("Lesson 1", saved.getDisplayName());
         assertEquals(1, saved.getPageCount());
+        assertEquals(CourseMaterialType.SLIDE_PDF.name(), saved.getMaterialType());
+        assertEquals("PENDING_PROCESSING", saved.getProcessingStatus());
         verify(storage).put(eq("course-materials/" + teacherId + "/" + saved.getId() + ".pdf"),
                 eq("application/pdf"), any(), eq((long) pdfBytes.length));
         verify(notifications).createEventIfAbsent(eq(teacherId),
@@ -75,6 +88,37 @@ class CourseMaterialLibraryServiceTest {
         verify(notifications, never()).createEventIfAbsent(any(),
                 eq(com.studyflow.notification.domain.NotificationType.STUDENT_MATERIAL_PUBLISHED),
                 any(), any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    /** A reference PDF is ready for download immediately and never enters the AI indexing queue. */
+    @Test
+    void storesReferencePdfAsDownloadOnlyReadyMaterial() throws Exception {
+        UUID teacherId = UUID.randomUUID();
+        byte[] pdfBytes = pdfWithText("Reference handout");
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "reference.pdf", "application/pdf", pdfBytes);
+        when(documents.save(any(CourseMaterialDocument.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseMaterialDocument saved = service.upload(
+                teacherId, file, "Reference", CourseMaterialType.REFERENCE_PDF.name());
+
+        assertEquals(CourseMaterialType.REFERENCE_PDF.name(), saved.getMaterialType());
+        assertEquals("READY", saved.getProcessingStatus());
+        assertEquals(1, saved.getPageCount());
+    }
+
+    /** Unsupported material types fail before writing the object or document metadata. */
+    @Test
+    void rejectsUnsupportedMaterialTypeBeforeStorageWrite() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "lesson.pdf", "application/pdf", pdfWithText("Lesson"));
+
+        ValidationException error = assertThrows(ValidationException.class,
+                () -> service.upload(UUID.randomUUID(), file, "Lesson", "PPTX"));
+
+        assertEquals("INVALID_MATERIAL_TYPE", error.getCode());
+        verify(storage, never()).put(any(), any(), any(), any(Long.class));
     }
 
     @Test
@@ -92,8 +136,67 @@ class CourseMaterialLibraryServiceTest {
     @Test
     void rejectsNonPdfBeforeStorageWrite() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "slides.pptx", "application/octet-stream", new byte[] {1, 2, 3});
-        assertThrows(com.studyflow.common.exception.ApiException.class,
+        ApiException error = assertThrows(ApiException.class,
                 () -> service.upload(UUID.randomUUID(), file, "Slides"));
+        assertEquals("INVALID_PPTX", error.code());
+        verify(storage, never()).put(any(), any(), any(), any(Long.class));
+    }
+
+    /** A valid Teacher PPTX is normalized to PDF before metadata and object storage are written. */
+    @Test
+    void convertsPptxAndPersistsOnlyNormalizedPdf() throws Exception {
+        UUID teacherId = UUID.randomUUID();
+        byte[] pptxBytes = pptxPackage();
+        byte[] pdfBytes = pdfWithText("Converted presentation");
+        when(converter.convert(eq("lesson.pptx"), any())).thenReturn(pdfBytes);
+        when(documents.save(any(CourseMaterialDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseMaterialDocument saved = service.upload(teacherId, new MockMultipartFile(
+                "file", "lesson.pptx",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation", pptxBytes),
+                "Lesson from PPTX");
+
+        assertEquals("lesson.pdf", saved.getFileName());
+        assertEquals("application/pdf", saved.getMimeType());
+        assertEquals(1, saved.getPageCount());
+        verify(converter).convert(eq("lesson.pptx"), eq(pptxBytes));
+        verify(storage).put(eq("course-materials/" + teacherId + "/" + saved.getId() + ".pdf"),
+                eq("application/pdf"), any(), eq((long) pdfBytes.length));
+    }
+
+    /** A valid PPTX fails explicitly when the internal converter is disabled; no object is written. */
+    @Test
+    void rejectsPptxWhenConverterIsNotConfigured() throws Exception {
+        ObjectProvider<AssignmentAttachmentStorage> storageProvider = org.mockito.Mockito.mock(ObjectProvider.class);
+        ObjectProvider<PresentationToPdfConverter> converterProvider = org.mockito.Mockito.mock(ObjectProvider.class);
+        when(storageProvider.getIfAvailable()).thenReturn(storage);
+        when(converterProvider.getIfAvailable()).thenReturn(null);
+        CourseMaterialLibraryService withoutConverter = new CourseMaterialLibraryService(
+                documents,
+                org.mockito.Mockito.mock(DocumentPublicationRepository.class),
+                org.mockito.Mockito.mock(CourseOfferingRepository.class),
+                org.mockito.Mockito.mock(CourseEnrollmentRepository.class),
+                storageProvider,
+                converterProvider,
+                notifications,
+                Clock.fixed(Instant.parse("2026-10-15T00:00:00Z"), ZoneOffset.UTC));
+
+        ApiException error = assertThrows(ApiException.class, () -> withoutConverter.upload(
+                UUID.randomUUID(), new MockMultipartFile("file", "lesson.pptx", null, pptxPackage()), "Lesson"));
+
+        assertEquals("PPTX_CONVERTER_NOT_CONFIGURED", error.code());
+        verify(storage, never()).put(any(), any(), any(), any(Long.class));
+    }
+
+    /** Converted image-only output is rejected by the same text-layer policy as a direct PDF. */
+    @Test
+    void rejectsConvertedPdfWithoutTextLayer() throws Exception {
+        when(converter.convert(any(), any())).thenReturn(pdfWithText(""));
+
+        ValidationException error = assertThrows(ValidationException.class, () -> service.upload(
+                UUID.randomUUID(), new MockMultipartFile("file", "lesson.pptx", null, pptxPackage()), "Lesson"));
+
+        assertEquals("PDF_TEXT_REQUIRED", error.getCode());
         verify(storage, never()).put(any(), any(), any(), any(Long.class));
     }
 
@@ -161,6 +264,21 @@ class CourseMaterialLibraryServiceTest {
                 }
             }
             document.save(output);
+            return output.toByteArray();
+        }
+    }
+
+    /** Builds the minimum synthetic OOXML package required by the upload boundary. */
+    private static byte[] pptxPackage() throws Exception {
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream();
+             ZipOutputStream zip = new ZipOutputStream(output)) {
+            zip.putNextEntry(new ZipEntry("[Content_Types].xml"));
+            zip.write("<Types/>".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            zip.putNextEntry(new ZipEntry("ppt/presentation.xml"));
+            zip.write("<p:presentation xmlns:p=\"urn:test\"/>".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            zip.finish();
             return output.toByteArray();
         }
     }

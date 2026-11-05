@@ -5,15 +5,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.studyflow.common.exception.ApiException;
 import com.studyflow.common.exception.ForbiddenException;
 import com.studyflow.courseoffering.domain.CourseOffering;
 import com.studyflow.courseoffering.domain.CourseOfferingRepository;
 import com.studyflow.courseoffering.domain.CourseOfferingStatus;
 import com.studyflow.document.domain.CourseMaterialDocument;
 import com.studyflow.document.domain.CourseMaterialDocumentRepository;
+import com.studyflow.document.domain.CourseMaterialType;
 import com.studyflow.enrollment.domain.CourseEnrollment;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
+import com.studyflow.integration.document.PresentationToPdfConverter;
 import com.studyflow.integration.storage.AssignmentAttachmentStorage;
 import com.studyflow.notification.application.port.NotificationStore;
 import com.studyflow.publication.domain.DocumentPublication;
@@ -43,12 +46,14 @@ class CourseMaterialTutorAuthorizationTest {
         offerings = mock(CourseOfferingRepository.class);
         enrollments = mock(CourseEnrollmentRepository.class);
         ObjectProvider<AssignmentAttachmentStorage> storage = mock(ObjectProvider.class);
+        ObjectProvider<PresentationToPdfConverter> converter = mock(ObjectProvider.class);
         service = new CourseMaterialLibraryService(
                 documents,
                 publications,
                 offerings,
                 enrollments,
                 storage,
+                converter,
                 mock(NotificationStore.class),
                 Clock.fixed(Instant.parse("2026-10-21T00:00:00Z"), ZoneOffset.UTC));
     }
@@ -116,5 +121,27 @@ class CourseMaterialTutorAuthorizationTest {
                 () -> service.authorizeTutor(studentId, documentId, 1));
 
         assertEquals("ENROLLMENT_REQUIRED", error.code());
+    }
+
+    /** Reference PDFs remain downloadable resources but can never authorize Tutor. */
+    @Test
+    void rejectsTutorForReferencePdfBeforeEnrollmentLookup() {
+        UUID documentId = UUID.randomUUID();
+        CourseMaterialDocument document = new CourseMaterialDocument(
+                documentId,
+                UUID.randomUUID(),
+                "reference.pdf",
+                "Reference",
+                "private-key",
+                100,
+                3,
+                CourseMaterialType.REFERENCE_PDF,
+                Instant.parse("2026-10-21T00:00:00Z"));
+        when(documents.findByIdAndDeletedAtIsNull(documentId)).thenReturn(Optional.of(document));
+
+        ApiException error = assertThrows(ApiException.class,
+                () -> service.authorizeTutor(UUID.randomUUID(), documentId, 1));
+
+        assertEquals("MATERIAL_NOT_TUTORABLE", error.code());
     }
 }

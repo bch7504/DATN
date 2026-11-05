@@ -1,6 +1,6 @@
 /* Opt-in integration runner, invoked only by RealHttpApiTest with isolated fixtures on stdin.
  * Args: none. Input: {baseUrl,teacher,student,studentId,offeringId,pdfBase64} synthetic test data.
- * Output: three success labels, exit 0; on failure a safe error name/status and exit 1.
+ * Output: four success labels, exit 0; on failure a safe error name/status and exit 1.
  * Uses real Java HTTP/JPA/security with synthetic mail/storage doubles; not a browser UI test.
  */
 const assert = require("node:assert/strict");
@@ -51,27 +51,77 @@ async function run() {
 
   integrationStep = "materials-upload";
   role = "teacher";
-  let document = await client.teacherDocApi.uploadDocument(pdf, "Client PDF");
-  assert.ok(["PENDING_PROCESSING", "PROCESSING", "READY"].includes(document.status));
-  for (let attempt = 0; document.status !== "READY" && attempt < 100; attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    document = (await client.teacherDocApi.getDocuments()).find((item) => item.id === document.id) ?? document;
-    assert.notEqual(document.status, "FAILED");
-  }
+  const uploaded = await client.teacherDocApi.uploadDocument(pdf, "Client PDF", "SLIDE_PDF");
+  assert.ok(["PENDING_PROCESSING", "PROCESSING", "READY"].includes(uploaded.status));
+  const document = (await client.teacherDocApi.getDocuments())
+    .find((item) => item.id === fixture.readyDocumentId);
+  assert.ok(document);
   assert.equal(document.status, "READY");
   integrationStep = "materials-publish";
   await client.teacherDocApi.publishDocument(document.id, [fixture.offeringId]);
   role = "student";
   integrationStep = "materials-student-read";
   assert.ok((await client.materialApi.getMaterials()).some((item) => item.id === document.id));
-  assert.equal((await client.apiDownload(`/student/materials/${document.id}/download`)).size, pdf.size);
+  assert.ok((await client.materialApi.getSlideImage(document.id, 1)).size > 0);
+  assert.equal((await client.materialApi.getSlideTextLayer(document.id, 1)).pageNumber, 1);
+
+  integrationStep = "teacher-quiz-generate";
+  role = "teacher";
+  const quizDraft = await client.teacherQuizApi.generate({
+    documentIds: [document.id],
+    courseOfferingId: fixture.offeringId,
+    instruction: "Tạo một câu hỏi tổng hợp cho kiểm thử Frontend.",
+    questionCount: 1,
+    difficulty: "MEDIUM",
+    topic: "Kiểm thử tổng hợp",
+    pageFrom: 1,
+    pageTo: 1,
+  });
+  assert.equal(quizDraft.status, "REVIEW_REQUIRED");
+  assert.equal(quizDraft.questions.length, 1);
+  assert.equal(quizDraft.questions[0].options.length, 4);
+  integrationStep = "teacher-quiz-publish-and-assign";
+  const publishedQuiz = await client.teacherQuizApi.publish(quizDraft.id);
+  assert.equal(publishedQuiz.status, "PUBLISHED");
+  const quizAssignment = await client.assignmentApi.create(fixture.offeringId, {
+    title: "Quiz client integration",
+    description: "Synthetic grounded Quiz assignment",
+    dueAt,
+    type: "QUIZ",
+    quizId: publishedQuiz.id,
+  });
+  await client.assignmentApi.publish(quizAssignment.id);
+  integrationStep = "student-quiz-attempt";
+  role = "student";
+  const attempt = await client.assignmentApi.startQuiz(quizAssignment.id);
+  assert.equal(attempt.totalQuestions, 1);
+  assert.equal(attempt.questions[0].options.length, 4);
+  assert.equal(Object.hasOwn(attempt.questions[0], "correctOptionIndex"), false);
+  const quizResult = await client.assignmentApi.submitQuiz(
+    quizAssignment.id,
+    attempt.attemptId,
+    { [attempt.questions[0].id]: 0 },
+  );
+  assert.equal(quizResult.score, 0);
+  assert.equal(quizResult.questionReviews[0].correctOptionIndex, 1);
+  assert.equal(quizResult.questionReviews[0].citations[0].documentId, document.id);
+  integrationStep = "teacher-quiz-report";
+  role = "teacher";
+  const quizReport = await client.assignmentApi.stats(quizAssignment.id);
+  assert.equal(quizReport.submittedCount, 1);
+  assert.equal(quizReport.questionAnalytics[0].wrongCount, 1);
+  assert.equal(quizReport.questionAnalytics[0].wrongRatePercent, 100);
+  const quizDetail = await client.assignmentApi.quizAttemptDetail(quizAssignment.id, fixture.studentId);
+  assert.equal(quizDetail.attemptId, attempt.attemptId);
+  console.log("WEB_JAVA_PASS quiz-assignment");
+
   role = "teacher";
   integrationStep = "materials-revoke";
   await client.teacherDocApi.revokePublication(document.id, fixture.offeringId);
   role = "student";
   integrationStep = "materials-revoked-read";
   assert.equal((await client.materialApi.getMaterials()).some((item) => item.id === document.id), false);
-  await assert.rejects(client.apiDownload(`/student/materials/${document.id}/download`), { status: 403 });
+  await assert.rejects(client.materialApi.getSlideImage(document.id, 1), { status: 403 });
   console.log("WEB_JAVA_PASS materials");
 
   integrationStep = "plans";

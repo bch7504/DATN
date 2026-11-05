@@ -96,7 +96,7 @@ class RetrievalService:
             if evidence.relevance_score >= self._minimum_relevance
             and _is_authorized(evidence, scope.documents)
         )
-        return self._reranker.rerank(
+        return await self._reranker.rerank(
             query=normalized_query,
             evidence=authorized_candidates,
             scope=scope,

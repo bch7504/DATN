@@ -2,6 +2,8 @@ package com.studyflow.review.application;
 
 import com.studyflow.common.exception.ApiException;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
+import com.studyflow.enrollment.domain.CourseEnrollment;
+import com.studyflow.enrollment.domain.EnrollmentStatus;
 import com.studyflow.progress.application.LearningEventService;
 import com.studyflow.progress.application.RecordLearningEventCommand;
 import com.studyflow.progress.domain.EventType;
@@ -134,6 +136,42 @@ class QuizAttemptServiceTest {
         assertThatThrownBy(() -> service.startAttempt(QUIZ_ID, STUDENT_ID))
                 .isInstanceOf(ApiException.class)
                 .satisfies(ex -> assertThat(((ApiException) ex).code()).isEqualTo("QUIZ_NOT_READY"));
+    }
+
+    @Test
+    @DisplayName("Teacher Quiz cannot be started outside a published assignment")
+    void teacherQuizRequiresAssignmentContext() {
+        Quiz quiz = new Quiz(QUIZ_ID, UUID.randomUUID(), QuizCreatorRole.TEACHER, UUID.randomUUID(),
+                "Quiz lớp", null, null, QuizGenerationType.COURSE_TEACHER, QuizStatus.PUBLISHED,
+                1, null, Instant.now(fixedClock), Instant.now(fixedClock));
+        when(quizRepository.findById(QUIZ_ID)).thenReturn(Optional.of(quiz));
+
+        assertThatThrownBy(() -> service.startAttempt(QUIZ_ID, STUDENT_ID))
+                .isInstanceOf(ApiException.class)
+                .satisfies(error -> assertThat(((ApiException) error).code())
+                        .isEqualTo("TEACHER_QUIZ_REQUIRES_ASSIGNMENT"));
+    }
+
+    @Test
+    @DisplayName("Teacher Quiz starts through assignment context for approved Student")
+    void teacherQuizStartsThroughAssignmentContext() {
+        UUID offeringId = UUID.randomUUID();
+        Quiz quiz = new Quiz(QUIZ_ID, UUID.randomUUID(), QuizCreatorRole.TEACHER, offeringId,
+                "Quiz lớp", null, null, QuizGenerationType.COURSE_TEACHER, QuizStatus.PUBLISHED,
+                1, null, Instant.now(fixedClock), Instant.now(fixedClock));
+        QuizQuestion question = new QuizQuestion(Q1_ID, QUIZ_ID, "Câu 1?", "A", "B", "C", "D", 0,
+                "Giải thích", 1, Instant.now(fixedClock));
+        CourseEnrollment enrollment = org.mockito.Mockito.mock(CourseEnrollment.class);
+        when(quizRepository.findById(QUIZ_ID)).thenReturn(Optional.of(quiz));
+        when(enrollmentRepository.findByCourseOfferingIdAndStudentId(offeringId, STUDENT_ID))
+                .thenReturn(Optional.of(enrollment));
+        when(enrollment.getStatus()).thenReturn(EnrollmentStatus.APPROVED);
+        when(quizQuestionRepository.findByQuizIdOrderByQuestionOrderAsc(QUIZ_ID)).thenReturn(List.of(question));
+
+        StartQuizAttemptResult result = service.startAssignmentAttempt(QUIZ_ID, STUDENT_ID);
+
+        assertThat(result.quizId()).isEqualTo(QUIZ_ID);
+        assertThat(result.questions()).hasSize(1);
     }
 
     @Test

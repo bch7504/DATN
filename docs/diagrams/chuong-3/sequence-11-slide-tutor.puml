@@ -1,63 +1,108 @@
 @startuml
-' Palette: sequence; based on the Visual Paradigm guide samples (see README).
+' Palette: sequence; monochrome Visual Paradigm-style interaction.
+' Monochrome: true
 ' Interaction: Course Material AI Tutor
-skinparam defaultFontColor #111111
-skinparam ArrowColor #222222
-skinparam ActorBackgroundColor #7ACFF5
-skinparam ActorBorderColor #222222
-skinparam NoteBackgroundColor #FFF9D9
-skinparam NoteBorderColor #555555
-skinparam ParticipantBackgroundColor #7ACFF5
-skinparam ParticipantBorderColor #222222
-skinparam LifeLineBackgroundColor #7ACFF5
-skinparam LifeLineBorderColor #222222
+' InteractionFrame: none
+skinparam defaultFontColor #000000
+skinparam ArrowColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorBorderColor #000000
+skinparam ControlBackgroundColor #FFFFFF
+skinparam ControlBorderColor #000000
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantBorderColor #000000
+skinparam LifeLineBackgroundColor #FFFFFF
+skinparam LifeLineBorderColor #000000
+skinparam SequenceLifeLineBackgroundColor #FFFFFF
+skinparam SequenceLifeLineBorderColor #000000
+skinparam sequence {
+  LifeLineBackgroundColor #FFFFFF
+  LifeLineBorderColor #000000
+}
 skinparam SequenceGroupBackgroundColor white
 skinparam SequenceGroupBodyBackgroundColor white
-skinparam SequenceGroupBorderColor #222222
+skinparam SequenceGroupBorderColor #000000
 skinparam shadowing false
 skinparam linetype ortho
 skinparam backgroundColor white
 skinparam defaultFontName Arial
-skinparam defaultFontSize 15
-skinparam roundcorner 10
+skinparam defaultFontSize 14
+skinparam roundcorner 0
 hide footbox
 autonumber
-autoactivate on
 
 actor Student
-participant ":PDF Viewer" as Web
-participant ":Java Backend" as Java
-participant ":Python AI" as AI
-participant ":pgvector (ai)" as DB
-participant ":Model Provider" as LLM
+boundary "«view»\n:SlideViewerView" as Viewer
+boundary "«view»\n:AiTutorView" as TutorPanel
+control "CourseMaterialTutorDAO" as Controller
+control "TutorConversationDAO" as Service
+control "MaterialAccessDAO" as AccessPolicy
+control "AiGatewayDAO" as AiClient
+control "TutorPipelineDAO" as Pipeline
+control "DocumentIndexDAO" as Retriever
+control "GroundingValidationDAO" as Validator
+entity ":CourseEnrollment" as Enrollment
+entity ":DocumentPublication" as Publication
+entity ":CourseMaterial" as Material
+entity ":DocumentIndex" as Index
+entity ":DocumentChunk" as Chunk
+boundary "«external system»\nModel Provider" as Model
 
-Student -> Web : Hỏi về trang PDF đang xem
-Web -> Java : POST /student/materials/{documentId}/pages/{pageNumber}/tutor
-Java -> Java : Enrollment APPROVED, publication, READY, version
-alt Không được phép hoặc đã revoke
-  Java --> Web : Lỗi access; không gọi AI
-else Hợp lệ
-  Java -> AI : POST /internal/v1/course-materials/ask
-  AI -> LLM : Embed query cùng index version
-  LLM --> AI : Query vector
-  AI -> DB : Retrieval đúng document/version/allowed pages
-  DB --> AI : Evidence theo trang
-  alt Không đủ căn cứ
-    AI --> Java : NO_EVIDENCE
-  else Đủ căn cứ
-    AI -> LLM : Ngữ cảnh trang và câu hỏi
-    LLM --> AI : Answer + citations
-    AI -> AI : Validate; rewrite tối đa 1 lần
-    AI --> Java : ANSWERED hoặc NO_EVIDENCE
+Student -> Viewer : showPage(pageNumber)
+Student -> Viewer : toggleTutor()
+Viewer -> TutorPanel : open(documentId, pageNumber)
+Student -> TutorPanel : ask(question)
+TutorPanel -> Controller ++ : ask(documentId, pageNumber, PageQuestion)
+Controller -> Service ++ : ask(studentId, documentId, pageNumber, question)
+Service -> AccessPolicy ++ : authorizeTutor(studentId, documentId, pageNumber)
+AccessPolicy -> Enrollment : kiểm status = APPROVED
+AccessPolicy -> Publication : kiểm status = PUBLISHED
+AccessPolicy -> Material : kiểm SLIDE_PDF, READY và version
+alt Không còn quyền hoặc tài liệu không hỗ trợ Tutor
+  AccessPolicy --> Service -- : ACCESS_DENIED / MATERIAL_NOT_TUTORABLE
+  Service --> Controller -- : lỗi theo contract
+  Controller --> TutorPanel -- : hiển thị lỗi; không gọi AI
+else Phạm vi hợp lệ
+  AccessPolicy --> Service -- : PageScope
+  Service -> AiClient ++ : askCourseMaterial(scope, question)
+  AiClient -> Pipeline ++ : run(scope, question)
+  Pipeline -> Retriever ++ : search(scope, question)
+  Retriever -> Index : kiểm document/version/index status
+  Retriever -> Chunk : hybrid retrieval trong allowedPageNumbers
+  Retriever -> Model : embedding/rerank query
+  Model --> Retriever : vector/rerank scores
+  Retriever --> Pipeline -- : EvidenceSet theo trang
+  alt Không đủ bằng chứng
+    Pipeline --> AiClient -- : NO_EVIDENCE
+  else Có bằng chứng
+    Pipeline -> Model : sinh answer từ evidence
+    Model --> Pipeline : GeneratedAnswer + citations
+    Pipeline -> Validator : validate(answer, evidence)
+    alt Citation hoặc grounding không hợp lệ
+      Validator --> Pipeline : invalid
+      Pipeline --> AiClient -- : NO_EVIDENCE
+    else Hợp lệ
+      Validator --> Pipeline : valid
+      Pipeline --> AiClient -- : AnswerResponse(ANSWERED)
+    end
   end
-  Java -> Java : Revalidate access và citation
-  Java --> Web : documentId + pageNumber + excerpt
-  Web --> Student : Giải thích cạnh trang PDF
+  AiClient --> Service -- : AnswerResponse
+  Service -> AccessPolicy ++ : authorizeTutor(...) lần cuối
+  AccessPolicy -> Publication : kiểm chưa bị revoke
+  AccessPolicy --> Service -- : quyền hiện tại hợp lệ
+  Service --> Controller -- : AnswerResponse
+  Controller --> TutorPanel -- : showAnswer(response)
+  TutorPanel --> Student : hiển thị answer + page citations
+  opt Student mở citation
+    Student -> TutorPanel : openCitation(citation)
+    TutorPanel --> Student : hiển thị nguồn theo pageNumber
+  end
 end
-return Hoàn tất tương tác
 
-note over AI,DB
-ASK_AI không tăng page progress hoặc Study Streak.
+note over Service,Material
+ASK_AI không cập nhật LearningProgress hoặc Study Streak.
 Teacher không có Course Material Tutor.
 end note
 @enduml

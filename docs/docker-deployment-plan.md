@@ -13,7 +13,8 @@ Next.js Web → Java Spring Boot → Python AI API → OpenRouter
                     │                 │
                     ├→ PostgreSQL ←───┘
                     │   app + ai/pgvector
-                    └→ Object Storage
+                    ├→ Object Storage
+                    └→ Gotenberg (PPTX → PDF)
                               ↑
                        Python AI Worker
 ```
@@ -24,6 +25,7 @@ Next.js Web → Java Spring Boot → Python AI API → OpenRouter
 - PostgreSQL dùng image có extension pgvector; tách database role và `search_path` cho Java/Python.
 - OpenRouter là dịch vụ bên ngoài, không được mô phỏng thành container production.
 - Object Storage dùng dịch vụ tương thích S3 trong môi trường local; production có thể trỏ đến dịch vụ được quản lý.
+- Gotenberg là dịch vụ nội bộ do Java gọi khi Teacher tải PPTX. Java chỉ lưu PDF đã chuyển đổi; PPTX gốc không được lưu và không gửi sang Python.
 
 ## 2. Thành phần container dự kiến
 
@@ -35,6 +37,7 @@ Next.js Web → Java Spring Boot → Python AI API → OpenRouter
 | `ai-worker` | Cùng image với `ai-api` | Không mở port | Index/deindex job và document pipeline |
 | `postgres` | Image PostgreSQL có pgvector | Nội bộ; chỉ mở port ở profile dev khi cần | Schema `app`, schema `ai` và vector index |
 | `object-storage` | Image S3-compatible | Nội bộ; console chỉ bật ở dev | Personal PDF và Course Material PDF |
+| `presentation-converter` | `gotenberg/gotenberg` | Chỉ mạng nội bộ; dev có thể bind `127.0.0.1:3001` | Chuyển Teacher Course Material PPTX thành PDF |
 | `reverse-proxy` | Nginx/Caddy, chỉ profile production | Public `80/443` | TLS, routing và security headers |
 
 Không thêm Redis hoặc message broker trong MVP. Worker claim job từ PostgreSQL theo cơ chế đã mô tả trong kế hoạch AI.

@@ -1,10 +1,13 @@
 package com.studyflow.document.application;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /** Periodically advances PDF indexing without moving business ownership into Python. */
 @Component
+@ConditionalOnProperty(prefix = "studyflow.ai", name = "document-scheduling-enabled",
+        havingValue = "true", matchIfMissing = true)
 public class DocumentIndexingJob {
     private final DocumentIndexingService indexingService;
 

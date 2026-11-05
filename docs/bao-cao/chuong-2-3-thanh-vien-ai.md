@@ -131,7 +131,7 @@ Ba chức năng có mục đích khác nhau nhưng cùng tuân theo một nguyê
 
 Hình sau cho thấy trang sử dụng gửi yêu cầu đến hệ thống chính. Sau khi kiểm tra tài khoản và quyền sử dụng tài liệu, hệ thống chính mới chuyển phần việc cần thiết sang dịch vụ AI. Kết quả quay lại hệ thống chính để được kiểm tra lần cuối trước khi hiển thị hoặc lưu.
 
-![Kiến trúc hệ thống StudyFlow](../diagrams/chuong-3/component-01-kien-truc-he-thong.svg)
+![Kiến trúc hệ thống StudyFlow](../diagrams/chuong-3/component-01-kien-truc-he-thong.png)
 
 *Hình 3.1. Vị trí của phần AI trong kiến trúc StudyFlow.*
 
@@ -166,7 +166,7 @@ Nếu yêu cầu chưa rõ, hệ thống đề nghị Sinh viên bổ sung thôn
 
 Hình sau mô tả toàn bộ quá trình từ lúc Sinh viên đặt câu hỏi đến khi nhận câu trả lời.
 
-![Luồng hỏi đáp tài liệu bài giảng](../diagrams/chuong-3/activity-08-slide-tutor.svg)
+![Luồng hỏi đáp tài liệu bài giảng](../diagrams/chuong-3/activity-08-slide-tutor.png)
 
 *Hình 3.2. Luồng hỏi đáp tài liệu bài giảng PDF.*
 
@@ -176,7 +176,7 @@ Hình sau mô tả toàn bộ quá trình từ lúc Sinh viên đặt câu hỏi
 
 Hình sau thể hiện hai cách sử dụng chung một khả năng tạo câu hỏi: Sinh viên tạo bộ câu hỏi để tự ôn tập, còn Giảng viên tạo bộ câu hỏi cho lớp học phần.
 
-![Luồng sinh bộ câu hỏi trắc nghiệm](../diagrams/chuong-3/activity-09-quiz-generation.svg)
+![Luồng sinh bộ câu hỏi trắc nghiệm](../diagrams/chuong-3/activity-09-quiz-generation.png)
 
 *Hình 3.3. Luồng sinh bộ câu hỏi trắc nghiệm cho Sinh viên và Giảng viên.*
 
@@ -188,7 +188,7 @@ Với Giảng viên, yêu cầu được nhập tại màn hình tạo câu hỏ
 
 Hình sau mô tả các trạng thái chính từ lúc bắt đầu tạo đến khi bộ câu hỏi sẵn sàng hoặc bị từ chối.
 
-![Các trạng thái của bộ câu hỏi](../diagrams/chuong-3/state-machine-15-quiz-lifecycle.svg)
+![Các trạng thái của bộ câu hỏi](../diagrams/chuong-3/state-machine-15-quiz-lifecycle.png)
 
 *Hình 3.4. Các trạng thái của một bộ câu hỏi trắc nghiệm.*
 

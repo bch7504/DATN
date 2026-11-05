@@ -11,6 +11,7 @@ export type AssistantCapability =
   | "ASK_DOCUMENT"
   | "SUMMARIZE_DOCUMENT"
   | "CREATE_QUIZ"
+  | "IMPORT_QUIZ_FROM_TEXT"
   | "NEEDS_CLARIFICATION";
 
 export interface QuizDraftSummary {

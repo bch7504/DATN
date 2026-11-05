@@ -6,11 +6,14 @@ from app.schemas.grounding import (
     AuthorizedScope,
     Citation,
     GroundedAnswerResult,
+    NormalizedBoundingBox,
     QuizDraft,
     QuizGenerationArgs,
+    QuizImageReference,
     QuizQuestionDraft,
     RetrievedEvidence,
 )
+from app.schemas.orchestration import ConversationTurn
 from app.services.retrieval import RetrievalService
 
 
@@ -49,6 +52,7 @@ class GroundedAnswerService:
         instruction: str,
         scope: AuthorizedScope,
         retrieval_limit: int = 8,
+        history: tuple[ConversationTurn, ...] = (),
     ) -> GroundedAnswerResult:
         """Produce one answer or deterministic NO_EVIDENCE.
 
@@ -56,6 +60,7 @@ class GroundedAnswerService:
             instruction: Student question or requested summary focus.
             scope: Documents and pages authorized by Java.
             retrieval_limit: Maximum number of chunks used as evidence.
+            history: At most twelve prior turns used only to resolve follow-up references.
 
         Returns:
             ANSWERED with validated citations, or NO_EVIDENCE without text.
@@ -66,8 +71,19 @@ class GroundedAnswerService:
             RuntimeError: If embedding, retrieval, or generation fails.
         """
 
+        if len(history) > 12:
+            raise ValueError("history must contain at most twelve turns")
+        working_query = instruction.strip()
+        if history:
+            if scope.current_page_number is None:
+                raise ValueError("conversation history requires current page context")
+            working_query = await self._generation_client.contextualize_query(
+                question=working_query,
+                history=history,
+                current_page_number=scope.current_page_number,
+            )
         evidence = await self._retrieval_service.retrieve(
-            query=instruction,
+            query=working_query,
             scope=scope,
             limit=retrieval_limit,
         )
@@ -75,7 +91,7 @@ class GroundedAnswerService:
             return GroundedAnswerResult(status=AnswerStatus.NO_EVIDENCE)
 
         generated = await self._generation_client.generate_answer(
-            instruction=instruction.strip(),
+            instruction=working_query,
             evidence=evidence,
         )
         if generated.answer is None:
@@ -198,6 +214,12 @@ class GroundedQuizService:
                 correct_option_index=question.correct_option_index,
                 explanation=question.explanation.strip(),
                 citations=_citations_from_ids(question.cited_evidence_ids, evidence),
+                image=_image_reference_from_id(
+                    evidence_id=question.image_evidence_id,
+                    alt_text=question.image_alt_text,
+                    cited_evidence_ids=question.cited_evidence_ids,
+                    evidence=evidence,
+                ),
             )
             for question in generated.questions
         )
@@ -248,3 +270,47 @@ def _citations_from_ids(
     if not citations:
         raise InvalidGenerationOutput("provider output must cite at least one evidence chunk")
     return tuple(citations)
+
+
+def _image_reference_from_id(
+    *,
+    evidence_id: str | None,
+    alt_text: str | None,
+    cited_evidence_ids: tuple[str, ...],
+    evidence: tuple[RetrievedEvidence, ...],
+) -> QuizImageReference | None:
+    """Map one provider-selected visual evidence ID to trusted page metadata.
+
+    Args:
+        evidence_id: Optional evidence identifier selected by the provider.
+        alt_text: Optional concise accessible description generated from the same evidence.
+        cited_evidence_ids: Evidence identifiers cited by the same question.
+        evidence: Authorized chunks supplied to the provider call.
+
+    Returns:
+        A full-page normalized image reference, or None when no image is required.
+
+    Raises:
+        InvalidGenerationOutput: If the ID is unknown, not visual evidence, or alt text is absent.
+    """
+
+    if evidence_id is None and alt_text is None:
+        return None
+    if evidence_id is None or alt_text is None:
+        raise InvalidGenerationOutput("image evidence ID and alt text must be supplied together")
+    if evidence_id not in cited_evidence_ids:
+        raise InvalidGenerationOutput("image evidence must also be cited by the question")
+    item = next((candidate for candidate in evidence if candidate.evidence_id == evidence_id), None)
+    if item is None:
+        raise InvalidGenerationOutput(
+            "provider selected image evidence outside the retrieved scope"
+        )
+    if "[Sơ đồ/Hình ảnh trang" not in item.excerpt:
+        raise InvalidGenerationOutput("provider selected image evidence without a visual caption")
+    return QuizImageReference(
+        document_id=item.document_id,
+        document_version=item.document_version,
+        page_number=item.page_number,
+        bbox=NormalizedBoundingBox(x=0.0, y=0.0, width=1.0, height=1.0),
+        alt_text=alt_text.strip(),
+    )

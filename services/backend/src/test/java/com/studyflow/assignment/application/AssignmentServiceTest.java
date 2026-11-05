@@ -76,7 +76,7 @@ class AssignmentServiceTest {
         when(assignments.save(any(CourseAssignment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         CourseAssignment created = service.createDraft(TEACHER_ID, OFFERING_ID,
-                new AssignmentRequests.CreateDraft("  Bài 1  ", "  Nội dung  ", NOW.plusSeconds(172800)));
+                new AssignmentRequests.CreateDraft("  Bài 1  ", "  Nội dung  ", NOW.plusSeconds(172800), null, null));
 
         assertThat(created.getStatus()).isEqualTo(AssignmentStatus.DRAFT);
         assertThat(created.getTitle()).isEqualTo("Bài 1");
@@ -86,7 +86,7 @@ class AssignmentServiceTest {
     @Test
     void rejectsDeadlineInThePast() {
         assertThatThrownBy(() -> service.createDraft(TEACHER_ID, OFFERING_ID,
-                new AssignmentRequests.CreateDraft("Bài 1", "Nội dung", NOW)))
+                new AssignmentRequests.CreateDraft("Bài 1", "Nội dung", NOW, null, null)))
                 .isInstanceOf(ValidationException.class);
     }
 

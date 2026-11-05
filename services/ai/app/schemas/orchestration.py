@@ -27,6 +27,7 @@ class AssistantTool(StrEnum):
     ASK_DOCUMENT = "ASK_DOCUMENT"
     SUMMARIZE_DOCUMENT = "SUMMARIZE_DOCUMENT"
     GENERATE_QUIZ = "GENERATE_QUIZ"
+    IMPORT_QUIZ_FROM_TEXT = "IMPORT_QUIZ_FROM_TEXT"
     NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
 
 
@@ -42,6 +43,12 @@ class ConversationTurn(OrchestrationModel):
 
     role: ConversationRole
     content: str = Field(min_length=1, max_length=4000)
+
+
+class ContextualizedQuery(OrchestrationModel):
+    """Standalone retrieval query derived from bounded, untrusted conversation context."""
+
+    query: str = Field(min_length=1, max_length=2000)
 
 
 class IntentDecision(OrchestrationModel):
@@ -128,7 +135,8 @@ class AssistantRunResult(OrchestrationModel):
             if self.quiz is None or self.answer is not None or self.citations:
                 raise ValueError("QUIZ_CREATED requires only a quiz payload")
             if (
-                self.selected_tool is not AssistantTool.GENERATE_QUIZ
+                self.selected_tool
+                not in {AssistantTool.GENERATE_QUIZ, AssistantTool.IMPORT_QUIZ_FROM_TEXT}
                 or self.clarification_question is not None
             ):
                 raise ValueError("invalid Quiz tool payload")

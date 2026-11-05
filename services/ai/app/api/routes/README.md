@@ -2,7 +2,7 @@
 
 Đã triển khai:
 
-- GET /internal/v1/health: yêu cầu Bearer service credential, X-Request-Id và X-Schema-Version: 3.
+- GET /internal/v1/health: yêu cầu Bearer service credential, X-Request-Id và X-Schema-Version: 4.
 - POST /internal/v1/documents/index
 - POST /internal/v1/documents/deindex
 - GET /internal/v1/jobs/{jobId}

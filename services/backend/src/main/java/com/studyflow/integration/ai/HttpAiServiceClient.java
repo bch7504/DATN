@@ -36,9 +36,9 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
-/** HTTP implementation of the internal schema-v3 AI contract. */
+/** HTTP implementation of the internal schema-v4 AI contract. */
 public final class HttpAiServiceClient implements AiServiceClient {
-    private static final String SCHEMA_VERSION = "3";
+    private static final String SCHEMA_VERSION = "4";
     private static final Pattern REQUEST_ID = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._:-]{2,127}");
     private final RestClient client;
     private final ObjectMapper objectMapper;
@@ -264,6 +264,12 @@ public final class HttpAiServiceClient implements AiServiceClient {
         if (document.allowedPages() != null && !document.allowedPages().contains(request.currentPageNumber())) {
             throw new IllegalArgumentException("current page is outside allowedPages");
         }
+        List<AiContracts.ConversationTurn> history = request.history() == null ? List.of() : request.history();
+        if (history.size() > 12) throw new IllegalArgumentException("history accepts at most 12 turns");
+        for (AiContracts.ConversationTurn turn : history) {
+            if (turn == null || turn.role() == null) throw new IllegalArgumentException("history turn is invalid");
+            requireText(turn.content(), 1, 4000, "history.content");
+        }
         requireText(request.question(), 1, 4000, "question");
     }
 
@@ -361,7 +367,8 @@ public final class HttpAiServiceClient implements AiServiceClient {
 
     private static void validateQuizDraft(QuizDraft quiz, String requestId) {
         if (quiz == null || !"MCQ_SINGLE".equals(quiz.quizType()) || isBlank(quiz.title())
-                || quiz.questions() == null || quiz.questions().isEmpty() || quiz.questions().size() > 30) {
+                || quiz.sourceType() == null || quiz.questions() == null || quiz.questions().isEmpty()
+                || quiz.questions().size() > 30) {
             throw protocol(requestId, "AI Quiz draft is invalid");
         }
         for (QuizQuestionDraft question : quiz.questions()) {
@@ -372,7 +379,25 @@ public final class HttpAiServiceClient implements AiServiceClient {
                     || question.options().stream().map(String::strip).map(String::toLowerCase).distinct().count() != 4) {
                 throw protocol(requestId, "AI Quiz question must contain four distinct options and one valid answer");
             }
-            validateCitations(question.citations(), requestId);
+            if (quiz.sourceType() == AiContracts.QuizDraftSource.PDF_GROUNDED) {
+                validateCitations(question.citations(), requestId);
+                validateOptionalQuizImage(question.image(), requestId);
+            } else if (question.citations() == null || !question.citations().isEmpty() || question.image() != null) {
+                throw protocol(requestId, "Imported Quiz must not contain PDF citations");
+            }
+        }
+    }
+
+    private static void validateOptionalQuizImage(AiContracts.QuizImageReference image, String requestId) {
+        if (image == null) return;
+        AiContracts.NormalizedBoundingBox bbox = image.bbox();
+        if (image.documentId() == null || image.documentVersion() < 1 || image.pageNumber() < 1
+                || bbox == null || isBlank(image.altText()) || image.altText().length() > 300
+                || !Double.isFinite(bbox.x()) || !Double.isFinite(bbox.y())
+                || !Double.isFinite(bbox.width()) || !Double.isFinite(bbox.height())
+                || bbox.x() < 0 || bbox.y() < 0 || bbox.width() <= 0 || bbox.height() <= 0
+                || bbox.x() + bbox.width() > 1 || bbox.y() + bbox.height() > 1) {
+            throw protocol(requestId, "AI Quiz image reference is invalid");
         }
     }
 

@@ -27,16 +27,28 @@ test("Course Material library uses persisted Java files without fixtures", async
     assert.match(client, /\/student\/course-offerings\/\$\{offeringId\}\/materials/);
     assert.match(client, /\/student\/materials\/\$\{encodeURIComponent\(documentId\)\}\/download/);
     assert.match(studentPage, /materialApi\.getMaterials/);
-    assert.match(viewerPage, /materialApi\.getDownloadUrl/);
+    assert.match(client, /getSlideImage\(documentId: string, pageNumber: number\): Promise<Blob>/);
+    assert.match(client, /getSlideTextLayer\(documentId: string, pageNumber: number\): Promise<SlideTextLayer>/);
+    assert.match(client, /getPageNote\(documentId: string, pageNumber: number\): Promise<PageNote>/);
+    assert.match(client, /savePageNote\(documentId: string, pageNumber: number, content: string\): Promise<PageNote>/);
+    assert.match(client, /\/student\/materials\/\$\{encodeURIComponent\(documentId\)\}\/slides\/\$\{pageNumber\}/);
+    assert.match(viewerPage, /materialApi\.getSlideImage/);
+    assert.match(studentPage, /materialApi\.downloadReference/);
     assert.match(client, /askTutor\(documentId: string, pageNumber: number, question: string\)/);
     assert.match(client, /\/student\/materials\/\$\{encodeURIComponent\(documentId\)\}\/pages\/\$\{pageNumber\}\/tutor/);
     assert.match(viewerPage, /materialApi\.askTutor/);
     assert.match(viewerPage, /AI Tutor/);
-    assert.match(viewerPage, /<iframe/);
+    assert.match(viewerPage, /<img/);
+    assert.match(viewerPage, /isTutorOpen/);
+    assert.match(viewerPage, /setIsTutorOpen/);
+    assert.match(viewerPage, /textLayer\.items\.map/);
+    assert.match(viewerPage, /startNoteResize/);
+    assert.match(viewerPage, /materialApi\.savePageNote/);
+    assert.doesNotMatch(viewerPage, /downloadUrl|Tải PDF|<iframe/);
   });
 
   await t.test("Frontend delegates authorization and publication to Java without directly reading backend implementation", () => {
-    assert.match(teacherUpload, /accept="application\/pdf,\.pdf"/);
+    assert.match(teacherUpload, /accept="application\/pdf,\.pdf,application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation,\.pptx"/);
     assert.match(teacherPublication, /teacherApi\.getOfferings\(\)/);
     assert.match(studentPage, /studentApi\.getOfferings\(\)/);
     assert.doesNotMatch(`${teacherUpload}\n${teacherPublication}\n${studentPage}`, /services\/backend|pgvector|postgresql:\/\//);

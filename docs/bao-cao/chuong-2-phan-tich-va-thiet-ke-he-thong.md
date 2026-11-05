@@ -156,7 +156,7 @@ Theo quy định phân công đồ án tốt nghiệp trong nhóm 3 thành viên
 |---|---|
 | **Mã và tên chức năng** | **BE1-F01: Quản lý vòng đời Đăng ký Lớp học phần bằng Join Code và Máy trạng thái Ghi danh (Course Enrollment Lifecycle)** |
 | **Thành viên/phạm vi phụ trách** | Thành viên 2 — Java Backend 1; Java Spring Boot Backend; phân hệ Course Offering, Course Enrollment, Join Code, xác thực phân quyền RBAC và kiểm soát truy cập học liệu |
-| **Mục tiêu** | Quản lý an toàn toàn bộ vòng đời ghi danh lớp học phần: từ khi Student nhập mã Join Code để gửi yêu cầu tham gia, Teacher phê duyệt hoặc từ chối, đến khi Student được cấp đúng phạm vi quyền truy cập học liệu. Chức năng đảm bảo chỉ Student có trạng thái `APPROVED` mới được truy cập slide PPTX, tạo ghi chú cá nhân và sử dụng Slide AI Tutor của lớp |
+| **Mục tiêu** | Quản lý an toàn toàn bộ vòng đời ghi danh lớp học phần: từ khi Student nhập mã Join Code để gửi yêu cầu tham gia, Teacher phê duyệt hoặc từ chối, đến khi Student được cấp đúng phạm vi quyền truy cập học liệu. Chức năng đảm bảo chỉ Student có trạng thái `APPROVED` mới được xem PDF đã chuẩn hóa từ PDF/PPTX của Teacher, tạo ghi chú cá nhân và sử dụng Course Material AI Tutor của lớp |
 | **Tác nhân** | Student (chính — gửi yêu cầu tham gia), Teacher (chính — phê duyệt/từ chối), Admin (hỗ trợ — giám sát và khóa lớp); Java Backend là thành phần thực thi |
 | **Tiền điều kiện** | Student và Teacher đã đăng nhập thành công với JWT hợp lệ; Course Offering đang ở trạng thái `ACTIVE`; Join Code đang được bật (`join_enabled = true`); Student chưa có bản ghi Enrollment với lớp đó |
 | **Đầu vào** | Gửi yêu cầu tham gia: `{ "joinCode": "string(6)" }` qua `POST /api/v1/student/course-enrollments/join`. Phê duyệt/Từ chối: `enrollmentId` trên URL qua `POST /api/v1/teacher/enrollments/{enrollmentId}/approve` hoặc `/reject`. Tái tạo Join Code: `POST /api/v1/teacher/course-offerings/{id}/join-code/regenerate` |
@@ -262,7 +262,7 @@ Danh sách Use Case bao quát chức năng toàn hệ thống; không đồng nh
 
 Biểu đồ Use Case tổng quát thể hiện bức tranh toàn cảnh về ranh giới tương tác của ba nhóm tác nhân chính: Sinh viên (Student), Giảng viên (Teacher), và Quản trị viên (Admin) đối với các phân hệ chức năng của nền tảng StudyFlow.
 
-![Hình 2.1 — Use Case tổng quát StudyFlow](../diagrams/chuong-2/use-case-01-tong-quat.svg)
+![Hình 2.1 — Use Case tổng quát StudyFlow](../diagrams/chuong-2/use-case-01-tong-quat.png)
 
 *Hình 2.1. Biểu đồ Use Case tổng quát toàn hệ thống StudyFlow.*
 
@@ -279,7 +279,7 @@ Biểu đồ Use Case tổng quát thể hiện bức tranh toàn cảnh về ra
 
 Biểu đồ phân rã chi tiết các ca sử dụng dành riêng cho tác nhân Sinh viên trong quá trình học tập và ôn luyện trên hệ thống.
 
-![Hình 2.2 — Use Case phân hệ Student](../diagrams/chuong-2/use-case-02-student.svg)
+![Hình 2.2 — Use Case phân hệ Student](../diagrams/chuong-2/use-case-02-student.png)
 
 *Hình 2.2. Biểu đồ Use Case chi tiết phân hệ Sinh viên (Student).*
 
@@ -296,7 +296,7 @@ Biểu đồ phân rã chi tiết các ca sử dụng dành riêng cho tác nhâ
 
 Biểu đồ mô tả chi tiết các quyền hạn và chức năng nghiệp vụ thuộc phạm vi phụ trách của tác nhân Giảng viên.
 
-![Hình 2.3 — Use Case phân hệ Teacher](../diagrams/chuong-2/use-case-03-teacher.svg)
+![Hình 2.3 — Use Case phân hệ Teacher](../diagrams/chuong-2/use-case-03-teacher.png)
 
 *Hình 2.3. Biểu đồ Use Case chi tiết phân hệ Giảng viên (Teacher).*
 
@@ -311,7 +311,7 @@ Biểu đồ mô tả chi tiết các quyền hạn và chức năng nghiệp v�
 
 Biểu đồ xác định phạm vi quản trị danh mục, giám sát hệ thống và phân quyền của tác nhân Quản trị viên.
 
-![Hình 2.4 — Use Case phân hệ Admin](../diagrams/chuong-2/use-case-04-admin.svg)
+![Hình 2.4 — Use Case phân hệ Admin](../diagrams/chuong-2/use-case-04-admin.png)
 
 *Hình 2.4. Biểu đồ Use Case chi tiết phân hệ Quản trị viên (Admin).*
 
@@ -398,7 +398,7 @@ Prompt/instructions chỉ nêu chủ đề và yêu cầu sư phạm; không tha
 |---|---|---|---|
 | UC-ENROLL-01 / Student, Teacher / nhập code | Lớp cho phép tham gia, code hợp lệ | Student gửi yêu cầu PENDING → Teacher owner duyệt APPROVED hoặc REJECTED → chỉ Student APPROVED được truy cập học liệu public | Code sai, lớp khóa, yêu cầu trùng được xử lý theo state machine; Admin không phải bước duyệt |
 | UC-OFFERING-01 / Teacher / tạo lớp | Teacher active, Subject hợp lệ và Semester cho phép tạo | Chọn Subject + Semester → nhập thông tin lớp → Java tạo Course Offering thuộc Teacher | Không tự đặt teacherId của người khác; không cần Admin phân công |
-| UC-PUBLISH-01 / Teacher / công bố học liệu | Cùng owner với lớp; PDF READY | Upload/index PDF → Teacher publish → Student APPROVED xem/Note/Tutor | Revoke chặn truy cập mới; không nhận PPTX/DOCX |
+| UC-PUBLISH-01 / Teacher / công bố học liệu | Cùng owner với lớp; PDF đã chuẩn hóa ở trạng thái READY | Upload PDF/PPTX; Java chuyển PPTX thành PDF và index → Teacher publish → Student APPROVED xem/Note/Tutor | Revoke chặn truy cập mới; DOCX và tài liệu không có lớp văn bản bị từ chối |
 | UC-DASH-01 / Student / mở Dashboard | Đăng nhập | Java tổng hợp tiến độ chung/từng lớp, câu sai, Streak và Daily Goal; FE hỗ trợ mở/thu các khối | Không có route tiến độ độc lập; chỉ ba event học hợp lệ tính Streak |
 | UC-PLAN-01 / Student / thêm task hoặc lịch | Plan thuộc Student | Chọn tuần/ô giờ → nhập task hoặc lịch → Java validate và lưu → lịch tuần phản ánh dữ liệu; hoàn tất task sinh event một lần | Không tự động xếp lịch bằng AI; thao tác vượt owner bị từ chối |
 | UC-ADMIN-01 / Admin / quản trị | Đăng nhập với role Admin | Quản lý user/Subject/Semester/settings, xem feedback/audit và giám sát lớp | Không đọc mặc định Personal PDF/chat/Note/Quiz cá nhân; không tạo/publish Quiz thay Teacher |

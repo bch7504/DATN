@@ -82,4 +82,21 @@ test("Student Course Offerings are grouped by semester", () => {
   assert.match(page, /aria-expanded=\{!isCollapsed\}/);
   assert.match(page, /môn học trong học kỳ/);
   assert.match(page, /materialCounts\[offering\.id\]/);
+  assert.match(page, /assignmentCounts\[offering\.id\]/);
+});
+
+/** Args: none. Input: Student class and shell source. Output: void; asserts consolidated class navigation. Errors: AssertionError on regression. */
+test("Student class detail consolidates materials and homework", () => {
+  const page = fs.readFileSync(path.join(__dirname, "../src/app/(student)/course-offerings/course-workspace.tsx"), "utf8");
+  const shell = fs.readFileSync(path.join(__dirname, "../src/components/layout/app-shell.tsx"), "utf8");
+  const studentNav = shell.slice(shell.indexOf("const STUDENT_NAV"), shell.indexOf("const TEACHER_NAV"));
+
+  assert.doesNotMatch(studentNav, /href: "\/materials"|href: "\/assignments"/);
+  assert.match(page, /assignmentApi\.listForStudent\(\)/);
+  assert.match(page, /courseSection === "MATERIALS"/);
+  assert.match(page, /courseSection === "ASSIGNMENTS"/);
+  assert.match(page, /assignment\.courseOfferingId === selectedOfferingId/);
+  assert.match(page, /Học liệu \(\{materials\.length\}\)/);
+  assert.match(page, /Bài tập về nhà \(\{selectedAssignments\.length\}\)/);
+  assert.match(page, /`\/assignments\/\$\{encodeURIComponent\(assignment\.id\)\}`/);
 });

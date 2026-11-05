@@ -47,12 +47,18 @@ const SUGGESTIONS = [
     title: "Tạo Quiz ôn tập",
     prompt: "Tạo 15 câu trắc nghiệm khó từ tài liệu đã chọn.",
   },
+  {
+    icon: Copy,
+    title: "Nhập Quiz từ văn bản",
+    prompt: "Nhập bộ câu hỏi sau thành Quiz để tôi duyệt: [dán câu hỏi, 4 lựa chọn và đáp án đúng tại đây]",
+  },
 ] as const;
 
 const CAPABILITY_LABELS: Record<AssistantCapability, string> = {
   ASK_DOCUMENT: "Hỏi đáp tài liệu",
   SUMMARIZE_DOCUMENT: "Tóm tắt tài liệu",
   CREATE_QUIZ: "Tạo Quiz",
+  IMPORT_QUIZ_FROM_TEXT: "Nhập Quiz từ văn bản",
   NEEDS_CLARIFICATION: "Cần thêm thông tin",
 };
 
@@ -410,8 +416,9 @@ export function PersonalDocumentAssistant({ onBackToLibrary }: { onBackToLibrary
                   }
                 }}
                 rows={2}
+                maxLength={4000}
                 className="min-h-12 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none"
-                placeholder="Hỏi, yêu cầu tóm tắt hoặc tạo Quiz…"
+                placeholder="Hỏi, tóm tắt, tạo Quiz hoặc dán bộ câu hỏi để nhập…"
               />
               <button
                 type="button"
@@ -423,7 +430,7 @@ export function PersonalDocumentAssistant({ onBackToLibrary }: { onBackToLibrary
                 <Send className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-2 text-center text-[11px] text-slate-400">AI có thể sai. Hãy kiểm tra citation trước khi sử dụng kết quả.</p>
+            <p className="mt-2 text-center text-[11px] text-slate-400">Quiz nhập từ văn bản chưa được kiểm chứng; kết quả từ PDF phải có citation.</p>
           </div>
         </section>
 

@@ -48,10 +48,10 @@ class HttpAiServiceClientTest {
                 .andExpect(method(HttpMethod.GET))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN))
                 .andExpect(header("X-Request-Id", "req-health-001"))
-                .andExpect(header("X-Schema-Version", "3"))
+                .andExpect(header("X-Schema-Version", "4"))
                 .andRespond(withSuccess("""
                         {"service":"studyflow-ai","version":"0.1.0","status":"UP",
-                         "readiness":"READY","schemaVersion":"3","requestId":"req-health-001",
+                         "readiness":"READY","schemaVersion":"4","requestId":"req-health-001",
                          "missingConfiguration":[]}
                         """, MediaType.APPLICATION_JSON));
 
@@ -67,7 +67,7 @@ class HttpAiServiceClientTest {
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN))
                 .andExpect(header("X-Request-Id", "req-quiz-001"))
-                .andExpect(header("X-Schema-Version", "3"))
+                .andExpect(header("X-Schema-Version", "4"))
                 .andExpect(header("Idempotency-Key", "quiz-key-001"))
                 .andRespond(withSuccess(validQuizJson("req-quiz-001"), MediaType.APPLICATION_JSON));
 
@@ -76,6 +76,39 @@ class HttpAiServiceClientTest {
 
         assertThat(response.status()).isEqualTo(QuizGenerationStatus.DRAFT_CREATED);
         assertThat(response.quiz().questions().get(0).options()).hasSize(4);
+        server.verify();
+    }
+
+    @Test
+    void personalAssistantAcceptsImportedTextQuizWithoutPdfCitation() {
+        server.expect(requestTo("http://ai.internal/internal/v1/personal-assistant/runs"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("X-Request-Id", "req-import-001"))
+                .andRespond(withSuccess("""
+                        {"requestId":"req-import-001","result":{
+                          "selectedTool":"IMPORT_QUIZ_FROM_TEXT","status":"QUIZ_CREATED",
+                          "answer":null,"citations":[],"clarificationQuestion":null,
+                          "quiz":{"quizType":"MCQ_SINGLE","sourceType":"IMPORTED_TEXT",
+                            "title":"Imported Quiz","questions":[{
+                              "question":"2 + 2?","options":["3","4","5","6"],
+                              "correctOptionIndex":1,"explanation":"The supplied text says B.",
+                              "citations":[]}]}}}
+                        """, MediaType.APPLICATION_JSON));
+        var request = new AiContracts.PersonalAssistantRunRequest(
+                ACTOR_ID,
+                UUID.randomUUID(),
+                List.of(new AuthorizedDocument(
+                        DOCUMENT_ID, 1, ACTOR_ID, SourceType.PERSONAL_PDF, null)),
+                List.of(),
+                "Import this pasted Quiz");
+
+        var response = client.runPersonalAssistant(request, "req-import-001");
+
+        assertThat(response.result().selectedTool())
+                .isEqualTo(AiContracts.AssistantTool.IMPORT_QUIZ_FROM_TEXT);
+        assertThat(response.result().quiz().sourceType())
+                .isEqualTo(AiContracts.QuizDraftSource.IMPORTED_TEXT);
+        assertThat(response.result().quiz().questions().get(0).citations()).isEmpty();
         server.verify();
     }
 

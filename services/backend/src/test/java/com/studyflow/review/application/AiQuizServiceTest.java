@@ -22,6 +22,10 @@ import com.studyflow.integration.ai.AiServiceClient;
 import com.studyflow.review.api.QuizApiModels;
 import com.studyflow.review.domain.QuizDraftData;
 import com.studyflow.review.domain.QuizDraftStore;
+import com.studyflow.review.domain.QuizQuestionRepository;
+import com.studyflow.review.domain.QuizQuestionSourceRepository;
+import com.studyflow.review.domain.QuizRepository;
+import com.studyflow.review.domain.QuizSourceRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -42,6 +46,11 @@ class AiQuizServiceTest {
     private final CourseEnrollmentRepository enrollments = mock(CourseEnrollmentRepository.class);
     private final CourseOfferingRepository offerings = mock(CourseOfferingRepository.class);
     private final AiServiceClient ai = mock(AiServiceClient.class);
+    private final QuizImageMaterializer imageMaterializer = mock(QuizImageMaterializer.class);
+    private final QuizRepository quizzes = mock(QuizRepository.class);
+    private final QuizQuestionRepository quizQuestions = mock(QuizQuestionRepository.class);
+    private final QuizQuestionSourceRepository quizQuestionSources = mock(QuizQuestionSourceRepository.class);
+    private final QuizSourceRepository quizSources = mock(QuizSourceRepository.class);
     private AiQuizService service;
 
     @BeforeEach
@@ -56,6 +65,11 @@ class AiQuizServiceTest {
                 enrollments,
                 offerings,
                 aiProvider,
+                imageMaterializer,
+                quizzes,
+                quizQuestions,
+                quizQuestionSources,
+                quizSources,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -74,6 +88,99 @@ class AiQuizServiceTest {
         assertThat(result.questions()).hasSize(1);
         assertThat(result.questions().get(0).options()).hasSize(4);
         assertThat(result.questions().get(0).correctOptionId()).isEqualTo("B");
+    }
+
+    /** Imported text is stored without PDF sources or citations and remains review-required. */
+    @Test
+    void acceptsImportedTextQuizWithoutFakeCitation() {
+        UUID studentId = UUID.randomUUID();
+        CourseMaterialDocument selectedConversationDocument = readyPersonal(studentId, 5);
+        var question = new AiContracts.QuizQuestionDraft(
+                "2 + 2 equals?", fourOptions(), 1, "The supplied text marks option B.", List.of());
+        var quiz = new AiContracts.QuizDraft(
+                "MCQ_SINGLE", AiContracts.QuizDraftSource.IMPORTED_TEXT,
+                "Imported Quiz", List.of(question));
+
+        QuizDraftData result = service.saveAssistantQuiz(
+                studentId, "Import the pasted questions", List.of(selectedConversationDocument), quiz);
+
+        assertThat(result.status()).isEqualTo("REVIEW_REQUIRED");
+        assertThat(result.mode()).isEqualTo("IMPORTED_TEXT_STUDENT");
+        assertThat(result.sourceDocumentIds()).isEmpty();
+        assertThat(result.questions().get(0).citations()).isEmpty();
+    }
+
+    /** A cited in-scope visual reference is materialized by Java and exposed only by opaque image ID. */
+    @Test
+    void materializesAuthorizedQuizImage() {
+        UUID studentId = UUID.randomUUID();
+        CourseMaterialDocument document = readyPersonal(studentId, 5);
+        authorize(document, studentId, "PERSONAL");
+        var citation = new AiContracts.Citation(
+                document.getId(), document.getDocumentVersion(), 2, "[Sơ đồ/Hình ảnh trang 2]");
+        var reference = new AiContracts.QuizImageReference(
+                document.getId(), document.getDocumentVersion(), 2,
+                new AiContracts.NormalizedBoundingBox(0, 0, 1, 1), "Sơ đồ trang 2");
+        var question = new AiContracts.QuizQuestionDraft(
+                "Sơ đồ thể hiện điều gì?", fourOptions(), 1, "Giải thích", List.of(citation), reference);
+        var quiz = new AiContracts.QuizDraft("MCQ_SINGLE", "Visual Quiz", List.of(question));
+        when(ai.generateQuiz(any(), anyString(), anyString())).thenReturn(new AiContracts.QuizGenerationResponse(
+                "python-request", AiContracts.QuizGenerationStatus.DRAFT_CREATED, quiz));
+        UUID imageId = UUID.randomUUID();
+        when(imageMaterializer.materialize(any(), eq(document), eq(reference))).thenReturn(new QuizDraftData.Image(
+                imageId, document.getId(), 1, 2, 0, 0, 1, 1,
+                "quiz-images/synthetic.png", "Sơ đồ trang 2"));
+
+        QuizApiModels.Draft result = service.createStudent(
+                studentId, List.of(document.getId()), "Create 1 question", "request-image", "image-key");
+
+        assertThat(result.questions().get(0).image().id()).isEqualTo(imageId);
+        assertThat(result.questions().get(0).image().url()).isEqualTo("/api/v1/quiz-images/" + imageId);
+        verify(imageMaterializer).materialize(any(), eq(document), eq(reference));
+    }
+
+    /** An image outside the cited page is rejected before Java reads object storage. */
+    @Test
+    void rejectsUncitedQuizImage() {
+        UUID studentId = UUID.randomUUID();
+        CourseMaterialDocument document = readyPersonal(studentId, 5);
+        authorize(document, studentId, "PERSONAL");
+        var citation = new AiContracts.Citation(
+                document.getId(), document.getDocumentVersion(), 1, "Text evidence");
+        var reference = new AiContracts.QuizImageReference(
+                document.getId(), document.getDocumentVersion(), 2,
+                new AiContracts.NormalizedBoundingBox(0, 0, 1, 1), "Sơ đồ trang 2");
+        var question = new AiContracts.QuizQuestionDraft(
+                "Question", fourOptions(), 1, "Explanation", List.of(citation), reference);
+        when(ai.generateQuiz(any(), anyString(), anyString())).thenReturn(new AiContracts.QuizGenerationResponse(
+                "python-request", AiContracts.QuizGenerationStatus.DRAFT_CREATED,
+                new AiContracts.QuizDraft("MCQ_SINGLE", "Invalid image Quiz", List.of(question))));
+
+        assertThatThrownBy(() -> service.createStudent(
+                studentId, List.of(document.getId()), "Create 1 question", "request-image-2", "image-key-2"))
+                .isInstanceOfSatisfying(ApiException.class,
+                        exception -> assertThat(exception.code()).isEqualTo("AI_INVALID_QUIZ_IMAGE"));
+        verify(imageMaterializer, never()).materialize(any(), any(), any());
+    }
+
+    /** Imported text must never carry a fabricated PDF citation. */
+    @Test
+    void rejectsImportedTextQuizWithPdfCitation() {
+        UUID studentId = UUID.randomUUID();
+        CourseMaterialDocument document = readyPersonal(studentId, 5);
+        var citation = new AiContracts.Citation(
+                document.getId(), document.getDocumentVersion(), 1, "Fabricated source");
+        var question = new AiContracts.QuizQuestionDraft(
+                "2 + 2 equals?", fourOptions(), 1, "Explanation", List.of(citation));
+        var quiz = new AiContracts.QuizDraft(
+                "MCQ_SINGLE", AiContracts.QuizDraftSource.IMPORTED_TEXT,
+                "Invalid imported Quiz", List.of(question));
+
+        assertThatThrownBy(() -> service.saveAssistantQuiz(
+                studentId, "Import text", List.of(document), quiz))
+                .isInstanceOfSatisfying(ApiException.class,
+                        exception -> assertThat(exception.code()).isEqualTo("AI_INVALID_CITATION"));
+        verify(drafts, never()).save(any(QuizDraftData.class));
     }
 
     /** A model response with fewer than four options is rejected and never persisted. */

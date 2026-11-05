@@ -1,6 +1,9 @@
 package com.studyflow.assignment.api;
 
 import com.studyflow.assignment.application.AssignmentService;
+import com.studyflow.assignment.application.QuizAssignmentService;
+import com.studyflow.review.application.SubmitQuizAttemptResult;
+import com.studyflow.review.application.StartQuizAttemptResult;
 import com.studyflow.assignment.domain.AssignmentSubmission;
 import com.studyflow.common.exception.ApiException;
 import jakarta.validation.Valid;
@@ -32,8 +35,12 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize("hasRole('STUDENT')")
 public class StudentAssignmentController {
     private final AssignmentService service;
+    private final QuizAssignmentService quizAssignments;
 
-    public StudentAssignmentController(AssignmentService service) { this.service = service; }
+    public StudentAssignmentController(AssignmentService service, QuizAssignmentService quizAssignments) {
+        this.service = service;
+        this.quizAssignments = quizAssignments;
+    }
 
     /** Input: authenticated Student. Output: HTTP 200 assignments in approved classes with own submission state. Errors: 401/403. */
     @GetMapping
@@ -48,6 +55,21 @@ public class StudentAssignmentController {
             @Valid @RequestBody AssignmentRequests.SubmitAnswer input) {
         AssignmentSubmission submitted = service.submit(userId(jwt), assignmentId, input);
         return ResponseEntity.ok(AssignmentResponses.Submission.from(submitted, service.listAttachments(submitted.getId())));
+    }
+
+    /** Input: approved Student, published QUIZ assignment and question option indexes. Output: Java-scored result. Errors: 401/403/404/409/422. */
+    @PostMapping("/{assignmentId}/quiz-submissions")
+    public ResponseEntity<SubmitQuizAttemptResult> submitQuiz(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID assignmentId,
+            @Valid @RequestBody AssignmentRequests.SubmitQuiz input) {
+        return ResponseEntity.ok(quizAssignments.submit(userId(jwt), assignmentId, input));
+    }
+
+    /** Input: approved Student and published QUIZ assignment. Output: questions without answer key. Errors: 401/403/404/409/422. */
+    @PostMapping("/{assignmentId}/quiz-attempts")
+    public ResponseEntity<StartQuizAttemptResult> startQuiz(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID assignmentId) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(quizAssignments.start(userId(jwt), assignmentId));
     }
 
     /** Input: Student JWT, assignment UUID, optional answerText and up to five multipart files. Output: 200 submission with safe attachment metadata. Errors: 401/403/404/409/422/502/503. */

@@ -53,7 +53,7 @@ async def require_internal_request(
         settings: Validated process settings.
         credentials: Bearer service credential from the Authorization header.
         request_id: Caller-provided identifier used for cross-service tracing.
-        schema_version: Internal contract version expected to equal version 3.
+        schema_version: Internal contract version expected to equal version 4.
 
     Returns:
         An immutable trusted RequestContext for downstream handlers.

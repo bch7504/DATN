@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const client = fs.readFileSync(path.join(__dirname, "../src/lib/api-client.ts"), "utf8");
 const studentPage = fs.readFileSync(path.join(__dirname, "../src/app/(student)/assignments/page.tsx"), "utf8");
+const studentDetail = fs.readFileSync(path.join(__dirname, "../src/app/(student)/assignments/[assignmentId]/page.tsx"), "utf8");
 const teacherPage = fs.readFileSync(path.join(__dirname, "../src/app/teacher/assignments/page.tsx"), "utf8");
 const teacherDetail = fs.readFileSync(path.join(__dirname, "../src/app/teacher/assignments/[assignmentId]/page.tsx"), "utf8");
 const teacherEditor = fs.readFileSync(path.join(__dirname, "../src/app/teacher/assignments/assignment-editor.tsx"), "utf8");
@@ -30,7 +31,11 @@ test("Class assignments use persisted Java API data without a demo fallback", as
     assert.match(client, /student\/assignments\/\$\{encodeURIComponent\(assignmentId\)\}\/submissions/);
     assert.match(client, /downloadForStudent: .*apiDownload/);
     assert.match(client, /downloadForTeacher: .*apiDownload/);
-    assert.doesNotMatch(studentPage, /Chế độ demo|lưu tạm trong phiên/);
+    assert.doesNotMatch(`${studentPage}\n${studentDetail}`, /Chế độ demo|lưu tạm trong phiên/);
+    assert.match(client, /quiz-attempts/);
+    assert.match(client, /quiz-submissions/);
+    assert.match(studentDetail, /assignmentApi\.startQuiz/);
+    assert.match(studentDetail, /assignmentApi\.submitQuiz/);
   });
 
   await t.test("Both role pages remain available and show real request failures", () => {
@@ -52,13 +57,16 @@ test("Class assignments use persisted Java API data without a demo fallback", as
     assert.match(teacherEditor, /assignmentApi\.create\(offeringId, input\)/);
   });
 
-  await t.test("F01 has submission counts but no grading flow", () => {
+  await t.test("Class report keeps submission counts and exposes only Java-scored Quiz detail", () => {
     assert.match(client, /onTimeCount: number/);
     assert.match(client, /lateCount: number/);
     assert.match(client, /notSubmittedCount: number/);
     assert.doesNotMatch(client, /assignmentApi\.review|review: \(submissionId: string/);
     assert.doesNotMatch(`${teacherPage}\n${studentPage}`, /assignmentApi\.review|teacherFeedback|reviewedAt/);
     assert.match(teacherDetail, /kể cả người được duyệt sau hạn/);
+    assert.match(client, /quizAttemptDetail/);
+    assert.match(teacherDetail, /student\.score/);
+    assert.match(teacherDetail, /Xem câu đúng\/sai/);
     assert.doesNotMatch(teacherDetail, /chỉ tính sinh viên được duyệt vào lớp không muộn hơn hạn nộp/);
   });
 });

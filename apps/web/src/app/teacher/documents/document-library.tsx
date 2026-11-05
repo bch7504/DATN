@@ -94,7 +94,7 @@ export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: st
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-600">Teacher Workspace</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Kho học liệu PDF</h1>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Kho học liệu</h1>
           <p className="mt-1 text-sm text-slate-500">
             {selectedOffering
               ? `Học liệu đã công bố cho lớp ${selectedOffering.code}.`
@@ -103,15 +103,15 @@ export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: st
         </div>
         {selectedOffering && selectedOffering.status === "ACTIVE" && (
           <Link href={`/teacher/documents/${encodeURIComponent(selectedOffering.id)}/upload`} className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm">
-            <PlusCircle className="h-4 w-4" /> Tải PDF mới
+            <PlusCircle className="h-4 w-4" /> Tải PDF/PPTX mới
           </Link>
         )}
       </div>
 
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         {selectedOffering
-          ? `PDF tải mới được lưu vào kho riêng; bạn sẽ xác nhận trước khi công bố cho lớp ${selectedOffering.code}. Chỉ nhận PDF có lớp văn bản, tối đa 20 MB.`
-          : "Tài liệu chỉ hiển thị cho sinh viên sau khi được công bố vào lớp. Chỉ nhận PDF có lớp văn bản, tối đa 20 MB."}
+          ? `PDF/PPTX tải mới được chuẩn hóa thành PDF; bạn sẽ xác nhận trước khi công bố cho lớp ${selectedOffering.code}. Tối đa 20 MB.`
+          : "Tài liệu chỉ hiển thị cho sinh viên sau khi được công bố vào lớp. Nhận PDF có lớp văn bản hoặc PPTX, tối đa 20 MB."}
       </div>
 
       {errorMsg && <ErrorAlert message={errorMsg} onRetry={() => void loadData()} />}
@@ -158,7 +158,7 @@ export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: st
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
                 <BookOpen className="mx-auto h-8 w-8 text-slate-400" />
                 <p className="mt-3 font-semibold text-slate-800">Lớp chưa có tài liệu được công bố</p>
-                <p className="mt-1 text-sm text-slate-500">Tải PDF mới để công bố vào lớp.</p>
+                <p className="mt-1 text-sm text-slate-500">Tải PDF/PPTX mới để công bố vào lớp.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -166,7 +166,7 @@ export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: st
                   <article key={document.id} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700"><FileText className="h-3.5 w-3.5" /> PDF · {document.totalPages} trang</span>
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700"><FileText className="h-3.5 w-3.5" /> {document.materialType === "SLIDE_PDF" ? "Slide PDF" : "Tài liệu tham khảo"} · {document.totalPages} trang</span>
                         <StatusBadge status={document.status} size="sm" />
                       </div>
                       <h3 className="mt-3 text-base font-bold text-slate-900">{document.title}</h3>
@@ -177,7 +177,7 @@ export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: st
                     </div>
                     <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
                       <a href={teacherDocApi.getDocumentDownloadUrl(document.id)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
-                        <ExternalLink className="h-3.5 w-3.5" /> Mở PDF
+                        <ExternalLink className="h-3.5 w-3.5" /> {document.materialType === "SLIDE_PDF" ? "Mở slide" : "Tải PDF"}
                       </a>
                       <button type="button" onClick={() => openPublication(document)} className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700">
                         <Share2 className="h-3.5 w-3.5" /> Quản lý công bố

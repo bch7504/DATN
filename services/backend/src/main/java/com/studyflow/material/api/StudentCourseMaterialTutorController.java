@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -41,6 +42,19 @@ public class StudentCourseMaterialTutorController {
             @RequestAttribute(name = RequestIdFilter.ATTRIBUTE) String requestId
     ) {
         return service.ask(userId(jwt), documentId, pageNumber, request.question(), requestId);
+    }
+
+    /**
+     * Args: authenticated Student and Course Material document ID. Input: current authorized
+     * publication/enrollment. Output: persisted owner-only Tutor history for this document version.
+     * Errors: 401/403/404/409 when the material is no longer available.
+     */
+    @GetMapping("/{documentId}/tutor/history")
+    public CourseMaterialTutorHistoryResponse history(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID documentId
+    ) {
+        return service.history(userId(jwt), documentId);
     }
 
     private static UUID userId(Jwt jwt) {

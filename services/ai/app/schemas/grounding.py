@@ -123,6 +123,29 @@ class RetrievedEvidence(GroundingModel):
     relevance_score: float = Field(ge=0.0, le=1.0)
 
 
+class RerankScore(GroundingModel):
+    """One LLM relevance judgment for an existing authorized evidence identifier."""
+
+    evidence_id: str = Field(min_length=1, max_length=128)
+    relevance: float = Field(ge=0.0, le=1.0)
+
+
+class RerankDecision(GroundingModel):
+    """Structured LLM reranker output before deterministic ID validation."""
+
+    scores: tuple[RerankScore, ...] = Field(min_length=1, max_length=100)
+
+    @field_validator("scores")
+    @classmethod
+    def require_unique_evidence_ids(cls, value: tuple[RerankScore, ...]) -> tuple[RerankScore, ...]:
+        """Validate IDs. Args: scores. Returns: scores. Raises: ValueError on duplicates."""
+
+        identifiers = [item.evidence_id for item in value]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("rerank scores must contain unique evidence IDs")
+        return value
+
+
 class Citation(GroundingModel):
     """Public citation assembled only from retrieved evidence."""
 
@@ -130,6 +153,33 @@ class Citation(GroundingModel):
     document_version: int = Field(ge=1)
     page_number: int = Field(ge=1)
     excerpt: str = Field(min_length=1, max_length=1200)
+
+
+class NormalizedBoundingBox(GroundingModel):
+    """Normalized source-page rectangle used to derive a private Quiz image artifact."""
+
+    x: float = Field(ge=0.0, le=1.0)
+    y: float = Field(ge=0.0, le=1.0)
+    width: float = Field(gt=0.0, le=1.0)
+    height: float = Field(gt=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def require_rectangle_inside_page(self) -> "NormalizedBoundingBox":
+        """Validate bounds. Args: self. Returns: self. Raises: ValueError outside page."""
+
+        if self.x + self.width > 1.0 or self.y + self.height > 1.0:
+            raise ValueError("bounding box must stay inside the normalized page")
+        return self
+
+
+class QuizImageReference(GroundingModel):
+    """Trusted source location from which Java materializes one private Quiz PNG."""
+
+    document_id: UUID
+    document_version: int = Field(ge=1)
+    page_number: int = Field(ge=1)
+    bbox: NormalizedBoundingBox
+    alt_text: str = Field(min_length=1, max_length=300)
 
 
 class AnswerStatus(StrEnum):
@@ -230,6 +280,8 @@ class GeneratedQuizQuestion(GroundingModel):
     correct_option_index: int = Field(ge=0, le=3)
     explanation: str = Field(min_length=1)
     cited_evidence_ids: tuple[str, ...] = Field(min_length=1)
+    image_evidence_id: str | None = Field(default=None, min_length=1, max_length=128)
+    image_alt_text: str | None = Field(default=None, min_length=1, max_length=300)
 
     @field_validator("options")
     @classmethod
@@ -253,12 +305,88 @@ class GeneratedQuizQuestion(GroundingModel):
             raise ValueError("quiz options must be distinct")
         return normalized[0], normalized[1], normalized[2], normalized[3]
 
+    @model_validator(mode="after")
+    def validate_optional_image(self) -> "GeneratedQuizQuestion":
+        """Require image evidence ID and alt text together when a visual is needed."""
+
+        if (self.image_evidence_id is None) != (self.image_alt_text is None):
+            raise ValueError("image evidence ID and alt text must both be present or absent")
+        return self
+
 
 class GeneratedQuiz(GroundingModel):
     """Provider output for one quiz draft."""
 
     title: str = Field(min_length=1, max_length=200)
     questions: tuple[GeneratedQuizQuestion, ...] = Field(max_length=30)
+
+
+class ImportedQuizQuestion(GroundingModel):
+    """One MCQ_SINGLE item parsed only from Student-supplied text."""
+
+    question: str = Field(min_length=1)
+    options: tuple[str, str, str, str]
+    correct_option_index: int = Field(ge=0, le=3)
+    explanation: str = Field(min_length=1)
+
+    @field_validator("options")
+    @classmethod
+    def validate_options(cls, value: tuple[str, str, str, str]) -> tuple[str, str, str, str]:
+        """Require four non-blank distinct options.
+
+        Args:
+            value: Exactly four provider options.
+
+        Returns:
+            Normalized option tuple.
+
+        Raises:
+            ValueError: If an option is blank or duplicated.
+        """
+
+        normalized = tuple(option.strip() for option in value)
+        if any(not option for option in normalized):
+            raise ValueError("quiz options must not be blank")
+        if len({option.casefold() for option in normalized}) != 4:
+            raise ValueError("quiz options must be distinct")
+        return normalized[0], normalized[1], normalized[2], normalized[3]
+
+
+class ImportedQuizResult(GroundingModel):
+    """Provider parse result or one clarification question for incomplete source text."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    questions: tuple[ImportedQuizQuestion, ...] = Field(default=(), max_length=30)
+    clarification_question: str | None = Field(default=None, min_length=1, max_length=300)
+
+    @model_validator(mode="after")
+    def validate_parse_outcome(self) -> "ImportedQuizResult":
+        """Require either a complete Quiz or one clarification question.
+
+        Args:
+            None. Pydantic supplies the validated model instance.
+
+        Returns:
+            This validated parse result.
+
+        Raises:
+            ValueError: If complete and clarification payloads overlap or are both absent.
+        """
+
+        complete = self.title is not None and bool(self.questions)
+        needs_clarification = self.clarification_question is not None
+        if complete == needs_clarification:
+            raise ValueError("import result must contain either a Quiz or clarification")
+        if needs_clarification and (self.title is not None or self.questions):
+            raise ValueError("clarification cannot include partial Quiz output")
+        return self
+
+
+class QuizDraftSource(StrEnum):
+    """Provenance policy applied to every question in one Quiz draft."""
+
+    PDF_GROUNDED = "PDF_GROUNDED"
+    IMPORTED_TEXT = "IMPORTED_TEXT"
 
 
 class QuizQuestionDraft(GroundingModel):
@@ -268,12 +396,35 @@ class QuizQuestionDraft(GroundingModel):
     options: tuple[str, str, str, str]
     correct_option_index: int = Field(ge=0, le=3)
     explanation: str = Field(min_length=1)
-    citations: tuple[Citation, ...] = Field(min_length=1)
+    citations: tuple[Citation, ...] = ()
+    image: QuizImageReference | None = None
 
 
 class QuizDraft(GroundingModel):
-    """Grounded quiz draft returned to Java without lifecycle or score changes."""
+    """Quiz draft returned to Java without lifecycle or score changes."""
 
     quiz_type: str = Field(default="MCQ_SINGLE", pattern="^MCQ_SINGLE$")
+    source_type: QuizDraftSource = QuizDraftSource.PDF_GROUNDED
     title: str = Field(min_length=1, max_length=200)
     questions: tuple[QuizQuestionDraft, ...] = Field(min_length=1, max_length=30)
+
+    @model_validator(mode="after")
+    def validate_source_policy(self) -> "QuizDraft":
+        """Match citation presence to the declared source policy.
+
+        Args:
+            None. Pydantic supplies the validated model instance.
+
+        Returns:
+            This validated draft.
+
+        Raises:
+            ValueError: If grounded questions lack citations or imported questions invent them.
+        """
+
+        if self.source_type is QuizDraftSource.PDF_GROUNDED:
+            if any(not question.citations for question in self.questions):
+                raise ValueError("PDF_GROUNDED questions require citations")
+        elif any(question.citations or question.image is not None for question in self.questions):
+            raise ValueError("IMPORTED_TEXT questions must not contain PDF citations or images")
+        return self

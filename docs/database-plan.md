@@ -1,5 +1,7 @@
 # StudyFlow — Database Plan
 
+> Thay đổi đang triển khai: [Quiz Assignment và Trí tuệ tài liệu](quiz-assignment-document-intelligence-plan.md), mục 5. Migration V22 liên kết `course_assignments` với Quiz và submission với attempt/score. Migration V23 bổ sung metadata ảnh riêng tư cho câu hỏi Quiz và đã được áp dụng thành công lên PostgreSQL local ngày 04/11/2026. Migration V24 bổ sung mode `IMPORTED_TEXT_STUDENT` cho bản nháp Quiz được nhập từ chính văn bản Student cung cấp; không thay đổi Quiz có nguồn PDF.
+
 PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `app`; Python/Alembic sở hữu schema `ai` và pgvector. Hai service dùng database role riêng.
 
 [Xem ERD tổng quan](diagrams/erd/index.html) và [giả định kiểu dữ liệu/ràng buộc](diagrams/erd/README.md). ERD là bản thiết kế đề xuất phục vụ báo cáo; kiểu dữ liệu, độ dài, nullable và khóa ghép chưa được chốt bằng migration.
@@ -84,9 +86,9 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 ### Bài tập theo lớp
 
-`course_assignments`: `id`, `course_offering_id`, `teacher_id`, `title`, `description`, `due_at`, `reminder_at`, `reminder_sent_at`, `status (DRAFT|PUBLISHED)`, `published_at`, timestamps. Teacher chỉ tạo/sửa/công bố trong lớp mình sở hữu; chỉ `PUBLISHED` hiển thị cho enrollment `APPROVED`. Nhắc hạn mặc định trước 24 giờ và idempotent.
+`course_assignments`: `id`, `course_offering_id`, `teacher_id`, `assignment_type (ESSAY|QUIZ)`, `quiz_id?`, `title`, `description`, `due_at`, `reminder_at`, `reminder_sent_at`, `status (DRAFT|PUBLISHED)`, `published_at`, timestamps. `QUIZ` bắt buộc có `quiz_id`; `ESSAY` không được có liên kết Quiz. Teacher chỉ tạo/sửa/công bố trong lớp mình sở hữu; chỉ `PUBLISHED` hiển thị cho enrollment `APPROVED`. Nhắc hạn mặc định trước 24 giờ và idempotent.
 
-`assignment_submissions`: `id`, `assignment_id`, `student_id`, `answer_text`, `submitted_at`, `status (ON_TIME|LATE)`, `score`, `teacher_feedback`, `reviewed_at`, `reviewed_by`, timestamps. Unique `(assignment_id, student_id)` giữ câu trả lời mới nhất; sau hạn vẫn nhận bài và đánh dấu `LATE`. Danh sách thống kê được dựng từ các enrollment `APPROVED` và left-join submission để phân biệt rõ người chưa nộp.
+`assignment_submissions`: `id`, `assignment_id`, `student_id`, `answer_text?`, `submitted_at`, `status (ON_TIME|LATE)`, `score?`, `quiz_attempt_id?`, timestamps. Unique `(assignment_id, student_id)` giữ bài nộp hiện tại; mỗi lượt Quiz vẫn là bản ghi riêng trong `quiz_attempts`, còn submission trỏ tới lượt mới nhất. Sau hạn vẫn nhận bài và đánh dấu `LATE`. Danh sách thống kê được dựng từ enrollment `APPROVED` và left-join submission để phân biệt rõ người chưa nộp.
 
 `assignment_submission_attachments`: `id`, `submission_id`, `original_file_name`, server-detected `content_type`, `size_bytes`, private `storage_key`, `created_at`. Không ghi nội dung file vào PostgreSQL; object key chỉ do Java sinh và không xuất hiện trong DTO. Attachment được tải qua Java sau khi xác minh owner/enrollment.
 
@@ -96,11 +98,11 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 ### `documents`
 
-`id`, `owner_id`, `owner_role`, `document_scope (COURSE_MATERIAL|PERSONAL)`, `file_name`, `display_name`, `file_type=PDF`, `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, timestamps, soft-delete fields.
+`id`, `owner_id`, `owner_role`, `document_scope (COURSE_MATERIAL|PERSONAL)`, `material_type (SLIDE_PDF|REFERENCE_PDF, chỉ áp dụng Course Material)`, `file_name`, `display_name`, `file_type=PDF`, `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, timestamps, soft-delete fields.
 
 - Personal: owner Student, chỉ PDF có text layer cho AI.
-- Course Material: owner Teacher, chỉ PDF có text layer và được AI index theo trang.
-- Mọi document muốn dùng cho Tutor/Quiz hoặc public phải `READY`.
+- Course Material: owner Teacher; nguồn upload có thể là PDF text-layer hoặc PPTX nhưng Java chỉ tạo bản ghi sau khi có PDF đã chuẩn hóa. Vì vậy `file_type`/`mime_type` trong database và object lưu trữ luôn là PDF. `SLIDE_PDF` được AI index theo trang; `REFERENCE_PDF` chỉ tải xuống và không có vector/chunk AI.
+- Mọi document muốn public phải `READY`; chỉ `SLIDE_PDF READY` được dùng cho Viewer/Tutor/AI Quiz.
 - Migration `V7` tạo bảng `app.documents`, index owner/scope, soft-delete và giữ object key private. Course Material MVP kiểm tra text layer + page count trước khi đánh dấu `READY`; file không rời Object Storage qua API ngoại trừ stream có phân quyền.
 - Object key không trả browser.
 
@@ -231,7 +233,7 @@ Các bảng phần này phục vụ task, deadline và projection lịch tuần 
 
 ### `quizzes`
 
-`id`, `created_by`, `creator_role (STUDENT|TEACHER)`, nullable `course_offering_id`, title/description, `user_prompt`, `generation_type (PERSONAL_STUDENT|COURSE_TEACHER)`, status, question_count, optional `regenerated_from_quiz_id`, timestamps.
+`id`, `created_by`, `creator_role (STUDENT|TEACHER)`, nullable `course_offering_id`, title/description, `user_prompt`, `generation_type (PERSONAL_STUDENT|COURSE_TEACHER|IMPORTED_TEXT_STUDENT)`, status, question_count, optional `regenerated_from_quiz_id`, timestamps. `IMPORTED_TEXT_STUDENT` chỉ dành cho đề Student dán vào hội thoại, không có citation hoặc ảnh PDF và luôn bắt đầu ở `REVIEW_REQUIRED`.
 
 Student state: `GENERATING → REVIEW_REQUIRED → READY|REJECTED`; Teacher state: `GENERATING → REVIEW_REQUIRED → PUBLISHED|REJECTED`; generation lỗi → `GENERATION_FAILED`; lịch sử → `ARCHIVED`.
 
@@ -239,6 +241,7 @@ Student state: `GENERATING → REVIEW_REQUIRED → READY|REJECTED`; Teacher stat
 
 - `quiz_sources`: quiz + PDF document/version/page range/source type; unique `(quiz_id, document_id)`.
 - `quiz_questions`: `MCQ_SINGLE`, đúng 4 options, một correct index, explanation, order.
+- `ai_quiz_question_images`: tối đa một ảnh cho mỗi câu hỏi nháp; lưu document/version/page, bounding box chuẩn hóa, private object key và alt text. Browser chỉ nhận image ID qua Java, không nhận object key.
 - `quiz_question_sources`: question + document/page/excerpt.
 - `quiz_attempts`: quiz/student/start/submit/score/status.
 - `quiz_answers`: attempt/question/selected option/correctness/score; unique `(attempt_id, question_id)`.

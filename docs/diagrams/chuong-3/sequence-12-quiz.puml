@@ -1,69 +1,160 @@
 @startuml
-' Palette: sequence; based on the Visual Paradigm guide samples (see README).
+' Palette: sequence; monochrome Visual Paradigm-style interaction.
+' Monochrome: true
 ' Interaction: Sinh và duyệt Quiz AI
-skinparam defaultFontColor #111111
-skinparam ArrowColor #222222
-skinparam ActorBackgroundColor #7ACFF5
-skinparam ActorBorderColor #222222
-skinparam NoteBackgroundColor #FFF9D9
-skinparam NoteBorderColor #555555
-skinparam ParticipantBackgroundColor #7ACFF5
-skinparam ParticipantBorderColor #222222
-skinparam LifeLineBackgroundColor #7ACFF5
-skinparam LifeLineBorderColor #222222
+' InteractionFrame: none
+skinparam defaultFontColor #000000
+skinparam ArrowColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorBorderColor #000000
+skinparam ControlBackgroundColor #FFFFFF
+skinparam ControlBorderColor #000000
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantBorderColor #000000
+skinparam LifeLineBackgroundColor #FFFFFF
+skinparam LifeLineBorderColor #000000
+skinparam SequenceLifeLineBackgroundColor #FFFFFF
+skinparam SequenceLifeLineBorderColor #000000
+skinparam sequence {
+  LifeLineBackgroundColor #FFFFFF
+  LifeLineBorderColor #000000
+}
 skinparam SequenceGroupBackgroundColor white
 skinparam SequenceGroupBodyBackgroundColor white
-skinparam SequenceGroupBorderColor #222222
+skinparam SequenceGroupBorderColor #000000
 skinparam shadowing false
 skinparam linetype ortho
 skinparam backgroundColor white
 skinparam defaultFontName Arial
-skinparam defaultFontSize 15
-skinparam roundcorner 10
+skinparam defaultFontSize 14
+skinparam roundcorner 0
 hide footbox
 autonumber
-autoactivate on
 
 actor "Student / Teacher" as User
-participant ":Web" as Web
-participant ":Java API / worker" as Java
-participant ":Python AI" as AI
-participant ":Model Provider" as LLM
-participant ":app" as DB
+boundary "«view»\n:QuizCreateView" as CreateForm
+boundary "«view»\n:QuizStatusView" as StatusView
+boundary "«view»\n:QuizReviewView" as ReviewView
+control "QuizDAO" as Controller
+control "QuizLifecycleDAO" as Service
+control "QuizAccessDAO" as AccessPolicy
+control "QuizGenerationJobDAO" as Job
+control "AiGatewayDAO" as AiClient
+control "QuizGeneratorDAO" as Generator
+control "DocumentIndexDAO" as Retriever
+control "QuizValidationDAO" as Validator
+entity ":Document" as Document
+entity ":Quiz" as Quiz
+entity ":QuizSource" as Source
+entity ":QuizQuestion" as Question
+entity ":QuizQuestionSource" as QuestionSource
+boundary "«external system»\nModel Provider" as Model
 
-User -> Web : Chọn PDF, số câu, độ khó và yêu cầu
-Web -> Java : Tạo Quiz {mode, source, constraints}
-Java -> Java : Kiểm owner / READY / Course Offering; snapshot nguồn
-Java -> DB : Tạo Quiz GENERATING và run identity
-Java --> Web : 202 {quizId, status}
-Java -> AI : POST /internal/v1/quizzes/generate
-AI -> AI : Retrieval có scope, evidence gate
-alt Thiếu evidence
-  AI --> Java : NO_EVIDENCE
-else Đủ evidence
-  AI -> LLM : JSON Schema MCQ_SINGLE
-  LLM --> AI : Structured draft
-  AI -> AI : Đúng 4 options, 1 đáp án, grounding; repair tối đa 1 lần
-  AI --> Java : QuizDraft hoặc lỗi
+User -> CreateForm : selectDocuments(ids)
+User -> CreateForm : setConstraints(count, difficulty, topic)
+CreateForm -> Controller ++ : generate(QuizRequest)
+Controller -> Service ++ : create(actorId, request)
+Service -> AccessPolicy ++ : authorizeGeneration(actorId, request)
+loop Mỗi tài liệu nguồn
+  AccessPolicy -> Document : kiểm owner/publication, READY và version
 end
-alt Draft hợp lệ và nguồn còn được phép
-  Java -> DB : Lưu batch; REVIEW_REQUIRED
-else Lỗi hoặc không hợp lệ
-  Java -> DB : GENERATION_FAILED; không lưu câu hỏi lỗi
+alt Phạm vi hoặc cấu hình không hợp lệ
+  AccessPolicy --> Service -- : validation/access error
+  Service --> Controller -- : lỗi theo contract
+  Controller --> CreateForm -- : hiển thị lỗi
+else Hợp lệ
+  AccessPolicy --> Service -- : AuthorizedScope
+  Service -> Quiz : tạo GENERATING + runId
+  Service -> Source : lưu snapshot document/version/page range
+  Service -> Job ++ : execute(quizId, runId)
+  Service --> Controller -- : AcceptedQuiz(202)
+  Controller --> CreateForm -- : quizId + GENERATING
+
+  Job -> AiClient ++ : generate(InternalQuizRequest)
+  AiClient -> Generator ++ : generate(scope, constraints)
+  Generator -> Retriever ++ : search(scope, constraints)
+  Retriever -> Document : xác nhận source snapshot
+  Retriever -> Model : embedding/rerank query
+  Model --> Retriever : evidence ranking
+  Retriever --> Generator -- : EvidenceSet theo trang
+  alt Không đủ evidence
+    Generator --> AiClient -- : NO_EVIDENCE
+    AiClient --> Job -- : generation error
+    Job -> Quiz : status = GENERATION_FAILED
+  else Đủ evidence
+    Generator -> Model : JSON Schema MCQ_SINGLE + evidence
+    Model --> Generator : QuizDraft
+    Generator -> Validator : validate(draft, evidence)
+    alt Draft không đúng schema hoặc grounding
+      Validator --> Generator : invalid
+      Generator --> AiClient -- : validation error
+      AiClient --> Job -- : generation error
+      Job -> Quiz : status = GENERATION_FAILED
+    else Draft hợp lệ
+      Validator --> Generator : valid
+      Generator --> AiClient -- : QuizDraft
+      AiClient --> Job -- : QuizDraft
+      loop Mỗi câu trong draft
+        Job -> Question : tạo MCQ_SINGLE với đúng 4 options
+        Job -> QuestionSource : lưu documentId/pageNumber/excerpt
+      end
+      Job -> Quiz : status = REVIEW_REQUIRED
+    end
+  end
+  deactivate Job
+
+  loop Cho đến khi status khác GENERATING hoặc hết số lần poll
+    StatusView -> Controller ++ : getStatus(quizId)
+    Controller -> Quiz : đọc status và questions
+    Quiz --> Controller : QuizSummary
+    Controller --> StatusView -- : QuizSummary
+  end
+
+  alt status = GENERATION_FAILED
+    StatusView -> StatusView : showFailure(errorCode)
+  else status = REVIEW_REQUIRED và Student tạo Quiz cá nhân
+    StatusView -> ReviewView : showQuestions(quiz)
+    alt Student chấp nhận
+      User -> ReviewView : acceptStudent()
+      ReviewView -> Controller ++ : accept(quizId, AcceptQuizRequest)
+      Controller -> Service ++ : acceptStudent(studentId, quizId)
+      Service -> Quiz : status = READY
+      Service --> Controller -- : QuizSummary
+      Controller --> ReviewView -- : QuizSummary
+    else Student từ chối
+      User -> ReviewView : reject()
+      ReviewView -> Controller ++ : reject(quizId)
+      Controller -> Service ++ : reject(studentId, quizId)
+      Service -> Quiz : status = REJECTED
+      Service --> Controller -- : QuizSummary
+      Controller --> ReviewView -- : QuizSummary
+    end
+  else status = REVIEW_REQUIRED và Teacher tạo Quiz lớp
+    StatusView -> ReviewView : showQuestions(quiz)
+    alt Teacher công bố
+      User -> ReviewView : publishTeacher()
+      ReviewView -> Controller ++ : publish(quizId, PublishQuizRequest)
+      Controller -> Service ++ : publishTeacher(teacherId, quizId)
+      Service -> Quiz : status = PUBLISHED
+      Service --> Controller -- : QuizSummary
+      Controller --> ReviewView -- : QuizSummary
+    else Teacher từ chối
+      User -> ReviewView : reject()
+      ReviewView -> Controller ++ : reject(quizId)
+      Controller -> Service ++ : reject(teacherId, quizId)
+      Service -> Quiz : status = REJECTED
+      Service --> Controller -- : QuizSummary
+      Controller --> ReviewView -- : QuizSummary
+    end
+  else Vẫn GENERATING sau giới hạn poll
+    StatusView -> StatusView : showFailure("POLL_TIMEOUT")
+  end
 end
-loop Poll có backoff giới hạn
-  Web -> Java : GET trạng thái Quiz
-  Java --> Web : Trạng thái / bản nháp
-end
-alt Student tạo từ Personal Assistant
-  User -> Web : Accept hoặc Reject
-  Web -> Java : Chuyển trạng thái Quiz cá nhân
-  Java -> DB : READY hoặc REJECTED
-else Teacher tạo từ Course Material PDF
-  User -> Web : Sửa rồi Publish hoặc Reject
-  Web -> Java : Publish Quiz cho Course Offering
-  Java -> DB : PUBLISHED hoặc REJECTED
-end
-Java --> Web : Trạng thái cuối
-return Hoàn tất tương tác
+
+note over Job,Question
+Python chỉ tạo QuizDraft. Java kiểm tra lần cuối và lưu entity.
+Mỗi câu có đúng bốn lựa chọn, một đáp án và citation theo trang.
+end note
 @enduml

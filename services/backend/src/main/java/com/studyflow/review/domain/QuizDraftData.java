@@ -25,8 +25,35 @@ public record QuizDraftData(
             List<String> options,
             int correctOptionIndex,
             String explanation,
-            List<Citation> citations
-    ) { }
+            List<Citation> citations,
+            Image image
+    ) {
+        /** Backward-compatible constructor for text-only Quiz questions. */
+        public Question(
+                UUID id,
+                String questionText,
+                List<String> options,
+                int correctOptionIndex,
+                String explanation,
+                List<Citation> citations
+        ) {
+            this(id, questionText, options, correctOptionIndex, explanation, citations, null);
+        }
+    }
 
     public record Citation(UUID documentId, int documentVersion, int pageNumber, String excerpt) { }
+
+    /** Private rendered PNG metadata. Object keys never cross the public API. */
+    public record Image(
+            UUID id,
+            UUID documentId,
+            int documentVersion,
+            int pageNumber,
+            double bboxX,
+            double bboxY,
+            double bboxWidth,
+            double bboxHeight,
+            String objectKey,
+            String altText
+    ) { }
 }

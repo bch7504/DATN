@@ -1,0 +1,504 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmi:XMI xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1" xmlns:uml="http://schema.omg.org/spec/UML/2.1">
+  <uml:Model xmi:id="id_Personal_Document_Assistant" name="Personal Document Assistant">
+    <packagedElement xmi:type="uml:Class" xmi:id="id_PersonalDocumentsView" name="PersonalDocumentsView">
+      <ownedComment xmi:id="id_PersonalDocumentsView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_PersonalDocumentsView_operation_0" name="loadDocuments" visibility="public">
+        <ownedParameter xmi:id="id_PersonalDocumentsView_operation_0_return" name="return" direction="return" type="id_PersonalDocument">
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_PersonalDocumentsView_operation_0_return_lower" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_PersonalDocumentsView_operation_0_return_upper" value="*"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_PersonalDocumentsView_operation_1" name="selectDocuments" visibility="public">
+        <ownedParameter xmi:id="id_PersonalDocumentsView_operation_1_parameter_0" name="ids" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+          <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_PersonalDocumentsView_operation_1_parameter_0_lower" value="0"/>
+          <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_PersonalDocumentsView_operation_1_parameter_0_upper" value="*"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_PersonalDocumentsView_operation_2" name="openAssistant" visibility="public">
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_PersonalAssistantView" name="PersonalAssistantView">
+      <ownedComment xmi:id="id_PersonalAssistantView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_PersonalAssistantView_operation_0" name="submitPrompt" visibility="public">
+        <ownedParameter xmi:id="id_PersonalAssistantView_operation_0_parameter_0" name="message" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_PersonalAssistantView_operation_1" name="showAnswer" visibility="public">
+        <ownedParameter xmi:id="id_PersonalAssistantView_operation_1_parameter_0" name="response" direction="in" type="id_AssistantResponse">
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_PersonalAssistantView_operation_2" name="showNoEvidence" visibility="public">
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_CitationView" name="CitationView">
+      <ownedComment xmi:id="id_CitationView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_CitationView_operation_0" name="open" visibility="public">
+        <ownedParameter xmi:id="id_CitationView_operation_0_parameter_0" name="citation" direction="in" type="id_PageCitation">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizDraftReviewView" name="QuizDraftReviewView">
+      <ownedComment xmi:id="id_QuizDraftReviewView_stereotype" body="stereotype: view"/>
+      <ownedOperation xmi:id="id_QuizDraftReviewView_operation_0" name="showDraft" visibility="public">
+        <ownedParameter xmi:id="id_QuizDraftReviewView_operation_0_parameter_0" name="draft" direction="in" type="id_QuizDraft">
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizDraftReviewView_operation_1" name="acceptQuiz" visibility="public">
+        <ownedParameter xmi:id="id_QuizDraftReviewView_operation_1_parameter_0" name="quizId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_QuizDraftReviewView_operation_2" name="rejectQuiz" visibility="public">
+        <ownedParameter xmi:id="id_QuizDraftReviewView_operation_2_parameter_0" name="quizId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_PersonalAssistantDAO" name="PersonalAssistantDAO">
+      <ownedComment xmi:id="id_PersonalAssistantDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_PersonalAssistantDAO_operation_0" name="postMessage" visibility="public">
+        <ownedParameter xmi:id="id_PersonalAssistantDAO_operation_0_parameter_0" name="conversationId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_PersonalAssistantDAO_operation_0_parameter_1" name="body" direction="in" type="id_MessageRequest">
+        </ownedParameter>
+        <ownedParameter xmi:id="id_PersonalAssistantDAO_operation_0_return" name="return" direction="return" type="id_AssistantResponse">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_ConversationDAO" name="ConversationDAO">
+      <ownedComment xmi:id="id_ConversationDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_ConversationDAO_operation_0" name="run" visibility="public">
+        <ownedParameter xmi:id="id_ConversationDAO_operation_0_parameter_0" name="studentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_ConversationDAO_operation_0_parameter_1" name="conversationId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_ConversationDAO_operation_0_parameter_2" name="request" direction="in" type="id_MessageRequest">
+        </ownedParameter>
+        <ownedParameter xmi:id="id_ConversationDAO_operation_0_return" name="return" direction="return" type="id_AssistantResponse">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_ConversationScopeDAO" name="ConversationScopeDAO">
+      <ownedComment xmi:id="id_ConversationScopeDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_ConversationScopeDAO_operation_0" name="loadAuthorizedSnapshot" visibility="public">
+        <ownedParameter xmi:id="id_ConversationScopeDAO_operation_0_parameter_0" name="studentId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_ConversationScopeDAO_operation_0_parameter_1" name="conversationId" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_ConversationScopeDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AuthorizedScope"/>
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_ConversationScopeDAO_operation_1" name="validateResult" visibility="public">
+        <ownedParameter xmi:id="id_ConversationScopeDAO_operation_1_parameter_0" name="scope" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AuthorizedScope"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_ConversationScopeDAO_operation_1_parameter_1" name="result" direction="in" type="id_AssistantResponse">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_AiGatewayDAO" name="AiGatewayDAO">
+      <ownedComment xmi:id="id_AiGatewayDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_AiGatewayDAO_operation_0" name="runAssistant" visibility="public">
+        <ownedParameter xmi:id="id_AiGatewayDAO_operation_0_parameter_0" name="request" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#InternalAssistantRequest"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_AiGatewayDAO_operation_0_return" name="return" direction="return" type="id_AssistantResponse">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_OrchestratorDAO" name="OrchestratorDAO">
+      <ownedComment xmi:id="id_OrchestratorDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_OrchestratorDAO_operation_0" name="run" visibility="public">
+        <ownedParameter xmi:id="id_OrchestratorDAO_operation_0_parameter_0" name="request" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#InternalAssistantRequest"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_OrchestratorDAO_operation_0_return" name="return" direction="return" type="id_AssistantResponse">
+        </ownedParameter>
+      </ownedOperation>
+      <ownedOperation xmi:id="id_OrchestratorDAO_operation_1" name="selectTool" visibility="private">
+        <ownedParameter xmi:id="id_OrchestratorDAO_operation_1_parameter_0" name="message" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_OrchestratorDAO_operation_1_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#ToolName"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_AskDocumentDAO" name="AskDocumentDAO">
+      <ownedComment xmi:id="id_AskDocumentDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_AskDocumentDAO_operation_0" name="execute" visibility="public">
+        <ownedParameter xmi:id="id_AskDocumentDAO_operation_0_parameter_0" name="args" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AskArgs"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_AskDocumentDAO_operation_0_parameter_1" name="scope" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AuthorizedScope"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_AskDocumentDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AnswerResult"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_SummarizeDocumentDAO" name="SummarizeDocumentDAO">
+      <ownedComment xmi:id="id_SummarizeDocumentDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_SummarizeDocumentDAO_operation_0" name="execute" visibility="public">
+        <ownedParameter xmi:id="id_SummarizeDocumentDAO_operation_0_parameter_0" name="args" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#SummaryArgs"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_SummarizeDocumentDAO_operation_0_parameter_1" name="scope" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AuthorizedScope"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_SummarizeDocumentDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#SummaryResult"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_GenerateQuizDAO" name="GenerateQuizDAO">
+      <ownedComment xmi:id="id_GenerateQuizDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_GenerateQuizDAO_operation_0" name="execute" visibility="public">
+        <ownedParameter xmi:id="id_GenerateQuizDAO_operation_0_parameter_0" name="args" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#QuizArgs"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_GenerateQuizDAO_operation_0_parameter_1" name="scope" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AuthorizedScope"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_GenerateQuizDAO_operation_0_return" name="return" direction="return" type="id_QuizDraft">
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_DocumentIndexDAO" name="DocumentIndexDAO">
+      <ownedComment xmi:id="id_DocumentIndexDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_DocumentIndexDAO_operation_0" name="search" visibility="public">
+        <ownedParameter xmi:id="id_DocumentIndexDAO_operation_0_parameter_0" name="scope" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#AuthorizedScope"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_DocumentIndexDAO_operation_0_parameter_1" name="query" direction="in">
+          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_DocumentIndexDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#EvidenceSet"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_GroundingValidationDAO" name="GroundingValidationDAO">
+      <ownedComment xmi:id="id_GroundingValidationDAO_stereotype" body="stereotype: DAO"/>
+      <ownedOperation xmi:id="id_GroundingValidationDAO_operation_0" name="validate" visibility="public">
+        <ownedParameter xmi:id="id_GroundingValidationDAO_operation_0_parameter_0" name="result" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#GeneratedResult"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_GroundingValidationDAO_operation_0_parameter_1" name="evidence" direction="in">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#EvidenceSet"/>
+        </ownedParameter>
+        <ownedParameter xmi:id="id_GroundingValidationDAO_operation_0_return" name="return" direction="return">
+          <type xmi:type="uml:DataType" href="urn:studyflow:types#ValidationResult"/>
+        </ownedParameter>
+      </ownedOperation>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_Student" name="Student">
+      <ownedComment xmi:id="id_Student_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_Student_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Student_attribute_1" name="email" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_Student_attribute_2" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UserStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_PersonalDocument" name="PersonalDocument">
+      <ownedComment xmi:id="id_PersonalDocument_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_PersonalDocument_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PersonalDocument_attribute_1" name="ownerId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PersonalDocument_attribute_2" name="version" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PersonalDocument_attribute_3" name="processingStatus" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#ProcessingStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_ChatConversation" name="ChatConversation">
+      <ownedComment xmi:id="id_ChatConversation_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_ChatConversation_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_ChatConversation_attribute_1" name="studentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_ChatConversation_attribute_2" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#ConversationStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_ConversationDocument" name="ConversationDocument">
+      <ownedComment xmi:id="id_ConversationDocument_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_ConversationDocument_attribute_0" name="conversationId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_ConversationDocument_attribute_1" name="documentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_ConversationDocument_attribute_2" name="documentVersion" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_ChatMessage" name="ChatMessage">
+      <ownedComment xmi:id="id_ChatMessage_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_ChatMessage_attribute_0" name="id" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_ChatMessage_attribute_1" name="role" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#MessageRole"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_ChatMessage_attribute_2" name="capability" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#Capability"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_ChatMessage_attribute_3" name="answerStatus" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#AnswerStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_DocumentIndex" name="DocumentIndex">
+      <ownedComment xmi:id="id_DocumentIndex_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_DocumentIndex_attribute_0" name="documentId" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_DocumentIndex_attribute_1" name="documentVersion" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_DocumentIndex_attribute_2" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#IndexStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_DocumentChunk" name="DocumentChunk">
+      <ownedComment xmi:id="id_DocumentChunk_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_DocumentChunk_attribute_0" name="pageNumber" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_DocumentChunk_attribute_1" name="chunkIndex" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_DocumentChunk_attribute_2" name="embedding" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#Vector"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_DocumentChunk_attribute_2_lower" value="1024"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_DocumentChunk_attribute_2_upper" value="1024"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_AgentRun" name="AgentRun">
+      <ownedComment xmi:id="id_AgentRun_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_AgentRun_attribute_0" name="requestId" visibility="private">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_AgentRun_attribute_1" name="selectedTool" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#ToolName"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_AgentRun_attribute_2" name="status" visibility="private">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#RunStatus"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_MessageRequest" name="MessageRequest">
+      <ownedComment xmi:id="id_MessageRequest_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_MessageRequest_attribute_0" name="message" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_MessageRequest_attribute_1" name="selectedDocumentIds" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_MessageRequest_attribute_1_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_MessageRequest_attribute_1_upper" value="10"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_AssistantResponse" name="AssistantResponse">
+      <ownedComment xmi:id="id_AssistantResponse_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_AssistantResponse_attribute_0" name="status" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#AssistantStatus"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_AssistantResponse_attribute_1" name="capability" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#Capability"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_AssistantResponse_attribute_2" name="answer" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_AssistantResponse_attribute_2_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_AssistantResponse_attribute_2_upper" value="1"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_AssistantResponse_attribute_3" name="quizDraft" visibility="public" type="id_QuizDraft">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_AssistantResponse_attribute_3_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_AssistantResponse_attribute_3_upper" value="1"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_AssistantResponse_attribute_4" name="citations" visibility="public" type="id_PageCitation">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_AssistantResponse_attribute_4_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_AssistantResponse_attribute_4_upper" value="*"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_PageCitation" name="PageCitation">
+      <ownedComment xmi:id="id_PageCitation_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_PageCitation_attribute_0" name="documentId" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#UUID"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PageCitation_attribute_1" name="pageNumber" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Integer"/>
+      </ownedAttribute>
+      <ownedAttribute xmi:id="id_PageCitation_attribute_2" name="excerpt" visibility="public">
+        <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Class" xmi:id="id_QuizDraft" name="QuizDraft">
+      <ownedComment xmi:id="id_QuizDraft_stereotype" body="stereotype: entity"/>
+      <ownedAttribute xmi:id="id_QuizDraft_attribute_0" name="questions" visibility="public">
+        <type xmi:type="uml:DataType" href="urn:studyflow:types#McqSingleQuestion"/>
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_QuizDraft_attribute_0_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_QuizDraft_attribute_0_upper" value="*"/>
+      </ownedAttribute>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_0_PersonalDocumentsView_PersonalAssistantView" name="" memberEnd="id_relationship_0_PersonalDocumentsView_PersonalAssistantView_source id_relationship_0_PersonalDocumentsView_PersonalAssistantView_target">
+      <ownedEnd xmi:id="id_relationship_0_PersonalDocumentsView_PersonalAssistantView_source" type="id_PersonalDocumentsView" association="id_relationship_0_PersonalDocumentsView_PersonalAssistantView" aggregation="none">
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_0_PersonalDocumentsView_PersonalAssistantView_target" type="id_PersonalAssistantView" association="id_relationship_0_PersonalDocumentsView_PersonalAssistantView">
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_1_PersonalAssistantView_CitationView" name="" memberEnd="id_relationship_1_PersonalAssistantView_CitationView_source id_relationship_1_PersonalAssistantView_CitationView_target">
+      <ownedEnd xmi:id="id_relationship_1_PersonalAssistantView_CitationView_source" type="id_PersonalAssistantView" association="id_relationship_1_PersonalAssistantView_CitationView" aggregation="none">
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_1_PersonalAssistantView_CitationView_target" type="id_CitationView" association="id_relationship_1_PersonalAssistantView_CitationView">
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_2_PersonalAssistantView_QuizDraftReviewView" name="" memberEnd="id_relationship_2_PersonalAssistantView_QuizDraftReviewView_source id_relationship_2_PersonalAssistantView_QuizDraftReviewView_target">
+      <ownedEnd xmi:id="id_relationship_2_PersonalAssistantView_QuizDraftReviewView_source" type="id_PersonalAssistantView" association="id_relationship_2_PersonalAssistantView_QuizDraftReviewView" aggregation="none">
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_2_PersonalAssistantView_QuizDraftReviewView_target" type="id_QuizDraftReviewView" association="id_relationship_2_PersonalAssistantView_QuizDraftReviewView">
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_3_PersonalAssistantView_MessageRequest" name="" client="id_PersonalAssistantView" supplier="id_MessageRequest"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_4_PersonalAssistantView_PersonalAssistantDAO" name="" client="id_PersonalAssistantView" supplier="id_PersonalAssistantDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_5_CitationView_PageCitation" name="" client="id_CitationView" supplier="id_PageCitation"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_6_QuizDraftReviewView_QuizDraft" name="" client="id_QuizDraftReviewView" supplier="id_QuizDraft"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_7_PersonalAssistantDAO_ConversationDAO" name="" client="id_PersonalAssistantDAO" supplier="id_ConversationDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_8_ConversationDAO_ConversationScopeDAO" name="" client="id_ConversationDAO" supplier="id_ConversationScopeDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_9_ConversationDAO_AiGatewayDAO" name="" client="id_ConversationDAO" supplier="id_AiGatewayDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_10_AiGatewayDAO_OrchestratorDAO" name="internal HTTP" client="id_AiGatewayDAO" supplier="id_OrchestratorDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_11_OrchestratorDAO_AskDocumentDAO" name="" client="id_OrchestratorDAO" supplier="id_AskDocumentDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_12_OrchestratorDAO_SummarizeDocumentDAO" name="" client="id_OrchestratorDAO" supplier="id_SummarizeDocumentDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_13_OrchestratorDAO_GenerateQuizDAO" name="" client="id_OrchestratorDAO" supplier="id_GenerateQuizDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_14_AskDocumentDAO_DocumentIndexDAO" name="" client="id_AskDocumentDAO" supplier="id_DocumentIndexDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_15_SummarizeDocumentDAO_DocumentIndexDAO" name="" client="id_SummarizeDocumentDAO" supplier="id_DocumentIndexDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_16_GenerateQuizDAO_DocumentIndexDAO" name="" client="id_GenerateQuizDAO" supplier="id_DocumentIndexDAO"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_17_DocumentIndexDAO_GroundingValidationDAO" name="" client="id_DocumentIndexDAO" supplier="id_GroundingValidationDAO"/>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_18_Student_PersonalDocument" name="owns" memberEnd="id_relationship_18_Student_PersonalDocument_source id_relationship_18_Student_PersonalDocument_target">
+      <ownedEnd xmi:id="id_relationship_18_Student_PersonalDocument_source" type="id_Student" association="id_relationship_18_Student_PersonalDocument" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_18_Student_PersonalDocument_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_18_Student_PersonalDocument_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_18_Student_PersonalDocument_target" type="id_PersonalDocument" association="id_relationship_18_Student_PersonalDocument">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_18_Student_PersonalDocument_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_18_Student_PersonalDocument_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_19_Student_ChatConversation" name="" memberEnd="id_relationship_19_Student_ChatConversation_source id_relationship_19_Student_ChatConversation_target">
+      <ownedEnd xmi:id="id_relationship_19_Student_ChatConversation_source" type="id_Student" association="id_relationship_19_Student_ChatConversation" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_19_Student_ChatConversation_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_19_Student_ChatConversation_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_19_Student_ChatConversation_target" type="id_ChatConversation" association="id_relationship_19_Student_ChatConversation">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_19_Student_ChatConversation_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_19_Student_ChatConversation_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_20_ChatConversation_ConversationDocument" name="" memberEnd="id_relationship_20_ChatConversation_ConversationDocument_source id_relationship_20_ChatConversation_ConversationDocument_target">
+      <ownedEnd xmi:id="id_relationship_20_ChatConversation_ConversationDocument_source" type="id_ChatConversation" association="id_relationship_20_ChatConversation_ConversationDocument" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_20_ChatConversation_ConversationDocument_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_20_ChatConversation_ConversationDocument_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_20_ChatConversation_ConversationDocument_target" type="id_ConversationDocument" association="id_relationship_20_ChatConversation_ConversationDocument">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_20_ChatConversation_ConversationDocument_target_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_20_ChatConversation_ConversationDocument_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_21_PersonalDocument_ConversationDocument" name="" memberEnd="id_relationship_21_PersonalDocument_ConversationDocument_source id_relationship_21_PersonalDocument_ConversationDocument_target">
+      <ownedEnd xmi:id="id_relationship_21_PersonalDocument_ConversationDocument_source" type="id_PersonalDocument" association="id_relationship_21_PersonalDocument_ConversationDocument" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_21_PersonalDocument_ConversationDocument_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_21_PersonalDocument_ConversationDocument_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_21_PersonalDocument_ConversationDocument_target" type="id_ConversationDocument" association="id_relationship_21_PersonalDocument_ConversationDocument">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_21_PersonalDocument_ConversationDocument_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_21_PersonalDocument_ConversationDocument_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_22_ChatConversation_ChatMessage" name="" memberEnd="id_relationship_22_ChatConversation_ChatMessage_source id_relationship_22_ChatConversation_ChatMessage_target">
+      <ownedEnd xmi:id="id_relationship_22_ChatConversation_ChatMessage_source" type="id_ChatConversation" association="id_relationship_22_ChatConversation_ChatMessage" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_22_ChatConversation_ChatMessage_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_22_ChatConversation_ChatMessage_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_22_ChatConversation_ChatMessage_target" type="id_ChatMessage" association="id_relationship_22_ChatConversation_ChatMessage">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_22_ChatConversation_ChatMessage_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_22_ChatConversation_ChatMessage_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_23_PersonalDocument_DocumentIndex" name="" memberEnd="id_relationship_23_PersonalDocument_DocumentIndex_source id_relationship_23_PersonalDocument_DocumentIndex_target">
+      <ownedEnd xmi:id="id_relationship_23_PersonalDocument_DocumentIndex_source" type="id_PersonalDocument" association="id_relationship_23_PersonalDocument_DocumentIndex" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_23_PersonalDocument_DocumentIndex_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_23_PersonalDocument_DocumentIndex_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_23_PersonalDocument_DocumentIndex_target" type="id_DocumentIndex" association="id_relationship_23_PersonalDocument_DocumentIndex">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_23_PersonalDocument_DocumentIndex_target_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_23_PersonalDocument_DocumentIndex_target_upper" value="1"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_24_DocumentIndex_DocumentChunk" name="" memberEnd="id_relationship_24_DocumentIndex_DocumentChunk_source id_relationship_24_DocumentIndex_DocumentChunk_target">
+      <ownedEnd xmi:id="id_relationship_24_DocumentIndex_DocumentChunk_source" type="id_DocumentIndex" association="id_relationship_24_DocumentIndex_DocumentChunk" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_24_DocumentIndex_DocumentChunk_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_24_DocumentIndex_DocumentChunk_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_24_DocumentIndex_DocumentChunk_target" type="id_DocumentChunk" association="id_relationship_24_DocumentIndex_DocumentChunk">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_24_DocumentIndex_DocumentChunk_target_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_24_DocumentIndex_DocumentChunk_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_25_ChatConversation_AgentRun" name="" memberEnd="id_relationship_25_ChatConversation_AgentRun_source id_relationship_25_ChatConversation_AgentRun_target">
+      <ownedEnd xmi:id="id_relationship_25_ChatConversation_AgentRun_source" type="id_ChatConversation" association="id_relationship_25_ChatConversation_AgentRun" aggregation="none">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_25_ChatConversation_AgentRun_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_25_ChatConversation_AgentRun_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_25_ChatConversation_AgentRun_target" type="id_AgentRun" association="id_relationship_25_ChatConversation_AgentRun">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_25_ChatConversation_AgentRun_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_25_ChatConversation_AgentRun_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_26_AssistantResponse_PageCitation" name="" memberEnd="id_relationship_26_AssistantResponse_PageCitation_source id_relationship_26_AssistantResponse_PageCitation_target">
+      <ownedEnd xmi:id="id_relationship_26_AssistantResponse_PageCitation_source" type="id_AssistantResponse" association="id_relationship_26_AssistantResponse_PageCitation" aggregation="composite">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_26_AssistantResponse_PageCitation_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_26_AssistantResponse_PageCitation_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_26_AssistantResponse_PageCitation_target" type="id_PageCitation" association="id_relationship_26_AssistantResponse_PageCitation">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_26_AssistantResponse_PageCitation_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_26_AssistantResponse_PageCitation_target_upper" value="*"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="id_relationship_27_AssistantResponse_QuizDraft" name="" memberEnd="id_relationship_27_AssistantResponse_QuizDraft_source id_relationship_27_AssistantResponse_QuizDraft_target">
+      <ownedEnd xmi:id="id_relationship_27_AssistantResponse_QuizDraft_source" type="id_AssistantResponse" association="id_relationship_27_AssistantResponse_QuizDraft" aggregation="shared">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_27_AssistantResponse_QuizDraft_source_lower" value="1"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_27_AssistantResponse_QuizDraft_source_upper" value="1"/>
+      </ownedEnd>
+      <ownedEnd xmi:id="id_relationship_27_AssistantResponse_QuizDraft_target" type="id_QuizDraft" association="id_relationship_27_AssistantResponse_QuizDraft">
+        <lowerValue xmi:type="uml:LiteralInteger" xmi:id="id_relationship_27_AssistantResponse_QuizDraft_target_lower" value="0"/>
+        <upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="id_relationship_27_AssistantResponse_QuizDraft_target_upper" value="1"/>
+      </ownedEnd>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_28_ConversationScopeDAO_Student" name="" client="id_ConversationScopeDAO" supplier="id_Student"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_29_ConversationScopeDAO_PersonalDocument" name="" client="id_ConversationScopeDAO" supplier="id_PersonalDocument"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_30_ConversationScopeDAO_ChatConversation" name="" client="id_ConversationScopeDAO" supplier="id_ChatConversation"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_31_ConversationDAO_ChatMessage" name="" client="id_ConversationDAO" supplier="id_ChatMessage"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_32_ConversationDAO_AssistantResponse" name="" client="id_ConversationDAO" supplier="id_AssistantResponse"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_33_DocumentIndexDAO_DocumentIndex" name="" client="id_DocumentIndexDAO" supplier="id_DocumentIndex"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_34_DocumentIndexDAO_DocumentChunk" name="" client="id_DocumentIndexDAO" supplier="id_DocumentChunk"/>
+    <packagedElement xmi:type="uml:Dependency" xmi:id="id_relationship_35_OrchestratorDAO_AgentRun" name="" client="id_OrchestratorDAO" supplier="id_AgentRun"/>
+  </uml:Model>
+</xmi:XMI>

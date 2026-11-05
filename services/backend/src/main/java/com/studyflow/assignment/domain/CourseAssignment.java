@@ -18,6 +18,11 @@ public class CourseAssignment {
     private UUID courseOfferingId;
     @Column(name = "teacher_id", nullable = false)
     private UUID teacherId;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "assignment_type", nullable = false, length = 20)
+    private AssignmentType type;
+    @Column(name = "quiz_id")
+    private UUID quizId;
     @Column(nullable = false, length = 200)
     private String title;
     @Column(nullable = false, columnDefinition = "TEXT")
@@ -44,9 +49,26 @@ public class CourseAssignment {
 
     public CourseAssignment(UUID id, UUID courseOfferingId, UUID teacherId, String title,
                             String description, Instant dueAt, Instant reminderAt, Instant now) {
+        this(id, courseOfferingId, teacherId, AssignmentType.ESSAY, null, title, description,
+                dueAt, reminderAt, now);
+    }
+
+    /**
+     * Args: IDs, type, optional quizId, content, due/reminder instants and creation instant.
+     * Input: QUIZ requires quizId; ESSAY requires no quizId. Output: new DRAFT aggregate.
+     * Errors: IllegalArgumentException for an inconsistent type/quiz pair; no persistence side effect.
+     */
+    public CourseAssignment(UUID id, UUID courseOfferingId, UUID teacherId, AssignmentType type,
+                            UUID quizId, String title, String description, Instant dueAt,
+                            Instant reminderAt, Instant now) {
         this.id = id;
         this.courseOfferingId = courseOfferingId;
         this.teacherId = teacherId;
+        this.type = type == null ? AssignmentType.ESSAY : type;
+        if ((this.type == AssignmentType.QUIZ) != (quizId != null)) {
+            throw new IllegalArgumentException("QUIZ assignments require quizId; ESSAY assignments must not have one.");
+        }
+        this.quizId = quizId;
         this.title = title;
         this.description = description;
         this.dueAt = dueAt;
@@ -79,6 +101,8 @@ public class CourseAssignment {
     public UUID getId() { return id; }
     public UUID getCourseOfferingId() { return courseOfferingId; }
     public UUID getTeacherId() { return teacherId; }
+    public AssignmentType getType() { return type; }
+    public UUID getQuizId() { return quizId; }
     public String getTitle() { return title; }
     public String getDescription() { return description; }
     public Instant getDueAt() { return dueAt; }

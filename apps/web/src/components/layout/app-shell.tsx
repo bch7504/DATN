@@ -11,7 +11,6 @@ import { SemesterScopeBar } from "@/components/layout/semester-scope-bar";
 import {
   LayoutDashboard,
   GraduationCap,
-  BookOpen,
   FileText,
   CalendarCheck,
   RotateCcw,
@@ -44,8 +43,6 @@ interface NavItem {
 const STUDENT_NAV: NavItem[] = [
   { label: "Tổng quan", href: "/dashboard", icon: LayoutDashboard },
   { label: "Lớp học phần", href: "/course-offerings", icon: GraduationCap },
-  { label: "Bài tập về nhà", href: "/assignments", icon: ClipboardList },
-  { label: "Học liệu lớp học", href: "/materials", icon: BookOpen },
   { label: "Tài liệu cá nhân", href: "/personal-documents", icon: FileText },
   { label: "Kế hoạch & Lịch", href: "/plan", icon: CalendarCheck },
   { label: "Ôn tập", href: "/review", icon: RotateCcw },
@@ -275,7 +272,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   } else if (pathname?.startsWith("/materials/class/")) {
                     crumbs.push("Lớp học phần", "Học liệu của lớp");
                   } else if (pathname?.startsWith("/materials")) {
-                    crumbs.push("Lớp học phần", "Kho học liệu");
+                    crumbs.push("Lớp học phần", "Học liệu");
                   } else if (pathname === "/dashboard") {
                     crumbs.push("Bảng điều khiển");
                   } else if (pathname?.startsWith("/course-offerings/")) {
@@ -285,7 +282,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   } else if (pathname?.startsWith("/assignments/")) {
                     crumbs.push("Bài tập về nhà", "Chi tiết bài tập");
                   } else if (pathname?.startsWith("/assignments")) {
-                    crumbs.push("Bài tập về nhà");
+                    crumbs.push("Lớp học phần", "Bài tập về nhà");
                   } else if (pathname?.startsWith("/personal-documents")) {
                     crumbs.push("Tài liệu cá nhân");
                   } else if (pathname?.startsWith("/chat")) {

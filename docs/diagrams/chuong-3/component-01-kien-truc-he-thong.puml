@@ -1,57 +1,57 @@
 @startuml
-' Palette: architecture; layered platform form based on the supplied reference.
+' Palette: architecture; strict black-and-white layered style.
 skinparam backgroundColor white
 skinparam defaultFontName Arial
 skinparam defaultFontSize 15
-skinparam defaultFontColor #111111
-skinparam ArrowColor #334155
+skinparam defaultFontColor #000000
 skinparam shadowing false
 skinparam linetype ortho
-skinparam nodesep 45
-skinparam ranksep 55
-skinparam roundcorner 12
-skinparam PackageStyle rectangle
-skinparam PackagePadding 34
-skinparam RectangleBorderColor #64748B
-skinparam RectangleBackgroundColor #F8FAFC
-skinparam ComponentBorderColor #64748B
-skinparam ComponentBackgroundColor #E8F4FB
-skinparam DatabaseBorderColor #64748B
-skinparam DatabaseBackgroundColor #EEF5DF
-skinparam StorageBorderColor #64748B
-skinparam StorageBackgroundColor #FFF3D6
-skinparam CloudBorderColor #8064A2
-skinparam CloudBackgroundColor #F2EAFB
-skinparam ActorBackgroundColor #7ACFF5
-skinparam ActorBorderColor #222222
-left to right direction
+skinparam ArrowColor #000000
+skinparam ComponentBorderColor #000000
+skinparam ComponentBackgroundColor #FFFFFF
+skinparam RectangleBorderColor #000000
+skinparam RectangleBackgroundColor #FFFFFF
+skinparam DatabaseBorderColor #000000
+skinparam DatabaseBackgroundColor #FFFFFF
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam nodesep 36
+skinparam ranksep 48
+top to bottom direction
 
-actor "Student / Teacher / Admin" as user
-
-rectangle "StudyFlow Platform" as platform {
-  component "Next.js Web\nGiao diện và route guard" as web
-
-  rectangle "Backend services" as backend {
-    component "Java Spring Boot\nAuth · RBAC · nghiệp vụ\nQuiz lifecycle · progress" as java
-    component "Python FastAPI\nPDF intelligence · RAG · citation\nSingle Agent · sinh Quiz · evaluation" as ai
+actor "Người dùng" as User
+rectangle "StudyFlow Platform" as Platform {
+  rectangle "FE" as FeLayer {
+    component "Next.js\nTypeScript" as Web
   }
-
-  rectangle "Platform data & file storage" as data {
-    database "PostgreSQL\nschema app\nJava sở hữu" as appdb
-    database "PostgreSQL + pgvector\nschema ai\nPython sở hữu" as aidb
-    storage "Object Storage\nPersonal PDF · Course Material PDF" as storage
+  rectangle "BE" as BeLayer {
+    component "Spring Boot\nJava" as Backend
+    rectangle "AI Service" as AiLayer {
+      component "FastAPI\nPython" as AiApi
+      component "Single Agent\nLangChain" as Agent
+      component "RAG" as Rag
+      component "Quiz AI" as QuizAi
+    }
   }
-
-  web --> java : REST /api/v1
-  java --> ai : Internal API\nauthorized scope
-  java --> appdb
-  ai --> aidb
-  java --> storage : metadata / signed URL
-  ai --> storage : đọc PDF theo scope
+  rectangle "Data & Storage" as DataLayer {
+    database "PostgreSQL\napp" as AppDb
+    database "PostgreSQL + pgvector\nai" as AiDb
+    component "Object Storage" as Storage
+  }
+}
+rectangle "External" as External {
+  component "OpenRouter" as OpenRouter
 }
 
-cloud "Model Provider\nChat model · Embedding model" as model
-
-user --> web
-model -down-> ai : HTTPS
+User -down-> Web
+Web -down-> Backend
+Backend -right-> AiApi
+AiApi -right-> Agent
+Agent -down-> Rag
+Agent -down-> QuizAi
+Backend -down-> AppDb
+Backend -down-> Storage
+AiApi -down-> AiDb
+AiApi -down-> Storage
+Agent -down-> OpenRouter
 @enduml

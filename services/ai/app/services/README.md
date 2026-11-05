@@ -2,9 +2,10 @@
 
 - `indexing.py`: PDF → pages → chunks → embedding theo lô → repository.
 - `retrieval.py`: điều phối tìm kiếm hybrid và kiểm tra quyền lần nữa sau repository.
-- `reranking.py`: LangChain rerank ứng viên theo độ liên quan, trang hiện tại và độ đa dạng.
+- `reranking.py`: gọi LLM chấm toàn bộ ứng viên đã được cấp quyền, sau đó LangChain kết hợp điểm LLM với RRF, trang hiện tại và độ đa dạng.
 - `grounded_generation.py`: hỏi đáp, tóm tắt phạm vi trang và sinh Quiz có citation.
-- `orchestrator.py`: một tác nhân chọn đúng ba công cụ; thiếu thông tin phải hỏi lại.
+- `imported_quiz.py`: nhập MCQ_SINGLE từ văn bản Student cung cấp, không tạo citation PDF giả.
+- `orchestrator.py`: một tác nhân chọn đúng một trong bốn công cụ; thiếu thông tin phải hỏi lại.
 - `assistant_runs.py`: replay theo request ID để chat không sinh Quiz trùng khi retry.
 - `idempotent_quiz.py`: bảo vệ luồng sinh Quiz trực tiếp bằng operation key.
 

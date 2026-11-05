@@ -59,6 +59,17 @@ public class JdbcQuizDraftStore implements QuizDraftStore {
                         """, UUID.randomUUID(), question.id(), citationPosition, citation.documentId(),
                         citation.documentVersion(), citation.pageNumber(), citation.excerpt());
             }
+            if (question.image() != null) {
+                QuizDraftData.Image image = question.image();
+                jdbc.update("""
+                        INSERT INTO app.ai_quiz_question_images
+                            (id, question_id, document_id, document_version, page_number,
+                             bbox_x, bbox_y, bbox_width, bbox_height, object_key, alt_text, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, image.id(), question.id(), image.documentId(), image.documentVersion(),
+                        image.pageNumber(), image.bboxX(), image.bboxY(), image.bboxWidth(), image.bboxHeight(),
+                        image.objectKey(), image.altText(), Timestamp.from(draft.createdAt()));
+            }
         }
         return draft;
     }
@@ -140,12 +151,23 @@ public class JdbcQuizDraftStore implements QuizDraftStore {
                 """, (row, index) -> new QuizDraftData.Citation(
                 row.getObject("document_id", UUID.class), row.getInt("document_version"),
                 row.getInt("page_number"), row.getString("excerpt")), questionId);
+        List<QuizDraftData.Image> images = jdbc.query("""
+                SELECT id, document_id, document_version, page_number,
+                       bbox_x, bbox_y, bbox_width, bbox_height, object_key, alt_text
+                FROM app.ai_quiz_question_images WHERE question_id = ?
+                """, (row, index) -> new QuizDraftData.Image(
+                row.getObject("id", UUID.class), row.getObject("document_id", UUID.class),
+                row.getInt("document_version"), row.getInt("page_number"),
+                row.getDouble("bbox_x"), row.getDouble("bbox_y"),
+                row.getDouble("bbox_width"), row.getDouble("bbox_height"),
+                row.getString("object_key"), row.getString("alt_text")), questionId);
         return new QuizDraftData.Question(
                 questionId,
                 result.getString("question_text"),
                 new ArrayList<>(options),
                 result.getInt("correct_option_index"),
                 result.getString("explanation"),
-                new ArrayList<>(citations));
+                new ArrayList<>(citations),
+                images.stream().findFirst().orElse(null));
     }
 }

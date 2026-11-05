@@ -16,12 +16,27 @@ import com.studyflow.integration.ai.AiServiceException;
 import com.studyflow.review.api.QuizApiModels;
 import com.studyflow.review.domain.QuizDraftData;
 import com.studyflow.review.domain.QuizDraftStore;
+import com.studyflow.review.domain.Quiz;
+import com.studyflow.review.domain.QuizCreatorRole;
+import com.studyflow.review.domain.QuizGenerationType;
+import com.studyflow.review.domain.QuizQuestion;
+import com.studyflow.review.domain.QuizQuestionRepository;
+import com.studyflow.review.domain.QuizQuestionSource;
+import com.studyflow.review.domain.QuizQuestionSourceRepository;
+import com.studyflow.review.domain.QuizRepository;
+import com.studyflow.review.domain.QuizSource;
+import com.studyflow.review.domain.QuizSourceRepository;
+import com.studyflow.review.domain.QuizStatus;
 import java.time.Clock;
+import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -42,10 +57,15 @@ public class AiQuizService {
     private final CourseEnrollmentRepository enrollments;
     private final CourseOfferingRepository offerings;
     private final ObjectProvider<AiServiceClient> aiProvider;
+    private final QuizImageMaterializer imageMaterializer;
+    private final QuizRepository quizzes;
+    private final QuizQuestionRepository quizQuestions;
+    private final QuizQuestionSourceRepository quizQuestionSources;
+    private final QuizSourceRepository quizSources;
     private final Clock clock;
 
     /**
-     * Args: document/draft/enrollment/offering stores, optional Python client and clock.
+     * Args: document/draft/enrollment/offering stores, optional Python client, Quiz projection stores and clock.
      * Input: Spring-managed dependencies. Output: Quiz application service. Errors: none.
      */
     public AiQuizService(
@@ -54,6 +74,11 @@ public class AiQuizService {
             CourseEnrollmentRepository enrollments,
             CourseOfferingRepository offerings,
             ObjectProvider<AiServiceClient> aiProvider,
+            QuizImageMaterializer imageMaterializer,
+            QuizRepository quizzes,
+            QuizQuestionRepository quizQuestions,
+            QuizQuestionSourceRepository quizQuestionSources,
+            QuizSourceRepository quizSources,
             Clock clock
     ) {
         this.documents = documents;
@@ -61,6 +86,11 @@ public class AiQuizService {
         this.enrollments = enrollments;
         this.offerings = offerings;
         this.aiProvider = aiProvider;
+        this.imageMaterializer = imageMaterializer;
+        this.quizzes = quizzes;
+        this.quizQuestions = quizQuestions;
+        this.quizQuestionSources = quizQuestionSources;
+        this.quizSources = quizSources;
         this.clock = clock;
     }
 
@@ -181,6 +211,7 @@ public class AiQuizService {
         }
         try {
             QuizDraftData accepted = drafts.accept(studentId, quizId, destination, offeringId, clock.instant());
+            promoteToPracticeQuiz(accepted, QuizCreatorRole.STUDENT, QuizStatus.READY);
             return acceptedResponse(accepted, offeringCode);
         } catch (IllegalStateException exception) {
             if (drafts.findOwned(studentId, quizId).isEmpty()) {
@@ -222,10 +253,80 @@ public class AiQuizService {
             throw new ApiException(HttpStatus.CONFLICT, "COURSE_NOT_ACTIVE", "Lớp học phần không hoạt động.");
         }
         try {
-            return response(drafts.publish(teacherId, quizId, clock.instant()));
+            QuizDraftData published = drafts.publish(teacherId, quizId, clock.instant());
+            promoteToPracticeQuiz(published, QuizCreatorRole.TEACHER, QuizStatus.PUBLISHED);
+            return response(published);
         } catch (IllegalStateException exception) {
             throw new ApiException(HttpStatus.CONFLICT, "QUIZ_NOT_REVIEWABLE",
                     "Quiz không còn ở trạng thái chờ duyệt.");
+        }
+    }
+
+    /**
+     * Args: accepted/published AI draft, creator role and target lifecycle status.
+     * Input: one validated Java-owned draft; MCQ_SINGLE has exactly four options per question.
+     * Output: void; creates the scoring/review projection with the same Quiz/question identifiers.
+     * Side effects: writes app.quizzes, app.quiz_questions and grounded app.quiz_sources once.
+     * Errors: database failures roll back the draft lifecycle transition in the enclosing transaction.
+     */
+    private void promoteToPracticeQuiz(
+            QuizDraftData draft,
+            QuizCreatorRole creatorRole,
+            QuizStatus status
+    ) {
+        if (quizzes.existsById(draft.id())) return;
+        Instant now = draft.acceptedAt() == null ? clock.instant() : draft.acceptedAt();
+        QuizGenerationType generationType = creatorRole == QuizCreatorRole.TEACHER
+                ? QuizGenerationType.COURSE_TEACHER
+                : QuizGenerationType.PERSONAL_STUDENT;
+        quizzes.save(new Quiz(
+                draft.id(), draft.ownerId(), creatorRole, draft.courseOfferingId(), draft.title(),
+                "Quiz được tạo và duyệt trong StudyFlow.", draft.prompt(), generationType, status,
+                draft.questions().size(), null, draft.createdAt(), now));
+
+        List<QuizQuestion> projectedQuestions = new ArrayList<>();
+        List<QuizQuestionSource> projectedQuestionSources = new ArrayList<>();
+        Map<UUID, SourceRange> ranges = new LinkedHashMap<>();
+        for (int index = 0; index < draft.questions().size(); index++) {
+            QuizDraftData.Question question = draft.questions().get(index);
+            projectedQuestions.add(new QuizQuestion(
+                    question.id(), draft.id(), question.questionText(),
+                    question.options().get(0), question.options().get(1),
+                    question.options().get(2), question.options().get(3),
+                    question.correctOptionIndex(), question.explanation(), index + 1, now));
+            for (int citationIndex = 0; citationIndex < question.citations().size(); citationIndex++) {
+                QuizDraftData.Citation citation = question.citations().get(citationIndex);
+                projectedQuestionSources.add(new QuizQuestionSource(
+                        UUID.nameUUIDFromBytes((question.id() + "|citation|" + citationIndex)
+                                .getBytes(StandardCharsets.UTF_8)),
+                        question.id(), citation.documentId(), citation.pageNumber(), citation.excerpt(), now));
+                ranges.merge(
+                        citation.documentId(),
+                        new SourceRange(citation.documentVersion(), citation.pageNumber(), citation.pageNumber()),
+                        SourceRange::merge);
+            }
+        }
+        quizQuestions.saveAll(projectedQuestions);
+        quizQuestionSources.saveAll(projectedQuestionSources);
+
+        String sourceType = creatorRole == QuizCreatorRole.TEACHER
+                ? AiContracts.SourceType.COURSE_MATERIAL_PDF.name()
+                : AiContracts.SourceType.PERSONAL_PDF.name();
+        List<QuizSource> projectedSources = ranges.entrySet().stream().map(entry -> new QuizSource(
+                UUID.nameUUIDFromBytes((draft.id() + "|source|" + entry.getKey()).getBytes(StandardCharsets.UTF_8)),
+                draft.id(), entry.getKey(), entry.getValue().documentVersion(),
+                entry.getValue().pageFrom(), entry.getValue().pageTo(), sourceType, now)).toList();
+        quizSources.saveAll(projectedSources);
+    }
+
+    /** Grounded page range for one immutable document version in the scoring projection. */
+    private record SourceRange(int documentVersion, int pageFrom, int pageTo) {
+        /** Args: two ranges for one document. Output: merged inclusive range. Errors: mismatched versions. */
+        private SourceRange merge(SourceRange other) {
+            if (documentVersion != other.documentVersion) {
+                throw new IllegalStateException("One Quiz cannot project multiple versions of the same document");
+            }
+            return new SourceRange(documentVersion, Math.min(pageFrom, other.pageFrom), Math.max(pageTo, other.pageTo));
         }
     }
 
@@ -241,7 +342,13 @@ public class AiQuizService {
             List<CourseMaterialDocument> scope,
             AiContracts.QuizDraft quiz
     ) {
-        return saveValidated(ownerId, "PERSONAL_STUDENT", prompt, scope, authorized(scope), quiz,
+        String mode = quiz != null && quiz.sourceType() == AiContracts.QuizDraftSource.IMPORTED_TEXT
+                ? "IMPORTED_TEXT_STUDENT"
+                : "PERSONAL_STUDENT";
+        List<AiContracts.AuthorizedDocument> authorizedScope = "IMPORTED_TEXT_STUDENT".equals(mode)
+                ? List.of()
+                : authorized(scope);
+        return saveValidated(ownerId, mode, prompt, scope, authorizedScope, quiz,
                 null, null, UUID.randomUUID());
     }
 
@@ -282,6 +389,10 @@ public class AiQuizService {
         if (generated.status() == AiContracts.QuizGenerationStatus.NO_EVIDENCE) {
             throw new ValidationException("NO_EVIDENCE", "Không đủ bằng chứng trong tài liệu để tạo Quiz.");
         }
+        if (generated.quiz() == null
+                || generated.quiz().sourceType() != AiContracts.QuizDraftSource.PDF_GROUNDED) {
+            throw invalidAiQuiz("AI_INVALID_QUIZ_SOURCE");
+        }
         return saveValidated(actorId, mode, instruction, scope, authorizedScope, generated.quiz(),
                 courseOfferingId, args.questionCount(), draftId);
     }
@@ -298,20 +409,42 @@ public class AiQuizService {
             UUID draftId
     ) {
         validateQuizOutput(quiz, scope, authorizedScope, expectedQuestionCount);
-        List<QuizDraftData.Question> questions = quiz.questions().stream().map(question ->
-                new QuizDraftData.Question(
-                        UUID.randomUUID(),
-                        question.question(),
-                        List.copyOf(question.options()),
-                        question.correctOptionIndex(),
-                        question.explanation(),
-                        question.citations().stream().map(citation -> new QuizDraftData.Citation(
-                                citation.documentId(), citation.documentVersion(), citation.pageNumber(), citation.excerpt()))
-                                .toList()))
-                .toList();
-        return drafts.save(new QuizDraftData(
-                draftId, ownerId, mode, prompt, quiz.title(), "REVIEW_REQUIRED", null, courseOfferingId,
-                scope.stream().map(CourseMaterialDocument::getId).toList(), questions, clock.instant(), null));
+        HashMap<UUID, CourseMaterialDocument> documentsById = new HashMap<>();
+        scope.forEach(document -> documentsById.put(document.getId(), document));
+        List<QuizDraftData.Question> questions = new ArrayList<>();
+        List<QuizDraftData.Image> createdImages = new ArrayList<>();
+        for (int index = 0; index < quiz.questions().size(); index++) {
+            AiContracts.QuizQuestionDraft question = quiz.questions().get(index);
+            UUID questionId = UUID.nameUUIDFromBytes(
+                    (draftId + "|question|" + index).getBytes(StandardCharsets.UTF_8));
+            QuizDraftData.Image image = null;
+            if (question.image() != null) {
+                image = imageMaterializer.materialize(
+                        questionId, documentsById.get(question.image().documentId()), question.image());
+                createdImages.add(image);
+            }
+            questions.add(new QuizDraftData.Question(
+                    questionId,
+                    question.question(),
+                    List.copyOf(question.options()),
+                    question.correctOptionIndex(),
+                    question.explanation(),
+                    question.citations().stream().map(citation -> new QuizDraftData.Citation(
+                            citation.documentId(), citation.documentVersion(), citation.pageNumber(), citation.excerpt()))
+                            .toList(),
+                    image));
+        }
+        try {
+            return drafts.save(new QuizDraftData(
+                    draftId, ownerId, mode, prompt, quiz.title(), "REVIEW_REQUIRED", null, courseOfferingId,
+                    quiz.sourceType() == AiContracts.QuizDraftSource.IMPORTED_TEXT
+                            ? List.of()
+                            : scope.stream().map(CourseMaterialDocument::getId).toList(),
+                    questions, clock.instant(), null));
+        } catch (RuntimeException exception) {
+            createdImages.forEach(imageMaterializer::deleteQuietly);
+            throw exception;
+        }
     }
 
     /**
@@ -350,6 +483,12 @@ public class AiQuizService {
                         .findByIdAndOwnerIdAndDocumentScopeAndDeletedAtIsNull(id, ownerId, "COURSE_MATERIAL")
                         .orElseThrow(() -> new ResourceNotFoundException("DOCUMENT_NOT_FOUND", "Không tìm thấy học liệu.")))
                 .peek(AiQuizService::requireReady)
+                .peek(document -> {
+                    if (!document.isSlidePdf()) {
+                        throw new ValidationException("INVALID_MATERIAL_TYPE",
+                                "Chỉ SLIDE_PDF được dùng để sinh Quiz AI.");
+                    }
+                })
                 .toList();
     }
 
@@ -395,6 +534,7 @@ public class AiQuizService {
     ) {
         if (quiz == null
                 || !"MCQ_SINGLE".equals(quiz.quizType())
+                || quiz.sourceType() == null
                 || quiz.title() == null
                 || quiz.title().isBlank()
                 || quiz.title().length() > 200
@@ -422,9 +562,16 @@ public class AiQuizService {
                     || question.correctOptionIndex() >= 4
                     || question.explanation() == null
                     || question.explanation().isBlank()
-                    || question.citations() == null
-                    || question.citations().isEmpty()) {
+                    || question.citations() == null) {
                 throw invalidAiQuiz("AI_INVALID_QUIZ_SCHEMA");
+            }
+            if (quiz.sourceType() == AiContracts.QuizDraftSource.PDF_GROUNDED
+                    && question.citations().isEmpty()) {
+                throw invalidAiQuiz("AI_INVALID_QUIZ_SCHEMA");
+            }
+            if (quiz.sourceType() == AiContracts.QuizDraftSource.IMPORTED_TEXT
+                    && !question.citations().isEmpty()) {
+                throw invalidAiQuiz("AI_INVALID_CITATION");
             }
             for (AiContracts.Citation citation : question.citations()) {
                 if (citation == null) throw invalidAiQuiz("AI_INVALID_CITATION");
@@ -441,7 +588,55 @@ public class AiQuizService {
                     throw invalidAiQuiz("AI_INVALID_CITATION");
                 }
             }
+            validateImage(question, quiz.sourceType(), allowed, allowedPages);
         }
+    }
+
+    /**
+     * Args: one AI question, draft source and Java-authorized document/page maps.
+     * Input: untrusted optional image reference. Output: void when it is safe to materialize.
+     * Errors: 502 for imported, out-of-scope, malformed or uncited image references.
+     */
+    private static void validateImage(
+            AiContracts.QuizQuestionDraft question,
+            AiContracts.QuizDraftSource sourceType,
+            java.util.Map<UUID, CourseMaterialDocument> allowed,
+            java.util.Map<UUID, Set<Integer>> allowedPages
+    ) {
+        AiContracts.QuizImageReference image = question.image();
+        if (image == null) return;
+        if (sourceType != AiContracts.QuizDraftSource.PDF_GROUNDED
+                || image.documentId() == null
+                || image.bbox() == null
+                || image.altText() == null
+                || image.altText().isBlank()
+                || image.altText().length() > 300) {
+            throw invalidAiQuiz("AI_INVALID_QUIZ_IMAGE");
+        }
+        CourseMaterialDocument document = allowed.get(image.documentId());
+        Set<Integer> pages = allowedPages.get(image.documentId());
+        if (document == null
+                || image.documentVersion() != document.getDocumentVersion()
+                || image.pageNumber() < 1
+                || image.pageNumber() > document.getPageCount()
+                || pages != null && !pages.contains(image.pageNumber())
+                || !validBoundingBox(image.bbox())) {
+            throw invalidAiQuiz("AI_INVALID_QUIZ_IMAGE");
+        }
+        boolean cited = question.citations().stream().anyMatch(citation ->
+                citation.documentId().equals(image.documentId())
+                        && citation.documentVersion() == image.documentVersion()
+                        && citation.pageNumber() == image.pageNumber());
+        if (!cited) throw invalidAiQuiz("AI_INVALID_QUIZ_IMAGE");
+    }
+
+    private static boolean validBoundingBox(AiContracts.NormalizedBoundingBox bbox) {
+        return Double.isFinite(bbox.x()) && Double.isFinite(bbox.y())
+                && Double.isFinite(bbox.width()) && Double.isFinite(bbox.height())
+                && bbox.x() >= 0 && bbox.y() >= 0
+                && bbox.width() > 0 && bbox.height() > 0
+                && bbox.x() + bbox.width() <= 1
+                && bbox.y() + bbox.height() <= 1;
     }
 
     /** Args: stable safe error code. Input: failed AI output validation. Output: caller-facing 502 exception. */
@@ -474,8 +669,10 @@ public class AiQuizService {
                 options.add(new QuizApiModels.Option(OPTION_IDS.get(index), question.options().get(index)));
             }
             QuizApiModels.Citation citation = question.citations().isEmpty() ? null : citation(question.citations().get(0));
+            QuizApiModels.QuestionImage image = question.image() == null ? null : new QuizApiModels.QuestionImage(
+                    question.image().id(), "/api/v1/quiz-images/" + question.image().id(), question.image().altText());
             output.add(new QuizApiModels.Question(question.id(), question.questionText(), "MCQ_SINGLE", options,
-                    OPTION_IDS.get(question.correctOptionIndex()), question.explanation(), citation));
+                    OPTION_IDS.get(question.correctOptionIndex()), question.explanation(), citation, image));
         }
         return output;
     }

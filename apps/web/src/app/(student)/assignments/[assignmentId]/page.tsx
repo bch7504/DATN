@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, Download, Paperclip, Upload } from "lucide-react";
 import { assignmentApi, type CourseAssignment } from "@/lib/api-client";
+import { MathText } from "@/components/quiz/math-text";
+import type { StartQuizAttemptResponse, SubmitAttemptResponse } from "@/types/quiz";
 
 const ACCEPTED = ".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.pptx";
 
@@ -18,6 +20,9 @@ export default function StudentAssignmentDetailPage(): ReactElement {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [quizAttempt, setQuizAttempt] = useState<StartQuizAttemptResponse | null>(null);
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
+  const [quizResult, setQuizResult] = useState<SubmitAttemptResponse | null>(null);
 
   /** Args: none. Input: current authorized Student assignment list. Output: Promise<void>; refreshes selected assignment. Errors: displays API/404 error. */
   const load = useCallback(async (): Promise<void> => {
@@ -67,6 +72,31 @@ export default function StudentAssignmentDetailPage(): ReactElement {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Không tải được tệp."); }
   }
 
+  /** Args: none. Input: current published QUIZ assignment and authorized Student. Output: question payload without answer keys. Errors: displayed in-page. */
+  async function startQuiz(): Promise<void> {
+    if (!item || item.type !== "QUIZ") return;
+    setBusy(true); setError(""); setSuccess(""); setQuizResult(null);
+    try { setQuizAttempt(await assignmentApi.startQuiz(item.id)); setQuizAnswers({}); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Không bắt đầu được bài trắc nghiệm."); }
+    finally { setBusy(false); }
+  }
+
+  /** Args: none. Input: one option for every current Quiz question. Output: Java-scored result and refreshed assignment submission. Errors: incomplete/API failure shown in-page. */
+  async function submitQuiz(): Promise<void> {
+    if (!item || !quizAttempt || item.type !== "QUIZ") return;
+    if (quizAttempt.questions.some((question) => quizAnswers[question.id] === undefined)) {
+      setError("Hãy chọn một đáp án cho tất cả câu hỏi."); return;
+    }
+    setBusy(true); setError(""); setSuccess("");
+    try {
+      const result = await assignmentApi.submitQuiz(item.id, quizAttempt.attemptId, quizAnswers);
+      setQuizResult(result);
+      setSuccess(`Đã nộp bài. Điểm của bạn: ${(result.score / 10).toFixed(1)}/10.`);
+      await load();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Nộp bài trắc nghiệm chưa thành công."); }
+    finally { setBusy(false); }
+  }
+
   const prior = item?.submission;
   const overdue = item && Date.parse(item.dueAt) <= Date.now();
   const status = prior ? prior.status === "LATE" ? "Đã nộp muộn" : "Đã nộp" : overdue ? "Quá hạn · Chưa nộp" : "Chưa nộp";
@@ -79,10 +109,14 @@ export default function StudentAssignmentDetailPage(): ReactElement {
     {!loading && item && <article className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">{item.title}</h2><p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{item.description}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${prior ? "bg-emerald-50 text-emerald-700" : overdue ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>{status}</span></div>
       <p className="text-sm text-slate-500">Hạn nộp: {new Date(item.dueAt).toLocaleString("vi-VN")}</p>
-      {prior && <div className="rounded-xl bg-slate-50 p-4 text-sm"><p className="font-semibold text-slate-700">Bài đã nộp {prior.submittedAt ? `lúc ${new Date(prior.submittedAt).toLocaleString("vi-VN")}` : ""}</p>{prior.answerText && <p className="mt-2 whitespace-pre-wrap">{prior.answerText}</p>}{prior.attachments?.map((file) => <button key={file.id} type="button" onClick={() => void download(file.id, file.fileName)} className="mt-2 mr-3 inline-flex items-center gap-1 text-red-700 hover:underline"><Download className="h-4 w-4" />{file.fileName}</button>)}</div>}
-      <label className="block text-sm font-semibold text-slate-700">Câu trả lời <span className="font-normal text-slate-400">(không bắt buộc nếu có đính kèm)</span><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} rows={3} maxLength={20000} className="mt-2 w-full rounded-xl border border-slate-300 p-3 font-normal outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" placeholder="Nhập câu trả lời của bạn..." /></label>
+      {prior && <div className="rounded-xl bg-slate-50 p-4 text-sm"><p className="font-semibold text-slate-700">Bài đã nộp {prior.submittedAt ? `lúc ${new Date(prior.submittedAt).toLocaleString("vi-VN")}` : ""}</p>{prior.score !== null && <p className="mt-2 text-lg font-extrabold text-red-700">Điểm: {(prior.score / 10).toFixed(1)}/10</p>}{prior.answerText && <p className="mt-2 whitespace-pre-wrap">{prior.answerText}</p>}{prior.attachments?.map((file) => <button key={file.id} type="button" onClick={() => void download(file.id, file.fileName)} className="mt-2 mr-3 inline-flex items-center gap-1 text-red-700 hover:underline"><Download className="h-4 w-4" />{file.fileName}</button>)}</div>}
+      {item.type === "QUIZ" ? <div className="space-y-4">
+        {!quizAttempt && <button type="button" disabled={busy} onClick={() => void startQuiz()} className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{busy ? "Đang mở đề..." : prior ? "Làm lượt mới" : "Bắt đầu làm Quiz"}</button>}
+        {quizAttempt && !quizResult && <><div className="space-y-4">{quizAttempt.questions.map((question, index) => <fieldset key={question.id} className="rounded-xl border border-slate-200 p-4"><legend className="px-1 font-bold text-slate-900">Câu {index + 1}. <MathText text={question.questionText} /></legend><div className="mt-3 grid gap-2">{question.options.map((option) => <label key={option.index} className="flex cursor-pointer gap-3 rounded-lg border border-slate-200 p-3 text-sm"><input type="radio" name={question.id} checked={quizAnswers[question.id] === option.index} onChange={() => setQuizAnswers((current) => ({ ...current, [question.id]: option.index }))} /><span>{String.fromCharCode(65 + option.index)}. <MathText text={option.text} /></span></label>)}</div></fieldset>)}</div><button type="button" disabled={busy} onClick={() => void submitQuiz()} className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{busy ? "Đang chấm..." : "Nộp bài trắc nghiệm"}</button></>}
+        {quizResult && <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-lg font-extrabold text-emerald-800">{(quizResult.score / 10).toFixed(1)}/10 · đúng {quizResult.correctAnswersCount}/{quizResult.totalQuestionsCount} câu</p>{quizResult.questionReviews.map((review) => <div key={review.questionId} className="rounded-lg bg-white p-3 text-sm"><p className="font-bold">Câu {review.questionOrder}: {review.isCorrect ? "Đúng" : "Sai"}</p><MathText text={review.explanation} className="mt-1 text-slate-600" />{review.citations.map((citation) => <p key={`${citation.documentId}-${citation.pageNumber}`} className="mt-1 text-xs text-slate-500">Nguồn trang {citation.pageNumber}: <MathText text={citation.excerpt} /></p>)}</div>)}</div>}
+      </div> : <><label className="block text-sm font-semibold text-slate-700">Câu trả lời <span className="font-normal text-slate-400">(không bắt buộc nếu có đính kèm)</span><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} rows={3} maxLength={20000} className="mt-2 w-full rounded-xl border border-slate-300 p-3 font-normal outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" placeholder="Nhập câu trả lời của bạn..." /></label>
       <div><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Paperclip className="h-4 w-4" />Chọn ảnh / tệp<input type="file" disabled={busy} multiple accept={ACCEPTED} className="sr-only" onChange={(event) => { selectFiles(Array.from(event.target.files || [])); event.target.value = ""; }} /></label><p className="mt-2 text-xs text-slate-500">Tối đa 5 tệp cho cả bài nộp, 10 MB mỗi tệp, 25 MB tổng. PDF, ảnh PNG/JPG, DOCX, XLSX hoặc PPTX. Tệp mới được thêm vào bài nộp hiện tại.</p>{files.map((file) => <p key={`${file.name}-${file.size}`} className="mt-1 text-sm text-slate-600">{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</p>)}</div>
-      <button type="button" disabled={busy} onClick={() => void submit()} className="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"><Upload className="h-4 w-4" />{busy ? "Đang nộp..." : prior ? "Cập nhật bài nộp" : "Nộp bài"}</button>
+      <button type="button" disabled={busy} onClick={() => void submit()} className="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"><Upload className="h-4 w-4" />{busy ? "Đang nộp..." : prior ? "Cập nhật bài nộp" : "Nộp bài"}</button></>}
     </article>}
   </main>;
 }

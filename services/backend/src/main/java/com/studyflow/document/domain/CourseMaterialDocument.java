@@ -15,6 +15,7 @@ public class CourseMaterialDocument {
     @Column(name = "owner_id", nullable = false) private UUID ownerId;
     @Column(name = "owner_role", nullable = false) private String ownerRole;
     @Column(name = "document_scope", nullable = false) private String documentScope;
+    @Column(name = "material_type") private String materialType;
     @Column(name = "file_name", nullable = false) private String fileName;
     @Column(name = "display_name", nullable = false) private String displayName;
     @Column(name = "file_type", nullable = false) private String fileType;
@@ -42,17 +43,34 @@ public class CourseMaterialDocument {
      */
     public CourseMaterialDocument(UUID id, UUID ownerId, String fileName, String displayName,
                                  String storageKey, long fileSize, int pageCount, Instant now) {
+        this(id, ownerId, fileName, displayName, storageKey, fileSize, pageCount,
+                CourseMaterialType.SLIDE_PDF, now);
+    }
+
+    /**
+     * Args: immutable file metadata, required Course Material behavior and timestamp.
+     * Input: validated Teacher-owned text-layer PDF.
+     * Output: SLIDE_PDF pending AI indexing or REFERENCE_PDF immediately READY for download.
+     * Errors: IllegalArgumentException for a missing material type.
+     */
+    public CourseMaterialDocument(UUID id, UUID ownerId, String fileName, String displayName,
+                                  String storageKey, long fileSize, int pageCount,
+                                  CourseMaterialType materialType, Instant now) {
+        if (materialType == null) throw new IllegalArgumentException("materialType is required");
         this.id = id;
         this.ownerId = ownerId;
         this.ownerRole = "TEACHER";
         this.documentScope = "COURSE_MATERIAL";
+        this.materialType = materialType.name();
         this.fileName = fileName;
         this.displayName = displayName;
         this.fileType = "PDF";
         this.mimeType = "application/pdf";
         this.fileSize = fileSize;
         this.storageKey = storageKey;
-        this.processingStatus = "PENDING_PROCESSING";
+        this.processingStatus = materialType == CourseMaterialType.SLIDE_PDF
+                ? "PENDING_PROCESSING"
+                : "READY";
         this.documentVersion = 1;
         this.pageCount = pageCount;
         this.createdAt = now;
@@ -80,6 +98,8 @@ public class CourseMaterialDocument {
                 id, ownerId, fileName, displayName, storageKey, fileSize, pageCount, now);
         document.ownerRole = "STUDENT";
         document.documentScope = "PERSONAL";
+        document.materialType = null;
+        document.processingStatus = "PENDING_PROCESSING";
         document.sha256 = sha256;
         return document;
     }
@@ -99,6 +119,8 @@ public class CourseMaterialDocument {
     public Instant getIndexedAt() { return indexedAt; }
     public String getSha256() { return sha256; }
     public String getDocumentScope() { return documentScope; }
+    public String getMaterialType() { return materialType; }
+    public boolean isSlidePdf() { return CourseMaterialType.SLIDE_PDF.name().equals(materialType); }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getDeletedAt() { return deletedAt; }
 

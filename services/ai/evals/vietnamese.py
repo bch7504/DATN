@@ -1,5 +1,7 @@
 """Locked Vietnamese validation dataset and live Hybrid RAG evaluation runner."""
 
+import asyncio
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from uuid import UUID
 
@@ -18,6 +20,32 @@ from evals.metrics import EvaluationCase, EvaluationReport, PageReference, evalu
 
 DEFAULT_DATASET = Path(__file__).parent / "datasets" / "ky-thuat-so-v1.json"
 EVALUATION_ACTOR_ID = UUID("11111111-1111-4111-8111-111111111111")
+
+
+class LiveEvaluationStageError(RuntimeError):
+    """Safe stage failure that never includes provider or document content."""
+
+    def __init__(self, *, case_id: str, stage: str, error_type: str) -> None:
+        """Create a content-free live evaluation failure.
+
+        Args:
+            case_id: Stable identifier from the locked synthetic evaluation dataset.
+            stage: Fixed pipeline stage name controlled by the runner.
+            error_type: Python exception class name only, never its message.
+
+        Returns:
+            None.
+
+        Raises:
+            ValueError: If any safe identifier is blank.
+        """
+
+        if not case_id.strip() or not stage.strip() or not error_type.strip():
+            raise ValueError("live evaluation failure identifiers must not be blank")
+        self.case_id = case_id
+        self.stage = stage
+        self.error_type = error_type
+        super().__init__(f"{case_id}:{stage}:{error_type}")
 
 
 def _camel(name: str) -> str:
@@ -159,7 +187,8 @@ async def run_live_evaluation(
                 minimum_relevance=settings.retrieval_minimum_relevance,
                 candidate_limit=settings.retrieval_candidate_limit,
                 reranker=LangChainEvidenceReranker(
-                    diversity_penalty=settings.rerank_diversity_penalty
+                    diversity_penalty=settings.rerank_diversity_penalty,
+                    llm_client=provider,
                 ),
             )
             answer_service = GroundedAnswerService(
@@ -173,15 +202,27 @@ async def run_live_evaluation(
                     source_type=SourceType.COURSE_MATERIAL_PDF,
                 )
                 scope = AuthorizedScope(actor_id=EVALUATION_ACTOR_ID, documents=(document,))
-                evidence = await retrieval.retrieve(
-                    query=case.question,
-                    scope=scope,
-                    limit=retrieval_limit,
+                evidence = await _run_evaluation_stage(
+                    case_id=case.case_id,
+                    stage="RETRIEVAL_RERANK",
+                    operation=lambda question=case.question, authorized_scope=scope: (
+                        retrieval.retrieve(
+                            query=question,
+                            scope=authorized_scope,
+                            limit=retrieval_limit,
+                        )
+                    ),
                 )
-                result = await answer_service.answer(
-                    instruction=case.question,
-                    scope=scope,
-                    retrieval_limit=retrieval_limit,
+                result = await _run_evaluation_stage(
+                    case_id=case.case_id,
+                    stage="ANSWER_PIPELINE",
+                    operation=lambda question=case.question, authorized_scope=scope: (
+                        answer_service.answer(
+                            instruction=question,
+                            scope=authorized_scope,
+                            retrieval_limit=retrieval_limit,
+                        )
+                    ),
                 )
                 observations.append(
                     EvaluationCase(
@@ -225,3 +266,46 @@ async def run_live_evaluation(
         embedding_model=settings.openrouter_embedding_model,
         report=evaluate(tuple(observations), k=retrieval_limit),
     )
+
+
+async def _run_evaluation_stage[T](
+    *,
+    case_id: str,
+    stage: str,
+    operation: Callable[[], Awaitable[T]],
+    attempts: int = 2,
+) -> T:
+    """Run a side-effect-free live evaluation stage with one bounded retry.
+
+    Args:
+        case_id: Stable case identifier from the locked evaluation dataset.
+        stage: Fixed, content-free pipeline stage label.
+        operation: Async retrieval or answer operation without persistence side effects.
+        attempts: Total attempts, constrained to one or two.
+
+    Returns:
+        The successful operation result.
+
+    Raises:
+        ValueError: If attempts or identifiers are invalid.
+        LiveEvaluationStageError: If every attempt fails; only safe identifiers are exposed.
+    """
+
+    if not 1 <= attempts <= 2:
+        raise ValueError("evaluation attempts must be one or two")
+    if not case_id.strip() or not stage.strip():
+        raise ValueError("evaluation stage identifiers must not be blank")
+    last_error: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            return await operation()
+        except Exception as error:  # noqa: BLE001 - sanitized at the evaluation boundary.
+            last_error = error
+            if attempt + 1 < attempts:
+                await asyncio.sleep(1.0)
+    assert last_error is not None
+    raise LiveEvaluationStageError(
+        case_id=case_id,
+        stage=stage,
+        error_type=type(last_error).__name__,
+    ) from last_error

@@ -1,15 +1,16 @@
 @startuml
 ' Palette: usecase; based on the Visual Paradigm guide samples (see README).
-skinparam defaultFontColor #111111
-skinparam ArrowColor #222222
-skinparam ActorBackgroundColor #7ACFF5
-skinparam ActorBorderColor #222222
-skinparam NoteBackgroundColor #FFF9D9
-skinparam NoteBorderColor #555555
+' Monochrome: true
+skinparam defaultFontColor #000000
+skinparam ArrowColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorBorderColor #000000
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #000000
 skinparam RectangleBackgroundColor white
-skinparam RectangleBorderColor #222222
-skinparam UsecaseBackgroundColor #7ACFF5
-skinparam UsecaseBorderColor #222222
+skinparam RectangleBorderColor #000000
+skinparam UsecaseBackgroundColor #FFFFFF
+skinparam UsecaseBorderColor #000000
 skinparam shadowing false
 skinparam linetype ortho
 skinparam backgroundColor white
@@ -27,7 +28,7 @@ actor Admin
 Student -[hidden]down-> Teacher
 Teacher -[hidden]down-> Admin
 
-rectangle "StudyFlow" #F8FAFC {
+rectangle "StudyFlow" #FFFFFF {
   rectangle "Phân hệ Student" #FFFFFF {
     usecase "Tham gia Course Offering\nbằng join code" as S1
     usecase "Xem PDF và lưu\nghi chú theo trang" as S2

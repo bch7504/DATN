@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BookOpen, ChevronRight, FileText, Info } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronRight, Download, FileText, Info } from "lucide-react";
 import { materialApi, studentApi } from "@/lib/api-client";
 import { TeacherDocument } from "@/types/material";
 import { CourseOffering } from "@/types/course-offering";
@@ -60,6 +60,15 @@ export default function StudentMaterialLibrary({ offeringId }: { offeringId?: st
     router.push(offeringId ? `/materials/class/${encodeURIComponent(offeringId)}` : "/materials");
   };
 
+  /** Args: one authorized REFERENCE_PDF. Input: Java-validated enrollment/publication. Output: void; downloads the PDF. Errors: displayed in the page alert. */
+  async function downloadReference(document: TeacherDocument): Promise<void> {
+    try {
+      const blob = await materialApi.downloadReference(document.id);
+      const url = URL.createObjectURL(blob); const anchor = window.document.createElement("a");
+      anchor.href = url; anchor.download = document.fileName; anchor.click(); URL.revokeObjectURL(url);
+    } catch (cause) { setErrorMsg(cause instanceof Error ? cause.message : "Không tải được tài liệu tham khảo."); }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -114,7 +123,7 @@ export default function StudentMaterialLibrary({ offeringId }: { offeringId?: st
                   <div>
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
-                        <FileText className="h-3.5 w-3.5" /> PDF
+                        <FileText className="h-3.5 w-3.5" /> {document.materialType === "SLIDE_PDF" ? "Slide PDF" : "Tài liệu tham khảo"}
                       </span>
                       <StatusBadge status={document.status} size="sm" />
                     </div>
@@ -133,12 +142,7 @@ export default function StudentMaterialLibrary({ offeringId }: { offeringId?: st
                   </div>
                   <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                     <span className="text-[11px] text-slate-400">{selectedOffering.code}</span>
-                    <Link
-                      href={`/materials/${document.id}/viewer?offeringId=${encodeURIComponent(selectedOffering.id)}`}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
-                    >
-                      <BookOpen className="h-4 w-4" /> Mở tài liệu
-                    </Link>
+                    {document.materialType === "SLIDE_PDF" ? <Link href={`/materials/${document.id}/viewer?offeringId=${encodeURIComponent(selectedOffering.id)}`} className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"><BookOpen className="h-4 w-4" /> Xem slide</Link> : <button type="button" onClick={() => void downloadReference(document)} className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"><Download className="h-4 w-4" /> Tải xuống</button>}
                   </div>
                 </article>
               ))}

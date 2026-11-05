@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { studentApi, materialApi } from "@/lib/api-client";
+import { assignmentApi, materialApi, studentApi, type CourseAssignment } from "@/lib/api-client";
 import { CourseOffering, CourseEnrollment } from "@/types/course-offering";
 import { TeacherDocument } from "@/types/material";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -21,6 +21,8 @@ import {
   ShieldAlert,
   ArrowRight,
   FileText,
+  ClipboardList,
+  Download,
   Sparkles,
   ArrowLeft,
   Info,
@@ -55,12 +57,24 @@ function CourseOfferingsContent({ offeringId }: { offeringId?: string }): React.
     if (offeringId === selectedOfferingId) return;
     router.push(offeringId ? `/course-offerings/${encodeURIComponent(offeringId)}` : "/course-offerings");
   }
+
+  /** Args: one authorized REFERENCE_PDF. Input: approved enrollment/publication. Output: void; downloads through Java. Errors: displayed in the existing class alert. */
+  async function downloadReference(document: TeacherDocument): Promise<void> {
+    try {
+      const blob = await materialApi.downloadReference(document.id);
+      const url = URL.createObjectURL(blob); const anchor = window.document.createElement("a");
+      anchor.href = url; anchor.download = document.fileName; anchor.click(); URL.revokeObjectURL(url);
+    } catch (cause) { setJoinError(cause instanceof Error ? cause.message : "Không tải được tài liệu tham khảo."); }
+  }
   const [materials, setMaterials] = useState<TeacherDocument[]>([]);
   const [isLoadingMaterials, setIsLoadingMaterials] = useState(false);
   const [materialCounts, setMaterialCounts] = useState<Record<string, number>>({});
   const [materialCountsStatus, setMaterialCountsStatus] = useState<
     "loading" | "ready" | "error"
   >("loading");
+  const [assignments, setAssignments] = useState<CourseAssignment[]>([]);
+  const [assignmentCounts, setAssignmentCounts] = useState<Record<string, number>>({});
+  const [courseSection, setCourseSection] = useState<"MATERIALS" | "ASSIGNMENTS">("MATERIALS");
 
   const loadData = async () => {
     try {
@@ -79,6 +93,33 @@ function CourseOfferingsContent({ offeringId }: { offeringId?: string }): React.
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    /**
+     * Args: none.
+     * Input: published assignments visible to the authenticated Student through Java.
+     * Output: void; stores assignments and their per-Course-Offering counts.
+     * Errors: leaves the assignment area empty and exposes the API failure through the class alert.
+     */
+    async function loadAssignments(): Promise<void> {
+      try {
+        const visibleAssignments = await assignmentApi.listForStudent();
+        if (!mounted) return;
+        setAssignments(visibleAssignments);
+        setAssignmentCounts(visibleAssignments.reduce<Record<string, number>>((counts, assignment) => {
+          counts[assignment.courseOfferingId] = (counts[assignment.courseOfferingId] ?? 0) + 1;
+          return counts;
+        }, {}));
+      } catch (cause) {
+        if (mounted) setJoinError(cause instanceof Error ? cause.message : "Không tải được bài tập lớp học.");
+      }
+    }
+
+    void loadAssignments();
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
@@ -213,6 +254,9 @@ function CourseOfferingsContent({ offeringId }: { offeringId?: string }): React.
 
   const currentSelectedOffering = approvedOfferings.find(
     (o) => o.id === selectedOfferingId
+  );
+  const selectedAssignments = assignments.filter(
+    (assignment) => assignment.courseOfferingId === selectedOfferingId && assignment.status === "PUBLISHED"
   );
 
   if (!isLoading && selectedOfferingId && !currentSelectedOffering) {
@@ -364,7 +408,17 @@ function CourseOfferingsContent({ offeringId }: { offeringId?: string }): React.
                     </Link>
                   </div>
 
+                  <div className="flex gap-2 border-b border-slate-200" aria-label="Nội dung lớp học phần">
+                    <button type="button" onClick={() => setCourseSection("MATERIALS")} className={`inline-flex items-center gap-2 border-b-2 px-3 py-2 text-xs font-bold ${courseSection === "MATERIALS" ? "border-red-600 text-red-700" : "border-transparent text-slate-500"}`}>
+                      <BookOpen className="h-4 w-4" /> Học liệu ({materials.length})
+                    </button>
+                    <button type="button" onClick={() => setCourseSection("ASSIGNMENTS")} className={`inline-flex items-center gap-2 border-b-2 px-3 py-2 text-xs font-bold ${courseSection === "ASSIGNMENTS" ? "border-red-600 text-red-700" : "border-transparent text-slate-500"}`}>
+                      <ClipboardList className="h-4 w-4" /> Bài tập về nhà ({selectedAssignments.length})
+                    </button>
+                  </div>
+
                   {/* Policy Info Box */}
+                  {courseSection === "MATERIALS" && <>
                   <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600 flex items-start gap-2.5">
                     <Info className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
                     <div>
@@ -393,7 +447,7 @@ function CourseOfferingsContent({ offeringId }: { offeringId?: string }): React.
                             <div>
                               <div className="flex items-center justify-between gap-2 mb-2">
                                 <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1 bg-red-100 text-ptit-red border border-red-200">
-                                  <FileText className="w-3.5 h-3.5" /> PDF Học liệu
+                                  <FileText className="w-3.5 h-3.5" /> {doc.materialType === "SLIDE_PDF" ? "Slide PDF" : "Tài liệu tham khảo"}
                                 </span>
                                 <span className="text-[11px] text-slate-400">
                                   {(doc.fileSize / (1024 * 1024)).toFixed(1)} MB
@@ -407,24 +461,43 @@ function CourseOfferingsContent({ offeringId }: { offeringId?: string }): React.
                                 Tên tệp: {doc.fileName}
                               </p>
 
-                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-800 text-[11px] font-semibold rounded-lg mb-4">
-                                <Sparkles className="w-3 h-3 text-red-600" />
-                                <span>PDF Viewer · Ghi chú theo trang · AI Tutor</span>
-                              </div>
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-800 text-[11px] font-semibold rounded-lg mb-4"><Sparkles className="w-3 h-3 text-red-600" /><span>{doc.materialType === "SLIDE_PDF" ? "Xem slide · Ghi chú · AI Tutor" : "PDF tham khảo · chỉ tải xuống"}</span></div>
                             </div>
 
                             <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                               <span className="text-xs text-slate-500">{doc.totalPages} trang</span>
-                              <Link
-                                href={`/materials/${doc.id}/viewer?courseId=${encodeURIComponent(currentSelectedOffering.id)}`}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red text-white rounded-xl text-xs font-bold shadow-sm transition"
-                              >
-                                <BookOpen className="w-4 h-4" /> Xem PDF & Hỏi AI
-                              </Link>
+                              {doc.materialType === "SLIDE_PDF" ? <Link href={`/materials/${doc.id}/viewer?courseId=${encodeURIComponent(currentSelectedOffering.id)}`} className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red text-white rounded-xl text-xs font-bold shadow-sm transition"><BookOpen className="w-4 h-4" /> Xem slide</Link> : <button type="button" onClick={() => void downloadReference(doc)} className="inline-flex items-center gap-1.5 px-4 py-2 bg-ptit-red text-white rounded-xl text-xs font-bold shadow-sm transition"><Download className="w-4 h-4" /> Tải xuống</button>}
                             </div>
                           </div>
                       ))}
                     </div>
+                  )}
+                  </>}
+
+                  {courseSection === "ASSIGNMENTS" && (
+                    selectedAssignments.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+                        <ClipboardList className="mx-auto mb-2 h-9 w-9 text-slate-300" />
+                        Giảng viên chưa công bố bài tập nào cho lớp học phần này.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {selectedAssignments.map((assignment) => (
+                          <article key={assignment.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="rounded-lg bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700">{assignment.type === "QUIZ" ? "Quiz trắc nghiệm" : "Bài tập tự luận"}</span>
+                              {assignment.submission && <span className="text-[11px] font-semibold text-emerald-700">Đã nộp</span>}
+                            </div>
+                            <h3 className="mt-3 font-bold text-slate-900">{assignment.title}</h3>
+                            <p className="mt-1 line-clamp-2 text-xs text-slate-500">{assignment.description}</p>
+                            <p className="mt-3 text-xs text-slate-500">Hạn nộp: {new Date(assignment.dueAt).toLocaleString("vi-VN")}</p>
+                            <Link href={`/assignments/${encodeURIComponent(assignment.id)}`} className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white">
+                              Xem bài tập <ArrowRight className="h-3.5 w-3.5" />
+                            </Link>
+                          </article>
+                        ))}
+                      </div>
+                    )
                   )}
                 </div>
               ) : (
@@ -476,6 +549,8 @@ function CourseOfferingsContent({ offeringId }: { offeringId?: string }): React.
                                         : materialCountsStatus === "error"
                                           ? "Chưa tải được số học liệu"
                                           : `${materialCounts[offering.id] ?? 0} tài liệu PDF`}
+                                      <span className="mx-1.5 text-slate-300">•</span>
+                                      {assignmentCounts[offering.id] ?? 0} bài tập
                                     </p>
                                   </div>
                                 </div>

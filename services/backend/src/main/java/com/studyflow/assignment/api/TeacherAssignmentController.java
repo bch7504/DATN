@@ -1,6 +1,9 @@
 package com.studyflow.assignment.api;
 
 import com.studyflow.assignment.application.AssignmentService;
+import com.studyflow.assignment.application.QuizAssignmentService;
+import com.studyflow.assignment.domain.AssignmentType;
+import com.studyflow.review.application.SubmitQuizAttemptResult;
 import com.studyflow.assignment.domain.CourseAssignment;
 import com.studyflow.common.exception.ApiException;
 import jakarta.validation.Valid;
@@ -30,15 +33,21 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize("hasRole('TEACHER')")
 public class TeacherAssignmentController {
     private final AssignmentService service;
+    private final QuizAssignmentService quizAssignments;
 
-    public TeacherAssignmentController(AssignmentService service) { this.service = service; }
+    public TeacherAssignmentController(AssignmentService service, QuizAssignmentService quizAssignments) {
+        this.service = service;
+        this.quizAssignments = quizAssignments;
+    }
 
     /** Input: authenticated Teacher, offering UUID and validated draft DTO. Output: HTTP 201 assignment. Errors: 401/403/404/409/422. */
     @PostMapping("/course-offerings/{offeringId}/assignments")
     public ResponseEntity<AssignmentResponses.Assignment> create(
             @AuthenticationPrincipal Jwt jwt, @PathVariable UUID offeringId,
             @Valid @RequestBody AssignmentRequests.CreateDraft input) {
-        CourseAssignment created = service.createDraft(userId(jwt), offeringId, input);
+        CourseAssignment created = input.type() == AssignmentType.QUIZ
+                ? quizAssignments.createDraft(userId(jwt), offeringId, input)
+                : service.createDraft(userId(jwt), offeringId, input);
         return ResponseEntity.status(HttpStatus.CREATED).body(AssignmentResponses.Assignment.from(created, null));
     }
 
@@ -70,7 +79,20 @@ public class TeacherAssignmentController {
     @GetMapping("/assignments/{assignmentId}/submissions")
     public ResponseEntity<AssignmentResponses.AssignmentStats> stats(
             @AuthenticationPrincipal Jwt jwt, @PathVariable UUID assignmentId) {
-        return ResponseEntity.ok(service.stats(userId(jwt), assignmentId));
+        UUID teacherId = userId(jwt);
+        AssignmentResponses.AssignmentStats stats = service.stats(teacherId, assignmentId);
+        return ResponseEntity.ok(new AssignmentResponses.AssignmentStats(
+                stats.assignmentId(), stats.title(), stats.type(), stats.quizId(), stats.dueAt(),
+                stats.approvedStudentCount(), stats.submittedCount(), stats.onTimeCount(),
+                stats.lateCount(), stats.notSubmittedCount(), stats.students(),
+                quizAssignments.questionAnalytics(teacherId, assignmentId)));
+    }
+
+    /** Input: owning Teacher and Student submission IDs. Output: scored Quiz attempt detail. Errors: 401/403/404/409. */
+    @GetMapping("/assignments/{assignmentId}/submissions/{studentId}/quiz-attempt")
+    public ResponseEntity<SubmitQuizAttemptResult> quizAttempt(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID assignmentId, @PathVariable UUID studentId) {
+        return ResponseEntity.ok(quizAssignments.detail(userId(jwt), assignmentId, studentId));
     }
 
     /** Input: owning Teacher JWT and assignment/student/attachment UUIDs. Output: streamed attachment with safe download headers. Errors: 401/403/404/503. */

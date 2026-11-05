@@ -6,24 +6,36 @@ import com.studyflow.integration.ai.AiContracts;
 import com.studyflow.integration.ai.AiServiceClient;
 import com.studyflow.integration.ai.AiServiceException;
 import com.studyflow.material.api.CourseMaterialTutorResponse;
+import com.studyflow.material.api.CourseMaterialTutorHistoryResponse;
+import com.studyflow.material.domain.CourseMaterialTutorConversation;
+import com.studyflow.material.domain.CourseMaterialTutorConversationStore;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Coordinates Student authorization, Python Tutor execution and Java citation revalidation. */
 @Service
 public class CourseMaterialTutorService {
     private final CourseMaterialLibraryService materials;
     private final ObjectProvider<AiServiceClient> aiClientProvider;
+    private final CourseMaterialTutorConversationStore conversations;
+    private final Clock clock;
 
     public CourseMaterialTutorService(
             CourseMaterialLibraryService materials,
-            ObjectProvider<AiServiceClient> aiClientProvider
+            ObjectProvider<AiServiceClient> aiClientProvider,
+            CourseMaterialTutorConversationStore conversations,
+            Clock clock
     ) {
         this.materials = materials;
         this.aiClientProvider = aiClientProvider;
+        this.conversations = conversations;
+        this.clock = clock;
     }
 
     /**
@@ -32,6 +44,7 @@ public class CourseMaterialTutorService {
      * citations or NO_EVIDENCE. Errors: authorization/document errors from material service;
      * 503 when AI is disabled/unavailable; 502 when Python violates the authorized scope.
      */
+    @Transactional
     public CourseMaterialTutorResponse ask(
             UUID studentId,
             UUID documentId,
@@ -40,6 +53,18 @@ public class CourseMaterialTutorService {
             String requestId
     ) {
         CourseMaterialLibraryService.TutorScope scope = materials.authorizeTutor(studentId, documentId, pageNumber);
+        CourseMaterialTutorConversation conversation = conversations.findByScope(
+                studentId, scope.documentId(), scope.documentVersion(), scope.courseOfferingId()).orElse(null);
+        List<AiContracts.ConversationTurn> history = conversation == null
+                ? List.of()
+                : conversation.messages().stream()
+                        .skip(Math.max(0, conversation.messages().size() - 12L))
+                        .map(message -> new AiContracts.ConversationTurn(
+                                "USER".equals(message.role())
+                                        ? AiContracts.ConversationRole.USER
+                                        : AiContracts.ConversationRole.ASSISTANT,
+                                message.content()))
+                        .toList();
         AiServiceClient aiClient = aiClientProvider.getIfAvailable();
         if (aiClient == null) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "AI_SERVICE_UNAVAILABLE",
@@ -51,7 +76,8 @@ public class CourseMaterialTutorService {
         AiContracts.CourseMaterialAskResponse response;
         try {
             response = aiClient.askCourseMaterial(new AiContracts.CourseMaterialAskRequest(
-                    studentId, scope.courseOfferingId(), authorizedDocument, pageNumber, question.strip()), requestId);
+                    studentId, scope.courseOfferingId(), authorizedDocument, pageNumber,
+                    history, question.strip()), requestId);
         } catch (AiServiceException error) {
             HttpStatus status = error.statusCode() == 422 ? HttpStatus.UNPROCESSABLE_ENTITY
                     : error.statusCode() == 409 ? HttpStatus.CONFLICT : HttpStatus.SERVICE_UNAVAILABLE;
@@ -73,7 +99,56 @@ public class CourseMaterialTutorService {
                     return new CourseMaterialTutorResponse.CitationResponse(citation.documentId(),
                             scope.documentName(), citation.pageNumber(), citation.excerpt());
                 }).toList();
-        return new CourseMaterialTutorResponse(response.result().status().name(), response.result().answer(),
-                citations, response.requestId());
+        Instant now = clock.instant();
+        if (conversation == null) {
+            conversation = conversations.findOrCreate(new CourseMaterialTutorConversation(
+                    UUID.randomUUID(), studentId, scope.documentId(), scope.documentVersion(),
+                    scope.courseOfferingId(), List.of(), now, now));
+        }
+        String assistantContent = response.result().answer() == null
+                ? "Không tìm thấy bằng chứng phù hợp trong tài liệu được phép."
+                : response.result().answer();
+        CourseMaterialTutorConversation.Message userMessage = new CourseMaterialTutorConversation.Message(
+                UUID.randomUUID(), "USER", pageNumber, question.strip(), null, List.of(), now);
+        Instant assistantCreatedAt = now.plusNanos(1_000);
+        CourseMaterialTutorConversation.Message assistantMessage = new CourseMaterialTutorConversation.Message(
+                UUID.randomUUID(), "ASSISTANT", pageNumber, assistantContent,
+                response.result().status().name(),
+                response.result().citations() == null ? List.of() : response.result().citations().stream()
+                        .map(citation -> new CourseMaterialTutorConversation.Citation(
+                                citation.documentId(), citation.documentVersion(), citation.pageNumber(),
+                                citation.excerpt()))
+                        .toList(),
+                assistantCreatedAt);
+        conversations.appendExchange(conversation.id(), userMessage, assistantMessage, assistantCreatedAt);
+        return new CourseMaterialTutorResponse(conversation.id(), response.result().status().name(),
+                response.result().answer(), citations, response.requestId());
+    }
+
+    /**
+     * Args: authenticated Student and Course Material document. Input: current authorized Tutor scope.
+     * Output: long-term memory for the current immutable document version, or an empty history.
+     * Errors: authorization/document errors from CourseMaterialLibraryService.
+     */
+    @Transactional(readOnly = true)
+    public CourseMaterialTutorHistoryResponse history(UUID studentId, UUID documentId) {
+        CourseMaterialLibraryService.TutorScope scope = materials.authorizeTutor(studentId, documentId, 1);
+        CourseMaterialTutorConversation conversation = conversations.findByScope(
+                studentId, scope.documentId(), scope.documentVersion(), scope.courseOfferingId()).orElse(null);
+        if (conversation == null) {
+            return new CourseMaterialTutorHistoryResponse(
+                    null, scope.documentId(), scope.documentVersion(), List.of());
+        }
+        List<CourseMaterialTutorHistoryResponse.MessageResponse> messages = conversation.messages().stream()
+                .map(message -> new CourseMaterialTutorHistoryResponse.MessageResponse(
+                        message.id(), message.role(), message.pageNumber(), message.content(), message.status(),
+                        message.citations().stream().map(citation ->
+                                new CourseMaterialTutorResponse.CitationResponse(
+                                        citation.documentId(), scope.documentName(), citation.pageNumber(),
+                                        citation.excerpt())).toList(),
+                        message.createdAt()))
+                .toList();
+        return new CourseMaterialTutorHistoryResponse(
+                conversation.id(), scope.documentId(), scope.documentVersion(), messages);
     }
 }
