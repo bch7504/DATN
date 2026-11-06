@@ -65,6 +65,7 @@ public class CourseMaterialLibraryService {
     private final CourseEnrollmentRepository enrollments;
     private final ObjectProvider<AssignmentAttachmentStorage> storageProvider;
     private final ObjectProvider<PresentationToPdfConverter> converterProvider;
+    private final TeacherResourceLibraryService resourceLibraries;
     private final NotificationStore notifications;
     private final Clock clock;
 
@@ -74,6 +75,7 @@ public class CourseMaterialLibraryService {
                                         CourseEnrollmentRepository enrollments,
                                         ObjectProvider<AssignmentAttachmentStorage> storageProvider,
                                         ObjectProvider<PresentationToPdfConverter> converterProvider,
+                                        TeacherResourceLibraryService resourceLibraries,
                                         NotificationStore notifications,
                                         Clock clock) {
         this.documents = documents;
@@ -82,6 +84,7 @@ public class CourseMaterialLibraryService {
         this.enrollments = enrollments;
         this.storageProvider = storageProvider;
         this.converterProvider = converterProvider;
+        this.resourceLibraries = resourceLibraries;
         this.notifications = notifications;
         this.clock = clock;
     }
@@ -108,6 +111,17 @@ public class CourseMaterialLibraryService {
      */
     @Transactional
     public CourseMaterialDocument upload(UUID teacherId, MultipartFile file, String title, String materialType) {
+        return upload(teacherId, file, title, materialType, null);
+    }
+
+    /**
+     * Args: authenticated Teacher, PDF/PPTX, title, material type and optional owned library ID.
+     * Input: bounded upload. Output: persisted PDF metadata filed into the selected library, or the Teacher's
+     * DEFAULT “Tài liệu tải lên” library when libraryId is absent. Errors: upload errors plus 404 foreign library.
+     */
+    @Transactional
+    public CourseMaterialDocument upload(UUID teacherId, MultipartFile file, String title,
+                                         String materialType, UUID libraryId) {
         CourseMaterialType parsedMaterialType;
         try {
             parsedMaterialType = CourseMaterialType.parse(materialType);
@@ -150,6 +164,7 @@ public class CourseMaterialLibraryService {
                 parsedMaterialType, now);
         try {
             CourseMaterialDocument saved = documents.save(document);
+            resourceLibraries.fileUploaded(teacherId, libraryId, saved.getId());
             notifications.createEventIfAbsent(teacherId, NotificationType.TEACHER_MATERIAL_UPLOADED,
                     "Đã tải học liệu PDF", "Học liệu “" + cleanTitle + "” đã được lưu vào kho riêng. Chọn lớp để công bố.",
                     "COURSE_MATERIAL", id, null, now, false);

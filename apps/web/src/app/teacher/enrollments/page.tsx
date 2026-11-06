@@ -44,6 +44,9 @@ export default function TeacherEnrollmentsPage() {
   };
 
   useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    setSelectedOfferingId(query.get("offeringId") ?? "ALL");
+    setActiveTab(query.get("tab") === "APPROVED" ? "APPROVED" : "PENDING");
     loadData();
   }, []);
 

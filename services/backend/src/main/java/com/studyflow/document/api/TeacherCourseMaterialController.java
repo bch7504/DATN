@@ -1,7 +1,9 @@
 package com.studyflow.document.api;
 
 import com.studyflow.document.application.CourseMaterialLibraryService;
+import com.studyflow.document.application.TeacherCourseMaterialDeletionService;
 import com.studyflow.document.domain.CourseMaterialDocument;
+import com.studyflow.common.api.RequestIdFilter;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -31,8 +33,13 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 @PreAuthorize("hasRole('TEACHER')")
 public class TeacherCourseMaterialController {
     private final CourseMaterialLibraryService service;
+    private final TeacherCourseMaterialDeletionService deletionService;
 
-    public TeacherCourseMaterialController(CourseMaterialLibraryService service) { this.service = service; }
+    public TeacherCourseMaterialController(CourseMaterialLibraryService service,
+                                           TeacherCourseMaterialDeletionService deletionService) {
+        this.service = service;
+        this.deletionService = deletionService;
+    }
 
     /**
      * Args: authenticated Teacher JWT, required PDF/PPTX file <=20 MiB, title and material type.
@@ -44,8 +51,9 @@ public class TeacherCourseMaterialController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<TeacherDocumentResponse> upload(@AuthenticationPrincipal Jwt jwt,
             @RequestPart("file") MultipartFile file, @RequestParam("title") String title,
-            @RequestParam("materialType") String materialType) {
-        CourseMaterialDocument document = service.upload(userId(jwt), file, title, materialType);
+            @RequestParam("materialType") String materialType,
+            @RequestParam(value = "libraryId", required = false) UUID libraryId) {
+        CourseMaterialDocument document = service.upload(userId(jwt), file, title, materialType, libraryId);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.listTeacher(userId(jwt)).stream()
                 .filter(item -> item.id().equals(document.getId())).findFirst().orElseThrow());
     }
@@ -77,6 +85,20 @@ public class TeacherCourseMaterialController {
     public ResponseEntity<Void> revoke(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID documentId,
             @RequestParam UUID offeringId) {
         service.revokePublication(userId(jwt), documentId, offeringId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Args: authenticated Teacher, owned Course Material ID and server request ID.
+     * Input: active Teacher-owned material. Output: HTTP 204.
+     * Errors: 401/403/404, or 502/503 when vector/object revocation cannot be accepted safely.
+     */
+    @DeleteMapping("/{documentId}")
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt,
+                                       @PathVariable UUID documentId,
+                                       @org.springframework.web.bind.annotation.RequestAttribute(
+                                               name = RequestIdFilter.ATTRIBUTE) String requestId) {
+        deletionService.delete(userId(jwt), documentId, requestId);
         return ResponseEntity.noContent().build();
     }
 

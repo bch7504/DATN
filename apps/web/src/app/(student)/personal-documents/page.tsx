@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   Info,
   CheckCircle2,
-  FileCheck,
   MessageSquare,
 } from "lucide-react";
 
@@ -100,7 +99,7 @@ export default function StudentPersonalDocumentsPage(): React.JSX.Element {
     // Policy check: Only PDF
     if (!file.name.toLowerCase().endsWith(".pdf")) {
       setErrorMsg(
-        "Chỉ chấp nhận tệp PDF có text layer (không hỗ trợ DOCX/PPTX cho tài liệu cá nhân theo quy định MVP)."
+        "Chỉ chấp nhận tệp PDF có lớp văn bản; tài liệu cá nhân không nhận DOCX hoặc PPTX."
       );
       return;
     }
@@ -154,13 +153,30 @@ export default function StudentPersonalDocumentsPage(): React.JSX.Element {
             Quản lý PDF và mở hỏi đáp tài liệu cá nhân khi cần sử dụng AI
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openAssistant}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ptit-red px-4 py-2 text-sm font-bold text-white"
-        >
-          <MessageSquare className="h-4 w-4" /> Hỏi đáp tài liệu cá nhân
-        </button>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf"
+            onChange={handleFileChange}
+            className="hidden"
+            id="personal-pdf-upload"
+          />
+          <label
+            htmlFor="personal-pdf-upload"
+            aria-disabled={isUploading}
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm ${isUploading ? "pointer-events-none opacity-60" : "cursor-pointer"}`}
+          >
+            {isUploading ? <LoadingSpinner size="sm" text="Đang tải PDF..." /> : <><Upload className="h-4 w-4" /> Tải tài liệu PDF</>}
+          </label>
+          <button
+            type="button"
+            onClick={openAssistant}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ptit-red px-4 py-2 text-sm font-bold text-white"
+          >
+            <MessageSquare className="h-4 w-4" /> Hỏi đáp tài liệu cá nhân
+          </button>
+        </div>
       </div>
 
       {/* Policy Box */}
@@ -184,41 +200,6 @@ export default function StudentPersonalDocumentsPage(): React.JSX.Element {
           <span>{successMsg}</span>
         </div>
       )}
-
-      {/* Upload Zone */}
-      <div className="bg-white p-6 rounded-3xl border-2 border-dashed border-red-200  bg-red-50/20 transition flex flex-col items-center justify-center text-center">
-        <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-3">
-          <Upload className="w-6 h-6" />
-        </div>
-        <h3 className="text-sm font-bold text-slate-800 mb-1">
-          Tải lên tài liệu PDF cá nhân
-        </h3>
-        <p className="text-xs text-slate-500 mb-4 max-w-sm">
-          Bấm nút bên dưới để chọn tệp từ máy tính (chỉ nhận .pdf, tối đa 20 MB)
-        </p>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf"
-          onChange={handleFileChange}
-          className="hidden"
-          id="personal-pdf-upload"
-        />
-
-        <label
-          htmlFor="personal-pdf-upload"
-          className="cursor-pointer px-4 py-2 bg-red-600  text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm"
-        >
-          {isUploading ? (
-            <LoadingSpinner size="sm" text="Đang xử lý tệp..." />
-          ) : (
-            <>
-              <FileCheck className="w-4 h-4" /> Chọn tệp PDF từ máy
-            </>
-          )}
-        </label>
-      </div>
 
       {/* Documents List */}
       <div id="personal-pdf-library" className="scroll-mt-24">

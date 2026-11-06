@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { FolderKanban, GraduationCap, PlusCircle, Sparkles, UserCheck } from "lucide-react";
+import { ClipboardList, FolderKanban, GraduationCap, PlusCircle, Sparkles, UserCheck } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { teacherApi } from "@/lib/api-client";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -91,7 +91,7 @@ export default function TeacherDashboardPage(): React.JSX.Element {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center flex-shrink-0">
                 <GraduationCap className="w-6 h-6" />
@@ -105,20 +105,6 @@ export default function TeacherDashboardPage(): React.JSX.Element {
                 </div>
               </div>
             </div>
-            <Link
-              href="/teacher/enrollments"
-              className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-red-300 transition"
-            >
-              <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 border border-red-200 flex items-center justify-center flex-shrink-0">
-                <UserCheck className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Yêu cầu tham gia
-                </div>
-                <div className="text-sm font-bold text-red-700">Xem và duyệt</div>
-              </div>
-            </Link>
             <Link
               href="/teacher/documents"
               className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-blue-300 transition"
@@ -139,7 +125,7 @@ export default function TeacherDashboardPage(): React.JSX.Element {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">
-                  Lớp học phần phụ trách
+                  Lớp học phần
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Danh sách được tải từ tài khoản giảng viên hiện tại.
@@ -195,7 +181,13 @@ export default function TeacherDashboardPage(): React.JSX.Element {
                         href={`/teacher/enrollments?offeringId=${offering.id}`}
                         className="text-red-700 hover:underline"
                       >
-                        Duyệt sinh viên
+                        <UserCheck className="mr-1 inline h-3.5 w-3.5" /> Yêu cầu tham gia
+                      </Link>
+                      <Link
+                        href={`/teacher/assignments?offeringId=${encodeURIComponent(offering.id)}`}
+                        className="text-slate-700 hover:underline"
+                      >
+                        <ClipboardList className="mr-1 inline h-3.5 w-3.5" /> Bài tập
                       </Link>
                       <Link
                         href={`/teacher/documents/${encodeURIComponent(offering.id)}`}

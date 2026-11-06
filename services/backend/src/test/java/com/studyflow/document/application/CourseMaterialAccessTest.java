@@ -67,7 +67,7 @@ class CourseMaterialAccessTest {
         ObjectProvider<PresentationToPdfConverter> converterProvider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(storage);
         service = new CourseMaterialLibraryService(documents, publications, offerings, enrollments,
-                provider, converterProvider, notifications,
+                provider, converterProvider, mock(TeacherResourceLibraryService.class), notifications,
                 Clock.fixed(now, ZoneOffset.UTC));
         document = new CourseMaterialDocument(UUID.randomUUID(), teacher, "lesson.pdf", "Lesson",
                 "synthetic-key", 8, 1, CourseMaterialType.REFERENCE_PDF, now);

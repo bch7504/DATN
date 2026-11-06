@@ -10,22 +10,35 @@ import {
   ChevronRight,
   ExternalLink,
   FileText,
+  FolderPlus,
   PlusCircle,
   Share2,
+  Trash2,
   X,
 } from "lucide-react";
-import { teacherDocApi, teacherApi } from "@/lib/api-client";
-import { TeacherDocument } from "@/types/material";
-import { CourseOffering } from "@/types/course-offering";
+import { catalogApi, teacherDocApi, teacherApi, teacherLibraryApi } from "@/lib/api-client";
+import { TeacherDocument, TeacherResourceLibrary } from "@/types/material";
+import { CourseOffering, Subject } from "@/types/course-offering";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 
-/** Teacher-owned Course Material PDFs, browsed by the Course Offering they are published to. */
-export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: string }): React.JSX.Element {
+interface TeacherDocumentLibraryProps {
+  offeringId?: string;
+  libraryId?: string;
+}
+
+/** Teacher-owned resource libraries and Course Material PDFs, opened through dedicated detail routes. */
+export default function TeacherDocumentLibrary({ offeringId, libraryId }: TeacherDocumentLibraryProps): React.JSX.Element {
   const router = useRouter();
   const [documents, setDocuments] = useState<TeacherDocument[]>([]);
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
+  const [libraries, setLibraries] = useState<TeacherResourceLibrary[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [newLibraryName, setNewLibraryName] = useState("");
+  const [newLibrarySubjectId, setNewLibrarySubjectId] = useState("");
+  const [showCreateLibrary, setShowCreateLibrary] = useState(false);
+  const [targetOfferingByDocument, setTargetOfferingByDocument] = useState<Record<string, string>>({});
   const selectedOfferingId = offeringId ?? null;
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -35,7 +48,6 @@ export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: st
   const classDocuments = selectedOffering
     ? documents.filter((document) => document.publishedOfferings.some((publication) => publication.offeringId === selectedOffering.id))
     : [];
-  const privateDocuments = documents.filter((document) => document.publishedOfferings.length === 0);
 
   /** Args: none. Input: legacy offeringId query. Output: void; redirects to the class detail route. Errors: none. */
   useEffect(() => {
@@ -47,12 +59,16 @@ export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: st
   const loadData = async (): Promise<void> => {
     setIsLoading(true);
     try {
-      const [documentData, offeringData] = await Promise.all([
+      const [documentData, offeringData, libraryData, subjectData] = await Promise.all([
         teacherDocApi.getDocuments(),
         teacherApi.getOfferings(),
+        teacherLibraryApi.list(),
+        catalogApi.getSubjects(),
       ]);
       setDocuments(documentData);
       setOfferings(offeringData);
+      setLibraries(libraryData);
+      setSubjects(subjectData);
       setErrorMsg(null);
     } catch (error: unknown) {
       setErrorMsg(error instanceof Error ? error.message : "Không thể tải kho học liệu PDF.");
@@ -89,28 +105,86 @@ export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: st
     }
   };
 
+  /** Args: none. Input: new name and optional subject. Output: created Teacher-owned library. Errors: shown inline. */
+  const createLibrary = async (): Promise<void> => {
+    if (!newLibraryName.trim()) { setErrorMsg("Hãy nhập tên kho tài liệu."); return; }
+    try {
+      const created = await teacherLibraryApi.create(newLibraryName.trim(), newLibrarySubjectId || undefined);
+      setNewLibraryName(""); setNewLibrarySubjectId(""); setShowCreateLibrary(false);
+      router.push(`/teacher/documents/libraries/${encodeURIComponent(created.id)}`);
+    } catch (error: unknown) { setErrorMsg(error instanceof Error ? error.message : "Không thể tạo kho tài liệu."); }
+  };
+
+  /** Args: owned library ID. Input: explicit confirmation. Output: removes the folder only; source resources remain. Errors: shown inline. */
+  const deleteLibrary = async (ownedLibraryId: string): Promise<void> => {
+    if (!window.confirm("Xóa kho này? Tài liệu, Quiz và bài tập gốc vẫn được giữ lại.")) return;
+    try { await teacherLibraryApi.delete(ownedLibraryId); router.replace("/teacher/documents"); }
+    catch (error: unknown) { setErrorMsg(error instanceof Error ? error.message : "Không thể xóa kho tài liệu."); }
+  };
+
+  /** Args: item reference ID. Input: selected owned library. Output: removes only the reference. Errors: shown inline. */
+  const removeLibraryItem = async (itemReferenceId: string): Promise<void> => {
+    if (!libraryId) return;
+    try { await teacherLibraryApi.removeItem(libraryId, itemReferenceId); setSuccessMsg("Đã bỏ mục khỏi kho."); await loadData(); }
+    catch (error: unknown) { setErrorMsg(error instanceof Error ? error.message : "Không thể bỏ mục khỏi kho."); }
+  };
+
+  /**
+   * Args: owned document ID and owned Course Offering ID.
+   * Input: current publication list returned by Java; the selected class must belong to the signed-in Teacher.
+   * Output: Promise<void>; preserves existing class links and adds the selected class idempotently.
+   * Errors: Java authorization/readiness errors are shown inline and no local publication state is fabricated.
+   */
+  const addDocumentToClassLibrary = async (documentId: string, targetOfferingId: string): Promise<void> => {
+    if (!targetOfferingId) { setErrorMsg("Hãy chọn lớp học phần cần thêm tài liệu."); return; }
+    const document = documents.find((item) => item.id === documentId);
+    if (!document) { setErrorMsg("Không tìm thấy tài liệu trong kho của giảng viên."); return; }
+    const publicationIds = new Set(document.publishedOfferings.map((item) => item.offeringId));
+    if (publicationIds.has(targetOfferingId)) {
+      setSuccessMsg("Tài liệu đã có trong kho của lớp học phần này.");
+      return;
+    }
+    try {
+      publicationIds.add(targetOfferingId);
+      await teacherDocApi.publishDocument(documentId, Array.from(publicationIds));
+      setSuccessMsg("Đã thêm tài liệu từ kho giảng viên vào kho lớp học phần.");
+      await loadData();
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Không thể thêm tài liệu vào kho lớp học phần.");
+    }
+  };
+
+  const selectedLibrary = libraryId ? libraries.find((item) => item.id === libraryId) ?? null : null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-600">Teacher Workspace</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Kho học liệu</h1>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Kho tài liệu</h1>
           <p className="mt-1 text-sm text-slate-500">
             {selectedOffering
               ? `Học liệu đã công bố cho lớp ${selectedOffering.code}.`
-              : "Chọn lớp học phần để xem và quản lý tài liệu của lớp đó."}
+              : selectedLibrary
+                ? `Các tài liệu, Quiz và bài tập trong ${selectedLibrary.name}.`
+                : "Tạo kho theo môn hoặc kho riêng; lưu PDF, Quiz và bài tập của bạn."}
           </p>
         </div>
-        {selectedOffering && selectedOffering.status === "ACTIVE" && (
-          <Link href={`/teacher/documents/${encodeURIComponent(selectedOffering.id)}/upload`} className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm">
-            <PlusCircle className="h-4 w-4" /> Tải PDF/PPTX mới
+        {selectedOffering && (
+          <Link href="/teacher/documents" className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm">
+            <BookOpen className="h-4 w-4" /> Mở kho giảng viên
+          </Link>
+        )}
+        {selectedLibrary && (
+          <Link href={`/teacher/documents/upload?libraryId=${encodeURIComponent(selectedLibrary.id)}`} className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm">
+            <PlusCircle className="h-4 w-4" /> Thêm tài liệu
           </Link>
         )}
       </div>
 
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         {selectedOffering
-          ? `PDF/PPTX tải mới được chuẩn hóa thành PDF; bạn sẽ xác nhận trước khi công bố cho lớp ${selectedOffering.code}. Tối đa 20 MB.`
+          ? `Kho lớp ${selectedOffering.code} chỉ nhận tài liệu được công bố từ kho riêng của giảng viên. Hãy tải tệp vào kho giảng viên trước, sau đó chọn tài liệu để thêm vào lớp.`
           : "Tài liệu chỉ hiển thị cho sinh viên sau khi được công bố vào lớp. Nhận PDF có lớp văn bản hoặc PPTX, tối đa 20 MB."}
       </div>
 
@@ -158,7 +232,7 @@ export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: st
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
                 <BookOpen className="mx-auto h-8 w-8 text-slate-400" />
                 <p className="mt-3 font-semibold text-slate-800">Lớp chưa có tài liệu được công bố</p>
-                <p className="mt-1 text-sm text-slate-500">Tải PDF/PPTX mới để công bố vào lớp.</p>
+                <p className="mt-1 text-sm text-slate-500">Chọn một tài liệu trong kho giảng viên ở bên dưới để công bố vào lớp.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -197,22 +271,54 @@ export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: st
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
           Không tìm thấy lớp học phần này trong danh sách lớp bạn phụ trách. <button type="button" onClick={() => navigateToOffering(null)} className="font-bold underline">Quay lại danh sách lớp</button>
         </div>
-      ) : offerings.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-          <BookOpen className="mx-auto h-9 w-9 text-slate-400" />
-          <h2 className="mt-3 font-bold text-slate-900">Bạn chưa có lớp học phần</h2>
-          <p className="mt-1 text-sm text-slate-500">Mở lớp học phần trước để quản lý và công bố tài liệu.</p>
-          <Link href="/teacher/course-offerings" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white">
-            <BookOpen className="h-4 w-4" /> Đến lớp học phần
-          </Link>
-        </div>
+      ) : libraryId ? (
+        selectedLibrary ? (
+          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <Link href="/teacher/documents" className="mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                  <ArrowLeft className="h-3.5 w-3.5" /> Danh sách kho
+                </Link>
+                <h2 className="text-lg font-extrabold text-slate-900">{selectedLibrary.name}</h2>
+                <p className="mt-1 text-sm text-slate-500">{selectedLibrary.subjectName ?? "Kho riêng tư"}</p>
+              </div>
+              {!selectedLibrary.libraryType.startsWith("DEFAULT") && <button type="button" onClick={() => void deleteLibrary(selectedLibrary.id)} className="inline-flex items-center gap-1 rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-700">
+                <Trash2 className="h-4 w-4" /> Xóa kho
+              </button>}
+            </div>
+            {selectedLibrary.items.length === 0 ? (
+              <p className="rounded-xl bg-slate-50 p-5 text-sm text-slate-500">Kho chưa có tài liệu, Quiz hoặc bài tập. Nhấn “Thêm tài liệu” để tải PDF/PPTX từ máy vào đúng kho này.</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {selectedLibrary.items.map((item) => {
+                  const selectedTarget = targetOfferingByDocument[item.itemId] ?? offerings[0]?.id ?? "";
+                  const sourceDocument = item.itemType === "DOCUMENT" ? documents.find((document) => document.id === item.itemId) : null;
+                  return <div key={item.id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-sm font-semibold text-slate-800">{item.title}</p><p className="text-xs text-slate-500">{item.itemType === "DOCUMENT" ? "Tài liệu" : item.itemType === "QUIZ" ? "Quiz" : "Bài tập"} · {item.status}</p></div><div className="flex flex-wrap items-center gap-2">{sourceDocument && offerings.length > 0 && <><select aria-label={`Chọn lớp cho ${item.title}`} value={selectedTarget} onChange={(event) => setTargetOfferingByDocument((current) => ({ ...current, [item.itemId]: event.target.value }))} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700">{offerings.map((offering) => <option key={offering.id} value={offering.id}>{offering.code} · {offering.name}</option>)}</select><button type="button" disabled={sourceDocument.status !== "READY" || !selectedTarget} onClick={() => void addDocumentToClassLibrary(item.itemId, selectedTarget)} className="rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">Thêm vào lớp</button></>}{selectedLibrary.libraryType !== "DEFAULT" && <button type="button" onClick={() => void removeLibraryItem(item.id)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700">Bỏ khỏi kho</button>}</div></div>;
+                })}
+              </div>
+            )}
+          </section>
+        ) : (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+            Không tìm thấy kho tài liệu hoặc bạn không có quyền truy cập. <Link href="/teacher/documents" className="font-bold underline">Quay lại danh sách kho</Link>
+          </div>
+        )
       ) : (
         <section className="space-y-4">
+          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="text-base font-extrabold text-slate-900">Kho chung của giảng viên</h2><p className="mt-1 text-xs text-slate-500">Tài liệu chưa chọn kho sẽ vào “Tài liệu tải lên”; nhấn một kho để xem chi tiết.</p></div>
+              <div className="flex gap-2"><Link href="/teacher/documents/upload" className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white"><PlusCircle className="h-4 w-4" />Thêm tài liệu</Link><button type="button" onClick={() => setShowCreateLibrary((value) => !value)} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-700"><FolderPlus className="h-4 w-4" />Tạo kho</button></div>
+            </div>
+            {showCreateLibrary && <div className="grid gap-3 rounded-xl border border-red-100 bg-red-50 p-4 sm:grid-cols-[1fr_1fr_auto]"><input maxLength={120} value={newLibraryName} onChange={(event) => setNewLibraryName(event.target.value)} placeholder="Tên kho" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" /><select value={newLibrarySubjectId} onChange={(event) => setNewLibrarySubjectId(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Kho riêng, không gắn môn</option>{subjects.filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select><button type="button" onClick={() => void createLibrary()} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">Tạo kho</button></div>}
+            {libraries.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Đang tạo kho Tài liệu tải lên mặc định.</div> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{libraries.map((library) => <button key={library.id} type="button" onClick={() => router.push(`/teacher/documents/libraries/${encodeURIComponent(library.id)}`)} className="rounded-xl border border-slate-200 bg-white p-4 text-left"><div className="flex items-start justify-between gap-2"><p className="font-bold text-slate-900">{library.name}</p><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{library.libraryType === "DEFAULT" ? "MẶC ĐỊNH" : library.libraryType === "SUBJECT" ? "THEO MÔN" : "RIÊNG"}</span></div><p className="mt-1 text-xs text-slate-500">{library.libraryType === "DEFAULT" ? "Tài liệu chưa được sắp xếp" : library.subjectName ?? "Không gắn môn học"}</p><p className="mt-3 text-xs font-semibold text-red-700">{library.items.length} mục · Mở kho →</p></button>)}</div>}
+          </section>
+
           <div>
             <h2 className="text-base font-bold text-slate-900">Lớp học phần của tôi</h2>
             <p className="mt-1 text-xs text-slate-500">Chọn một lớp để xem học liệu đã công bố và thêm PDF vào lớp đó.</p>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {offerings.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-sm text-slate-500">Bạn chưa có lớp học phần. Kho riêng vẫn có thể được sử dụng độc lập.</div> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {offerings.map((offering) => {
               const materialCount = documents.filter((document) => document.publishedOfferings.some((publication) => publication.offeringId === offering.id)).length;
               return (
@@ -232,29 +338,7 @@ export default function TeacherDocumentLibrary({ offeringId }: { offeringId?: st
                 </button>
               );
             })}
-          </div>
-
-          {privateDocuments.length > 0 && (
-            <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">PDF chưa công bố vào lớp nào</h2>
-                <p className="mt-1 text-xs text-slate-500">Chọn một PDF để công bố cho lớp bạn phụ trách.</p>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {privateDocuments.map((document) => (
-                  <div key={document.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-800">{document.title}</p>
-                      <p className="truncate text-xs text-slate-500">{document.fileName}</p>
-                    </div>
-                    <button type="button" onClick={() => openPublication(document)} className="shrink-0 rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700">
-                      Quản lý công bố
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+          </div>}
         </section>
       )}
 

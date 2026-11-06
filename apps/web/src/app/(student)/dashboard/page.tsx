@@ -21,7 +21,7 @@ import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 import { StatusBadge } from "@/components/ui/status-badge";
 
-/** Student dashboard backed exclusively by Java APIs for the active MVP semester. */
+/** Student dashboard backed exclusively by Java APIs for the active semester. */
 export default function StudentDashboardPage(): React.JSX.Element {
   const { user } = useAuth();
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
@@ -145,7 +145,7 @@ export default function StudentDashboardPage(): React.JSX.Element {
       {loadError && <ErrorAlert message={loadError} onRetry={() => window.location.reload()} />}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Số liệu học kỳ">
-        <MetricCard icon={BookOpen} label="Danh mục MVP" value={`${subjects.length} môn`} detail="Môn học đang hoạt động" />
+        <MetricCard icon={BookOpen} label="Môn học" value={`${subjects.length} môn`} detail="Môn học đang hoạt động" />
         <MetricCard icon={GraduationCap} label="Đã tham gia" value={`${offerings.length} lớp`} detail="Enrollment đã được duyệt" />
         <MetricCard icon={CalendarDays} label="Học liệu đã công bố" value={`${materialCount} PDF`} detail="Theo dữ liệu lớp học phần" />
         <MetricCard icon={Flame} label="Study Streak" value={streak ? `${streak.currentStreak} ngày` : "Chưa có"} detail={streak ? `Kỷ lục ${streak.longestStreak} ngày` : "Chưa có dữ liệu hoạt động"} />

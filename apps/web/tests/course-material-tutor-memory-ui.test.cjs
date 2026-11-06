@@ -10,12 +10,12 @@ const viewerPage = fs.readFileSync(
 );
 const apiClient = fs.readFileSync(path.join(root, "src/lib/api-client.ts"), "utf8");
 
-test("Course Material Tutor keeps previous exchanges when the PDF page changes", () => {
+test("Course Material Tutor keeps previous exchanges without adding page-change markers", () => {
   assert.match(viewerPage, /type TutorTimelineEntry/);
-  assert.match(viewerPage, /type: "page-context"/);
+  assert.doesNotMatch(viewerPage, /type: "page-context"/);
   assert.match(viewerPage, /type: "exchange"/);
   assert.match(viewerPage, /setTutorTimeline\(\(current\) => \[/);
-  assert.match(viewerPage, /Đang xem trang \{entry\.pageNumber\}/);
+  assert.doesNotMatch(viewerPage, /Đang xem trang \{entry\.pageNumber\}/);
   assert.match(viewerPage, /Hỏi tại trang \{entry\.pageNumber\}/);
   assert.match(viewerPage, /tutorTimeline\.map/);
   assert.doesNotMatch(viewerPage, /setTutorResult\(null\)/);
@@ -28,7 +28,7 @@ test("Course Material Tutor still asks Java with the page captured for each exch
     /materialApi\.askTutor\(document\.id, askedPage, normalizedQuestion\)/,
   );
   assert.match(viewerPage, /pageNumber: askedPage/);
-  assert.match(viewerPage, /entry\.response\.citations\.map/);
+  assert.doesNotMatch(viewerPage, /entry\.response\.citations\.map/);
 });
 
 test("Course Material Tutor keeps its panel fixed while only the conversation scrolls", () => {

@@ -2,7 +2,7 @@
 
 ## 1. Mục tiêu
 
-Student quản lý Personal PDF và dùng một Single Orchestrator Agent để hỏi đáp, tóm tắt hoặc tạo Quiz có page citation.
+Student quản lý Personal PDF và dùng một Single Orchestrator Agent để hỏi đáp, tóm tắt, tạo Quiz có page citation hoặc nhập Quiz từ chính văn bản Student gửi.
 
 ## 2. Requirements
 
@@ -11,15 +11,16 @@ Student quản lý Personal PDF và dùng một Single Orchestrator Agent để 
 | PAI-FR-001 | Student upload/xem trạng thái/xóa Personal PDF của mình. |
 | PAI-FR-002 | PDF hợp lệ được extract/chunk/embed bất đồng bộ. |
 | PAI-FR-003 | Conversation gắn 1–10 Personal PDF `READY`. |
-| PAI-FR-004 | Agent chọn đúng `ask_document|summarize_document|generate_quiz`. |
+| PAI-FR-004 | Agent chọn đúng một trong bốn tool: `ask_document|summarize_document|generate_quiz|import_quiz_from_text`. |
 | PAI-FR-005 | Hỏi đáp/tóm tắt trả page citation hoặc `NO_EVIDENCE`. |
-| PAI-FR-006 | Tạo Quiz thiếu args trả `NEEDS_CLARIFICATION`; đủ args tạo `REVIEW_REQUIRED`. |
+| PAI-FR-006 | Khi chưa hiểu rõ ý định hoặc còn thiếu thông tin bắt buộc, Agent hỏi lại; đủ thông tin mới chạy tool và Quiz tạo ra ở `REVIEW_REQUIRED`. |
 | PAI-FR-007 | History chỉ dùng document scope của conversation và owner hiện tại. |
 | PAI-FR-008 | Mỗi factual claim/câu Quiz được evidence hỗ trợ; citation phải entail nội dung. |
 | PAI-BR-001 | Personal upload chỉ nhận PDF text layer tối đa 20 MB. |
 | PAI-BR-002 | Quiz `MCQ_SINGLE` có đúng 4 options và một đáp án đúng. |
 | PAI-BR-003 | Prompt/history/document là untrusted data, không đổi system/tool/scope. |
 | PAI-BR-004 | Student accept Quiz vào Course Offering `APPROVED` hoặc giữ cá nhân. |
+| PAI-BR-005 | Quiz nhập từ văn bản dùng nguồn `IMPORTED_TEXT`, citation rỗng và không được tuyên bố đã kiểm chứng bằng PDF. |
 
 ## 3. Personal Document API
 
@@ -49,7 +50,7 @@ Student quản lý Personal PDF và dùng một Single Orchestrator Agent để 
 {
   "messageId": "msg_...",
   "status": "ANSWERED|SUMMARIZED|QUIZ_CREATED|NEEDS_CLARIFICATION|NO_EVIDENCE",
-  "capability": "ASK_DOCUMENT|SUMMARIZE_DOCUMENT|CREATE_QUIZ|NEEDS_CLARIFICATION",
+  "capability": "ASK_DOCUMENT|SUMMARIZE_DOCUMENT|CREATE_QUIZ|IMPORT_QUIZ_FROM_TEXT|NEEDS_CLARIFICATION",
   "answer": "...",
   "missingFields": [],
   "quizDraft": null,
@@ -70,8 +71,9 @@ Student quản lý Personal PDF và dùng một Single Orchestrator Agent để 
 | `ask_document` | query, authorized document/version scope, optional page range | grounded answer + citations hoặc `NO_EVIDENCE` | invalid scope/query |
 | `summarize_document` | authorized scope, summary style/length, optional page range | structured summary + citations hoặc `NO_EVIDENCE` | invalid range |
 | `generate_quiz` | authorized scope, `questionCount`, difficulty/topic/page range | structured Quiz draft + sources | `NEEDS_CLARIFICATION`, insufficient evidence |
+| `import_quiz_from_text` | chính văn bản Student gửi và cấu hình Quiz hợp lệ | structured Quiz draft, source `IMPORTED_TEXT`, citations rỗng | `NEEDS_CLARIFICATION`, invalid text/schema |
 
-Agent route confidence thấp hoặc thiếu trường quan trọng phải hỏi lại; không gọi nhiều tool chỉ để “thử”.
+Agent không hiểu rõ ý định hoặc thiếu trường quan trọng phải hỏi lại bằng ngôn ngữ tự nhiên; không gọi nhiều tool chỉ để “thử”.
 
 ## 6. Quiz output và lifecycle
 
@@ -101,7 +103,8 @@ Mọi request có service credential, `X-Request-Id`, `X-Schema-Version`, timeou
 
 - Student A không thể dùng document/conversation của Student B.
 - Ask/summary thiếu evidence trả `NO_EVIDENCE` và không bịa citation.
-- “Tạo Quiz” thiếu số câu trả `NEEDS_CLARIFICATION`; sau khi bổ sung mới gọi tool.
+- Ý định mơ hồ hoặc “Tạo Quiz” thiếu dữ liệu bắt buộc trả câu hỏi làm rõ; sau khi Student bổ sung mới gọi tool.
 - Quiz đúng 4 options, một correct index và page source thuộc authorized scope.
+- Quiz nhập từ văn bản không có citation PDF giả và luôn chờ Student duyệt.
 - Xóa document lập tức loại khỏi Assistant/Quiz authorization.
 - Evaluation chạy production path, cùng evidence snapshot, báo cáo riêng ask/summary/quiz routing, grounding, citation và scope violation.

@@ -8,8 +8,10 @@ const client = fs.readFileSync(path.join(root, "src/lib/api-client.ts"), "utf8")
 const teacherPage = fs.readFileSync(path.join(root, "src/app/teacher/documents/document-library.tsx"), "utf8");
 const studentPage = fs.readFileSync(path.join(root, "src/app/(student)/materials/material-library.tsx"), "utf8");
 const viewerPage = fs.readFileSync(path.join(root, "src/app/(student)/materials/[documentId]/viewer/page.tsx"), "utf8");
-const teacherUpload = fs.readFileSync(path.join(root, "src/app/teacher/documents/[offeringId]/upload/page.tsx"), "utf8");
+const teacherUpload = fs.readFileSync(path.join(root, "src/app/teacher/documents/upload/page.tsx"), "utf8");
+const legacyClassUpload = fs.readFileSync(path.join(root, "src/app/teacher/documents/[offeringId]/upload/page.tsx"), "utf8");
 const teacherPublication = fs.readFileSync(path.join(root, "src/app/teacher/documents/publications/[documentId]/page.tsx"), "utf8");
+const teacherQuizStudio = fs.readFileSync(path.join(root, "src/app/teacher/quizzes/create/page.tsx"), "utf8");
 
 test("Course Material library uses persisted Java files without fixtures", async (t) => {
   await t.test("Teacher upload, publication, revoke, and preview use backend routes", () => {
@@ -21,6 +23,23 @@ test("Course Material library uses persisted Java files without fixtures", async
     assert.match(teacherPublication, /teacherDocApi\.publishDocument/);
     assert.match(teacherPage, /getDocumentDownloadUrl/);
     assert.doesNotMatch(client, /demoTeacherDocs|DEMO_MATERIAL_PAGES|demoPageNotes/);
+  });
+
+  await t.test("Teacher personal libraries can publish one source document into each class library without replacing prior links", () => {
+    assert.match(teacherPage, /Kho chung của giảng viên/);
+    assert.match(teacherPage, /Tài liệu tải lên/);
+    assert.match(teacherPage, /teacher\/documents\/libraries\//);
+    assert.match(teacherPage, /Kho tài liệu của lớp|Tài liệu của lớp/);
+    assert.match(teacherPage, /addDocumentToClassLibrary/);
+    assert.match(teacherPage, /new Set\(document\.publishedOfferings\.map/);
+    assert.match(teacherPage, /publicationIds\.add\(targetOfferingId\)/);
+    assert.match(teacherPage, /teacherDocApi\.publishDocument\(documentId, Array\.from\(publicationIds\)\)/);
+    assert.match(teacherPage, /Thêm vào lớp/);
+    assert.match(teacherPage, /Mở kho giảng viên/);
+    assert.doesNotMatch(teacherPage, /Thêm tài liệu vào kho lớp/);
+    assert.doesNotMatch(teacherPage, /selectedOffering\.id\)\}\/upload/);
+    assert.match(legacyClassUpload, /redirect\("\/teacher\/documents\/upload"\)/);
+    assert.ok(fs.existsSync(path.join(root, "src/app/teacher/documents/libraries/[libraryId]/page.tsx")));
   });
 
   await t.test("Student sees PDFs and asks the Python-backed Tutor through Java", () => {
@@ -52,5 +71,15 @@ test("Course Material library uses persisted Java files without fixtures", async
     assert.match(teacherPublication, /teacherApi\.getOfferings\(\)/);
     assert.match(studentPage, /studentApi\.getOfferings\(\)/);
     assert.doesNotMatch(`${teacherUpload}\n${teacherPublication}\n${studentPage}`, /services\/backend|pgvector|postgresql:\/\//);
+  });
+
+  await t.test("Teacher Quiz Studio explicitly selects one to ten published Slide PDFs", () => {
+    assert.match(teacherQuizStudio, /documentIds: string\[\]/);
+    assert.match(teacherQuizStudio, /documentIds: \[\]/);
+    assert.match(teacherQuizStudio, /document\.materialType === "SLIDE_PDF"/);
+    assert.match(teacherQuizStudio, /publication\.offeringId === form\.courseOfferingId/);
+    assert.match(teacherQuizStudio, /type="checkbox"/);
+    assert.match(teacherQuizStudio, /documentIds: form\.documentIds/);
+    assert.doesNotMatch(teacherQuizStudio, /documentIds: \[form\.documentId\]/);
   });
 });

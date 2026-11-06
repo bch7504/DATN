@@ -400,6 +400,7 @@ Student list chỉ trả account metadata tối thiểu; không trả Personal D
 - `POST /api/v1/teacher/documents` — multipart `{file,title,materialType}`, trong đó `materialType=SLIDE_PDF|REFERENCE_PDF`; nhận PDF hoặc PPTX tối đa 20 MiB → `201 TeacherDocument`. PDF phải có text layer. PPTX được Java gửi tới Gotenberg nội bộ, nhận PDF đầu ra, đổi tên an toàn sang `.pdf`, kiểm tra lại chữ ký PDF/số trang/text layer rồi mới lưu. Python, Student và metadata đầu ra chỉ nhận PDF đã chuẩn hóa. `SLIDE_PDF` đi qua pipeline index; `REFERENCE_PDF` sẵn sàng sau khi lưu và không gửi sang Python. Lỗi `413 FILE_TOO_LARGE|PPTX_OUTPUT_TOO_LARGE`, `415 UNSUPPORTED_MEDIA_TYPE|INVALID_PPTX`, `422 INVALID_PDF|PDF_TEXT_REQUIRED|INVALID_TITLE|INVALID_MATERIAL_TYPE`, `502 PPTX_CONVERSION_FAILED|PPTX_CONVERTER_UNAVAILABLE|DOCUMENT_STORAGE_FAILED`, `503 PPTX_CONVERTER_NOT_CONFIGURED|STORAGE_NOT_CONFIGURED`, `504 PPTX_CONVERSION_TIMEOUT`.
 - `GET /api/v1/teacher/documents` — `{items,page,size,totalItems,totalPages}` theo owner; mỗi item có danh sách publication đang hiệu lực.
 - `GET /api/v1/teacher/documents/{id}/download` — stream PDF cho Teacher owner.
+- `DELETE /api/v1/teacher/documents/{id}` — xóa học liệu gốc thuộc Teacher; Java yêu cầu Python nhận deindex đối với `SLIDE_PDF`, thu hồi mọi publication, bỏ liên kết khỏi các kho, xóa mềm metadata và xóa object sau khi transaction thành công. Trả `204`; `404` cho tài nguyên thiếu/khác owner; `502|503` nếu chưa thể thu hồi vector hoặc object an toàn.
 - `POST /api/v1/teacher/documents/{id}/publications` — `{courseOfferingIds:[...]}`; chọn danh sách đồng nghĩa gỡ khỏi lớp đã bỏ chọn; lớp phải ACTIVE và thuộc Teacher.
 - `DELETE /api/v1/teacher/documents/{id}/publications?offeringId=...` — gỡ một publication, thao tác lặp idempotent.
 
@@ -408,6 +409,23 @@ Teacher document response: `{id,title,fileName,fileType:"PDF",materialType:"SLID
 Bản hiện tại trả toàn bộ học liệu trong một page metadata (`page=0`, `totalPages=0|1`). Frontend duyệt theo `totalPages` thay vì giả định chỉ có một trang, áp dụng cả danh sách lớp. Upload `SLIDE_PDF` trả `PENDING_PROCESSING`; worker Java gửi PDF sang Python để lập chỉ mục và chỉ cho phép Tutor khi `READY`. `REFERENCE_PDF` không có AI job. Cả hai loại chỉ được công bố khi `READY`; publish/revoke thành công trả `204` không body.
 
 Chỉ nhận PDF có text layer. Hệ thống kiểm document owner và ownership/trạng thái của mọi lớp; publication được lưu theo lớp và re-public kích hoạt lại row cũ. Student `APPROVED` mới xem/tải được PDF. Upload thành công tạo thông báo kho riêng cho Teacher; chỉ lần công bố/re-public mới thông báo Student đã duyệt trong lớp, thao tác giữ nguyên selection không phát lại. Thu hồi phát thông báo mất quyền truy cập mới. Tệp nằm trong private Object Storage; object key không xuất hiện trong response. Storage chưa cấu hình trả `503`, không tạo fixture.
+
+#### Kho tài liệu riêng của Teacher
+
+Kho là lớp phân loại riêng của Teacher, không thay thế vòng đời PDF, Quiz hoặc Assignment và không tự công bố tài nguyên cho lớp. Mỗi Course Offering đồng thời có một **kho lớp logic**: đó là tập tài liệu đang có publication `PUBLISHED` tới Course Offering ấy, không tạo thêm bản sao tệp và không tạo bảng kho lớp trùng lặp. Khi Teacher chọn “Thêm vào lớp” từ kho cá nhân, Web gửi lại đầy đủ tập `courseOfferingIds` hiện có qua API publication để Java giữ các lớp cũ và thêm lớp mới.
+
+| Method | Endpoint | Contract |
+|---|---|---|
+| GET | `/api/v1/teacher/resource-libraries` | `200` danh sách kho thuộc Teacher, gồm thông tin môn tùy chọn và các mục `DOCUMENT|QUIZ|ASSIGNMENT` |
+| POST | `/api/v1/teacher/resource-libraries` | `{name,subjectId?}` → `201`; có `subjectId` tạo kho theo môn, không có tạo kho riêng |
+| DELETE | `/api/v1/teacher/resource-libraries/{libraryId}` | `204`; xóa mềm kho và không xóa PDF/Quiz/Assignment gốc; kho `DEFAULT` không thể xóa |
+| POST | `/api/v1/teacher/resource-libraries/{libraryId}/items` | `{itemType,itemId}` → `200`; Java xác minh tài nguyên thuộc Teacher; thêm lặp là idempotent |
+| DELETE | `/api/v1/teacher/resource-libraries/{libraryId}/items/{itemReferenceId}` | `204`; chỉ bỏ liên kết khỏi kho |
+
+- `GET /api/v1/teacher/resource-libraries` bảo đảm mỗi Teacher có đúng một kho `DEFAULT` tên **Tài liệu tải lên**.
+- Upload Course Material nhận thêm multipart field tùy chọn `libraryId`. Nếu bỏ trống, Java tự liên kết tài liệu vào kho `DEFAULT`; nếu có giá trị, Java kiểm tra quyền sở hữu và lưu thẳng vào kho được chọn.
+
+`Library` trả `{id,name,libraryType:"DEFAULT|SUBJECT|PRIVATE",subjectId,subjectCode,subjectName,items,createdAt}`. Mỗi item trả `{id,itemType,itemId,title,status,addedAt}`. `404` che giấu tài nguyên không tồn tại hoặc không thuộc Teacher; `409` khi môn ngừng hoạt động hoặc cố xóa kho mặc định; `422` cho tên/loại tài nguyên không hợp lệ. Tài liệu tải vào kho vẫn là Course Material riêng của Teacher và chỉ Student thấy sau khi Teacher công bố vào lớp. Kho lớp được đọc qua danh sách publication của tài liệu và quản lý bằng `POST/DELETE /teacher/documents/{documentId}/publications`; Quiz/Bài tập đưa vào kho cá nhân không tự duyệt, không tự giao và không thay đổi trạng thái gốc.
 
 ### 5.4 Teacher AI Quiz Generator
 

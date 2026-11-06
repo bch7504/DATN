@@ -22,15 +22,13 @@ import { CourseMaterialTutorHistory, CourseMaterialTutorResponse, SlideTextLayer
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 
-type TutorTimelineEntry =
-  | { id: string; type: "page-context"; pageNumber: number }
-  | {
-      id: string;
-      type: "exchange";
-      pageNumber: number;
-      question: string;
-      response: CourseMaterialTutorResponse;
-    };
+type TutorTimelineEntry = {
+  id: string;
+  type: "exchange";
+  pageNumber: number;
+  question: string;
+  response: CourseMaterialTutorResponse;
+};
 
 /** Convert Java-owned persisted USER/ASSISTANT turns into visual Tutor exchanges. */
 function historyToTimeline(history: CourseMaterialTutorHistory): TutorTimelineEntry[] {
@@ -77,7 +75,6 @@ export default function CourseMaterialViewerPage() {
   const [tutorTimeline, setTutorTimeline] = useState<TutorTimelineEntry[]>([]);
   const [tutorError, setTutorError] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
-  const [isTutorHistoryLoaded, setIsTutorHistoryLoaded] = useState(false);
   const [isTutorHistoryLoading, setIsTutorHistoryLoading] = useState(false);
   const [backHref, setBackHref] = useState("/materials");
   const [slideImageUrl, setSlideImageUrl] = useState<string | null>(null);
@@ -102,9 +99,9 @@ export default function CourseMaterialViewerPage() {
    * @returns a unique client-side key; no server state or business result is changed
    * @throws never
    */
-  const nextTutorEntryId = useCallback((prefix: "page" | "exchange"): string => {
+  const nextTutorEntryId = useCallback((): string => {
     tutorEntrySequence.current += 1;
-    return `${prefix}-${documentId}-${tutorEntrySequence.current}`;
+    return `exchange-${documentId}-${tutorEntrySequence.current}`;
   }, [documentId]);
 
   /** Args: none. Input: optional courseId/offeringId supplied by class or material links. Output: void; restores the matching dedicated return route. Errors: malformed or missing values fall back to the material list. */
@@ -132,7 +129,6 @@ export default function CourseMaterialViewerPage() {
     tutorEntrySequence.current = 0;
     setTutorTimeline([]);
     setTutorError(null);
-    setIsTutorHistoryLoaded(false);
   }, [documentId]);
 
   /** Args: authorized SLIDE_PDF. Output: restores Java-owned long-term Tutor memory. Errors: shown in Tutor panel. */
@@ -148,21 +144,10 @@ export default function CourseMaterialViewerPage() {
     }).finally(() => {
       if (active) {
         setIsTutorHistoryLoading(false);
-        setIsTutorHistoryLoaded(true);
       }
     });
     return () => { active = false; };
   }, [document, documentId]);
-
-  /** Args: authorized document and current page. Output: appends one compact page marker without deleting prior exchanges. Errors: none. */
-  useEffect(() => {
-    if (!document || document.id !== documentId || document.materialType !== "SLIDE_PDF" || !isTutorHistoryLoaded) return;
-    setTutorTimeline((current) => {
-      const latestMarker = [...current].reverse().find((entry) => entry.type === "page-context");
-      if (latestMarker?.pageNumber === pageNumber) return current;
-      return [...current, { id: nextTutorEntryId("page"), type: "page-context", pageNumber }];
-    });
-  }, [document, documentId, isTutorHistoryLoaded, nextTutorEntryId, pageNumber]);
 
   /** Args: Tutor timeline changes. Output: keeps the latest page marker or answer visible. Errors: none. */
   useEffect(() => {
@@ -233,7 +218,7 @@ export default function CourseMaterialViewerPage() {
       setTutorTimeline((current) => [
         ...current,
         {
-          id: nextTutorEntryId("exchange"),
+          id: nextTutorEntryId(),
           type: "exchange",
           pageNumber: askedPage,
           question: normalizedQuestion,
@@ -349,12 +334,6 @@ export default function CourseMaterialViewerPage() {
             {isTutorOpen && <span><span className="block text-sm font-extrabold text-slate-900">AI Tutor</span><span className="block text-xs text-slate-500">Nhấn lại để ẩn</span></span>}
           </button>
           {isTutorOpen && <div className="flex min-h-0 flex-1 flex-col">
-          <div className="shrink-0 border-b border-slate-200 p-5">
-            <h2 className="mt-2 text-xl font-extrabold text-slate-900">Hội thoại AI Tutor</h2>
-            <p className="mt-1 text-xs font-bold uppercase tracking-wide text-red-600">Hiện đang ở trang {pageNumber}</p>
-            <p className="mt-1 text-sm leading-6 text-slate-500">Câu trả lời chỉ dùng nội dung Slide PDF đã được giảng viên công bố và luôn kèm nguồn theo số slide.</p>
-          </div>
-
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-5 [scrollbar-gutter:stable]" aria-live="polite" data-testid="tutor-scroll-region">
             {tutorTimeline.length <= 1 && !tutorError && (
               <div className="rounded-2xl bg-slate-50 p-5 text-sm leading-6 text-slate-600">
@@ -363,13 +342,7 @@ export default function CourseMaterialViewerPage() {
               </div>
             )}
             {isTutorHistoryLoading && <LoadingSpinner size="sm" text="Đang tải lịch sử AI Tutor..." />}
-            {tutorTimeline.map((entry) => entry.type === "page-context" ? (
-              <div key={entry.id} className="flex items-center gap-2 py-1 text-[11px] font-semibold text-slate-400" role="status">
-                <span className="h-px flex-1 bg-slate-200" />
-                <span>Đang xem trang {entry.pageNumber}</span>
-                <span className="h-px flex-1 bg-slate-200" />
-              </div>
-            ) : (
+            {tutorTimeline.map((entry) => (
               <div key={entry.id} className="space-y-3">
                 <div className="ml-8 rounded-2xl rounded-br-md bg-red-600 px-4 py-3 text-sm leading-6 text-white">
                   <p className="whitespace-pre-wrap">{entry.question}</p>
@@ -377,27 +350,11 @@ export default function CourseMaterialViewerPage() {
                 </div>
                 <div className="space-y-3 rounded-2xl rounded-bl-md border border-red-100 bg-red-50 p-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-red-700">
-                    {entry.response.status === "ANSWERED" ? "Câu trả lời có nguồn" : "Không đủ bằng chứng"}
+                    {entry.response.status === "ANSWERED" ? "Câu trả lời" : "Không đủ bằng chứng"}
                   </p>
                   <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">
                     {entry.response.answer ?? "Không tìm thấy nội dung phù hợp trong phạm vi tài liệu được phép."}
                   </p>
-                  {entry.response.citations.length > 0 && (
-                    <div className="space-y-2 border-t border-red-100 pt-3">
-                      <h3 className="text-xs font-extrabold uppercase tracking-wide text-slate-700">Nguồn tham khảo</h3>
-                      {entry.response.citations.map((citation, index) => (
-                        <button
-                          type="button"
-                          key={`${entry.id}-${citation.documentId}-${citation.pageNumber}-${index}`}
-                          onClick={() => selectPage(citation.pageNumber)}
-                          className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left"
-                        >
-                          <span className="text-xs font-bold text-red-600">Trang {citation.pageNumber}</span>
-                          <span className="mt-1 block text-sm leading-5 text-slate-600">{citation.excerpt}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             ))}

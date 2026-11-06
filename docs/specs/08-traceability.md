@@ -3,11 +3,14 @@
 | Requirement | Public UI/API | System of record | Test chính |
 |---|---|---|---|
 | AUT-FR-001..005 | auth, `/me` | Java auth/user | role guard, token rotation, internal auth |
-| STU-FR-001..003 | join, Student offerings/materials | `course_offerings`, `course_enrollments` | invalid code, pending denied, approved allowed |
-| STU-FR-004..006 | PDF materials/viewer/page-note/tutor | publication/page/note + AI result | approved access, `NO_EVIDENCE`, page citation scope |
+| STU-FR-001..003 | join, Student offerings, chi tiết lớp | `course_offerings`, `course_enrollments` | invalid code, pending denied, approved allowed |
+| STU-FR-004..007 | PDF materials/viewer/page-note/tutor | publication/page/note + AI result | approved access, loại học liệu, `NO_EVIDENCE`, page citation scope |
+| STU-FR-008 | Quiz Assignment | Java Assignment/attempt/submission | đúng Student/lớp/Quiz, Java scoring, on-time/late |
+| STU-FR-009 | Dashboard viewing progress | Java learning events | idempotency, không Topic Mastery |
 | PAI-FR-001..008 | personal docs/assistant/Quiz | Java conversation/Quiz + AI indexes/agent runs | owner isolation, tool routing, clarification, prompt injection, schema/citation |
 | TCH-FR-001..003 | Teacher offerings/join/enrollments | Java offering/enrollment | owner-only, rotation, transition idempotency |
-| TCH-FR-004..007 | PDF library/publication/AI Quiz | Java document/publication/Quiz | PDF-only, owner scope, draft review/publish |
+| TCH-FR-004..008 | kho mặc định, PDF/PPTX, publication và xóa an toàn | Java library/document/publication | default library, conversion, owner scope, revoke/deindex/delete |
+| TCH-FR-009..012 | AI Quiz nhiều nguồn, Assignment và báo cáo | Java Quiz/Assignment/submission | 1–10 nguồn, review/publish, đúng lớp, thống kê không đếm lặp |
 | ADM-FR-001..005 | Admin users/catalog/monitoring | Java app/audit | no assignment UI, lock/archive audited |
 | DASH-FR-001..006 | Dashboard gồm aggregate và progress từng Course Offering, Streak, Daily Goal | Java `learning_events`, `daily_goals`, viewing progress | đúng lớp/quyền/event/ngày/múi giờ, idempotency, goal độc lập streak |
 | Plan/Quiz review | plan, subject/personal review workspace, attempts | Java plans/quizzes/answers/sources | Java scoring, wrong-answer citation, attempt history, manual plan |

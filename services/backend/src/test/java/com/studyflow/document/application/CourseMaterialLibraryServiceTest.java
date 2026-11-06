@@ -63,7 +63,7 @@ class CourseMaterialLibraryServiceTest {
         when(storageProvider.getIfAvailable()).thenReturn(storage);
         when(converterProvider.getIfAvailable()).thenReturn(converter);
         service = new CourseMaterialLibraryService(documents, publications, offerings, enrollments,
-                storageProvider, converterProvider, notifications,
+                storageProvider, converterProvider, org.mockito.Mockito.mock(TeacherResourceLibraryService.class), notifications,
                 Clock.fixed(Instant.parse("2026-10-15T00:00:00Z"), ZoneOffset.UTC));
     }
 
@@ -178,6 +178,7 @@ class CourseMaterialLibraryServiceTest {
                 org.mockito.Mockito.mock(CourseEnrollmentRepository.class),
                 storageProvider,
                 converterProvider,
+                org.mockito.Mockito.mock(TeacherResourceLibraryService.class),
                 notifications,
                 Clock.fixed(Instant.parse("2026-10-15T00:00:00Z"), ZoneOffset.UTC));
 

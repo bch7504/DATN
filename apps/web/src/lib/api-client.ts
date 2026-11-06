@@ -2,7 +2,7 @@ import { getApiUrl } from "./env";
 import { User, LoginRequest, RegisterRequest, RegistrationStatusResponse, VerifyRegistrationRequest, ResendVerificationRequest, } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
 import { Subject, Semester, CourseOffering, CourseEnrollment, CreateOfferingRequest, } from "@/types/course-offering";
-import { TeacherDocument, PersonalDocument, CourseMaterialTutorHistory, CourseMaterialTutorResponse, CourseMaterialType, PageNote, SlideTextLayer, } from "@/types/material";
+import { TeacherDocument, PersonalDocument, CourseMaterialTutorHistory, CourseMaterialTutorResponse, CourseMaterialType, PageNote, SlideTextLayer, TeacherResourceLibrary, TeacherLibraryItemType, } from "@/types/material";
 import { ChatConversation, ChatMessage, CreateConversationRequest, SendMessageRequest, } from "@/types/chat";
 import { Quiz, QuizDraft, QuizAttempt, CreateQuizDraftRequest, AcceptQuizRequest, SubmitQuizAttemptRequest, StartQuizAttemptResponse, SubmitAttemptResponse, } from "@/types/quiz";
 import { ReviewItem, CourseReviewSummary, CourseReviewWorkspace, DailyGoalProgress, DailyGoalConfig, StudyStreak, } from "@/types/review";
@@ -707,7 +707,7 @@ export const personalDocApi = {
         if (!file.name.toLowerCase().endsWith(".pdf")) {
             throw new ApiClientError(415, {
                 code: "UNSUPPORTED_MEDIA_TYPE",
-                message: "Chá»‰ cháº¥p nháº­n tá»‡p Ä‘á»‹nh dáº¡ng PDF cÃ³ lá»›p vÄƒn báº£n (text layer). KhÃ´ng nháº­n DOCX/PPTX trong MVP."
+                message: "Chỉ chấp nhận tệp PDF có lớp văn bản. Không nhận DOCX hoặc PPTX."
             });
         }
         if (file.size > 20 * 1024 * 1024) {
@@ -817,10 +817,11 @@ export const teacherApi = {
      * @param file required PDF or PPTX, non-empty and at most 20 MiB
      * @param title required display title validated again by Java
      * @param materialType required SLIDE_PDF or REFERENCE_PDF
+     * @param libraryId optional owned destination; Java files into the DEFAULT library when omitted
      * @returns normalized PDF metadata; a PPTX source is converted server-side and never stored as PPTX
      * @throws ApiClientError for invalid input, conversion, storage, authentication or authorization errors
      */
-    async uploadDocument(file: File, title: string, materialType: CourseMaterialType): Promise<TeacherDocument> {
+    async uploadDocument(file: File, title: string, materialType: CourseMaterialType, libraryId?: string): Promise<TeacherDocument> {
         const lowerName = file.name.toLowerCase();
         const supported = lowerName.endsWith(".pdf") || lowerName.endsWith(".pptx");
         if (!supported) {
@@ -836,6 +837,7 @@ export const teacherApi = {
         formData.append("file", file);
         formData.append("title", title);
         formData.append("materialType", materialType);
+        if (libraryId) formData.append("libraryId", libraryId);
         return apiFetch<TeacherDocument>("/teacher/documents", {
             method: "POST",
             body: formData
@@ -849,6 +851,36 @@ export const teacherApi = {
     },
     async revokePublication(documentId: string, offeringId: string): Promise<void> {
         await apiFetch<void>(`/teacher/documents/${documentId}/publications?offeringId=${offeringId}`, { method: "DELETE" });
+    }
+};
+
+/** Teacher-owned subject/private collections. Source resources keep their Java-owned lifecycle. */
+export const teacherLibraryApi = {
+    /** Args: none. Input: authenticated Teacher. Output: active libraries and safe item summaries. Errors: Java API errors. */
+    list(): Promise<TeacherResourceLibrary[]> {
+        return apiFetch("/teacher/resource-libraries");
+    },
+    /** Args: name and optional subject ID. Input: Teacher selection. Output: created collection. Errors: 404/409/422. */
+    create(name: string, subjectId?: string): Promise<TeacherResourceLibrary> {
+        return apiFetch("/teacher/resource-libraries", {
+            method: "POST",
+            body: JSON.stringify({ name, subjectId: subjectId || null })
+        });
+    },
+    /** Args: owned library ID. Input: delete confirmation. Output: void; source resources remain. Errors: 404. */
+    delete(libraryId: string): Promise<void> {
+        return apiFetch(`/teacher/resource-libraries/${encodeURIComponent(libraryId)}`, { method: "DELETE" });
+    },
+    /** Args: library, resource type and resource ID. Output: refreshed library. Errors: 404/422. */
+    addItem(libraryId: string, itemType: TeacherLibraryItemType, itemId: string): Promise<TeacherResourceLibrary> {
+        return apiFetch(`/teacher/resource-libraries/${encodeURIComponent(libraryId)}/items`, {
+            method: "POST",
+            body: JSON.stringify({ itemType, itemId })
+        });
+    },
+    /** Args: library/item-reference IDs. Output: void; source resource remains. Errors: 404. */
+    removeItem(libraryId: string, itemReferenceId: string): Promise<void> {
+        return apiFetch(`/teacher/resource-libraries/${encodeURIComponent(libraryId)}/items/${encodeURIComponent(itemReferenceId)}`, { method: "DELETE" });
     }
 };
 /** Args: zero-based page and size 1..100. Input: Admin list query. Output: encoded query; Errors: INVALID_PAGE. */

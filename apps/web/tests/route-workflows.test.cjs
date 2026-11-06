@@ -20,6 +20,10 @@ test("direct visits have a safe parent at each workflow step", () => {
   const pairs = [
     ["/teacher/assignments/new", "/teacher/assignments"],
     ["/teacher/assignments/a1/edit", "/teacher/assignments/a1"],
+    ["/teacher/documents/upload", "/teacher/documents"],
+    ["/teacher/documents/libraries/lib1", "/teacher/documents"],
+    ["/teacher/documents/publications/doc1", "/teacher/documents"],
+    ["/teacher/documents/off1", "/teacher/course-offerings/off1"],
     ["/teacher/documents/off1/upload", "/teacher/documents/off1"],
     ["/materials/class/off1", "/materials"],
     ["/assignments/a1", "/assignments"],

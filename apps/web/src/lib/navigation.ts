@@ -5,8 +5,13 @@ export function parentRoute(pathname: string, role?: UserRole | null): string {
   if (/^\/teacher\/assignments\/[^/]+\/edit$/.test(pathname)) return pathname.slice(0, -5);
   if (/^\/teacher\/assignments\/[^/]+$/.test(pathname)) return "/teacher/assignments";
   if (pathname === "/teacher/course-offerings/new") return "/teacher/course-offerings";
+  if (/^\/teacher\/course-offerings\/[^/]+$/.test(pathname)) return "/teacher/course-offerings";
+  if (pathname === "/teacher/documents/upload") return "/teacher/documents";
+  if (/^\/teacher\/documents\/libraries\/[^/]+$/.test(pathname)) return "/teacher/documents";
+  if (/^\/teacher\/documents\/publications\/[^/]+$/.test(pathname)) return "/teacher/documents";
   if (/^\/teacher\/documents\/[^/]+\/upload$/.test(pathname)) return pathname.slice(0, -7);
-  if (/^\/teacher\/documents\//.test(pathname)) return "/teacher/documents";
+  const teacherClassDocuments = pathname.match(/^\/teacher\/documents\/([^/]+)$/);
+  if (teacherClassDocuments) return `/teacher/course-offerings/${encodeURIComponent(teacherClassDocuments[1])}`;
   if (/^\/teacher\/quizzes\/[^/]+$/.test(pathname)) return pathname.endsWith("/create") ? "/teacher/dashboard" : "/teacher/quizzes/create";
   if (/^\/materials\//.test(pathname)) return "/materials";
   if (/^\/assignments\//.test(pathname)) return "/assignments";

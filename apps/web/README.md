@@ -26,11 +26,12 @@ apps/web/
   - Khung Chatbot đặt ở bên **trái** (linh hoạt độ rộng, ưu tiên trải nghiệm thảo luận).
   - Thanh phiên hội thoại (Session Bar) đặt ở đầu (header) bên trong khung chatbot, hỗ trợ chuyển nhanh giữa các phiên thảo luận hoặc bấm `+ Phiên mới`.
   - Cột chọn nguồn tài liệu cá nhân đặt gọn ở bên **phải** (~280px) kèm tìm kiếm, nút chọn tất cả / bỏ chọn và badge trạng thái `READY`.
-  - Single Orchestrator Agent tự chọn đúng một trong ba tool: hỏi đáp, tóm tắt hoặc tạo Quiz; khi thiếu tham số phải hỏi lại.
+  - Single Orchestrator Agent tự chọn đúng một trong bốn tool: hỏi đáp, tóm tắt, tạo Quiz có nguồn hoặc nhập Quiz từ văn bản; khi chưa rõ ý định phải hỏi lại.
   - **In-Chat Citation Drawer:** Click vào chip trích dẫn trong tin nhắn để mở Drawer kiểm chứng trích đoạn (excerpt), số trang, file gốc và mã đối chiếu SHA-256 ngay trong khung chatbot.
 - **Course Material PDF/PPTX:** Khi tải PDF hoặc PPTX, Teacher chọn `SLIDE_PDF` hoặc `REFERENCE_PDF`. Java chuyển PPTX thành PDF trước khi lưu; Frontend và Student chỉ nhận metadata/PDF đã chuẩn hóa. `SLIDE_PDF` được lập chỉ mục, xem từng trang như slide, ghi chú và hỏi AI theo trang; `REFERENCE_PDF` chỉ tải xuống, không có Viewer/Tutor.
-  - Viewer tải lại hội thoại AI Tutor đã được Java lưu, giữ phần tiêu đề/ô nhập cố định và chỉ cuộn vùng tin nhắn. Chuyển trang chèn một dòng ngữ cảnh nhỏ nhưng không xóa hội thoại trước đó.
-- **Teacher AI Quiz Studio:** Teacher chọn lớp và một `SLIDE_PDF` `READY`, sau đó cấu hình số câu, độ khó, chủ đề và khoảng trang; `REFERENCE_PDF` không xuất hiện trong nguồn Quiz. Frontend không tự sinh câu hỏi hoặc tự đổi trạng thái Quiz.
+  - Viewer tải lại hội thoại AI Tutor đã được Java lưu, giữ ô nhập cố định và chỉ cuộn vùng tin nhắn. Chuyển trang không xóa hội thoại trước đó và không chèn thông báo chuyển trang vào khung chat.
+- **Teacher AI Quiz Studio:** Teacher chọn lớp và từ 1 đến 10 `SLIDE_PDF` `READY` đã công bố trong lớp, sau đó cấu hình số câu, độ khó, chủ đề và khoảng trang dùng chung; hệ thống không tự chọn sẵn tài liệu. `REFERENCE_PDF` không xuất hiện trong nguồn Quiz. Frontend không tự sinh câu hỏi hoặc tự đổi trạng thái Quiz.
+- **Kho tài liệu Teacher và kho lớp:** Teacher tự tạo kho theo môn hoặc kho cá nhân, tải PDF/PPTX và lưu liên kết tới Quiz/Bài tập của chính mình. Mỗi Course Offering có đúng một kho lớp được hình thành từ các tài liệu Teacher đã công bố vào lớp đó. Ngay trong kho cá nhân, Teacher có thể chọn một lớp để thêm tài liệu vào kho lớp; thao tác này chỉ tạo publication, không sao chép tệp. Xóa kho cá nhân, bỏ mục hoặc gỡ khỏi lớp không xóa tài nguyên gốc.
 - **Ảnh câu hỏi Quiz:** Nếu Java trả image ID cho một câu hỏi dựa trên sơ đồ/hình trong PDF, Web tải PNG qua Java bằng phiên đăng nhập và hiển thị trong bước duyệt; không dùng URL Object Storage trực tiếp.
 - **Ôn tập (Review Hub - 2 tầng):**
   - **Sinh đề thi trắc nghiệm AI** mở `/quiz/create` (form PDF + prompt, bản nháp, accept); không redirect tới hỏi đáp. Chat vẫn có thể tạo Quiz nếu Student chủ động yêu cầu trong hội thoại.
@@ -63,7 +64,7 @@ Màn danh sách, tạo, sửa và chi tiết có route riêng. Route module ch�
 | Bài tập giảng viên | `/teacher/assignments`, `/new`, `/{assignmentId}`, `/{assignmentId}/edit` |
 | Bài tập sinh viên | `/assignments`, `/assignments/{assignmentId}` |
 | Mở lớp giảng viên | `/teacher/course-offerings/new` |
-| Học liệu giảng viên | `/teacher/documents`, `/{offeringId}`, `/{offeringId}/upload`, `/publications/{documentId}` |
+| Kho và học liệu giảng viên | `/teacher/documents`, `/teacher/documents/upload`, `/teacher/documents/libraries/{libraryId}`, `/{offeringId}`, `/publications/{documentId}`. Kho lớp chỉ nhận tài liệu công bố từ kho giảng viên; không tải trực tiếp tại route lớp. |
 | Lớp và học liệu sinh viên | `/course-offerings/{offeringId}`, `/materials/class/{offeringId}`, `/materials/{documentId}/viewer` |
 | Quiz giảng viên | `/teacher/quizzes/create`, `/teacher/quizzes/{quizId}` |
 | Quiz sinh viên | `/quiz/create`, `/quiz/drafts/{draftId}`, `/quiz/drafts/{draftId}/accept` |

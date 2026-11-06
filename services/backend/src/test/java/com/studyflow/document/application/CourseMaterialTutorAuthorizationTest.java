@@ -54,6 +54,7 @@ class CourseMaterialTutorAuthorizationTest {
                 enrollments,
                 storage,
                 converter,
+                mock(TeacherResourceLibraryService.class),
                 mock(NotificationStore.class),
                 Clock.fixed(Instant.parse("2026-10-21T00:00:00Z"), ZoneOffset.UTC));
     }

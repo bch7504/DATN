@@ -96,3 +96,25 @@ export interface PersonalDocument {
   uploadedAt: string;
   errorReason?: string;
 }
+
+export type TeacherLibraryItemType = "DOCUMENT" | "QUIZ" | "ASSIGNMENT";
+
+export interface TeacherLibraryItem {
+  id: string;
+  itemType: TeacherLibraryItemType;
+  itemId: string;
+  title: string;
+  status: string;
+  addedAt: string;
+}
+
+export interface TeacherResourceLibrary {
+  id: string;
+  name: string;
+  libraryType: "DEFAULT" | "SUBJECT" | "PRIVATE";
+  subjectId: string | null;
+  subjectCode: string | null;
+  subjectName: string | null;
+  items: TeacherLibraryItem[];
+  createdAt: string;
+}

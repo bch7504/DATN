@@ -72,7 +72,7 @@ export function SemesterScopeBar(): React.JSX.Element {
   }
 
   return (
-    <section className="border-b border-red-100 bg-red-50/70 px-4 py-2.5 lg:px-8" aria-label="Phạm vi học kỳ MVP">
+    <section className="border-b border-red-100 bg-red-50/70 px-4 py-2.5 lg:px-8" aria-label="Phạm vi học kỳ">
       <div className="mx-auto max-w-7xl">
         <button
           type="button"
@@ -86,7 +86,7 @@ export function SemesterScopeBar(): React.JSX.Element {
             </span>
             <span className="min-w-0">
               <span className="block truncate text-sm font-extrabold text-slate-900">{semester.name}</span>
-              <span className="block text-xs text-slate-500">Phạm vi MVP hiện tại · {subjects.length} môn học đang hoạt động</span>
+              <span className="block text-xs text-slate-500">Học kỳ đang hoạt động · {subjects.length} môn học</span>
             </span>
           </span>
           {expanded ? <ChevronUp className="h-4 w-4 text-red-600" /> : <ChevronDown className="h-4 w-4 text-red-600" />}

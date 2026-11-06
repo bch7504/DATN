@@ -22,13 +22,11 @@ import {
   Menu,
   X,
   ChevronRight,
-  UserCheck,
   FolderKanban,
   FileClock,
   ListChecks,
   PanelLeftClose,
   PanelLeftOpen,
-  ClipboardList,
   ArrowLeft,
 } from "lucide-react";
 import { UserRole } from "@/types/auth";
@@ -50,10 +48,8 @@ const STUDENT_NAV: NavItem[] = [
 
 const TEACHER_NAV: NavItem[] = [
   { label: "Tổng quan", href: "/teacher/dashboard", icon: LayoutDashboard },
-  { label: "Lớp học phần của tôi", href: "/teacher/course-offerings", icon: GraduationCap },
-  { label: "Giao bài tập", href: "/teacher/assignments", icon: ClipboardList },
-  { label: "Yêu cầu tham gia", href: "/teacher/enrollments", icon: UserCheck },
-  { label: "Kho học liệu PDF", href: "/teacher/documents", icon: FolderKanban },
+  { label: "Lớp học phần", href: "/teacher/course-offerings", icon: GraduationCap },
+  { label: "Kho tài liệu", href: "/teacher/documents", icon: FolderKanban },
   { label: "AI Quiz Studio", href: "/teacher/quizzes/create", icon: ListChecks },
 ];
 
@@ -180,13 +176,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
             {navItems.map((item) => {
               const Icon = item.icon;
+              const isTeacherClassMaterialRoute = /^\/teacher\/documents\/(?!upload(?:\/|$)|libraries(?:\/|$)|publications(?:\/|$))[^/]+(?:\/upload)?\/?$/.test(pathname ?? "");
               const isActive =
                 pathname === item.href ||
                 (item.href === "/review" && pathname.startsWith("/quiz/")) ||
+                (item.href === "/teacher/course-offerings" &&
+                  (pathname.startsWith("/teacher/assignments") ||
+                    pathname.startsWith("/teacher/enrollments") ||
+                    isTeacherClassMaterialRoute)) ||
                 (item.href === "/teacher/quizzes/create" && pathname.startsWith("/teacher/quizzes/")) ||
                 (item.href !== "/dashboard" &&
                   item.href !== "/teacher/dashboard" &&
                   item.href !== "/admin/dashboard" &&
+                  !(item.href === "/teacher/documents" && isTeacherClassMaterialRoute) &&
                   pathname?.startsWith(item.href));
 
               return (
@@ -316,27 +318,31 @@ export function AppShell({ children }: { children: ReactNode }) {
                   } else if (pathname === "/teacher/dashboard") {
                     crumbs.push("Bảng điều khiển");
                   } else if (pathname === "/teacher/course-offerings/new") {
-                    crumbs.push("Quản lý Lớp học phần", "Mở lớp mới");
+                    crumbs.push("Lớp học phần", "Mở lớp mới");
                   } else if (pathname?.startsWith("/teacher/course-offerings")) {
-                    crumbs.push("Quản lý Lớp học phần");
+                    crumbs.push("Lớp học phần");
                   } else if (pathname === "/teacher/assignments/new") {
-                    crumbs.push("Giao bài tập về nhà", "Bài tập mới");
+                    crumbs.push("Lớp học phần", "Bài tập", "Bài tập mới");
                   } else if (pathname && /^\/teacher\/assignments\/[^/]+\/edit$/.test(pathname)) {
-                    crumbs.push("Giao bài tập về nhà", "Sửa bản nháp");
+                    crumbs.push("Lớp học phần", "Bài tập", "Sửa bản nháp");
                   } else if (pathname && /^\/teacher\/assignments\/[^/]+$/.test(pathname)) {
-                    crumbs.push("Giao bài tập về nhà", "Chi tiết bài tập");
+                    crumbs.push("Lớp học phần", "Bài tập", "Chi tiết bài tập");
                   } else if (pathname?.startsWith("/teacher/assignments")) {
-                    crumbs.push("Giao bài tập về nhà");
+                    crumbs.push("Lớp học phần", "Bài tập");
                   } else if (pathname?.startsWith("/teacher/enrollments")) {
-                    crumbs.push("Phê duyệt sinh viên");
+                    crumbs.push("Lớp học phần", "Yêu cầu tham gia");
                   } else if (pathname?.startsWith("/teacher/documents/publications/")) {
-                    crumbs.push("Kho học liệu PDF", "Quản lý công bố");
+                    crumbs.push("Kho tài liệu", "Quản lý công bố");
+                  } else if (pathname === "/teacher/documents/upload") {
+                    crumbs.push("Kho tài liệu", "Thêm tài liệu");
+                  } else if (pathname?.match(/^\/teacher\/documents\/libraries\/[^/]+$/)) {
+                    crumbs.push("Kho tài liệu", "Chi tiết kho");
                   } else if (pathname?.match(/^\/teacher\/documents\/[^/]+\/upload$/)) {
-                    crumbs.push("Kho học liệu PDF", "Tải PDF mới");
-                  } else if (pathname?.startsWith("/teacher/documents/")) {
-                    crumbs.push("Kho học liệu PDF", "Học liệu của lớp");
+                    crumbs.push("Lớp học phần", "Kho tài liệu lớp", "Tải tài liệu");
+                  } else if (pathname?.match(/^\/teacher\/documents\/[^/]+$/)) {
+                    crumbs.push("Lớp học phần", "Kho tài liệu lớp");
                   } else if (pathname?.startsWith("/teacher/documents")) {
-                    crumbs.push("Kho học liệu PDF");
+                    crumbs.push("Kho tài liệu");
                   } else if (pathname?.match(/^\/teacher\/quizzes\/(?!create$)[^/]+$/)) {
                     crumbs.push("AI Quiz Studio", "Duyệt và công bố Quiz");
                   } else if (pathname?.startsWith("/teacher/quizzes")) {

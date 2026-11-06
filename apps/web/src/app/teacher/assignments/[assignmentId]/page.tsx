@@ -5,8 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { AlertCircle, ArrowLeft, Download, Eye, Send, X } from "lucide-react";
-import { assignmentApi, AssignmentStats, CourseAssignment, teacherApi } from "@/lib/api-client";
+import { assignmentApi, AssignmentStats, CourseAssignment, teacherApi, teacherLibraryApi } from "@/lib/api-client";
 import { CourseOffering } from "@/types/course-offering";
+import type { TeacherResourceLibrary } from "@/types/material";
 import type { SubmitAttemptResponse } from "@/types/quiz";
 import { MathText } from "@/components/quiz/math-text";
 
@@ -33,6 +34,9 @@ export default function TeacherAssignmentDetailPage(): ReactElement {
   const [preview, setPreview] = useState<AssignmentPreview | null>(null);
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
   const [quizDetail, setQuizDetail] = useState<{ studentName: string; result: SubmitAttemptResponse } | null>(null);
+  const [libraries, setLibraries] = useState<TeacherResourceLibrary[]>([]);
+  const [libraryId, setLibraryId] = useState("");
+  const [savedToLibrary, setSavedToLibrary] = useState(false);
   const previewUrl = useRef<string | null>(null);
 
   useEffect(() => {
@@ -70,6 +74,10 @@ export default function TeacherAssignmentDetailPage(): ReactElement {
     void loadDetail();
     return () => { mounted = false; };
   }, [assignmentId]);
+
+  useEffect(() => {
+    teacherLibraryApi.list().then((items) => { setLibraries(items); setLibraryId(items[0]?.id ?? ""); }).catch(() => undefined);
+  }, []);
 
   useEffect(() => () => { if (previewUrl.current) URL.revokeObjectURL(previewUrl.current); }, []);
 
@@ -140,6 +148,15 @@ export default function TeacherAssignmentDetailPage(): ReactElement {
     catch (cause) { setError(cause instanceof Error ? cause.message : "Không tải được chi tiết lượt làm Quiz."); }
   }
 
+  /** Args: none. Input: current owned assignment and selected owned library. Output: idempotent library reference. Errors: shown inline. */
+  async function saveAssignmentToLibrary(): Promise<void> {
+    if (!assignment || !libraryId) { setError("Hãy tạo hoặc chọn một kho tài liệu."); return; }
+    setBusy(true); setError("");
+    try { await teacherLibraryApi.addItem(libraryId, "ASSIGNMENT", assignment.id); setSavedToLibrary(true); }
+    catch (cause: unknown) { setError(cause instanceof Error ? cause.message : "Không thể lưu bài tập vào kho."); }
+    finally { setBusy(false); }
+  }
+
   const previewName = preview?.fileName.toLowerCase() ?? "";
   const isPdfPreview = !!preview && (preview.contentType === "application/pdf" || previewName.endsWith(".pdf"));
   const isImagePreview = !!preview && (preview.contentType.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(previewName));
@@ -166,6 +183,7 @@ export default function TeacherAssignmentDetailPage(): ReactElement {
                 <span className="ml-2 mt-3 inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">{assignment.type === "QUIZ" ? "Trắc nghiệm" : "Tự luận / tệp"}</span>
               </div>
               <div className="flex flex-wrap gap-2">
+                {libraries.length > 0 && <><select value={libraryId} onChange={(event) => { setLibraryId(event.target.value); setSavedToLibrary(false); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">{libraries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><button type="button" disabled={busy || savedToLibrary} onClick={() => void saveAssignmentToLibrary()} className="rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">{savedToLibrary ? "Đã lưu vào kho" : "Lưu bài tập vào kho"}</button></>}
                 {assignment.status === "DRAFT" ? (
                   <>
                     <Link href={"/teacher/assignments/" + encodeURIComponent(assignment.id) + "/edit"} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Sửa nháp</Link>

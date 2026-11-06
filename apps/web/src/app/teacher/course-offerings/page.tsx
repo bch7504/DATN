@@ -16,8 +16,6 @@ import {
   RefreshCw,
   Power,
   Archive,
-  Users,
-  FolderKanban,
   Check,
 } from "lucide-react";
 import Link from "next/link";
@@ -137,7 +135,7 @@ export default function TeacherCourseOfferingsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Quản lý Lớp học phần
+            Lớp học phần
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Mở lớp mới theo Môn học và Học kỳ, quản lý mã tham gia và sinh viên
@@ -172,10 +170,11 @@ export default function TeacherCourseOfferingsPage() {
           {offerings.map((offering) => (
             <div
               key={offering.id}
-              className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm  transition space-y-4"
+              className="relative p-5 rounded-2xl border border-slate-200 bg-white shadow-sm transition space-y-4"
             >
+              <Link href={`/teacher/course-offerings/${encodeURIComponent(offering.id)}`} aria-label={`Mở lớp ${offering.name}`} className="absolute inset-0 z-0 rounded-2xl" />
               {/* Header */}
-              <div className="flex items-start justify-between gap-3">
+              <div className="relative z-10 flex items-start justify-between gap-3 pointer-events-none">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-900 font-mono font-bold text-xs">
@@ -195,7 +194,7 @@ export default function TeacherCourseOfferingsPage() {
                   <button
                     type="button"
                     onClick={() => handleArchive(offering.id)}
-                    className="p-1.5 text-slate-400  rounded-lg  text-xs"
+                    className="pointer-events-auto p-1.5 text-slate-400 rounded-lg text-xs"
                     title="Lưu trữ lớp"
                   >
                     <Archive className="w-4 h-4" />
@@ -204,7 +203,7 @@ export default function TeacherCourseOfferingsPage() {
               </div>
 
               {/* Join Code Box */}
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+              <div className="relative z-10 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 pointer-events-none">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-slate-600">
                     Mã tham gia lớp (Join Code):
@@ -214,7 +213,7 @@ export default function TeacherCourseOfferingsPage() {
                     onClick={() =>
                       handleToggleJoin(offering.id, offering.joinCodeEnabled)
                     }
-                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition ${
+                    className={`pointer-events-auto text-[11px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition ${
                       offering.joinCodeEnabled
                         ? "bg-emerald-100 text-emerald-800"
                         : "bg-slate-200 text-slate-600"
@@ -239,7 +238,7 @@ export default function TeacherCourseOfferingsPage() {
                           alert("Mã tham gia đầy đủ đã được ẩn vì bảo mật. Vui lòng bấm vào nút Sinh lại mã bên cạnh (biểu tượng xoay vòng) để nhận mã mới.");
                         }
                       }}
-                      className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200  text-xs font-semibold text-slate-700 flex items-center gap-1 shadow-sm transition"
+                      className="pointer-events-auto px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 flex items-center gap-1 shadow-sm transition"
                       title={offering.joinCode ? "Sao chép mã" : "Mã đã ẩn, bấm sinh lại để lấy mã mới"}
                     >
                       {copiedCode === offering.joinCode ? (
@@ -257,7 +256,7 @@ export default function TeacherCourseOfferingsPage() {
                     <button
                       type="button"
                       onClick={() => handleRegenerateCode(offering)}
-                      className="p-2 rounded-lg bg-white border border-slate-200  text-slate-500  shadow-sm transition"
+                      className="pointer-events-auto p-2 rounded-lg bg-white border border-slate-200 text-slate-500 shadow-sm transition"
                       title="Tạo lại mã tham gia mới"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
@@ -267,7 +266,7 @@ export default function TeacherCourseOfferingsPage() {
               </div>
 
               {/* Footer Stats & Actions */}
-              <div className="pt-2 flex items-center justify-between text-xs">
+              <div className="relative z-10 flex flex-col gap-3 pt-2 text-xs sm:flex-row sm:items-center sm:justify-between pointer-events-none">
                 <div className="flex items-center gap-4 text-slate-600">
                   <span>
                     Sinh viên: <b>
@@ -286,21 +285,7 @@ export default function TeacherCourseOfferingsPage() {
                     )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Link
-                    href={`/teacher/enrollments?offeringId=${offering.id}`}
-                    className="inline-flex items-center gap-1 font-bold text-red-600 "
-                  >
-                    <Users className="w-3.5 h-3.5" /> Duyệt sinh viên
-                  </Link>
-                  <span>·</span>
-                  <Link
-                    href={`/teacher/documents/${encodeURIComponent(offering.id)}`}
-                    className="inline-flex items-center gap-1 font-semibold text-slate-600 "
-                  >
-                    <FolderKanban className="w-3.5 h-3.5" /> Học liệu
-                  </Link>
-                </div>
+                <span className="inline-flex items-center gap-1 font-bold text-red-700">Mở không gian lớp →</span>
               </div>
             </div>
           ))}
