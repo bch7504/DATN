@@ -355,6 +355,15 @@ export default function CourseMaterialViewerPage() {
                   <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">
                     {entry.response.answer ?? "Không tìm thấy nội dung phù hợp trong phạm vi tài liệu được phép."}
                   </p>
+                  {entry.response.citations.length > 0 && (
+                    <div className="flex flex-wrap gap-2 border-t border-red-100 pt-3">
+                      {entry.response.citations.map((citation, index) => (
+                        <span key={`${citation.documentId}-${citation.pageNumber}-${index}`} className="rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm" title={citation.excerpt}>
+                          {citation.sourceRole === "SUPPORTING" ? "Tài liệu hỗ trợ" : "Slide"}: {citation.documentName ?? "Tài liệu"} · trang {citation.pageNumber}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

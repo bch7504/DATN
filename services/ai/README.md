@@ -8,7 +8,7 @@ Python AI Service xử lý PDF, hỏi đáp có nguồn, tóm tắt, Course Mate
 
 - FastAPI application factory và ASGI entry point.
 - Cả 7 endpoint nội bộ: health, index, deindex, job polling, Personal Assistant, Course Material Tutor và sinh Quiz.
-- Bắt buộc X-Request-Id và X-Schema-Version: 4.
+- Bắt buộc X-Request-Id và X-Schema-Version: 5.
 - Error envelope có cấu trúc, không trả secret hoặc chi tiết nội bộ.
 - Unit/contract test dùng dữ liệu tổng hợp.
 - Khi chạy local, cấu hình tự đọc file `.env` ở root repository; biến môi trường của tiến trình luôn ưu tiên cao hơn.
@@ -26,6 +26,7 @@ Python AI Service xử lý PDF, hỏi đáp có nguồn, tóm tắt, Course Mate
 - Một Orchestrator chọn đúng một trong bốn tool: hỏi đáp PDF, tóm tắt PDF, sinh Quiz có nguồn hoặc nhập Quiz từ văn bản; phạm vi PDF luôn do Java cấp.
 - Course Material Tutor nhận tối đa 12 lượt short-term memory do Java cấp, viết lại câu hỏi
   nối tiếp thành truy vấn độc lập và dùng current page + authorized evidence làm working memory.
+  Scope có một slide chính và tối đa 10 PDF hỗ trợ; rerank ưu tiên trang hiện tại, slide chính rồi mới đến nguồn hỗ trợ.
   Long-term memory thuộc Java; Python không lưu hoặc tự tải lịch sử người dùng.
 - Tóm tắt đọc toàn bộ phạm vi trang trong giới hạn 50 chunks; yêu cầu thu hẹp phạm vi nếu vượt giới hạn.
 - Citation dựng từ nguồn đã truy xuất; có thể trả `NO_EVIDENCE` trước hoặc sau bước tạo nội dung.
@@ -66,7 +67,7 @@ Yêu cầu uv. uv sẽ quản lý Python 3.12 và dependency trong môi trườn
 4. Trên database dành cho dự án, chạy `uv run alembic upgrade head`. Database role cần quyền tạo schema `ai`; extension `vector` cần được quản trị cấp quyền/cài trước khi dùng role hạn chế.
 5. Chạy API: `uv run uvicorn app.asgi:app --host 127.0.0.1 --port 8001 --no-access-log`.
 6. Chạy worker bằng tiến trình riêng: `uv run python -m app.workers.documents`.
-7. Gọi `GET http://127.0.0.1:8001/internal/v1/health` với Bearer token, `X-Request-Id` và `X-Schema-Version: 4`.
+7. Gọi `GET http://127.0.0.1:8001/internal/v1/health` với Bearer token, `X-Request-Id` và `X-Schema-Version: 5`.
 
 Chỉ chạy `health` cần `INTERNAL_SERVICE_TOKEN`. Các luồng AI đầy đủ cần:
 
@@ -123,6 +124,6 @@ Kiểm thử tích hợp pgvector là opt-in: đặt `STUDYFLOW_RUN_POSTGRES_INT
 - Thiếu bằng chứng phải trả NO_EVIDENCE.
 - Mọi câu trả lời, tóm tắt và câu hỏi sinh từ PDF phải có nguồn theo documentId và pageNumber. Quiz nhập từ văn bản phải mang nguồn `IMPORTED_TEXT`, không có citation và không được coi là đã kiểm chứng.
 - Quiz là MCQ_SINGLE: đúng bốn lựa chọn và một đáp án đúng.
-- Chỉ nhận Personal PDF và Course Material `SLIDE_PDF` có text layer từ Java; `REFERENCE_PDF` không được gửi sang Python để lập chỉ mục/Tutor/Quiz. Không OCR, PPTX hoặc DOCX trong MVP.
+- Chỉ nhận Personal PDF và Course Material `SLIDE_PDF|SUPPORTING_PDF` có text layer từ Java; `REFERENCE_PDF` không được gửi sang Python để lập chỉ mục/Tutor/Quiz. Không OCR, PPTX hoặc DOCX trong Python MVP.
 - Không chấm Quiz, cập nhật progress, Study Plan, Streak hoặc Daily Goal.
 - Không log document content, prompt, token, signed URL hoặc secret.

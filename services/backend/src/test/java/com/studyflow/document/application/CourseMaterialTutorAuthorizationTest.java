@@ -13,6 +13,8 @@ import com.studyflow.courseoffering.domain.CourseOfferingStatus;
 import com.studyflow.document.domain.CourseMaterialDocument;
 import com.studyflow.document.domain.CourseMaterialDocumentRepository;
 import com.studyflow.document.domain.CourseMaterialType;
+import com.studyflow.document.domain.CourseMaterialTutorSourceLink;
+import com.studyflow.document.domain.CourseMaterialTutorSourceLinkRepository;
 import com.studyflow.enrollment.domain.CourseEnrollment;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
@@ -36,6 +38,7 @@ class CourseMaterialTutorAuthorizationTest {
     private DocumentPublicationRepository publications;
     private CourseOfferingRepository offerings;
     private CourseEnrollmentRepository enrollments;
+    private CourseMaterialTutorSourceLinkRepository tutorSourceLinks;
     private CourseMaterialLibraryService service;
 
     @SuppressWarnings("unchecked")
@@ -45,11 +48,13 @@ class CourseMaterialTutorAuthorizationTest {
         publications = mock(DocumentPublicationRepository.class);
         offerings = mock(CourseOfferingRepository.class);
         enrollments = mock(CourseEnrollmentRepository.class);
+        tutorSourceLinks = mock(CourseMaterialTutorSourceLinkRepository.class);
         ObjectProvider<AssignmentAttachmentStorage> storage = mock(ObjectProvider.class);
         ObjectProvider<PresentationToPdfConverter> converter = mock(ObjectProvider.class);
         service = new CourseMaterialLibraryService(
                 documents,
                 publications,
+                tutorSourceLinks,
                 offerings,
                 enrollments,
                 storage,
@@ -57,6 +62,8 @@ class CourseMaterialTutorAuthorizationTest {
                 mock(TeacherResourceLibraryService.class),
                 mock(NotificationStore.class),
                 Clock.fixed(Instant.parse("2026-10-21T00:00:00Z"), ZoneOffset.UTC));
+        when(tutorSourceLinks.findByCourseOfferingIdAndPrimaryDocumentIdOrderByCreatedAtAsc(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
     }
 
     /** An approved Student may ask only through an active publication in an active class. */
@@ -90,6 +97,51 @@ class CourseMaterialTutorAuthorizationTest {
         assertEquals(1, scope.documentVersion());
         assertEquals(offeringId, scope.courseOfferingId());
         assertEquals(9, scope.pageCount());
+    }
+
+    /** Linked READY support PDFs in the same published class extend only the Tutor scope. */
+    @Test
+    void includesPublishedSupportingPdfInTutorScope() {
+        UUID studentId = UUID.randomUUID();
+        UUID teacherId = UUID.randomUUID();
+        UUID slideId = UUID.randomUUID();
+        UUID supportId = UUID.randomUUID();
+        UUID offeringId = UUID.randomUUID();
+        Instant now = Instant.parse("2026-10-21T00:00:00Z");
+        CourseMaterialDocument slide = new CourseMaterialDocument(
+                slideId, teacherId, "slide.pdf", "Slide", "slide-key", 100, 9, now);
+        slide.markReady(9, now);
+        CourseMaterialDocument support = new CourseMaterialDocument(
+                supportId, teacherId, "book.pdf", "Giáo trình", "support-key", 200, 20,
+                CourseMaterialType.SUPPORTING_PDF, now);
+        support.markReady(20, now);
+        DocumentPublication slidePublication = new DocumentPublication(
+                UUID.randomUUID(), slideId, offeringId, teacherId, now);
+        DocumentPublication supportPublication = new DocumentPublication(
+                UUID.randomUUID(), supportId, offeringId, teacherId, now);
+        CourseEnrollment enrollment = new CourseEnrollment(UUID.randomUUID(), offeringId, studentId);
+        enrollment.setStatus(EnrollmentStatus.APPROVED);
+        CourseOffering offering = new CourseOffering(
+                offeringId, UUID.randomUUID(), UUID.randomUUID(), teacherId,
+                "KTS-01", "Kỹ thuật số", "hash", "1234");
+        when(documents.findByIdAndDeletedAtIsNull(slideId)).thenReturn(Optional.of(slide));
+        when(documents.findByIdAndDeletedAtIsNull(supportId)).thenReturn(Optional.of(support));
+        when(enrollments.findByStudentIdAndStatus(studentId, EnrollmentStatus.APPROVED))
+                .thenReturn(List.of(enrollment));
+        when(publications.findByDocumentIdAndStatus(slideId, "PUBLISHED"))
+                .thenReturn(List.of(slidePublication));
+        when(publications.findByDocumentIdAndCourseOfferingId(supportId, offeringId))
+                .thenReturn(Optional.of(supportPublication));
+        when(offerings.findById(offeringId)).thenReturn(Optional.of(offering));
+        when(tutorSourceLinks.findByCourseOfferingIdAndPrimaryDocumentIdOrderByCreatedAtAsc(
+                offeringId, slideId)).thenReturn(List.of(new CourseMaterialTutorSourceLink(
+                        UUID.randomUUID(), offeringId, slideId, supportId, teacherId, now)));
+
+        var scope = service.authorizeTutor(studentId, slideId, 4);
+
+        assertEquals(1, scope.supportSources().size());
+        assertEquals(supportId, scope.supportSources().get(0).documentId());
+        assertEquals("SUPPORTING", scope.supportSources().get(0).sourceRole());
     }
 
     /** Archived or locked classes must stop Tutor access immediately. */

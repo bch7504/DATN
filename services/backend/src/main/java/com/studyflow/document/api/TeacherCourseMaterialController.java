@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -86,6 +87,28 @@ public class TeacherCourseMaterialController {
             @RequestParam UUID offeringId) {
         service.revokePublication(userId(jwt), documentId, offeringId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Args: authenticated Teacher, owned primary slide and Course Offering query.
+     * Output: configured supporting PDFs. Errors: 401/403/404/409.
+     */
+    @GetMapping("/{documentId}/supporting-sources")
+    public TutorSourcesResponse listSupportingSources(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID documentId, @RequestParam UUID courseOfferingId) {
+        return service.listTutorSources(userId(jwt), documentId, courseOfferingId);
+    }
+
+    /**
+     * Args: authenticated Teacher, owned primary slide and complete 0..10 support list.
+     * Output: replacement configuration. Errors: 401/403/404/409/422.
+     */
+    @PutMapping("/{documentId}/supporting-sources")
+    public TutorSourcesResponse setSupportingSources(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID documentId,
+            @org.springframework.web.bind.annotation.RequestBody @jakarta.validation.Valid SetTutorSourcesRequest request) {
+        return service.setTutorSources(userId(jwt), documentId, request.courseOfferingId(),
+                request.supportingDocumentIds());
     }
 
     /**

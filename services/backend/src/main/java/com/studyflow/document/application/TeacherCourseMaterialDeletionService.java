@@ -66,7 +66,7 @@ public class TeacherCourseMaterialDeletionService {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_NOT_CONFIGURED",
                     "Kho tệp chưa được cấu hình để xóa học liệu an toàn.");
         }
-        if (document.isSlidePdf()) {
+        if (document.isSlidePdf() || document.isSupportingPdf()) {
             requestDeindex(document, requestId);
         }
         Instant now = clock.instant();

@@ -227,7 +227,8 @@ async def test_pdf_to_grounded_http_result(
                     json={
                         "userId": str(actor_id),
                         "courseOfferingId": str(uuid4()),
-                        "document": document,
+                        "documents": [document],
+                        "currentDocumentId": str(document_id),
                         "currentPageNumber": 2,
                         "question": "Explain Atomicity",
                     },

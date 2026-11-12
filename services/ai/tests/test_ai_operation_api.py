@@ -261,12 +261,13 @@ async def test_course_material_endpoint_preserves_current_page_scope(
             json={
                 "userId": str(uuid4()),
                 "courseOfferingId": str(uuid4()),
-                "document": {
+                "documents": [{
                     "documentId": str(document_id),
                     "documentVersion": 2,
                     "sourceType": "COURSE_MATERIAL_PDF",
                     "allowedPages": [4, 5],
-                },
+                }],
+                "currentDocumentId": str(document_id),
                 "currentPageNumber": 4,
                 "history": [
                     {"role": "USER", "content": "ACID là gì?"},

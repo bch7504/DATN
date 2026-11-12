@@ -142,6 +142,9 @@ class LangChainEvidenceReranker:
             coverage = (
                 len(query_tokens & document_tokens) / len(query_tokens) if query_tokens else 0.0
             )
+            primary_document_bonus = (
+                0.03 if payload["scope"].current_document_id == item.document_id else 0.0
+            )
             current_page_bonus = 0.0
             if (
                 payload["scope"].current_document_id == item.document_id
@@ -149,11 +152,17 @@ class LangChainEvidenceReranker:
             ):
                 current_page_bonus = 0.05
             if payload["llm_scores"] is None:
-                base_score = 0.80 * item.relevance_score + 0.15 * coverage + current_page_bonus
+                base_score = (
+                    0.80 * item.relevance_score
+                    + 0.12 * coverage
+                    + primary_document_bonus
+                    + current_page_bonus
+                )
             else:
                 base_score = (
                     0.70 * payload["llm_scores"][item.evidence_id]
-                    + 0.25 * item.relevance_score
+                    + 0.22 * item.relevance_score
+                    + primary_document_bonus
                     + current_page_bonus
                 )
             remaining.append((document, base_score, document_tokens))

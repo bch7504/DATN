@@ -34,7 +34,7 @@ async def test_health_returns_structured_ready_response(
         "version": "0.1.0",
         "status": "UP",
         "readiness": "READY",
-        "schemaVersion": "4",
+        "schemaVersion": "5",
         "requestId": "req_health_001",
         "missingConfiguration": [],
     }

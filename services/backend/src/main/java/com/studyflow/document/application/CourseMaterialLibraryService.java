@@ -4,8 +4,11 @@ import com.studyflow.courseoffering.domain.CourseOffering;
 import com.studyflow.courseoffering.domain.CourseOfferingRepository;
 import com.studyflow.courseoffering.domain.CourseOfferingStatus;
 import com.studyflow.document.api.TeacherDocumentResponse;
+import com.studyflow.document.api.TutorSourcesResponse;
 import com.studyflow.document.domain.CourseMaterialDocument;
 import com.studyflow.document.domain.CourseMaterialDocumentRepository;
+import com.studyflow.document.domain.CourseMaterialTutorSourceLink;
+import com.studyflow.document.domain.CourseMaterialTutorSourceLinkRepository;
 import com.studyflow.document.domain.CourseMaterialType;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
@@ -61,6 +64,7 @@ public class CourseMaterialLibraryService {
     private static final long MAX_BYTES = 20L * 1024 * 1024;
     private final CourseMaterialDocumentRepository documents;
     private final DocumentPublicationRepository publications;
+    private final CourseMaterialTutorSourceLinkRepository tutorSourceLinks;
     private final CourseOfferingRepository offerings;
     private final CourseEnrollmentRepository enrollments;
     private final ObjectProvider<AssignmentAttachmentStorage> storageProvider;
@@ -71,6 +75,7 @@ public class CourseMaterialLibraryService {
 
     public CourseMaterialLibraryService(CourseMaterialDocumentRepository documents,
                                         DocumentPublicationRepository publications,
+                                        CourseMaterialTutorSourceLinkRepository tutorSourceLinks,
                                         CourseOfferingRepository offerings,
                                         CourseEnrollmentRepository enrollments,
                                         ObjectProvider<AssignmentAttachmentStorage> storageProvider,
@@ -80,6 +85,7 @@ public class CourseMaterialLibraryService {
                                         Clock clock) {
         this.documents = documents;
         this.publications = publications;
+        this.tutorSourceLinks = tutorSourceLinks;
         this.offerings = offerings;
         this.enrollments = enrollments;
         this.storageProvider = storageProvider;
@@ -104,9 +110,9 @@ public class CourseMaterialLibraryService {
     }
 
     /**
-     * Args: authenticated Teacher, PDF/PPTX, title and SLIDE_PDF|REFERENCE_PDF.
+     * Args: authenticated Teacher, PDF/PPTX, title and SLIDE_PDF|SUPPORTING_PDF|REFERENCE_PDF.
      * Input: bounded multipart upload; PPTX is converted internally and the source bytes are not stored.
-     * Output: persisted metadata; SLIDE_PDF starts PENDING_PROCESSING, REFERENCE_PDF starts READY.
+     * Output: persisted metadata; SLIDE/SUPPORTING start PENDING_PROCESSING, REFERENCE starts READY.
      * Errors: validation/media/storage errors; REFERENCE_PDF never creates an AI job.
      */
     @Transactional
@@ -127,7 +133,7 @@ public class CourseMaterialLibraryService {
             parsedMaterialType = CourseMaterialType.parse(materialType);
         } catch (IllegalArgumentException exception) {
             throw new ValidationException("INVALID_MATERIAL_TYPE",
-                    "Loại học liệu phải là SLIDE_PDF hoặc REFERENCE_PDF.");
+                    "Loại học liệu phải là SLIDE_PDF, SUPPORTING_PDF hoặc REFERENCE_PDF.");
         }
         if (file == null || file.isEmpty()) throw new ValidationException("INVALID_FILE", "Vui lòng chọn tệp PDF hoặc PPTX.");
         if (file.getSize() > MAX_BYTES) throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "Tệp vượt giới hạn 20 MB.");
@@ -342,6 +348,101 @@ public class CourseMaterialLibraryService {
     }
 
     /**
+     * Args: authenticated Teacher, primary slide and owned Course Offering.
+     * Input: existing Teacher-owned slide configuration. Output: currently configured support PDFs.
+     * Errors: 403 non-owner, 404 missing resource, 409 when primary is not a slide.
+     */
+    @Transactional(readOnly = true)
+    public TutorSourcesResponse listTutorSources(UUID teacherId, UUID primaryDocumentId, UUID offeringId) {
+        CourseMaterialDocument primary = requireTutorPrimary(teacherId, primaryDocumentId, offeringId);
+        List<TutorSourcesResponse.Source> sources = tutorSourceLinks
+                .findByCourseOfferingIdAndPrimaryDocumentIdOrderByCreatedAtAsc(offeringId, primaryDocumentId)
+                .stream()
+                .map(link -> documents.findByIdAndDeletedAtIsNull(link.getSupportingDocumentId()).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .map(document -> new TutorSourcesResponse.Source(document.getId(), document.getDisplayName(),
+                        document.getDocumentVersion(), document.getPageCount()))
+                .toList();
+        return new TutorSourcesResponse(primary.getId(), offeringId, sources);
+    }
+
+    /**
+     * Args: authenticated Teacher, primary slide, owned Course Offering and complete support ID list.
+     * Input: 0..10 unique READY SUPPORTING_PDF documents actively published in the same class.
+     * Output: replacement configuration. Side effect: replaces links transactionally and idempotently.
+     * Errors: 403 non-owner, 404 missing resource/publication, 409 wrong type/readiness, 422 invalid list.
+     */
+    @Transactional
+    public TutorSourcesResponse setTutorSources(UUID teacherId, UUID primaryDocumentId, UUID offeringId,
+                                                List<UUID> supportingDocumentIds) {
+        requireTutorPrimary(teacherId, primaryDocumentId, offeringId);
+        if (supportingDocumentIds == null || supportingDocumentIds.size() > 10
+                || supportingDocumentIds.stream().anyMatch(java.util.Objects::isNull)) {
+            throw new ValidationException("INVALID_SUPPORTING_SOURCES",
+                    "Danh sách tài liệu hỗ trợ phải có tối đa 10 mã hợp lệ.");
+        }
+        List<UUID> uniqueIds = new ArrayList<>(new LinkedHashSet<>(supportingDocumentIds));
+        if (uniqueIds.size() != supportingDocumentIds.size() || uniqueIds.contains(primaryDocumentId)) {
+            throw new ValidationException("INVALID_SUPPORTING_SOURCES",
+                    "Tài liệu hỗ trợ không được trùng lặp hoặc trùng slide chính.");
+        }
+        for (UUID sourceId : uniqueIds) {
+            CourseMaterialDocument source = requireOwned(teacherId, sourceId);
+            if (!source.isSupportingPdf()) {
+                throw new ApiException(HttpStatus.CONFLICT, "MATERIAL_NOT_SUPPORTING",
+                        "Nguồn hỗ trợ phải có loại SUPPORTING_PDF.");
+            }
+            if (!"READY".equals(source.getProcessingStatus())) {
+                throw new ApiException(HttpStatus.CONFLICT, "DOCUMENT_NOT_READY",
+                        "Tài liệu hỗ trợ chưa sẵn sàng.");
+            }
+            requireActivePublication(sourceId, offeringId);
+        }
+        List<CourseMaterialTutorSourceLink> existing = tutorSourceLinks
+                .findByCourseOfferingIdAndPrimaryDocumentIdOrderByCreatedAtAsc(offeringId, primaryDocumentId);
+        Set<UUID> selected = new LinkedHashSet<>(uniqueIds);
+        tutorSourceLinks.deleteAll(existing.stream()
+                .filter(link -> !selected.contains(link.getSupportingDocumentId())).toList());
+        Set<UUID> existingIds = existing.stream().map(CourseMaterialTutorSourceLink::getSupportingDocumentId)
+                .collect(java.util.stream.Collectors.toSet());
+        Instant now = clock.instant();
+        tutorSourceLinks.saveAll(uniqueIds.stream().filter(id -> !existingIds.contains(id))
+                .map(id -> new CourseMaterialTutorSourceLink(UUID.randomUUID(), offeringId,
+                        primaryDocumentId, id, teacherId, now)).toList());
+        return listTutorSources(teacherId, primaryDocumentId, offeringId);
+    }
+
+    /** Validate primary slide ownership, class ownership, readiness and active publication. */
+    private CourseMaterialDocument requireTutorPrimary(UUID teacherId, UUID primaryDocumentId, UUID offeringId) {
+        CourseMaterialDocument primary = requireOwned(teacherId, primaryDocumentId);
+        if (!primary.isSlidePdf()) {
+            throw new ApiException(HttpStatus.CONFLICT, "MATERIAL_NOT_TUTORABLE",
+                    "Chỉ SLIDE_PDF được dùng làm tài liệu chính của AI Tutor.");
+        }
+        if (!"READY".equals(primary.getProcessingStatus())) {
+            throw new ApiException(HttpStatus.CONFLICT, "DOCUMENT_NOT_READY", "Slide chưa sẵn sàng.");
+        }
+        CourseOffering offering = offerings.findById(offeringId)
+                .orElseThrow(() -> new ResourceNotFoundException("COURSE_NOT_FOUND", "Không tìm thấy lớp học phần."));
+        if (!offering.isOwnedBy(teacherId)) {
+            throw new ForbiddenException("FORBIDDEN", "Bạn không sở hữu lớp học phần đã chọn.");
+        }
+        requireActivePublication(primaryDocumentId, offeringId);
+        return primary;
+    }
+
+    /** Require one active publication without exposing publication metadata. */
+    private void requireActivePublication(UUID documentId, UUID offeringId) {
+        DocumentPublication publication = publications.findByDocumentIdAndCourseOfferingId(documentId, offeringId)
+                .orElseThrow(() -> new ResourceNotFoundException("PUBLICATION_NOT_FOUND",
+                        "Tài liệu chưa được công bố trong lớp học phần."));
+        if (!"PUBLISHED".equals(publication.getStatus())) {
+            throw new ApiException(HttpStatus.CONFLICT, "PUBLICATION_NOT_ACTIVE",
+                    "Tài liệu không còn được công bố trong lớp học phần.");
+        }
+    }
+
+    /**
      * Args: owner, owned PDF, class and active publication with event time. Input: newly published class.
      * Output: void; adds one owner notice and notices/email for currently approved Students.
      * Errors: persistence failure rolls back publication and all notices.
@@ -547,7 +648,22 @@ public class CourseMaterialLibraryService {
                 .map(offering -> offering.getStatus() != CourseOfferingStatus.ACTIVE).orElse(true)) {
             throw new ForbiddenException("ENROLLMENT_REQUIRED", "Lớp học phần không còn hoạt động để hỏi đáp.");
         }
-        return scope;
+        List<TutorSourceScope> supportSources = tutorSourceLinks
+                .findByCourseOfferingIdAndPrimaryDocumentIdOrderByCreatedAtAsc(
+                        scope.courseOfferingId(), scope.documentId()).stream()
+                .map(link -> documents.findByIdAndDeletedAtIsNull(link.getSupportingDocumentId()).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .filter(CourseMaterialDocument::isSupportingPdf)
+                .filter(document -> "READY".equals(document.getProcessingStatus()))
+                .filter(document -> publications.findByDocumentIdAndCourseOfferingId(
+                                document.getId(), scope.courseOfferingId())
+                        .map(publication -> "PUBLISHED".equals(publication.getStatus())).orElse(false))
+                .limit(10)
+                .map(document -> new TutorSourceScope(document.getId(), document.getDocumentVersion(),
+                        document.getOwnerId(), document.getDisplayName(), document.getPageCount(), "SUPPORTING"))
+                .toList();
+        return new TutorScope(scope.documentId(), scope.documentVersion(), scope.ownerId(),
+                scope.documentName(), scope.pageCount(), scope.courseOfferingId(), supportSources);
     }
 
     /**
@@ -662,5 +778,19 @@ public class CourseMaterialLibraryService {
 
     /** Authorized immutable values used to call Python without exposing storage metadata. */
     public record TutorScope(UUID documentId, int documentVersion, UUID ownerId, String documentName,
-                             int pageCount, UUID courseOfferingId) { }
+                             int pageCount, UUID courseOfferingId, List<TutorSourceScope> supportSources) {
+        public TutorScope {
+            supportSources = supportSources == null ? List.of() : List.copyOf(supportSources);
+        }
+
+        /** Backward-compatible primary-only scope used by existing page/note callers and tests. */
+        public TutorScope(UUID documentId, int documentVersion, UUID ownerId, String documentName,
+                          int pageCount, UUID courseOfferingId) {
+            this(documentId, documentVersion, ownerId, documentName, pageCount, courseOfferingId, List.of());
+        }
+    }
+
+    /** One authorized supporting PDF included in a Tutor request. */
+    public record TutorSourceScope(UUID documentId, int documentVersion, UUID ownerId,
+                                   String documentName, int pageCount, String sourceRole) { }
 }

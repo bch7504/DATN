@@ -25,15 +25,21 @@ test("Course Material library uses persisted Java files without fixtures", async
     assert.doesNotMatch(client, /demoTeacherDocs|DEMO_MATERIAL_PAGES|demoPageNotes/);
   });
 
-  await t.test("Teacher personal libraries can publish one source document into each class library without replacing prior links", () => {
+  await t.test("Teacher libraries bulk-publish selected documents and link Slide Tutor support sources", () => {
     assert.match(teacherPage, /Kho chung của giảng viên/);
     assert.match(teacherPage, /Tài liệu tải lên/);
     assert.match(teacherPage, /teacher\/documents\/libraries\//);
     assert.match(teacherPage, /Kho tài liệu của lớp|Tài liệu của lớp/);
-    assert.match(teacherPage, /addDocumentToClassLibrary/);
+    assert.match(teacherPage, /addSelectedDocumentsToClass/);
+    assert.match(teacherPage, /selectedDocumentIds/);
+    assert.match(teacherPage, />STT</);
+    assert.match(teacherPage, />Loại tài liệu</);
     assert.match(teacherPage, /new Set\(document\.publishedOfferings\.map/);
-    assert.match(teacherPage, /publicationIds\.add\(targetOfferingId\)/);
-    assert.match(teacherPage, /teacherDocApi\.publishDocument\(documentId, Array\.from\(publicationIds\)\)/);
+    assert.match(teacherPage, /publicationIds\.add\(bulkTargetOfferingId\)/);
+    assert.match(teacherPage, /teacherDocApi\.publishDocument\(document\.id, Array\.from\(publicationIds\)\)/);
+    assert.match(teacherPage, /teacherDocApi\.getTutorSources/);
+    assert.match(teacherPage, /teacherDocApi\.setTutorSources/);
+    assert.match(teacherUpload, /SUPPORTING_PDF/);
     assert.match(teacherPage, /Thêm vào lớp/);
     assert.match(teacherPage, /Mở kho giảng viên/);
     assert.doesNotMatch(teacherPage, /Thêm tài liệu vào kho lớp/);
@@ -57,6 +63,7 @@ test("Course Material library uses persisted Java files without fixtures", async
     assert.match(client, /\/student\/materials\/\$\{encodeURIComponent\(documentId\)\}\/pages\/\$\{pageNumber\}\/tutor/);
     assert.match(viewerPage, /materialApi\.askTutor/);
     assert.match(viewerPage, /AI Tutor/);
+    assert.match(viewerPage, /citation\.sourceRole === "SUPPORTING"/);
     assert.match(viewerPage, /<img/);
     assert.match(viewerPage, /isTutorOpen/);
     assert.match(viewerPage, /setIsTutorOpen/);

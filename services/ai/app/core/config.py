@@ -31,7 +31,7 @@ class Settings(BaseSettings):
         validation_alias="INTERNAL_SERVICE_TOKEN",
         min_length=16,
     )
-    internal_schema_version: Literal["4"] = "4"
+    internal_schema_version: Literal["5"] = "5"
     ai_database_url: SecretStr | None = Field(
         default=None,
         validation_alias="AI_DATABASE_URL",

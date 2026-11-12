@@ -2,7 +2,7 @@ import { getApiUrl } from "./env";
 import { User, LoginRequest, RegisterRequest, RegistrationStatusResponse, VerifyRegistrationRequest, ResendVerificationRequest, } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
 import { Subject, Semester, CourseOffering, CourseEnrollment, CreateOfferingRequest, } from "@/types/course-offering";
-import { TeacherDocument, PersonalDocument, CourseMaterialTutorHistory, CourseMaterialTutorResponse, CourseMaterialType, PageNote, SlideTextLayer, TeacherResourceLibrary, TeacherLibraryItemType, } from "@/types/material";
+import { TeacherDocument, PersonalDocument, CourseMaterialTutorHistory, CourseMaterialTutorResponse, CourseMaterialType, PageNote, SlideTextLayer, TeacherResourceLibrary, TeacherLibraryItemType, TutorSources, } from "@/types/material";
 import { ChatConversation, ChatMessage, CreateConversationRequest, SendMessageRequest, } from "@/types/chat";
 import { Quiz, QuizDraft, QuizAttempt, CreateQuizDraftRequest, AcceptQuizRequest, SubmitQuizAttemptRequest, StartQuizAttemptResponse, SubmitAttemptResponse, } from "@/types/quiz";
 import { ReviewItem, CourseReviewSummary, CourseReviewWorkspace, DailyGoalProgress, DailyGoalConfig, StudyStreak, } from "@/types/review";
@@ -816,7 +816,7 @@ export const teacherApi = {
      * Uploads one Teacher Course Material source through Java.
      * @param file required PDF or PPTX, non-empty and at most 20 MiB
      * @param title required display title validated again by Java
-     * @param materialType required SLIDE_PDF or REFERENCE_PDF
+     * @param materialType required SLIDE_PDF, SUPPORTING_PDF or REFERENCE_PDF
      * @param libraryId optional owned destination; Java files into the DEFAULT library when omitted
      * @returns normalized PDF metadata; a PPTX source is converted server-side and never stored as PPTX
      * @throws ApiClientError for invalid input, conversion, storage, authentication or authorization errors
@@ -851,6 +851,17 @@ export const teacherApi = {
     },
     async revokePublication(documentId: string, offeringId: string): Promise<void> {
         await apiFetch<void>(`/teacher/documents/${documentId}/publications?offeringId=${offeringId}`, { method: "DELETE" });
+    },
+    /** Returns support PDFs configured for one owned slide and class. */
+    getTutorSources(documentId: string, courseOfferingId: string): Promise<TutorSources> {
+        return apiFetch(`/teacher/documents/${encodeURIComponent(documentId)}/supporting-sources?courseOfferingId=${encodeURIComponent(courseOfferingId)}`);
+    },
+    /** Replaces the support-PDF set for one owned slide and class. */
+    setTutorSources(documentId: string, courseOfferingId: string, supportingDocumentIds: string[]): Promise<TutorSources> {
+        return apiFetch(`/teacher/documents/${encodeURIComponent(documentId)}/supporting-sources`, {
+            method: "PUT",
+            body: JSON.stringify({ courseOfferingId, supportingDocumentIds })
+        });
     }
 };
 

@@ -48,10 +48,10 @@ class HttpAiServiceClientTest {
                 .andExpect(method(HttpMethod.GET))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN))
                 .andExpect(header("X-Request-Id", "req-health-001"))
-                .andExpect(header("X-Schema-Version", "4"))
+                .andExpect(header("X-Schema-Version", "5"))
                 .andRespond(withSuccess("""
                         {"service":"studyflow-ai","version":"0.1.0","status":"UP",
-                         "readiness":"READY","schemaVersion":"4","requestId":"req-health-001",
+                         "readiness":"READY","schemaVersion":"5","requestId":"req-health-001",
                          "missingConfiguration":[]}
                         """, MediaType.APPLICATION_JSON));
 
@@ -67,7 +67,7 @@ class HttpAiServiceClientTest {
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN))
                 .andExpect(header("X-Request-Id", "req-quiz-001"))
-                .andExpect(header("X-Schema-Version", "4"))
+                .andExpect(header("X-Schema-Version", "5"))
                 .andExpect(header("Idempotency-Key", "quiz-key-001"))
                 .andRespond(withSuccess(validQuizJson("req-quiz-001"), MediaType.APPLICATION_JSON));
 

@@ -211,7 +211,9 @@ class RealHttpApiTest {
             AiContracts.CourseMaterialAskRequest request = call.getArgument(0);
             String requestId = call.getArgument(1);
             tutorRequests.add(request);
-            AiContracts.AuthorizedDocument document = request.document();
+            AiContracts.AuthorizedDocument document = request.documents().stream()
+                    .filter(item -> item.documentId().equals(request.currentDocumentId()))
+                    .findFirst().orElseThrow();
             return new AiContracts.CourseMaterialAskResponse(requestId,
                     new AiContracts.GroundedAnswerResult(AiContracts.AnswerStatus.ANSWERED,
                             "Câu trả lời tổng hợp từ trang đang xem.",

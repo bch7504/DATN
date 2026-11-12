@@ -93,7 +93,7 @@ Business/error:
 | GET | `/api/v1/student/materials/{documentId}/slides/{pageNumber}` | Chỉ `SLIDE_PDF`; Java kiểm tra enrollment/publication rồi render đúng một trang thành PNG cho Viewer, trả `X-Total-Slides`; không trả tệp PDF hoặc storage key |
 | GET | `/api/v1/student/materials/{documentId}/slides/{pageNumber}/text-layer` | Trả kích thước trang và các đoạn chữ có tọa độ để Student bôi đen/copy trên đúng trang đang xem; không trả PDF nguồn |
 
-Course Material nhận PDF có text layer hoặc PPTX được Java chuẩn hóa thành PDF, bắt buộc phân loại `SLIDE_PDF|REFERENCE_PDF`. `SLIDE_PDF` được xem từng trang như slide PNG, lưu Page Note/view event và dùng AI Tutor; Student không có API tải tệp nguồn. `REFERENCE_PDF` chỉ được tải xuống, không được lập chỉ mục hoặc gửi sang Tutor. Response luôn có `materialType`; dữ liệu tiến độ lấy từ schema `app`, không dùng dữ liệu giả.
+Course Material nhận PDF có text layer hoặc PPTX được Java chuẩn hóa thành PDF, bắt buộc phân loại `SLIDE_PDF|SUPPORTING_PDF|REFERENCE_PDF`. `SLIDE_PDF` được xem từng trang như slide PNG, lưu Page Note/view event và là nguồn chính của AI Tutor; Student không có API tải tệp nguồn. `SUPPORTING_PDF` là giáo trình/tài liệu hỗ trợ được lập chỉ mục và chỉ được Tutor sử dụng khi Teacher liên kết với một `SLIDE_PDF` trong cùng lớp đã công bố. `REFERENCE_PDF` chỉ được tải xuống, không được lập chỉ mục hoặc gửi sang Tutor. Response luôn có `materialType`; dữ liệu tiến độ lấy từ schema `app`, không dùng dữ liệu giả.
 
 Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ khi offering `ARCHIVED`, trừ khi `LOCKED`, publication revoked hoặc policy retention chặn.
 
@@ -104,7 +104,14 @@ Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ k
 - `POST /api/v1/student/materials/{documentId}/pages/{number}/tutor`
 - `GET /api/v1/student/materials/{documentId}/tutor/history`
 
-Endpoint Tutor chỉ chấp nhận tài liệu `SLIDE_PDF`. Frontend chỉ gọi endpoint Java này; Java xác thực Student, enrollment `APPROVED`, publication, trạng thái Course Offering và `materialType` trước khi chuyển phạm vi tài liệu tối thiểu sang Python `/internal/v1/course-materials/ask`. Java kiểm tra lại `documentId`, `documentVersion` và `pageNumber` của mọi citation trước khi trả về trình duyệt. Gọi Tutor cho `REFERENCE_PDF` trả `409 MATERIAL_NOT_TUTORABLE`.
+Endpoint Tutor chỉ được mở từ tài liệu chính `SLIDE_PDF`. Frontend chỉ gọi endpoint Java này; Java xác thực Student, enrollment `APPROVED`, publication, trạng thái Course Offering và `materialType`, sau đó dựng phạm vi gồm slide chính và tối đa 10 `SUPPORTING_PDF` đã được Teacher liên kết, công bố và lập chỉ mục trong cùng lớp. Python ưu tiên trang đang xem, tiếp đến các trang khác của slide chính, rồi mới dùng tài liệu hỗ trợ. Java kiểm tra lại `documentId`, `documentVersion` và `pageNumber` của mọi citation trước khi trả về trình duyệt. Gọi Tutor trực tiếp cho `SUPPORTING_PDF` hoặc `REFERENCE_PDF` trả `409 MATERIAL_NOT_TUTORABLE`.
+
+Teacher quản lý nguồn hỗ trợ qua:
+
+- `GET /api/v1/teacher/documents/{slideDocumentId}/supporting-sources?courseOfferingId=...`
+- `PUT /api/v1/teacher/documents/{slideDocumentId}/supporting-sources` với `{courseOfferingId,supportingDocumentIds[]}`; tối đa 10 tài liệu, không trùng ID.
+
+Java chỉ chấp nhận slide chính và tài liệu hỗ trợ đều thuộc Teacher, `READY` và đang được công bố trong cùng Course Offering do Teacher sở hữu. Thao tác lặp với cùng danh sách là idempotent. Thu hồi publication lập tức loại tài liệu đó khỏi phạm vi Tutor dù liên kết vẫn còn trong lịch sử cấu hình.
 
 Text-layer response dùng schema cố định `{pageNumber,pageWidth,pageHeight,items[]}`; mỗi item gồm `{text,x,y,width,height}` theo hệ tọa độ của trang. Frontend chỉ dùng dữ liệu này làm lớp chữ chọn/copy đặt trên ảnh trang PDF. Lỗi trích xuất trả `502 SLIDE_TEXT_EXTRACTION_FAILED`; Viewer vẫn có thể hiển thị ảnh trang nếu lớp chữ tạm thời lỗi.
 
@@ -511,7 +518,7 @@ Header:
 ```text
 Authorization: Bearer <service-token>
 X-Request-Id: req_...
-X-Schema-Version: 4
+X-Schema-Version: 5
 Idempotency-Key: ...   # index/deindex/Quiz generation
 ```
 
@@ -521,7 +528,7 @@ Idempotency-Key: ...   # index/deindex/Quiz generation
 | POST `/internal/v1/documents/deindex` | document/version/pipeline | Idempotent job |
 | GET `/internal/v1/jobs/{jobId}` | job ID | status/attempt/error/artifact metadata |
 | POST `/internal/v1/personal-assistant/runs` | userId, conversationId, authorized Personal PDF/version scope, history window, untrusted message | selected tool + `ANSWERED|SUMMARIZED|QUIZ_CREATED|NEEDS_CLARIFICATION|NO_EVIDENCE`, page citations hoặc Quiz `PDF_GROUNDED|IMPORTED_TEXT` có cấu trúc |
-| POST `/internal/v1/course-materials/ask` | user/document/current page/allowed page scope, tối đa 12 lượt history và câu hỏi hiện tại | `ANSWERED|NO_EVIDENCE` + page citations; Python chỉ dùng history để viết lại truy vấn, không coi history là evidence |
+| POST `/internal/v1/course-materials/ask` | user/courseOffering, `documents[]` gồm slide chính và PDF hỗ trợ đã cấp quyền, `currentDocumentId`, trang hiện tại, tối đa 12 lượt history và câu hỏi | `ANSWERED|NO_EVIDENCE` + page citations; Python ưu tiên slide chính trước nguồn hỗ trợ và chỉ dùng history để viết lại truy vấn, không coi history là evidence |
 | POST `/internal/v1/quizzes/generate` | actorId, mode `PERSONAL_STUDENT|COURSE_TEACHER`, authorized document/version/page scope, structured generation args | Structured `MCQ_SINGLE` draft; mỗi câu đúng 4 options, một correctOptionIndex, page citation và tối đa một image reference lấy từ chính evidence đã cấp |
 | GET `/internal/v1/health` | common headers | Liveness/readiness |
 
@@ -553,5 +560,5 @@ Quy tắc `signedUrl` của endpoint index:
 - Poll/job GET retry có backoff giới hạn.
 - Index/deindex key: `documentId:version:pipeline:operation`.
 - Không retry mù LLM request sau timeout; Java dùng request/run identity để chống tạo duplicate Quiz/message.
-- Wire shape có image reference sử dụng `X-Schema-Version: 4`; Java/Python phải từ chối version khác và contract test hai phía phải kiểm cả image hợp lệ, image vượt scope và Quiz nhập văn bản không có image.
+- Wire shape có image reference sử dụng `X-Schema-Version: 5`; Java/Python phải từ chối version khác và contract test hai phía phải kiểm cả image hợp lệ, image vượt scope và Quiz nhập văn bản không có image.
 - Job polling không trả signed URL/content; internal error chỉ có safe code + trace ID.

@@ -104,10 +104,10 @@ async def ask_course_material(
         Depends(get_grounded_answer_service),
     ],
 ) -> CourseMaterialAskResponse:
-    """Answer a Student question from one authorized Course Material PDF.
+    """Answer from an authorized primary slide and linked supporting PDFs.
 
     Args:
-        payload: Student, Course Offering, PDF, page scope, and question.
+        payload: Student, Course Offering, ordered PDF scopes, current page, and question.
         context: Authenticated service request context.
         answer_service: Grounded answer service with current-page retrieval bias.
 

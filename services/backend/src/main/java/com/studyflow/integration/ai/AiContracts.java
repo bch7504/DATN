@@ -6,7 +6,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Typed schema-version-4 values exchanged only between Java and the Python AI service.
+ * Typed schema-version-5 values exchanged only between Java and the Python AI service.
  * Browser-facing DTOs must not reuse these records directly.
  */
 public final class AiContracts {
@@ -179,7 +179,8 @@ public final class AiContracts {
     public record CourseMaterialAskRequest(
             UUID userId,
             UUID courseOfferingId,
-            AuthorizedDocument document,
+            List<AuthorizedDocument> documents,
+            UUID currentDocumentId,
             int currentPageNumber,
             List<ConversationTurn> history,
             String question

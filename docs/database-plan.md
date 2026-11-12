@@ -98,13 +98,21 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 ### `documents`
 
-`id`, `owner_id`, `owner_role`, `document_scope (COURSE_MATERIAL|PERSONAL)`, `material_type (SLIDE_PDF|REFERENCE_PDF, chỉ áp dụng Course Material)`, `file_name`, `display_name`, `file_type=PDF`, `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, timestamps, soft-delete fields.
+`id`, `owner_id`, `owner_role`, `document_scope (COURSE_MATERIAL|PERSONAL)`, `material_type (SLIDE_PDF|SUPPORTING_PDF|REFERENCE_PDF, chỉ áp dụng Course Material)`, `file_name`, `display_name`, `file_type=PDF`, `mime_type`, `file_size`, `storage_key`, `processing_status`, `document_version`, `page_count`, timestamps, soft-delete fields.
 
 - Personal: owner Student, chỉ PDF có text layer cho AI.
-- Course Material: owner Teacher; nguồn upload có thể là PDF text-layer hoặc PPTX nhưng Java chỉ tạo bản ghi sau khi có PDF đã chuẩn hóa. Vì vậy `file_type`/`mime_type` trong database và object lưu trữ luôn là PDF. `SLIDE_PDF` được AI index theo trang; `REFERENCE_PDF` chỉ tải xuống và không có vector/chunk AI.
+- Course Material: owner Teacher; nguồn upload có thể là PDF text-layer hoặc PPTX nhưng Java chỉ tạo bản ghi sau khi có PDF đã chuẩn hóa. `SLIDE_PDF` và `SUPPORTING_PDF` được AI index theo trang; `REFERENCE_PDF` chỉ tải xuống và không có vector/chunk AI.
 - Mọi document muốn public phải `READY`; chỉ `SLIDE_PDF READY` được dùng cho Viewer/Tutor/AI Quiz.
 - Migration `V7` tạo bảng `app.documents`, index owner/scope, soft-delete và giữ object key private. Course Material MVP kiểm tra text layer + page count trước khi đánh dấu `READY`; file không rời Object Storage qua API ngoại trừ stream có phân quyền.
 - Object key không trả browser.
+
+### `course_material_tutor_sources`
+
+`id`, `course_offering_id`, `primary_document_id`, `supporting_document_id`, `created_by`, `created_at`.
+
+- Migration `V29` bổ sung `SUPPORTING_PDF` và bảng liên kết nguồn cho Tutor.
+- Khóa duy nhất `(course_offering_id, primary_document_id, supporting_document_id)` ngăn liên kết trùng.
+- Java chỉ dựng scope từ liên kết có slide và tài liệu hỗ trợ `READY`, còn công bố trong cùng Course Offering.
 
 ### `document_publications`
 

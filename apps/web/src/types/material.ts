@@ -1,7 +1,7 @@
 import { DocumentStatus } from "./api";
 
 export type DocumentType = "PDF";
-export type CourseMaterialType = "SLIDE_PDF" | "REFERENCE_PDF";
+export type CourseMaterialType = "SLIDE_PDF" | "SUPPORTING_PDF" | "REFERENCE_PDF";
 
 export interface TeacherDocument {
   id: string;
@@ -56,8 +56,15 @@ export interface SlideTextLayer {
 export interface PageCitation {
   documentId: string;
   documentName?: string;
+  sourceRole?: "SLIDE" | "SUPPORTING";
   pageNumber: number;
   excerpt: string;
+}
+
+export interface TutorSources {
+  primaryDocumentId: string;
+  courseOfferingId: string;
+  sources: Array<{ documentId: string; title: string; documentVersion: number; pageCount: number }>;
 }
 
 export interface CourseMaterialTutorResponse {

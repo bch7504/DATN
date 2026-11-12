@@ -13,6 +13,7 @@ import com.studyflow.courseoffering.domain.CourseOfferingRepository;
 import com.studyflow.document.domain.CourseMaterialDocument;
 import com.studyflow.document.domain.CourseMaterialDocumentRepository;
 import com.studyflow.document.domain.CourseMaterialType;
+import com.studyflow.document.domain.CourseMaterialTutorSourceLinkRepository;
 import com.studyflow.enrollment.domain.CourseEnrollment;
 import com.studyflow.enrollment.domain.CourseEnrollmentRepository;
 import com.studyflow.enrollment.domain.EnrollmentStatus;
@@ -66,7 +67,8 @@ class CourseMaterialAccessTest {
         ObjectProvider<AssignmentAttachmentStorage> provider = mock(ObjectProvider.class);
         ObjectProvider<PresentationToPdfConverter> converterProvider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(storage);
-        service = new CourseMaterialLibraryService(documents, publications, offerings, enrollments,
+        service = new CourseMaterialLibraryService(documents, publications,
+                mock(CourseMaterialTutorSourceLinkRepository.class), offerings, enrollments,
                 provider, converterProvider, mock(TeacherResourceLibraryService.class), notifications,
                 Clock.fixed(now, ZoneOffset.UTC));
         document = new CourseMaterialDocument(UUID.randomUUID(), teacher, "lesson.pdf", "Lesson",

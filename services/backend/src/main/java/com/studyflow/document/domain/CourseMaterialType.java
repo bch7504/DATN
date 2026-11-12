@@ -3,6 +3,7 @@ package com.studyflow.document.domain;
 /** Public Course Material behavior while the physical file remains a text-layer PDF. */
 public enum CourseMaterialType {
     SLIDE_PDF,
+    SUPPORTING_PDF,
     REFERENCE_PDF;
 
     /**

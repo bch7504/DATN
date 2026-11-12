@@ -38,7 +38,9 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
   const [newLibraryName, setNewLibraryName] = useState("");
   const [newLibrarySubjectId, setNewLibrarySubjectId] = useState("");
   const [showCreateLibrary, setShowCreateLibrary] = useState(false);
-  const [targetOfferingByDocument, setTargetOfferingByDocument] = useState<Record<string, string>>({});
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [bulkTargetOfferingId, setBulkTargetOfferingId] = useState("");
+  const [isBulkBusy, setIsBulkBusy] = useState(false);
   const selectedOfferingId = offeringId ?? null;
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -135,23 +137,35 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
    * Output: Promise<void>; preserves existing class links and adds the selected class idempotently.
    * Errors: Java authorization/readiness errors are shown inline and no local publication state is fabricated.
    */
-  const addDocumentToClassLibrary = async (documentId: string, targetOfferingId: string): Promise<void> => {
-    if (!targetOfferingId) { setErrorMsg("Hãy chọn lớp học phần cần thêm tài liệu."); return; }
-    const document = documents.find((item) => item.id === documentId);
-    if (!document) { setErrorMsg("Không tìm thấy tài liệu trong kho của giảng viên."); return; }
-    const publicationIds = new Set(document.publishedOfferings.map((item) => item.offeringId));
-    if (publicationIds.has(targetOfferingId)) {
-      setSuccessMsg("Tài liệu đã có trong kho của lớp học phần này.");
-      return;
-    }
+  const addSelectedDocumentsToClass = async (): Promise<void> => {
+    if (!bulkTargetOfferingId) { setErrorMsg("Hãy chọn lớp học phần."); return; }
+    const selected = documents.filter((document) => selectedDocumentIds.includes(document.id));
+    if (selected.length === 0) { setErrorMsg("Hãy chọn ít nhất một tài liệu trong bảng."); return; }
+    const notReady = selected.find((document) => document.status !== "READY");
+    if (notReady) { setErrorMsg(`Tài liệu “${notReady.title}” chưa sẵn sàng.`); return; }
+    setIsBulkBusy(true); setErrorMsg(null); setSuccessMsg(null);
     try {
-      publicationIds.add(targetOfferingId);
-      await teacherDocApi.publishDocument(documentId, Array.from(publicationIds));
-      setSuccessMsg("Đã thêm tài liệu từ kho giảng viên vào kho lớp học phần.");
+      for (const document of selected) {
+        const publicationIds = new Set(document.publishedOfferings.map((item) => item.offeringId));
+        publicationIds.add(bulkTargetOfferingId);
+        await teacherDocApi.publishDocument(document.id, Array.from(publicationIds));
+      }
+      const slides = selected.filter((document) => document.materialType === "SLIDE_PDF");
+      const supports = selected.filter((document) => document.materialType === "SUPPORTING_PDF");
+      for (const slide of slides) {
+        const current = await teacherDocApi.getTutorSources(slide.id, bulkTargetOfferingId);
+        const sourceIds = new Set(current.sources.map((source) => source.documentId));
+        supports.forEach((support) => sourceIds.add(support.id));
+        await teacherDocApi.setTutorSources(slide.id, bulkTargetOfferingId, Array.from(sourceIds));
+      }
+      setSuccessMsg(slides.length > 0 && supports.length > 0
+        ? `Đã công bố ${selected.length} tài liệu và liên kết nguồn hỗ trợ cho slide.`
+        : `Đã thêm ${selected.length} tài liệu vào lớp học phần.`);
+      setSelectedDocumentIds([]);
       await loadData();
     } catch (error: unknown) {
-      setErrorMsg(error instanceof Error ? error.message : "Không thể thêm tài liệu vào kho lớp học phần.");
-    }
+      setErrorMsg(error instanceof Error ? error.message : "Không thể hoàn tất thao tác hàng loạt.");
+    } finally { setIsBulkBusy(false); }
   };
 
   const selectedLibrary = libraryId ? libraries.find((item) => item.id === libraryId) ?? null : null;
@@ -240,7 +254,7 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
                   <article key={document.id} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700"><FileText className="h-3.5 w-3.5" /> {document.materialType === "SLIDE_PDF" ? "Slide PDF" : "Tài liệu tham khảo"} · {document.totalPages} trang</span>
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700"><FileText className="h-3.5 w-3.5" /> {document.materialType === "SLIDE_PDF" ? "Slide PDF" : document.materialType === "SUPPORTING_PDF" ? "PDF hỗ trợ" : "Tài liệu tham khảo"} · {document.totalPages} trang</span>
                         <StatusBadge status={document.status} size="sm" />
                       </div>
                       <h3 className="mt-3 text-base font-bold text-slate-900">{document.title}</h3>
@@ -289,12 +303,21 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
             {selectedLibrary.items.length === 0 ? (
               <p className="rounded-xl bg-slate-50 p-5 text-sm text-slate-500">Kho chưa có tài liệu, Quiz hoặc bài tập. Nhấn “Thêm tài liệu” để tải PDF/PPTX từ máy vào đúng kho này.</p>
             ) : (
-              <div className="divide-y divide-slate-100">
-                {selectedLibrary.items.map((item) => {
-                  const selectedTarget = targetOfferingByDocument[item.itemId] ?? offerings[0]?.id ?? "";
-                  const sourceDocument = item.itemType === "DOCUMENT" ? documents.find((document) => document.id === item.itemId) : null;
-                  return <div key={item.id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-sm font-semibold text-slate-800">{item.title}</p><p className="text-xs text-slate-500">{item.itemType === "DOCUMENT" ? "Tài liệu" : item.itemType === "QUIZ" ? "Quiz" : "Bài tập"} · {item.status}</p></div><div className="flex flex-wrap items-center gap-2">{sourceDocument && offerings.length > 0 && <><select aria-label={`Chọn lớp cho ${item.title}`} value={selectedTarget} onChange={(event) => setTargetOfferingByDocument((current) => ({ ...current, [item.itemId]: event.target.value }))} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700">{offerings.map((offering) => <option key={offering.id} value={offering.id}>{offering.code} · {offering.name}</option>)}</select><button type="button" disabled={sourceDocument.status !== "READY" || !selectedTarget} onClick={() => void addDocumentToClassLibrary(item.itemId, selectedTarget)} className="rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">Thêm vào lớp</button></>}{selectedLibrary.libraryType !== "DEFAULT" && <button type="button" onClick={() => void removeLibraryItem(item.id)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700">Bỏ khỏi kho</button>}</div></div>;
-                })}
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3 rounded-xl bg-slate-50 p-3 lg:flex-row lg:items-center lg:justify-between">
+                  <p className="text-sm font-semibold text-slate-700">Đã chọn {selectedDocumentIds.length} tài liệu</p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <select aria-label="Chọn lớp học phần" value={bulkTargetOfferingId} onChange={(event) => setBulkTargetOfferingId(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Chọn lớp học phần</option>{offerings.map((offering) => <option key={offering.id} value={offering.id}>{offering.code} · {offering.name}</option>)}</select>
+                    <button type="button" disabled={isBulkBusy || selectedDocumentIds.length === 0 || !bulkTargetOfferingId} onClick={() => void addSelectedDocumentsToClass()} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{isBulkBusy ? "Đang thêm..." : "Thêm vào lớp"}</button>
+                  </div>
+                </div>
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3"><input type="checkbox" aria-label="Chọn tất cả tài liệu" checked={selectedLibrary.items.filter((item) => item.itemType === "DOCUMENT").length > 0 && selectedLibrary.items.filter((item) => item.itemType === "DOCUMENT").every((item) => selectedDocumentIds.includes(item.itemId))} onChange={(event) => setSelectedDocumentIds(event.target.checked ? selectedLibrary.items.filter((item) => item.itemType === "DOCUMENT").map((item) => item.itemId) : [])} /></th><th className="px-3 py-3">STT</th><th className="px-3 py-3">Tên tài liệu</th><th className="px-3 py-3">Loại tài liệu</th><th className="px-3 py-3">Số trang</th><th className="px-3 py-3">Trạng thái</th><th className="px-3 py-3 text-right">Thao tác</th></tr></thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">{selectedLibrary.items.map((item, index) => { const sourceDocument = item.itemType === "DOCUMENT" ? documents.find((document) => document.id === item.itemId) : null; const typeLabel = !sourceDocument ? (item.itemType === "QUIZ" ? "Quiz" : "Bài tập") : sourceDocument.materialType === "SLIDE_PDF" ? "Slide PDF" : sourceDocument.materialType === "SUPPORTING_PDF" ? "PDF hỗ trợ" : "PDF tải xuống"; return <tr key={item.id}><td className="px-3 py-3"><input type="checkbox" aria-label={`Chọn ${item.title}`} disabled={!sourceDocument} checked={selectedDocumentIds.includes(item.itemId)} onChange={(event) => setSelectedDocumentIds((current) => event.target.checked ? Array.from(new Set([...current, item.itemId])) : current.filter((id) => id !== item.itemId))} /></td><td className="px-3 py-3 text-slate-500">{index + 1}</td><td className="px-3 py-3 font-semibold text-slate-800">{item.title}</td><td className="px-3 py-3 text-slate-600">{typeLabel}</td><td className="px-3 py-3 text-slate-600">{sourceDocument?.totalPages ?? "—"}</td><td className="px-3 py-3"><StatusBadge status={item.status} size="sm" /></td><td className="px-3 py-3 text-right">{selectedLibrary.libraryType !== "DEFAULT" && <button type="button" onClick={() => void removeLibraryItem(item.id)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700">Bỏ khỏi kho</button>}</td></tr>; })}</tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-slate-500">Chọn cùng một Slide PDF và các PDF hỗ trợ để hệ thống vừa công bố vào lớp vừa liên kết nguồn hỗ trợ cho AI Tutor.</p>
               </div>
             )}
           </section>

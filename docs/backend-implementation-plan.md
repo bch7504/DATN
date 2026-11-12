@@ -163,7 +163,7 @@ Teacher Quiz: GENERATING → REVIEW_REQUIRED → PUBLISHED | REJECTED → ARCHIV
 
 - Endpoint dùng deny-by-default, role guard và resource-level access policy.
 - Không lộ sự tồn tại của resource ngoài scope; không trả storage key/internal AI metadata.
-- AI request có service credential, `X-Request-Id`, `X-Schema-Version: 4`, timeout và authorized document/version/location scope.
+- AI request có service credential, `X-Request-Id`, `X-Schema-Version: 5`, timeout và authorized document/version/location scope.
 - Job mutation có `Idempotency-Key`; retry chỉ cho thao tác an toàn/idempotent.
 - Upload kiểm extension, MIME thực, size và filename; signed URL tối đa 5 phút.
 - Log/audit không chứa document, prompt, answer, Note, password, token hoặc secret.

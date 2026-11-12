@@ -28,7 +28,8 @@ test("Course Material Tutor still asks Java with the page captured for each exch
     /materialApi\.askTutor\(document\.id, askedPage, normalizedQuestion\)/,
   );
   assert.match(viewerPage, /pageNumber: askedPage/);
-  assert.doesNotMatch(viewerPage, /entry\.response\.citations\.map/);
+  assert.match(viewerPage, /entry\.response\.citations\.map/);
+  assert.match(viewerPage, /Tài liệu hỗ trợ/);
 });
 
 test("Course Material Tutor keeps its panel fixed while only the conversation scrolls", () => {

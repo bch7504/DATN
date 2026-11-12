@@ -22,5 +22,11 @@ public record CourseMaterialTutorResponse(
     }
 
     /** User-visible source location; no storage key, vector or provider metadata is exposed. */
-    public record CitationResponse(UUID documentId, String documentName, int pageNumber, String excerpt) { }
+    public record CitationResponse(UUID documentId, String documentName, String sourceRole,
+                                   int pageNumber, String excerpt) {
+        /** Backward-compatible constructor for a primary slide citation. */
+        public CitationResponse(UUID documentId, String documentName, int pageNumber, String excerpt) {
+            this(documentId, documentName, "SLIDE", pageNumber, excerpt);
+        }
+    }
 }

@@ -80,8 +80,9 @@ class CourseMaterialTutorServiceTest {
         verify(aiClient).askCourseMaterial(request.capture(), eq("req-tutor-001"));
         assertEquals(studentId, request.getValue().userId());
         assertEquals(offeringId, request.getValue().courseOfferingId());
-        assertEquals(documentId, request.getValue().document().documentId());
-        assertEquals(AiContracts.SourceType.COURSE_MATERIAL_PDF, request.getValue().document().sourceType());
+        assertEquals(documentId, request.getValue().currentDocumentId());
+        assertEquals(documentId, request.getValue().documents().get(0).documentId());
+        assertEquals(AiContracts.SourceType.COURSE_MATERIAL_PDF, request.getValue().documents().get(0).sourceType());
         assertEquals(List.of(), request.getValue().history());
         assertEquals("Giải thích ACID", request.getValue().question());
     }

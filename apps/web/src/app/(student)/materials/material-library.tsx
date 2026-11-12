@@ -123,7 +123,7 @@ export default function StudentMaterialLibrary({ offeringId }: { offeringId?: st
                   <div>
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
-                        <FileText className="h-3.5 w-3.5" /> {document.materialType === "SLIDE_PDF" ? "Slide PDF" : "Tài liệu tham khảo"}
+                        <FileText className="h-3.5 w-3.5" /> {document.materialType === "SLIDE_PDF" ? "Slide PDF" : document.materialType === "SUPPORTING_PDF" ? "Giáo trình/PDF hỗ trợ" : "Tài liệu tham khảo"}
                       </span>
                       <StatusBadge status={document.status} size="sm" />
                     </div>

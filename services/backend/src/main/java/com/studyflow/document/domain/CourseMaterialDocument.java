@@ -50,7 +50,7 @@ public class CourseMaterialDocument {
     /**
      * Args: immutable file metadata, required Course Material behavior and timestamp.
      * Input: validated Teacher-owned text-layer PDF.
-     * Output: SLIDE_PDF pending AI indexing or REFERENCE_PDF immediately READY for download.
+     * Output: SLIDE_PDF/SUPPORTING_PDF pending AI indexing or REFERENCE_PDF immediately READY.
      * Errors: IllegalArgumentException for a missing material type.
      */
     public CourseMaterialDocument(UUID id, UUID ownerId, String fileName, String displayName,
@@ -68,7 +68,7 @@ public class CourseMaterialDocument {
         this.mimeType = "application/pdf";
         this.fileSize = fileSize;
         this.storageKey = storageKey;
-        this.processingStatus = materialType == CourseMaterialType.SLIDE_PDF
+        this.processingStatus = materialType != CourseMaterialType.REFERENCE_PDF
                 ? "PENDING_PROCESSING"
                 : "READY";
         this.documentVersion = 1;
@@ -121,6 +121,7 @@ public class CourseMaterialDocument {
     public String getDocumentScope() { return documentScope; }
     public String getMaterialType() { return materialType; }
     public boolean isSlidePdf() { return CourseMaterialType.SLIDE_PDF.name().equals(materialType); }
+    public boolean isSupportingPdf() { return CourseMaterialType.SUPPORTING_PDF.name().equals(materialType); }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getDeletedAt() { return deletedAt; }
 

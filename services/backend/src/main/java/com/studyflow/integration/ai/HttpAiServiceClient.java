@@ -38,7 +38,7 @@ import org.springframework.web.client.RestClientResponseException;
 
 /** HTTP implementation of the internal schema-v4 AI contract. */
 public final class HttpAiServiceClient implements AiServiceClient {
-    private static final String SCHEMA_VERSION = "4";
+    private static final String SCHEMA_VERSION = "5";
     private static final Pattern REQUEST_ID = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._:-]{2,127}");
     private final RestClient client;
     private final ObjectMapper objectMapper;
@@ -256,10 +256,15 @@ public final class HttpAiServiceClient implements AiServiceClient {
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(request.userId(), "userId");
         Objects.requireNonNull(request.courseOfferingId(), "courseOfferingId");
-        AuthorizedDocument document = Objects.requireNonNull(request.document(), "document");
-        if (document.sourceType() != AiContracts.SourceType.COURSE_MATERIAL_PDF) {
+        validateDocuments(request.documents(), 1, 11);
+        if (request.documents().stream().anyMatch(document ->
+                document.sourceType() != AiContracts.SourceType.COURSE_MATERIAL_PDF)) {
             throw new IllegalArgumentException("Tutor requires Course Material PDF");
         }
+        AuthorizedDocument document = request.documents().stream()
+                .filter(item -> item.documentId().equals(request.currentDocumentId()))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException(
+                        "currentDocumentId must belong to documents"));
         if (request.currentPageNumber() < 1) throw new IllegalArgumentException("currentPageNumber must be positive");
         if (document.allowedPages() != null && !document.allowedPages().contains(request.currentPageNumber())) {
             throw new IllegalArgumentException("current page is outside allowedPages");

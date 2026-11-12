@@ -95,11 +95,12 @@ class PersonalAssistantRunRequest(WireModel):
 
 
 class CourseMaterialAskRequest(WireModel):
-    """Student question scoped to one published Course Material PDF."""
+    """Student question scoped to a primary slide and authorized supporting PDFs."""
 
     user_id: UUID
     course_offering_id: UUID
-    document: AuthorizedDocumentRequest
+    documents: tuple[AuthorizedDocumentRequest, ...] = Field(min_length=1, max_length=11)
+    current_document_id: UUID
     current_page_number: int = Field(ge=1)
     history: tuple[ConversationTurn, ...] = Field(default=(), max_length=12)
     question: str = Field(min_length=1, max_length=4000)
@@ -118,11 +119,26 @@ class CourseMaterialAskRequest(WireModel):
             ValueError: If source type or current page is outside scope.
         """
 
-        if self.document.source_type is not SourceType.COURSE_MATERIAL_PDF:
+        if any(
+            document.source_type is not SourceType.COURSE_MATERIAL_PDF
+            for document in self.documents
+        ):
             raise ValueError("Course Material Tutor requires COURSE_MATERIAL_PDF")
+        if len({document.document_id for document in self.documents}) != len(self.documents):
+            raise ValueError("Course Material Tutor documents must be unique")
+        current = next(
+            (
+                document
+                for document in self.documents
+                if document.document_id == self.current_document_id
+            ),
+            None,
+        )
+        if current is None:
+            raise ValueError("current document must be inside documents")
         if (
-            self.document.allowed_pages is not None
-            and self.current_page_number not in self.document.allowed_pages
+            current.allowed_pages is not None
+            and self.current_page_number not in current.allowed_pages
         ):
             raise ValueError("current page must be inside allowed pages")
         return self
@@ -142,8 +158,8 @@ class CourseMaterialAskRequest(WireModel):
 
         return AuthorizedScope(
             actor_id=self.user_id,
-            documents=(self.document.to_domain(),),
-            current_document_id=self.document.document_id,
+            documents=tuple(document.to_domain() for document in self.documents),
+            current_document_id=self.current_document_id,
             current_page_number=self.current_page_number,
         )
 

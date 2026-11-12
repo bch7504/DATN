@@ -12,6 +12,8 @@ import com.studyflow.material.domain.CourseMaterialTutorConversationStore;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
@@ -70,13 +72,19 @@ public class CourseMaterialTutorService {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "AI_SERVICE_UNAVAILABLE",
                     "Chức năng hỏi đáp học liệu chưa được cấu hình.");
         }
-        AiContracts.AuthorizedDocument authorizedDocument = new AiContracts.AuthorizedDocument(
+        AiContracts.AuthorizedDocument primaryDocument = new AiContracts.AuthorizedDocument(
                 scope.documentId(), scope.documentVersion(), scope.ownerId(),
                 AiContracts.SourceType.COURSE_MATERIAL_PDF, null);
+        List<AiContracts.AuthorizedDocument> authorizedDocuments = new java.util.ArrayList<>();
+        authorizedDocuments.add(primaryDocument);
+        scope.supportSources().forEach(source -> authorizedDocuments.add(new AiContracts.AuthorizedDocument(
+                source.documentId(), source.documentVersion(), source.ownerId(),
+                AiContracts.SourceType.COURSE_MATERIAL_PDF, null)));
         AiContracts.CourseMaterialAskResponse response;
         try {
             response = aiClient.askCourseMaterial(new AiContracts.CourseMaterialAskRequest(
-                    studentId, scope.courseOfferingId(), authorizedDocument, pageNumber,
+                    studentId, scope.courseOfferingId(), List.copyOf(authorizedDocuments),
+                    scope.documentId(), pageNumber,
                     history, question.strip()), requestId);
         } catch (AiServiceException error) {
             HttpStatus status = error.statusCode() == 422 ? HttpStatus.UNPROCESSABLE_ENTITY
@@ -87,17 +95,22 @@ public class CourseMaterialTutorService {
                             ? "Dịch vụ hỏi đáp tài liệu tạm thời không khả dụng."
                             : error.getMessage());
         }
+        Map<UUID, CourseMaterialLibraryService.TutorSourceScope> allowedSources = new LinkedHashMap<>();
+        allowedSources.put(scope.documentId(), new CourseMaterialLibraryService.TutorSourceScope(
+                scope.documentId(), scope.documentVersion(), scope.ownerId(), scope.documentName(),
+                scope.pageCount(), "SLIDE"));
+        scope.supportSources().forEach(source -> allowedSources.put(source.documentId(), source));
         List<CourseMaterialTutorResponse.CitationResponse> citations = response.result().citations() == null
                 ? List.of()
                 : response.result().citations().stream().map(citation -> {
-                    if (!scope.documentId().equals(citation.documentId())
-                            || scope.documentVersion() != citation.documentVersion()
-                            || citation.pageNumber() < 1 || citation.pageNumber() > scope.pageCount()) {
+                    CourseMaterialLibraryService.TutorSourceScope source = allowedSources.get(citation.documentId());
+                    if (source == null || source.documentVersion() != citation.documentVersion()
+                            || citation.pageNumber() < 1 || citation.pageNumber() > source.pageCount()) {
                         throw new ApiException(HttpStatus.BAD_GATEWAY, "AI_INVALID_CITATION",
                                 "Nguồn trích dẫn từ dịch vụ AI không hợp lệ.");
                     }
                     return new CourseMaterialTutorResponse.CitationResponse(citation.documentId(),
-                            scope.documentName(), citation.pageNumber(), citation.excerpt());
+                            source.documentName(), source.sourceRole(), citation.pageNumber(), citation.excerpt());
                 }).toList();
         Instant now = clock.instant();
         if (conversation == null) {
@@ -142,10 +155,20 @@ public class CourseMaterialTutorService {
         List<CourseMaterialTutorHistoryResponse.MessageResponse> messages = conversation.messages().stream()
                 .map(message -> new CourseMaterialTutorHistoryResponse.MessageResponse(
                         message.id(), message.role(), message.pageNumber(), message.content(), message.status(),
-                        message.citations().stream().map(citation ->
-                                new CourseMaterialTutorResponse.CitationResponse(
-                                        citation.documentId(), scope.documentName(), citation.pageNumber(),
-                                        citation.excerpt())).toList(),
+                        message.citations().stream().map(citation -> {
+                            CourseMaterialLibraryService.TutorSourceScope source = citation.documentId()
+                                    .equals(scope.documentId())
+                                    ? new CourseMaterialLibraryService.TutorSourceScope(scope.documentId(),
+                                            scope.documentVersion(), scope.ownerId(), scope.documentName(),
+                                            scope.pageCount(), "SLIDE")
+                                    : scope.supportSources().stream()
+                                            .filter(item -> item.documentId().equals(citation.documentId()))
+                                            .findFirst().orElse(null);
+                            return new CourseMaterialTutorResponse.CitationResponse(citation.documentId(),
+                                    source == null ? "Nguồn đã thu hồi" : source.documentName(),
+                                    source == null ? "SUPPORTING" : source.sourceRole(),
+                                    citation.pageNumber(), citation.excerpt());
+                        }).toList(),
                         message.createdAt()))
                 .toList();
         return new CourseMaterialTutorHistoryResponse(
