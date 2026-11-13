@@ -1,5 +1,7 @@
 # SPEC-10 — Nguồn hỗ trợ cho Slide AI Tutor
 
+> Lịch sử đợt 11/11/2026. Luồng chọn nguồn sau khi công bố trong tài liệu này đã được thay bằng **đính kèm giáo trình ngay khi tải slide lên**, theo [SPEC-11](11-course-tutor-live-completion.md). Không triển khai nút chọn/đổi giáo trình trong kho lớp.
+
 **Ngày chốt:** 11/11/2026  
 **Mục tiêu:** Cho phép Giảng viên công bố một bộ gồm slide chính và giáo trình/tài liệu hỗ trợ; AI Tutor ưu tiên slide rồi mới tìm trong nguồn hỗ trợ được phép.
 

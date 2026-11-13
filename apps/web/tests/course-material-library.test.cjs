@@ -25,7 +25,7 @@ test("Course Material library uses persisted Java files without fixtures", async
     assert.doesNotMatch(client, /demoTeacherDocs|DEMO_MATERIAL_PAGES|demoPageNotes/);
   });
 
-  await t.test("Teacher libraries bulk-publish selected documents and link Slide Tutor support sources", () => {
+  await t.test("Teacher libraries bulk-publish while support is attached only at upload", () => {
     assert.match(teacherPage, /Kho chung của giảng viên/);
     assert.match(teacherPage, /Tài liệu tải lên/);
     assert.match(teacherPage, /teacher\/documents\/libraries\//);
@@ -37,9 +37,11 @@ test("Course Material library uses persisted Java files without fixtures", async
     assert.match(teacherPage, /new Set\(document\.publishedOfferings\.map/);
     assert.match(teacherPage, /publicationIds\.add\(bulkTargetOfferingId\)/);
     assert.match(teacherPage, /teacherDocApi\.publishDocument\(document\.id, Array\.from\(publicationIds\)\)/);
-    assert.match(teacherPage, /teacherDocApi\.getTutorSources/);
-    assert.match(teacherPage, /teacherDocApi\.setTutorSources/);
-    assert.match(teacherUpload, /SUPPORTING_PDF/);
+    assert.doesNotMatch(teacherPage, /setTutorSources|getTutorSources|sourceEditor|<dialog/);
+    assert.doesNotMatch(client, /setTutorSources/);
+    assert.match(teacherUpload, /supportingFiles/);
+    assert.match(teacherUpload, /type="file" multiple accept="application\/pdf,\.pdf"/);
+    assert.doesNotMatch(teacherUpload, /option value="SUPPORTING_PDF"/);
     assert.match(teacherPage, /Thêm vào lớp/);
     assert.match(teacherPage, /Mở kho giảng viên/);
     assert.doesNotMatch(teacherPage, /Thêm tài liệu vào kho lớp/);

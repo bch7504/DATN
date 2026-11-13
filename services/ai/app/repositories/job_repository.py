@@ -34,7 +34,9 @@ class JobRepository:
         """Reserve a stable document operation and reject key reuse with different input.
 
         Args: payload: document mutation; request_id: trace; idempotency_key: stable Java key.
-        Returns: Existing or newly committed job; deindex immediately disables retrieval.
+        Returns: Existing or newly committed job; pending downloads get a fresh URL.
+            Failed downloads may resume up to three attempts with the same operation ID.
+            Other terminal results stay terminal; deindex disables retrieval immediately.
         Raises: ServiceError on key conflicts; SQLAlchemyError on DB failure.
         """
         # Lock even when no index/job row exists yet. Otherwise a concurrent
@@ -91,7 +93,9 @@ class JobRepository:
         )
         if is_index:
             checked = checked and (
-                job.owner_id == payload.owner_id and job.source_type == payload.source_type.value
+                job.owner_id == payload.owner_id
+                and job.source_type == payload.source_type.value
+                and job.mime_type == payload.mime_type
             )
         if not checked:
             self.session.rollback()
@@ -100,6 +104,19 @@ class JobRepository:
                 code="IDEMPOTENCY_CONFLICT",
                 message="Idempotency key already belongs to another operation",
             )
+        if is_index and job.status == JobStatus.PENDING.value:
+            job.signed_url = str(payload.signed_url)
+        elif (
+            is_index
+            and job.status == JobStatus.FAILED.value
+            and job.error_code == "DOCUMENT_DOWNLOAD_FAILED"
+            and job.attempt < 3
+        ):
+            job.status = JobStatus.PENDING.value
+            job.signed_url = str(payload.signed_url)
+            job.error_code = None
+            job.claim_token = None
+            job.lease_until = None
         if not is_index:
             # Stop retrieval immediately and cancel older queued/running index work.
             self.session.execute(
@@ -243,6 +260,20 @@ class JobRepository:
         ):
             raise RuntimeError("document job lease is no longer valid")
         return job
+
+    def renew(self, claim: ClaimedJob, *, lease_seconds: int = 600) -> None:
+        """Extend a live worker lease without changing its fencing token.
+
+        Args: claim: immutable current worker identity; lease_seconds: positive TTL.
+        Returns: None; commits only a lease update in the AI-owned job row.
+        Raises: ValueError on invalid TTL; RuntimeError for a stale/revoked claim;
+            SQLAlchemyError on persistence failure. Never revives an expired claim.
+        """
+        if lease_seconds < 1:
+            raise ValueError("lease duration must be positive")
+        job = self.guard(claim)
+        job.lease_until = datetime.now(UTC) + timedelta(seconds=lease_seconds)
+        self.session.commit()
 
     def finish(
         self,

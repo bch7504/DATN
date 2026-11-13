@@ -39,6 +39,10 @@ class CourseMaterialTutorServiceTest {
         provider = mock(ObjectProvider.class);
         conversations = mock(CourseMaterialTutorConversationStore.class);
         when(provider.getIfAvailable()).thenReturn(aiClient);
+        when(materials.reauthorizeTutor(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenAnswer(invocation -> materials.authorizeTutor(invocation.getArgument(0),
+                        invocation.getArgument(1), invocation.getArgument(2)));
         when(conversations.findByScope(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any()))
@@ -108,6 +112,63 @@ class CourseMaterialTutorServiceTest {
 
         assertEquals("AI_INVALID_CITATION", error.code());
         assertEquals(502, error.status().value());
+    }
+
+    /** A live authorized support citation is returned with its textbook name and role. */
+    @Test
+    void acceptsCitationFromLinkedSupportingPdf() {
+        UUID studentId = UUID.randomUUID();
+        UUID slideId = UUID.randomUUID();
+        UUID supportId = UUID.randomUUID();
+        UUID teacherId = UUID.randomUUID();
+        var source = new CourseMaterialLibraryService.TutorSourceScope(
+                supportId, 2, teacherId, "Giáo trình Cổng logic", 25, "SUPPORTING");
+        var scope = new CourseMaterialLibraryService.TutorScope(
+                slideId, 1, teacherId, "Slide Cổng logic", 11, UUID.randomUUID(), List.of(source));
+        when(materials.authorizeTutor(studentId, slideId, 1)).thenReturn(scope);
+        when(aiClient.askCourseMaterial(org.mockito.ArgumentMatchers.any(), eq("req-support-valid")))
+                .thenReturn(new AiContracts.CourseMaterialAskResponse("req-support-valid",
+                        new AiContracts.GroundedAnswerResult(AiContracts.AnswerStatus.ANSWERED,
+                                "Giải thích có căn cứ từ giáo trình.",
+                                List.of(new AiContracts.Citation(supportId, 2, 12, "Nội dung giáo trình")))));
+
+        var result = service.ask(studentId, slideId, 1, "Giải thích sâu hơn", "req-support-valid");
+
+        assertEquals("SUPPORTING", result.citations().get(0).sourceRole());
+        assertEquals("Giáo trình Cổng logic", result.citations().get(0).documentName());
+        assertEquals(12, result.citations().get(0).pageNumber());
+    }
+
+    /** A support source revoked while Python runs must not be returned or persisted. */
+    @Test
+    void rejectsSupportRevokedDuringGeneration() {
+        UUID studentId = UUID.randomUUID();
+        UUID slideId = UUID.randomUUID();
+        UUID supportId = UUID.randomUUID();
+        UUID teacherId = UUID.randomUUID();
+        UUID offeringId = UUID.randomUUID();
+        var source = new CourseMaterialLibraryService.TutorSourceScope(
+                supportId, 1, teacherId, "Giáo trình", 25, "SUPPORTING");
+        when(materials.authorizeTutor(studentId, slideId, 1)).thenReturn(
+                new CourseMaterialLibraryService.TutorScope(
+                        slideId, 1, teacherId, "Slide", 11, offeringId, List.of(source)));
+        org.mockito.Mockito.doReturn(new CourseMaterialLibraryService.TutorScope(
+                slideId, 1, teacherId, "Slide", 11, offeringId))
+                .when(materials).reauthorizeTutor(studentId, slideId, 1);
+        when(aiClient.askCourseMaterial(org.mockito.ArgumentMatchers.any(), eq("req-support-revoked")))
+                .thenReturn(new AiContracts.CourseMaterialAskResponse("req-support-revoked",
+                        new AiContracts.GroundedAnswerResult(AiContracts.AnswerStatus.ANSWERED,
+                                "Kết quả từ nguồn vừa thu hồi.",
+                                List.of(new AiContracts.Citation(supportId, 1, 2, "Nguồn cũ")))));
+
+        ApiException error = assertThrows(ApiException.class,
+                () -> service.ask(studentId, slideId, 1, "Câu hỏi", "req-support-revoked"));
+
+        assertEquals("AI_SOURCE_SCOPE_CHANGED", error.code());
+        assertEquals(409, error.status().value());
+        org.mockito.Mockito.verify(conversations, org.mockito.Mockito.never())
+                .appendExchange(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     /** AI-disabled deployments fail explicitly instead of returning a fixture answer. */

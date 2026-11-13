@@ -62,8 +62,8 @@ class CourseMaterialTutorAuthorizationTest {
                 mock(TeacherResourceLibraryService.class),
                 mock(NotificationStore.class),
                 Clock.fixed(Instant.parse("2026-10-21T00:00:00Z"), ZoneOffset.UTC));
-        when(tutorSourceLinks.findByCourseOfferingIdAndPrimaryDocumentIdOrderByCreatedAtAsc(
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        when(tutorSourceLinks.findByPrimaryDocumentIdAndCourseOfferingIdIsNullOrderByCreatedAtAsc(
+                org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
     }
 
     /** An approved Student may ask only through an active publication in an active class. */
@@ -133,15 +133,18 @@ class CourseMaterialTutorAuthorizationTest {
         when(publications.findByDocumentIdAndCourseOfferingId(supportId, offeringId))
                 .thenReturn(Optional.of(supportPublication));
         when(offerings.findById(offeringId)).thenReturn(Optional.of(offering));
-        when(tutorSourceLinks.findByCourseOfferingIdAndPrimaryDocumentIdOrderByCreatedAtAsc(
-                offeringId, slideId)).thenReturn(List.of(new CourseMaterialTutorSourceLink(
-                        UUID.randomUUID(), offeringId, slideId, supportId, teacherId, now)));
+        when(tutorSourceLinks.findByPrimaryDocumentIdAndCourseOfferingIdIsNullOrderByCreatedAtAsc(
+                slideId)).thenReturn(List.of(new CourseMaterialTutorSourceLink(
+                        UUID.randomUUID(), null, slideId, supportId, teacherId, now)));
 
         var scope = service.authorizeTutor(studentId, slideId, 4);
 
         assertEquals(1, scope.supportSources().size());
         assertEquals(supportId, scope.supportSources().get(0).documentId());
         assertEquals("SUPPORTING", scope.supportSources().get(0).sourceRole());
+
+        supportPublication.revoke(now.plusSeconds(1));
+        assertEquals(List.of(), service.authorizeTutor(studentId, slideId, 4).supportSources());
     }
 
     /** Archived or locked classes must stop Tutor access immediately. */

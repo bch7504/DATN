@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -43,7 +42,9 @@ public class TeacherCourseMaterialController {
     }
 
     /**
-     * Args: authenticated Teacher JWT, required PDF/PPTX file <=20 MiB, title and material type.
+     * Args: authenticated Teacher JWT, required PDF/PPTX, title, SLIDE_PDF|REFERENCE_PDF,
+     * optional owned libraryId and supportingFiles (default empty, 0..10 PDF files for slides only).
+     * The whole multipart bundle is limited to 20 MiB of uploaded bytes.
      * Input: Teacher Course Material; PPTX is converted internally and only normalized PDF is persisted.
      * Output: HTTP 201 safe PDF metadata. Side effects: private object and metadata creation.
      * Errors: 401/403 auth, 413 size, 415 media/PPTX, 422 PDF/title/type,
@@ -53,8 +54,10 @@ public class TeacherCourseMaterialController {
     public ResponseEntity<TeacherDocumentResponse> upload(@AuthenticationPrincipal Jwt jwt,
             @RequestPart("file") MultipartFile file, @RequestParam("title") String title,
             @RequestParam("materialType") String materialType,
-            @RequestParam(value = "libraryId", required = false) UUID libraryId) {
-        CourseMaterialDocument document = service.upload(userId(jwt), file, title, materialType, libraryId);
+            @RequestParam(value = "libraryId", required = false) UUID libraryId,
+            @RequestPart(value = "supportingFiles", required = false) List<MultipartFile> supportingFiles) {
+        CourseMaterialDocument document = service.uploadBundle(
+                userId(jwt), file, title, materialType, libraryId, supportingFiles);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.listTeacher(userId(jwt)).stream()
                 .filter(item -> item.id().equals(document.getId())).findFirst().orElseThrow());
     }
@@ -64,6 +67,16 @@ public class TeacherCourseMaterialController {
     public DocumentListResponse list(@AuthenticationPrincipal Jwt jwt) {
         List<TeacherDocumentResponse> items = service.listTeacher(userId(jwt));
         return new DocumentListResponse(items, 0, items.size(), items.size(), items.isEmpty() ? 0 : 1);
+    }
+
+    /**
+     * Args: authenticated Teacher JWT and owned PDF UUID. Input: failed download indexing.
+     * Output: HTTP 204; requeues the stored PDF version. Errors: 401/403/404/409 INDEX_RETRY_NOT_ALLOWED.
+     */
+    @PostMapping("/{documentId}/retry-index")
+    public ResponseEntity<Void> retryIndexing(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID documentId) {
+        service.retryIndexing(userId(jwt), documentId);
+        return ResponseEntity.noContent().build();
     }
 
     /** Input: authenticated Teacher JWT and document UUID. Output: authorized inline PDF stream. Errors: 401/403/404/503. */
@@ -97,18 +110,6 @@ public class TeacherCourseMaterialController {
     public TutorSourcesResponse listSupportingSources(@AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID documentId, @RequestParam UUID courseOfferingId) {
         return service.listTutorSources(userId(jwt), documentId, courseOfferingId);
-    }
-
-    /**
-     * Args: authenticated Teacher, owned primary slide and complete 0..10 support list.
-     * Output: replacement configuration. Errors: 401/403/404/409/422.
-     */
-    @PutMapping("/{documentId}/supporting-sources")
-    public TutorSourcesResponse setSupportingSources(@AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID documentId,
-            @org.springframework.web.bind.annotation.RequestBody @jakarta.validation.Valid SetTutorSourcesRequest request) {
-        return service.setTutorSources(userId(jwt), documentId, request.courseOfferingId(),
-                request.supportingDocumentIds());
     }
 
     /**

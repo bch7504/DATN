@@ -1,6 +1,7 @@
 """Grounded answer, summary, and quiz generation services."""
 
 from app.clients.protocols import AnswerGenerationClient, QuizGenerationClient
+from app.repositories.models import SourceType
 from app.schemas.grounding import (
     AnswerStatus,
     AuthorizedScope,
@@ -58,7 +59,8 @@ class GroundedAnswerService:
 
         Args:
             instruction: Student question or requested summary focus.
-            scope: Documents and pages authorized by Java.
+            scope: Documents and pages authorized by Java. Course Tutor expands
+                from the current slide page to the slide, then to linked support.
             retrieval_limit: Maximum number of chunks used as evidence.
             history: At most twelve prior turns used only to resolve follow-up references.
 
@@ -82,26 +84,27 @@ class GroundedAnswerService:
                 history=history,
                 current_page_number=scope.current_page_number,
             )
-        evidence = await self._retrieval_service.retrieve(
-            query=working_query,
-            scope=scope,
-            limit=retrieval_limit,
-        )
-        if not evidence:
-            return GroundedAnswerResult(status=AnswerStatus.NO_EVIDENCE)
-
-        generated = await self._generation_client.generate_answer(
-            instruction=working_query,
-            evidence=evidence,
-        )
-        if generated.answer is None:
-            return GroundedAnswerResult(status=AnswerStatus.NO_EVIDENCE)
-        citations = _citations_from_ids(generated.cited_evidence_ids, evidence)
-        return GroundedAnswerResult(
-            status=AnswerStatus.ANSWERED,
-            answer=generated.answer.strip(),
-            citations=citations,
-        )
+        for stage_scope in _answer_scopes(scope):
+            evidence = await self._retrieval_service.retrieve(
+                query=working_query,
+                scope=stage_scope,
+                limit=retrieval_limit,
+            )
+            if not evidence:
+                continue
+            generated = await self._generation_client.generate_answer(
+                instruction=working_query,
+                evidence=evidence,
+            )
+            if generated.answer is None:
+                continue
+            citations = _citations_from_ids(generated.cited_evidence_ids, evidence)
+            return GroundedAnswerResult(
+                status=AnswerStatus.ANSWERED,
+                answer=generated.answer.strip(),
+                citations=citations,
+            )
+        return GroundedAnswerResult(status=AnswerStatus.NO_EVIDENCE)
 
     async def summarize(self, *, instruction: str, scope: AuthorizedScope) -> GroundedAnswerResult:
         """Summarize every chunk in the bounded scope, preserving source citations.
@@ -127,6 +130,49 @@ class GroundedAnswerService:
             answer=generated.answer,
             citations=_citations_from_ids(generated.cited_evidence_ids, evidence),
         )
+
+
+def _answer_scopes(scope: AuthorizedScope) -> tuple[AuthorizedScope, ...]:
+    """Build bounded retrieval stages without extending Java's authorization.
+
+    Args:
+        scope: Immutable documents/versions/pages supplied by Java. Only Course
+            Material with current-page context uses staged retrieval.
+
+    Returns:
+        Unique scopes in order: current slide page, allowed primary-slide pages,
+        then the full scope including linked support. Personal RAG keeps one scope.
+
+    Raises:
+        ValueError: If a constructed scope is inconsistent with authorization.
+    """
+    if scope.current_document_id is None or any(
+        document.source_type is not SourceType.COURSE_MATERIAL_PDF for document in scope.documents
+    ):
+        return (scope,)
+    primary = next(
+        document
+        for document in scope.documents
+        if document.document_id == scope.current_document_id
+    )
+    page_document = primary.model_copy(update={"allowed_pages": (scope.current_page_number,)})
+    page_scope = AuthorizedScope(
+        actor_id=scope.actor_id,
+        documents=(page_document,),
+        current_document_id=scope.current_document_id,
+        current_page_number=scope.current_page_number,
+    )
+    primary_scope = AuthorizedScope(
+        actor_id=scope.actor_id,
+        documents=(primary,),
+        current_document_id=scope.current_document_id,
+        current_page_number=scope.current_page_number,
+    )
+    stages = [page_scope]
+    for candidate in (primary_scope, scope):
+        if candidate != stages[-1]:
+            stages.append(candidate)
+    return tuple(stages)
 
 
 class GroundedQuizService:

@@ -8,7 +8,7 @@ import httpx
 from openai import APIConnectionError, APIStatusError
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.clients.http_document_download import HttpDocumentDownloadClient
 from app.clients.openrouter import OpenRouterClient
@@ -101,7 +101,7 @@ async def run_worker(*, once: bool, poll_seconds: float | None = None) -> None:
                                 ),
                                 max_vision_render_pixels=settings.ai_vision_max_render_pixels,
                             )
-                            artifact = await worker.execute(claim.command)
+                            artifact = await _index_with_lease(worker, claim, factory)
                             repository.finish(claim, artifact=artifact)
                     except Exception as error:
                         session.rollback()
@@ -129,6 +129,52 @@ async def run_worker(*, once: bool, poll_seconds: float | None = None) -> None:
         await downloader.close()
         await provider.close()
         engine.dispose()
+
+
+async def _renew_claim(
+    factory: sessionmaker[Session], claim: ClaimedJob, interval_seconds: float
+) -> None:
+    """Keep one live index claim valid while asynchronous provider work is running.
+
+    Args: factory: AI-only DB sessions; claim: current token; interval_seconds: positive delay.
+    Returns: None only on cancellation; renews the lease every interval in a separate session.
+    Raises: RuntimeError on lost/revoked lease; SQLAlchemyError on database failure.
+    """
+    while True:
+        await asyncio.sleep(interval_seconds)
+        with factory() as session:
+            JobRepository(session).renew(claim)
+
+
+async def _index_with_lease(
+    worker: DocumentIndexWorker,
+    claim: ClaimedJob,
+    factory: sessionmaker[Session],
+    *,
+    interval_seconds: float = 30.0,
+) -> IndexArtifact:
+    """Run indexing and cancel it promptly if its live lease cannot be renewed.
+
+    Args: worker: configured PDF pipeline; claim: INDEX job with command;
+        factory: AI DB sessions; interval_seconds: renewal interval, 0 < value < 600.
+    Returns: Validated indexing artifact; chunks remain guarded by the original token.
+    Raises: ValueError for missing command/interval; provider or database errors;
+        RuntimeError if lease was revoked or lost. Always cleans up both tasks.
+    """
+    if claim.command is None or not 0 < interval_seconds < 600:
+        raise ValueError("index command and a renewal interval below the lease TTL are required")
+    indexing = asyncio.create_task(worker.execute(claim.command))
+    renewal = asyncio.create_task(_renew_claim(factory, claim, interval_seconds))
+    try:
+        completed, _ = await asyncio.wait((indexing, renewal), return_when=asyncio.FIRST_COMPLETED)
+        if renewal in completed:
+            await renewal
+            raise RuntimeError("job lease renewal stopped unexpectedly")
+        return await indexing
+    finally:
+        indexing.cancel()
+        renewal.cancel()
+        await asyncio.gather(indexing, renewal, return_exceptions=True)
 
 
 def retryable_index_error(error: Exception) -> bool:

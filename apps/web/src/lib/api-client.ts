@@ -816,12 +816,13 @@ export const teacherApi = {
      * Uploads one Teacher Course Material source through Java.
      * @param file required PDF or PPTX, non-empty and at most 20 MiB
      * @param title required display title validated again by Java
-     * @param materialType required SLIDE_PDF, SUPPORTING_PDF or REFERENCE_PDF
+     * @param materialType required SLIDE_PDF or REFERENCE_PDF
      * @param libraryId optional owned destination; Java files into the DEFAULT library when omitted
+     * @param supportingFiles optional 0–10 text PDFs attached to a slide at upload; <=20 MiB for the whole bundle
      * @returns normalized PDF metadata; a PPTX source is converted server-side and never stored as PPTX
      * @throws ApiClientError for invalid input, conversion, storage, authentication or authorization errors
      */
-    async uploadDocument(file: File, title: string, materialType: CourseMaterialType, libraryId?: string): Promise<TeacherDocument> {
+    async uploadDocument(file: File, title: string, materialType: CourseMaterialType, libraryId?: string, supportingFiles: File[] = []): Promise<TeacherDocument> {
         const lowerName = file.name.toLowerCase();
         const supported = lowerName.endsWith(".pdf") || lowerName.endsWith(".pptx");
         if (!supported) {
@@ -833,15 +834,29 @@ export const teacherApi = {
         if (file.size === 0 || file.size > 20 * 1024 * 1024) {
             throw new ApiClientError(422, { code: "INVALID_FILE_SIZE", message: "Chọn tệp PDF/PPTX không rỗng, tối đa 20 MB." });
         }
+        if (materialType === "SUPPORTING_PDF" || supportingFiles.length > 10
+            || (supportingFiles.length > 0 && materialType !== "SLIDE_PDF")
+            || supportingFiles.some((item) => item.size === 0 || !item.name.toLowerCase().endsWith(".pdf"))) {
+            throw new ApiClientError(422, { code: "INVALID_SUPPORTING_FILES", message: "Chỉ đính kèm tối đa 10 giáo trình PDF không rỗng khi tải slide lên." });
+        }
+        if (file.size + supportingFiles.reduce((total, item) => total + item.size, 0) > 20 * 1024 * 1024) {
+            throw new ApiClientError(413, { code: "FILE_TOO_LARGE", message: "Tổng slide và giáo trình đính kèm tối đa 20 MB." });
+        }
         const formData = new FormData();
         formData.append("file", file);
         formData.append("title", title);
         formData.append("materialType", materialType);
         if (libraryId) formData.append("libraryId", libraryId);
+        supportingFiles.forEach((item) => formData.append("supportingFiles", item));
         return apiFetch<TeacherDocument>("/teacher/documents", {
             method: "POST",
             body: formData
         });
+    },
+    /** Args: owned PDF UUID. Input: authenticated Teacher and recoverable download failure.
+     * Returns: Promise<void> after HTTP 204; Errors: Java error envelope, including 409 when retry is disallowed. */
+    retryIndex(documentId: string): Promise<void> {
+        return apiFetch(`/teacher/documents/${encodeURIComponent(documentId)}/retry-index`, { method: "POST" });
     },
     async publishDocument(documentId: string, courseOfferingIds: string[]): Promise<void> {
         await apiFetch<void>(`/teacher/documents/${documentId}/publications`, {
@@ -856,13 +871,6 @@ export const teacherApi = {
     getTutorSources(documentId: string, courseOfferingId: string): Promise<TutorSources> {
         return apiFetch(`/teacher/documents/${encodeURIComponent(documentId)}/supporting-sources?courseOfferingId=${encodeURIComponent(courseOfferingId)}`);
     },
-    /** Replaces the support-PDF set for one owned slide and class. */
-    setTutorSources(documentId: string, courseOfferingId: string, supportingDocumentIds: string[]): Promise<TutorSources> {
-        return apiFetch(`/teacher/documents/${encodeURIComponent(documentId)}/supporting-sources`, {
-            method: "PUT",
-            body: JSON.stringify({ courseOfferingId, supportingDocumentIds })
-        });
-    }
 };
 
 /** Teacher-owned subject/private collections. Source resources keep their Java-owned lifecycle. */

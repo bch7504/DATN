@@ -50,7 +50,6 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
   const classDocuments = selectedOffering
     ? documents.filter((document) => document.publishedOfferings.some((publication) => publication.offeringId === selectedOffering.id))
     : [];
-
   /** Args: none. Input: legacy offeringId query. Output: void; redirects to the class detail route. Errors: none. */
   useEffect(() => {
     const legacyId = new URLSearchParams(window.location.search).get("offeringId");
@@ -82,6 +81,28 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
   useEffect(() => {
     void loadData();
   }, []);
+
+  /** Args: current Java document metadata. Input: owner-scoped pending jobs only.
+   * Output: polls status every 10 seconds without replacing the page or selection.
+   * Errors: retains last confirmed metadata and retries on the next tick; cleanup cancels updates. */
+  useEffect(() => {
+    if (!documents.some((document) => ["PENDING_PROCESSING", "PROCESSING"].includes(document.status))) return;
+    let active = true;
+    let busy = false;
+    const interval = window.setInterval(async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const [documentData, libraryData] = await Promise.all([
+          teacherDocApi.getDocuments(), teacherLibraryApi.list(),
+        ]);
+        if (active) { setDocuments(documentData); setLibraries(libraryData); }
+      } catch {
+        // Keep Java's last confirmed status while a transient polling error is retried.
+      } finally { busy = false; }
+    }, 10000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [documents]);
 
   /** Args: offeringId, nullable string. Input: selected teacher-owned offering or null for the class list. Output: void; navigates to its dedicated route. Errors: none. */
   const navigateToOffering = (offeringId: string | null): void => {
@@ -131,8 +152,20 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
     catch (error: unknown) { setErrorMsg(error instanceof Error ? error.message : "Không thể bỏ mục khỏi kho."); }
   };
 
+  /** Args: owned failed PDF UUID. Input: existing stored file; Output: Promise<void>, queues retry and reloads metadata.
+   * Errors: authorization/state failures displayed inline; no local READY status is fabricated. */
+  const retryDocumentIndex = async (documentId: string): Promise<void> => {
+    try {
+      await teacherDocApi.retryIndex(documentId);
+      await loadData();
+      setSuccessMsg("Đã yêu cầu xử lý lại tài liệu.");
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Không thể xử lý lại tài liệu.");
+    }
+  };
+
   /**
-   * Args: owned document ID and owned Course Offering ID.
+   * Args: no positional parameters; reads selectedDocumentIds and bulkTargetOfferingId from state.
    * Input: current publication list returned by Java; the selected class must belong to the signed-in Teacher.
    * Output: Promise<void>; preserves existing class links and adds the selected class idempotently.
    * Errors: Java authorization/readiness errors are shown inline and no local publication state is fabricated.
@@ -144,27 +177,21 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
     const notReady = selected.find((document) => document.status !== "READY");
     if (notReady) { setErrorMsg(`Tài liệu “${notReady.title}” chưa sẵn sàng.`); return; }
     setIsBulkBusy(true); setErrorMsg(null); setSuccessMsg(null);
+    let publishedCount = 0;
     try {
       for (const document of selected) {
         const publicationIds = new Set(document.publishedOfferings.map((item) => item.offeringId));
         publicationIds.add(bulkTargetOfferingId);
         await teacherDocApi.publishDocument(document.id, Array.from(publicationIds));
+        publishedCount += 1;
       }
-      const slides = selected.filter((document) => document.materialType === "SLIDE_PDF");
-      const supports = selected.filter((document) => document.materialType === "SUPPORTING_PDF");
-      for (const slide of slides) {
-        const current = await teacherDocApi.getTutorSources(slide.id, bulkTargetOfferingId);
-        const sourceIds = new Set(current.sources.map((source) => source.documentId));
-        supports.forEach((support) => sourceIds.add(support.id));
-        await teacherDocApi.setTutorSources(slide.id, bulkTargetOfferingId, Array.from(sourceIds));
-      }
-      setSuccessMsg(slides.length > 0 && supports.length > 0
-        ? `Đã công bố ${selected.length} tài liệu và liên kết nguồn hỗ trợ cho slide.`
-        : `Đã thêm ${selected.length} tài liệu vào lớp học phần.`);
+      setSuccessMsg(`Đã thêm ${selected.length} tài liệu vào lớp học phần.`);
       setSelectedDocumentIds([]);
       await loadData();
     } catch (error: unknown) {
-      setErrorMsg(error instanceof Error ? error.message : "Không thể hoàn tất thao tác hàng loạt.");
+      const detail = error instanceof Error ? error.message : "Không thể hoàn tất thao tác hàng loạt.";
+      await loadData();
+      setErrorMsg(`Đã công bố ${publishedCount}/${selected.length} tài liệu. ${detail} Có thể chọn lại và thử tiếp.`);
     } finally { setIsBulkBusy(false); }
   };
 
@@ -246,7 +273,7 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
                 <BookOpen className="mx-auto h-8 w-8 text-slate-400" />
                 <p className="mt-3 font-semibold text-slate-800">Lớp chưa có tài liệu được công bố</p>
-                <p className="mt-1 text-sm text-slate-500">Chọn một tài liệu trong kho giảng viên ở bên dưới để công bố vào lớp.</p>
+                <p className="mt-1 text-sm text-slate-500">Mở kho giảng viên và chọn tài liệu để công bố vào lớp.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -314,10 +341,29 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
                 <div className="overflow-x-auto rounded-xl border border-slate-200">
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3"><input type="checkbox" aria-label="Chọn tất cả tài liệu" checked={selectedLibrary.items.filter((item) => item.itemType === "DOCUMENT").length > 0 && selectedLibrary.items.filter((item) => item.itemType === "DOCUMENT").every((item) => selectedDocumentIds.includes(item.itemId))} onChange={(event) => setSelectedDocumentIds(event.target.checked ? selectedLibrary.items.filter((item) => item.itemType === "DOCUMENT").map((item) => item.itemId) : [])} /></th><th className="px-3 py-3">STT</th><th className="px-3 py-3">Tên tài liệu</th><th className="px-3 py-3">Loại tài liệu</th><th className="px-3 py-3">Số trang</th><th className="px-3 py-3">Trạng thái</th><th className="px-3 py-3 text-right">Thao tác</th></tr></thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">{selectedLibrary.items.map((item, index) => { const sourceDocument = item.itemType === "DOCUMENT" ? documents.find((document) => document.id === item.itemId) : null; const typeLabel = !sourceDocument ? (item.itemType === "QUIZ" ? "Quiz" : "Bài tập") : sourceDocument.materialType === "SLIDE_PDF" ? "Slide PDF" : sourceDocument.materialType === "SUPPORTING_PDF" ? "PDF hỗ trợ" : "PDF tải xuống"; return <tr key={item.id}><td className="px-3 py-3"><input type="checkbox" aria-label={`Chọn ${item.title}`} disabled={!sourceDocument} checked={selectedDocumentIds.includes(item.itemId)} onChange={(event) => setSelectedDocumentIds((current) => event.target.checked ? Array.from(new Set([...current, item.itemId])) : current.filter((id) => id !== item.itemId))} /></td><td className="px-3 py-3 text-slate-500">{index + 1}</td><td className="px-3 py-3 font-semibold text-slate-800">{item.title}</td><td className="px-3 py-3 text-slate-600">{typeLabel}</td><td className="px-3 py-3 text-slate-600">{sourceDocument?.totalPages ?? "—"}</td><td className="px-3 py-3"><StatusBadge status={item.status} size="sm" /></td><td className="px-3 py-3 text-right">{selectedLibrary.libraryType !== "DEFAULT" && <button type="button" onClick={() => void removeLibraryItem(item.id)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700">Bỏ khỏi kho</button>}</td></tr>; })}</tbody>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {selectedLibrary.items.map((item, index) => {
+                        const sourceDocument = item.itemType === "DOCUMENT" ? documents.find((document) => document.id === item.itemId) : null;
+                        const typeLabel = !sourceDocument ? (item.itemType === "QUIZ" ? "Quiz" : "Bài tập") : sourceDocument.materialType === "SLIDE_PDF" ? "Slide PDF" : sourceDocument.materialType === "SUPPORTING_PDF" ? "PDF hỗ trợ" : "PDF tải xuống";
+                        return (
+                          <tr key={item.id}>
+                            <td className="px-3 py-3"><input type="checkbox" aria-label={`Chọn ${item.title}`} disabled={!sourceDocument} checked={selectedDocumentIds.includes(item.itemId)} onChange={(event) => setSelectedDocumentIds((current) => event.target.checked ? Array.from(new Set([...current, item.itemId])) : current.filter((id) => id !== item.itemId))} /></td>
+                            <td className="px-3 py-3 text-slate-500">{index + 1}</td>
+                            <td className="px-3 py-3 font-semibold text-slate-800">{item.title}</td>
+                            <td className="px-3 py-3 text-slate-600">{typeLabel}</td>
+                            <td className="px-3 py-3 text-slate-600">{sourceDocument?.totalPages ?? "—"}</td>
+                            <td className="px-3 py-3"><StatusBadge status={item.status} size="sm" /></td>
+                            <td className="px-3 py-3 text-right">
+                              {sourceDocument?.status === "FAILED" && <button type="button" onClick={() => void retryDocumentIndex(sourceDocument.id)} className="mr-2 rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white">Thử xử lý lại</button>}
+                              {selectedLibrary.libraryType !== "DEFAULT" && <button type="button" onClick={() => void removeLibraryItem(item.id)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700">Bỏ khỏi kho</button>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
                   </table>
                 </div>
-                <p className="text-xs text-slate-500">Chọn cùng một Slide PDF và các PDF hỗ trợ để hệ thống vừa công bố vào lớp vừa liên kết nguồn hỗ trợ cho AI Tutor.</p>
+                <p className="text-xs text-slate-500">Giáo trình được đính kèm ngay khi tải slide lên. Công bố slide sẽ tự công bố các tài liệu đính kèm đã xử lý xong vào cùng lớp.</p>
               </div>
             )}
           </section>

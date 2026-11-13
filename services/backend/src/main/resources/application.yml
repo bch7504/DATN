@@ -58,7 +58,7 @@ studyflow:
     base-url: ${AI_SERVICE_URL:http://127.0.0.1:8001}
     service-token: ${AI_SERVICE_TOKEN:}
     connect-timeout: ${AI_CONNECT_TIMEOUT:3s}
-    read-timeout: ${AI_READ_TIMEOUT:45s}
+    read-timeout: ${AI_READ_TIMEOUT:120s}
     allow-insecure-local-storage-url: ${AI_ALLOW_INSECURE_LOCAL_STORAGE_URL:false}
     document-scan-delay: ${AI_DOCUMENT_SCAN_DELAY:10000}
   assignments:

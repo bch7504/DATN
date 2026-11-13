@@ -44,7 +44,8 @@ public class CourseMaterialTutorService {
      * Args: authenticated Student, URL document/page, trimmed question and request trace ID.
      * Input: Java-authorized publication/enrollment scope only. Output: ANSWERED with validated
      * citations or NO_EVIDENCE. Errors: authorization/document errors from material service;
-     * 503 when AI is disabled/unavailable; 502 when Python violates the authorized scope.
+     * 503 when AI is disabled/unavailable; 502 when Python violates the authorized scope;
+     * 409 AI_SOURCE_SCOPE_CHANGED when publication/version changes during generation.
      */
     @Transactional
     public CourseMaterialTutorResponse ask(
@@ -95,11 +96,22 @@ public class CourseMaterialTutorService {
                             ? "Dịch vụ hỏi đáp tài liệu tạm thời không khả dụng."
                             : error.getMessage());
         }
+        CourseMaterialLibraryService.TutorScope currentScope =
+                materials.reauthorizeTutor(studentId, documentId, pageNumber);
+        if (scope.documentVersion() != currentScope.documentVersion()
+                || !scope.courseOfferingId().equals(currentScope.courseOfferingId())) {
+            throw new ApiException(HttpStatus.CONFLICT, "AI_SOURCE_SCOPE_CHANGED",
+                    "Quyền hoặc phiên bản học liệu đã thay đổi. Vui lòng đặt lại câu hỏi.");
+        }
         Map<UUID, CourseMaterialLibraryService.TutorSourceScope> allowedSources = new LinkedHashMap<>();
         allowedSources.put(scope.documentId(), new CourseMaterialLibraryService.TutorSourceScope(
                 scope.documentId(), scope.documentVersion(), scope.ownerId(), scope.documentName(),
                 scope.pageCount(), "SLIDE"));
         scope.supportSources().forEach(source -> allowedSources.put(source.documentId(), source));
+        Map<UUID, Integer> currentSourceVersions = new LinkedHashMap<>();
+        currentSourceVersions.put(currentScope.documentId(), currentScope.documentVersion());
+        currentScope.supportSources().forEach(source ->
+                currentSourceVersions.put(source.documentId(), source.documentVersion()));
         List<CourseMaterialTutorResponse.CitationResponse> citations = response.result().citations() == null
                 ? List.of()
                 : response.result().citations().stream().map(citation -> {
@@ -108,6 +120,11 @@ public class CourseMaterialTutorService {
                             || citation.pageNumber() < 1 || citation.pageNumber() > source.pageCount()) {
                         throw new ApiException(HttpStatus.BAD_GATEWAY, "AI_INVALID_CITATION",
                                 "Nguồn trích dẫn từ dịch vụ AI không hợp lệ.");
+                    }
+                    if (!Integer.valueOf(citation.documentVersion())
+                            .equals(currentSourceVersions.get(citation.documentId()))) {
+                        throw new ApiException(HttpStatus.CONFLICT, "AI_SOURCE_SCOPE_CHANGED",
+                                "Nguồn hỗ trợ đã thay đổi hoặc bị thu hồi. Vui lòng đặt lại câu hỏi.");
                     }
                     return new CourseMaterialTutorResponse.CitationResponse(citation.documentId(),
                             source.documentName(), source.sourceRole(), citation.pageNumber(), citation.excerpt());

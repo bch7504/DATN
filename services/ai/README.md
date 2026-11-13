@@ -26,7 +26,7 @@ Python AI Service xử lý PDF, hỏi đáp có nguồn, tóm tắt, Course Mate
 - Một Orchestrator chọn đúng một trong bốn tool: hỏi đáp PDF, tóm tắt PDF, sinh Quiz có nguồn hoặc nhập Quiz từ văn bản; phạm vi PDF luôn do Java cấp.
 - Course Material Tutor nhận tối đa 12 lượt short-term memory do Java cấp, viết lại câu hỏi
   nối tiếp thành truy vấn độc lập và dùng current page + authorized evidence làm working memory.
-  Scope có một slide chính và tối đa 10 PDF hỗ trợ; rerank ưu tiên trang hiện tại, slide chính rồi mới đến nguồn hỗ trợ.
+  Scope có một slide chính và tối đa 10 PDF hỗ trợ. Tutor thực hiện retrieval/generation lần lượt trên trang hiện tại, phạm vi slide chính, rồi slide cùng nguồn hỗ trợ; dừng ngay ở bước trả lời được. Không chỉ cộng điểm ưu tiên khi tìm chung.
   Long-term memory thuộc Java; Python không lưu hoặc tự tải lịch sử người dùng.
 - Tóm tắt đọc toàn bộ phạm vi trang trong giới hạn 50 chunks; yêu cầu thu hẹp phạm vi nếu vượt giới hạn.
 - Citation dựng từ nguồn đã truy xuất; có thể trả `NO_EVIDENCE` trước hoặc sau bước tạo nội dung.

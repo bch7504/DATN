@@ -58,6 +58,27 @@ test("Teacher PDF/PPTX validation stays client-side; multipart boundary is left 
   assert.equal(calls, 2);
 });
 
+test("Teacher slide upload sends supporting PDFs together and rejects invalid bundles before HTTP", async () => {
+  let calls = 0;
+  const client = loadClient(async (_url, options) => {
+    calls++;
+    assert.equal(options.body.get("materialType"), "SLIDE_PDF");
+    assert.equal(options.body.get("libraryId"), "owned-library");
+    assert.deepEqual(options.body.getAll("supportingFiles").map((item) => item.name), ["book.pdf", "handout.pdf"]);
+    return Response.json({ id: "primary", status: "PENDING_PROCESSING" });
+  }, "http://java.test/api/v1");
+  const slide = new File(["synthetic slide"], "slide.pdf");
+  const book = new File(["synthetic book"], "book.pdf");
+  await assert.rejects(client.teacherDocApi.uploadDocument(slide, "Slide", "REFERENCE_PDF", undefined, [book]), { code: "INVALID_SUPPORTING_FILES" });
+  await assert.rejects(client.teacherDocApi.uploadDocument(slide, "Slide", "SLIDE_PDF", undefined, Array(11).fill(book)), { code: "INVALID_SUPPORTING_FILES" });
+  await assert.rejects(client.teacherDocApi.uploadDocument(slide, "Slide", "SLIDE_PDF", undefined, [new File(["x"], "book.pptx")]), { code: "INVALID_SUPPORTING_FILES" });
+  await assert.rejects(client.teacherDocApi.uploadDocument(slide, "Slide", "SLIDE_PDF", undefined, [new File([new Uint8Array(20 * 1024 * 1024)], "large.pdf")]), { code: "FILE_TOO_LARGE" });
+  assert.equal(calls, 0);
+  const result = await client.teacherDocApi.uploadDocument(slide, "Slide", "SLIDE_PDF", "owned-library", [book, new File(["synthetic handout"], "handout.pdf")]);
+  assert.equal(result.status, "PENDING_PROCESSING");
+  assert.equal(calls, 1);
+});
+
 test("failed persisted feature requests propagate Java error envelopes without demo success", async () => {
   const client = loadClient(async () => Response.json({ code: "FORBIDDEN", message: "No access", details: [], traceId: "test-trace" }, { status: 403 }), "http://java.test/api/v1");
   for (const operation of [() => client.studentApi.getOfferings(), () => client.materialApi.getMaterials(), () => client.notificationApi.list(), () => client.studyPlanApi.listPlans(), () => client.assignmentApi.listForStudent()]) {

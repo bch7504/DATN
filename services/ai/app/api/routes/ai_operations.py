@@ -109,7 +109,8 @@ async def ask_course_material(
     Args:
         payload: Student, Course Offering, ordered PDF scopes, current page, and question.
         context: Authenticated service request context.
-        answer_service: Grounded answer service with current-page retrieval bias.
+        answer_service: Grounded service trying current page, primary slide and
+            linked supporting PDFs in order, stopping at the first supported answer.
 
     Returns:
         ANSWERED with page citations, or NO_EVIDENCE.

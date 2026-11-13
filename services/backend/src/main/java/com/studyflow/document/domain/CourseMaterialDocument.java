@@ -154,6 +154,20 @@ public class CourseMaterialDocument {
         updatedAt = now;
     }
 
+    /**
+     * Args: current timestamp. Input: FAILED record with DOCUMENT_DOWNLOAD_FAILED only.
+     * Output: void; returns the same PDF version to PENDING_PROCESSING for a fresh signed URL.
+     * Errors: IllegalStateException if failure is not a recoverable download failure.
+     */
+    public void retryDownloadIndex(Instant now) {
+        if (!"FAILED".equals(processingStatus) || !"DOCUMENT_DOWNLOAD_FAILED".equals(aiErrorCode)) {
+            throw new IllegalStateException("Only failed document downloads can be retried");
+        }
+        processingStatus = "PENDING_PROCESSING";
+        aiErrorCode = null;
+        updatedAt = now;
+    }
+
     /** Args: current time. Output: void; marks DELETING before vector/object cleanup. */
     public void markDeleting(Instant now) {
         processingStatus = "DELETING";

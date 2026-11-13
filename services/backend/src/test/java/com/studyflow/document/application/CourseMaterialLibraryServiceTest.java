@@ -43,6 +43,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 class CourseMaterialLibraryServiceTest {
     private CourseMaterialDocumentRepository documents;
+    private CourseMaterialTutorSourceLinkRepository sourceLinks;
     private AssignmentAttachmentStorage storage;
     private PresentationToPdfConverter converter;
     private com.studyflow.notification.application.port.NotificationStore notifications;
@@ -52,6 +53,7 @@ class CourseMaterialLibraryServiceTest {
     @BeforeEach
     void setUp() {
         documents = org.mockito.Mockito.mock(CourseMaterialDocumentRepository.class);
+        sourceLinks = org.mockito.Mockito.mock(CourseMaterialTutorSourceLinkRepository.class);
         DocumentPublicationRepository publications = org.mockito.Mockito.mock(DocumentPublicationRepository.class);
         CourseOfferingRepository offerings = org.mockito.Mockito.mock(CourseOfferingRepository.class);
         CourseEnrollmentRepository enrollments = org.mockito.Mockito.mock(CourseEnrollmentRepository.class);
@@ -64,9 +66,77 @@ class CourseMaterialLibraryServiceTest {
         when(storageProvider.getIfAvailable()).thenReturn(storage);
         when(converterProvider.getIfAvailable()).thenReturn(converter);
         service = new CourseMaterialLibraryService(documents, publications,
-                org.mockito.Mockito.mock(CourseMaterialTutorSourceLinkRepository.class), offerings, enrollments,
+                sourceLinks, offerings, enrollments,
                 storageProvider, converterProvider, org.mockito.Mockito.mock(TeacherResourceLibraryService.class), notifications,
                 Clock.fixed(Instant.parse("2026-10-15T00:00:00Z"), ZoneOffset.UTC));
+    }
+
+    /** Synthetic PDFs are saved in one transaction and linked before publication. */
+    @Test
+    void attachesSupportingPdfAtUpload() throws Exception {
+        UUID teacherId = UUID.randomUUID();
+        when(documents.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        var primary = service.uploadBundle(teacherId,
+                new MockMultipartFile("file", "slide.pdf", "application/pdf", pdfWithText("Slide")),
+                "Slide", "SLIDE_PDF", null, java.util.List.of(
+                        new MockMultipartFile("supportingFiles", "book.pdf", "application/pdf", pdfWithText("Book"))));
+        verify(documents, org.mockito.Mockito.times(2)).save(any());
+        verify(sourceLinks).saveAll(org.mockito.ArgumentMatchers.argThat(links -> {
+            var link = links.iterator().next();
+            return link.getPrimaryDocumentId().equals(primary.getId()) && link.getCourseOfferingId() == null;
+        }));
+        assertEquals("PENDING_PROCESSING", primary.getProcessingStatus());
+    }
+
+    /** Non-slide or malformed bundles fail before storing any bytes. */
+    @Test
+    void rejectsAttachmentsForReferenceAndNullSupport() throws Exception {
+        var file = new MockMultipartFile("file", "ref.pdf", "application/pdf", pdfWithText("Reference"));
+        assertEquals("INVALID_SUPPORTING_FILES", assertThrows(ValidationException.class,
+                () -> service.uploadBundle(UUID.randomUUID(), file, "Reference", "REFERENCE_PDF", null,
+                        java.util.List.of(file))).getCode());
+        assertEquals("INVALID_SUPPORTING_FILES", assertThrows(ValidationException.class,
+                () -> service.uploadBundle(UUID.randomUUID(), file, "Book", " supporting_pdf ", null,
+                        java.util.List.of())).getCode());
+        assertEquals("INVALID_SUPPORTING_FILES", assertThrows(ValidationException.class,
+                () -> service.uploadBundle(UUID.randomUUID(), file, "Slide", "SLIDE_PDF", null,
+                        java.util.Arrays.asList((org.springframework.web.multipart.MultipartFile) null))).getCode());
+        verify(storage, never()).put(any(), any(), any(), any(Long.class));
+    }
+
+    /** An owner can requeue a failed download without creating another PDF. */
+    @Test
+    void retriesOwnedDocumentDownloadFailure() {
+        UUID teacherId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+        Instant now = Instant.parse("2026-10-15T00:00:00Z");
+        CourseMaterialDocument document = new CourseMaterialDocument(
+                documentId, teacherId, "slide.pdf", "Slide", "synthetic-key", 100, 2, now);
+        document.markFailed("DOCUMENT_DOWNLOAD_FAILED", now);
+        when(documents.findByIdAndDeletedAtIsNull(documentId)).thenReturn(java.util.Optional.of(document));
+
+        service.retryIndexing(teacherId, documentId);
+
+        assertEquals("PENDING_PROCESSING", document.getProcessingStatus());
+        assertEquals(1, document.getDocumentVersion());
+        assertEquals(null, document.getAiErrorCode());
+    }
+
+    /** A retry request cannot reopen a non-download failure or a ready document. */
+    @Test
+    void rejectsRetryForAnUnrelatedIndexFailure() {
+        UUID teacherId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+        CourseMaterialDocument document = new CourseMaterialDocument(
+                documentId, teacherId, "slide.pdf", "Slide", "synthetic-key", 100, 2,
+                Instant.parse("2026-10-15T00:00:00Z"));
+        document.markFailed("PDF_TEXT_REQUIRED", Instant.parse("2026-10-15T00:00:00Z"));
+        when(documents.findByIdAndDeletedAtIsNull(documentId)).thenReturn(java.util.Optional.of(document));
+
+        ApiException error = assertThrows(ApiException.class, () -> service.retryIndexing(teacherId, documentId));
+
+        assertEquals("INDEX_RETRY_NOT_ALLOWED", error.code());
+        assertEquals("FAILED", document.getProcessingStatus());
     }
 
     @Test

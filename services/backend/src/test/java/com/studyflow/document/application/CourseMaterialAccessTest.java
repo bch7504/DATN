@@ -50,6 +50,7 @@ class CourseMaterialAccessTest {
     private final UUID student = UUID.randomUUID();
     private final Instant now = Instant.parse("2026-10-15T00:00:00Z");
     private final CourseMaterialDocumentRepository documents = mock(CourseMaterialDocumentRepository.class);
+    private final CourseMaterialTutorSourceLinkRepository sourceLinks = mock(CourseMaterialTutorSourceLinkRepository.class);
     private final DocumentPublicationRepository publications = mock(DocumentPublicationRepository.class);
     private final CourseOfferingRepository offerings = mock(CourseOfferingRepository.class);
     private final CourseEnrollmentRepository enrollments = mock(CourseEnrollmentRepository.class);
@@ -68,7 +69,7 @@ class CourseMaterialAccessTest {
         ObjectProvider<PresentationToPdfConverter> converterProvider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(storage);
         service = new CourseMaterialLibraryService(documents, publications,
-                mock(CourseMaterialTutorSourceLinkRepository.class), offerings, enrollments,
+                sourceLinks, offerings, enrollments,
                 provider, converterProvider, mock(TeacherResourceLibraryService.class), notifications,
                 Clock.fixed(now, ZoneOffset.UTC));
         document = new CourseMaterialDocument(UUID.randomUUID(), teacher, "lesson.pdf", "Lesson",
@@ -86,6 +87,32 @@ class CourseMaterialAccessTest {
                 .thenAnswer(invocation -> "PUBLISHED".equals(publication.getStatus()) ? List.of(publication) : List.of());
         when(publications.findByCourseOfferingIdAndStatus(offering.getId(), "PUBLISHED"))
                 .thenAnswer(invocation -> "PUBLISHED".equals(publication.getStatus()) ? List.of(publication) : List.of());
+    }
+
+    /** Ready attachments publish with their slide; pending attachments prevent partial publication. */
+    @Test
+    void publishesUploadBundleOnlyWhenAllSourcesAreReady() {
+        var slide = new CourseMaterialDocument(UUID.randomUUID(), teacher, "slide.pdf", "Slide",
+                "synthetic-slide", 100, 1, CourseMaterialType.SLIDE_PDF, now);
+        slide.markReady(1, now);
+        var support = new CourseMaterialDocument(UUID.randomUUID(), teacher, "book.pdf", "Book",
+                "synthetic-book", 100, 2, CourseMaterialType.SUPPORTING_PDF, now);
+        when(documents.findByIdAndDeletedAtIsNull(slide.getId())).thenReturn(Optional.of(slide));
+        when(documents.findByIdAndDeletedAtIsNull(support.getId())).thenReturn(Optional.of(support));
+        when(sourceLinks.findByPrimaryDocumentIdAndCourseOfferingIdIsNullOrderByCreatedAtAsc(slide.getId()))
+                .thenReturn(List.of(new com.studyflow.document.domain.CourseMaterialTutorSourceLink(
+                        UUID.randomUUID(), null, slide.getId(), support.getId(), teacher, now)));
+
+        assertThatThrownBy(() -> service.setPublications(teacher, slide.getId(), List.of(offering.getId())))
+                .isInstanceOf(ApiException.class).extracting("code").isEqualTo("SUPPORTING_DOCUMENT_NOT_READY");
+        verify(publications, never()).save(any());
+
+        support.markReady(2, now);
+        service.setPublications(teacher, slide.getId(), List.of(offering.getId()));
+        verify(publications).save(argThat(row -> row.getDocumentId().equals(slide.getId())
+                && row.getCourseOfferingId().equals(offering.getId()) && row.getStatus().equals("PUBLISHED")));
+        verify(publications).save(argThat(row -> row.getDocumentId().equals(support.getId())
+                && row.getCourseOfferingId().equals(offering.getId()) && row.getStatus().equals("PUBLISHED")));
     }
 
     @Test

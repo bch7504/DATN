@@ -111,7 +111,7 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 `id`, `course_offering_id`, `primary_document_id`, `supporting_document_id`, `created_by`, `created_at`.
 
 - Migration `V29` bổ sung `SUPPORTING_PDF` và bảng liên kết nguồn cho Tutor.
-- Khóa duy nhất `(course_offering_id, primary_document_id, supporting_document_id)` ngăn liên kết trùng.
+- Migration `V30` chuyển liên kết sang bộ tài liệu khi upload: `course_offering_id` cho phép NULL; partial unique index `(primary_document_id, supporting_document_id) WHERE course_offering_id IS NULL` ngăn đính kèm trùng. Các cặp cũ được sao chép một lần sang bộ tài liệu; hàng theo lớp được giữ làm lịch sử. Java chỉ đọc liên kết upload mới, vẫn kiểm quyền công bố theo lớp cho từng nguồn.
 - Java chỉ dựng scope từ liên kết có slide và tài liệu hỗ trợ `READY`, còn công bố trong cùng Course Offering.
 
 ### `document_publications`

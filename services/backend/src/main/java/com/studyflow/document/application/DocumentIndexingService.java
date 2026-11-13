@@ -117,14 +117,40 @@ public class DocumentIndexingService {
                         document.markReady(job.artifact().pageCount(), clock.instant());
                     }
                 } else if (job.status() == JobStatus.FAILED) {
-                    document.markFailed(safeCode(job.errorCode()), clock.instant());
+                    if ("DOCUMENT_DOWNLOAD_FAILED".equals(job.errorCode()) && job.attempt() < 3
+                            && storageProvider.getIfAvailable() != null) {
+                        refreshDownload(document, storageProvider.getIfAvailable(), ai);
+                    } else {
+                        document.markFailed(safeCode(job.errorCode()), clock.instant());
+                    }
+                } else if (job.status() == JobStatus.PENDING && storageProvider.getIfAvailable() != null) {
+                    refreshDownload(document, storageProvider.getIfAvailable(), ai);
                 }
             } catch (AiServiceException exception) {
                 if (exception.statusCode() != 503) document.markFailed(safeCode(exception.code()), clock.instant());
             } catch (IllegalArgumentException exception) {
                 document.markFailed("INDEX_RESPONSE_INVALID", clock.instant());
+            } catch (RuntimeException exception) {
+                // Keep PROCESSING while storage or URL renewal is temporarily unavailable.
             }
         }
+    }
+
+    /**
+     * Args: active PDF, configured storage and Python client. Input: pending/failed download job.
+     * Output: void; renews the signed URL using the existing operation identity and PDF version.
+     * Errors: URL validation, temporary storage failures or safe AI errors propagate to the caller.
+     */
+    private void refreshDownload(CourseMaterialDocument document, AssignmentAttachmentStorage storage,
+                                 AiServiceClient ai) {
+        URI signedUrl = storage.presignGet(document.getStorageKey(), SIGNED_URL_VALIDITY);
+        AiDocumentUrlPolicy.requireAllowed(signedUrl, allowInsecureLocalStorageUrl);
+        var accepted = ai.indexDocument(new IndexDocumentRequest(
+                        document.getId(), document.getDocumentVersion(), PIPELINE_VERSION,
+                        document.getOwnerId(), sourceType(document), signedUrl, document.getMimeType()),
+                requestId("index", document.getId()),
+                document.getId() + ":" + document.getDocumentVersion() + ":" + PIPELINE_VERSION + ":index");
+        document.markProcessing(accepted.jobId(), clock.instant());
     }
 
     private static SourceType sourceType(CourseMaterialDocument document) {

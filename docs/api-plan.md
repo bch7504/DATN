@@ -15,6 +15,7 @@ Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1
 - Java kiểm role, Teacher ownership, enrollment, document ownership và publication tại application service.
 - Không trả storage key, join-code hash, service token, prompt nội bộ hoặc provider payload.
 - Error envelope:
+- Phương thức HTTP không được hỗ trợ trên route đang có trả `405 METHOD_NOT_ALLOWED`, error envelope chuẩn và header `Allow`; gồm PUT sửa nguồn Tutor cũ đã loại bỏ.
 
 ```json
 {
@@ -89,11 +90,11 @@ Business/error:
 |---|---|---|
 | GET | `/api/v1/student/materials` | Trả `{items,page,size,totalItems,totalPages}` gồm PDF đã công bố cho lớp Student được duyệt |
 | GET | `/api/v1/student/course-offerings/{offeringId}/materials` | Enrollment `APPROVED`; chỉ publication active trong lớp đó |
-| GET | `/api/v1/student/materials/{documentId}/download` | Chỉ `REFERENCE_PDF`; Java kiểm tra enrollment rồi trả attachment. Gọi với `SLIDE_PDF` trả `409 SLIDE_DOWNLOAD_NOT_ALLOWED` |
+| GET | `/api/v1/student/materials/{documentId}/download` | `REFERENCE_PDF` hoặc `SUPPORTING_PDF`; Java kiểm tra enrollment rồi trả attachment. Gọi với `SLIDE_PDF` trả `409 SLIDE_DOWNLOAD_NOT_ALLOWED` |
 | GET | `/api/v1/student/materials/{documentId}/slides/{pageNumber}` | Chỉ `SLIDE_PDF`; Java kiểm tra enrollment/publication rồi render đúng một trang thành PNG cho Viewer, trả `X-Total-Slides`; không trả tệp PDF hoặc storage key |
 | GET | `/api/v1/student/materials/{documentId}/slides/{pageNumber}/text-layer` | Trả kích thước trang và các đoạn chữ có tọa độ để Student bôi đen/copy trên đúng trang đang xem; không trả PDF nguồn |
 
-Course Material nhận PDF có text layer hoặc PPTX được Java chuẩn hóa thành PDF, bắt buộc phân loại `SLIDE_PDF|SUPPORTING_PDF|REFERENCE_PDF`. `SLIDE_PDF` được xem từng trang như slide PNG, lưu Page Note/view event và là nguồn chính của AI Tutor; Student không có API tải tệp nguồn. `SUPPORTING_PDF` là giáo trình/tài liệu hỗ trợ được lập chỉ mục và chỉ được Tutor sử dụng khi Teacher liên kết với một `SLIDE_PDF` trong cùng lớp đã công bố. `REFERENCE_PDF` chỉ được tải xuống, không được lập chỉ mục hoặc gửi sang Tutor. Response luôn có `materialType`; dữ liệu tiến độ lấy từ schema `app`, không dùng dữ liệu giả.
+Course Material nhận PDF có text layer hoặc PPTX được Java chuẩn hóa thành PDF, bắt buộc phân loại `SLIDE_PDF|SUPPORTING_PDF|REFERENCE_PDF`. `SLIDE_PDF` được xem từng trang như slide PNG, lưu Page Note/view event và là nguồn chính của AI Tutor; Student không có API tải tệp nguồn. `SUPPORTING_PDF` là giáo trình/tài liệu hỗ trợ được lập chỉ mục và chỉ được Tutor sử dụng khi Teacher đính kèm lúc tải `SLIDE_PDF` lên và cả bộ được công bố cùng lớp. `REFERENCE_PDF` chỉ được tải xuống, không được lập chỉ mục hoặc gửi sang Tutor. Response luôn có `materialType`; dữ liệu tiến độ lấy từ schema `app`, không dùng dữ liệu giả.
 
 Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ khi offering `ARCHIVED`, trừ khi `LOCKED`, publication revoked hoặc policy retention chặn.
 
@@ -104,14 +105,15 @@ Archive access: Student từng `APPROVED` có thể xem lớp/học liệu cũ k
 - `POST /api/v1/student/materials/{documentId}/pages/{number}/tutor`
 - `GET /api/v1/student/materials/{documentId}/tutor/history`
 
-Endpoint Tutor chỉ được mở từ tài liệu chính `SLIDE_PDF`. Frontend chỉ gọi endpoint Java này; Java xác thực Student, enrollment `APPROVED`, publication, trạng thái Course Offering và `materialType`, sau đó dựng phạm vi gồm slide chính và tối đa 10 `SUPPORTING_PDF` đã được Teacher liên kết, công bố và lập chỉ mục trong cùng lớp. Python ưu tiên trang đang xem, tiếp đến các trang khác của slide chính, rồi mới dùng tài liệu hỗ trợ. Java kiểm tra lại `documentId`, `documentVersion` và `pageNumber` của mọi citation trước khi trả về trình duyệt. Gọi Tutor trực tiếp cho `SUPPORTING_PDF` hoặc `REFERENCE_PDF` trả `409 MATERIAL_NOT_TUTORABLE`.
+Endpoint Tutor chỉ được mở từ tài liệu chính `SLIDE_PDF`. Frontend chỉ gọi endpoint Java này; Java xác thực Student, enrollment `APPROVED`, publication, trạng thái Course Offering và `materialType`, sau đó dựng phạm vi gồm slide chính và tối đa 10 `SUPPORTING_PDF` được Teacher đính kèm lúc tải slide lên, còn công bố và lập chỉ mục trong cùng lớp. Python ưu tiên trang đang xem, tiếp đến các trang khác của slide chính, rồi mới dùng tài liệu hỗ trợ. Java kiểm tra lại `documentId`, `documentVersion` và `pageNumber` của mọi citation trước khi trả về trình duyệt. Gọi Tutor trực tiếp cho `SUPPORTING_PDF` hoặc `REFERENCE_PDF` trả `409 MATERIAL_NOT_TUTORABLE`.
 
-Teacher quản lý nguồn hỗ trợ qua:
+Nguồn hỗ trợ được gắn cố định ngay trong lần tải slide:
 
 - `GET /api/v1/teacher/documents/{slideDocumentId}/supporting-sources?courseOfferingId=...`
-- `PUT /api/v1/teacher/documents/{slideDocumentId}/supporting-sources` với `{courseOfferingId,supportingDocumentIds[]}`; tối đa 10 tài liệu, không trùng ID.
+- `POST /api/v1/teacher/documents` nhận thêm multipart `supportingFiles` (0–10 tệp PDF), chỉ khi `materialType=SLIDE_PDF`. Tổng tệp chính và các tệp kèm tối đa 20 MiB; giáo trình phải có lớp văn bản. Java lưu các tệp trong cùng kho và liên kết với slide ngay khi upload, trong một transaction.
+- Không có API sửa danh sách nguồn sau khi tải lên; không có cửa sổ chọn giáo trình ở kho lớp. Endpoint `GET .../supporting-sources` chỉ đọc bộ nguồn đã đính kèm.
 
-Java chỉ chấp nhận slide chính và tài liệu hỗ trợ đều thuộc Teacher, `READY` và đang được công bố trong cùng Course Offering do Teacher sở hữu. Thao tác lặp với cùng danh sách là idempotent. Thu hồi publication lập tức loại tài liệu đó khỏi phạm vi Tutor dù liên kết vẫn còn trong lịch sử cấu hình.
+Khi công bố slide, Java kiểm toàn bộ giáo trình đính kèm đã READY và tự công bố bộ nguồn vào cùng Course Offering do Teacher sở hữu. Chưa đủ READY trả `409 SUPPORTING_DOCUMENT_NOT_READY`; dữ liệu đính kèm sai trả `422 INVALID_SUPPORTING_FILES` qua error envelope chuẩn. Thu hồi publication của nguồn hỗ trợ lập tức loại nó khỏi Tutor. Python thử retrieval/generation ở ba phạm vi: trang hiện tại, slide chính, slide + nguồn hỗ trợ; chỉ chuyển bước khi không có evidence hoặc LLM trả `answer=null`. Mọi bước giữ nguyên version/owner/page được Java cấp.
 
 Text-layer response dùng schema cố định `{pageNumber,pageWidth,pageHeight,items[]}`; mỗi item gồm `{text,x,y,width,height}` theo hệ tọa độ của trang. Frontend chỉ dùng dữ liệu này làm lớp chữ chọn/copy đặt trên ảnh trang PDF. Lỗi trích xuất trả `502 SLIDE_TEXT_EXTRACTION_FAILED`; Viewer vẫn có thể hiển thị ảnh trang nếu lớp chữ tạm thời lỗi.
 
@@ -130,7 +132,7 @@ Tutor response:
   "conversationId":"conv_...",
   "status":"ANSWERED",
   "answer":"...",
-  "citations":[{"documentId":"doc_1","pageNumber":12,"excerpt":"..."}],
+  "citations":[{"documentId":"doc_1","documentName":"Giáo trình Cổng logic","sourceRole":"SUPPORTING","pageNumber":12,"excerpt":"..."}],
   "traceId":"req_..."
 }
 ```
@@ -159,6 +161,7 @@ Thiếu evidence trả `status=NO_EVIDENCE`, `answer=null`, `citations=[]`. Java
 - Không có enrollment/publication hợp lệ: `403`; tài liệu không tồn tại: `404`.
 - Python chưa được cấu hình/không khả dụng: `503 AI_SERVICE_UNAVAILABLE`.
 - Python trả citation vượt phạm vi Java đã cấp: `502 AI_INVALID_CITATION` và kết quả không được chuyển cho Frontend.
+- Nguồn/version bị đổi hoặc thu hồi trong lúc AI đang trả lời: `409 AI_SOURCE_SCOPE_CHANGED`; Java không lưu kết quả và Frontend yêu cầu đặt lại câu hỏi. Kiểm tra quyền sau AI dùng transaction mới để không dùng lại bản ghi đã cache.
 
 ### 4.4 Personal Documents
 
@@ -404,16 +407,17 @@ Student list chỉ trả account metadata tối thiểu; không trả Personal D
 
 ### 5.3 Teacher Course Material PDF/PPTX và publication
 
-- `POST /api/v1/teacher/documents` — multipart `{file,title,materialType}`, trong đó `materialType=SLIDE_PDF|REFERENCE_PDF`; nhận PDF hoặc PPTX tối đa 20 MiB → `201 TeacherDocument`. PDF phải có text layer. PPTX được Java gửi tới Gotenberg nội bộ, nhận PDF đầu ra, đổi tên an toàn sang `.pdf`, kiểm tra lại chữ ký PDF/số trang/text layer rồi mới lưu. Python, Student và metadata đầu ra chỉ nhận PDF đã chuẩn hóa. `SLIDE_PDF` đi qua pipeline index; `REFERENCE_PDF` sẵn sàng sau khi lưu và không gửi sang Python. Lỗi `413 FILE_TOO_LARGE|PPTX_OUTPUT_TOO_LARGE`, `415 UNSUPPORTED_MEDIA_TYPE|INVALID_PPTX`, `422 INVALID_PDF|PDF_TEXT_REQUIRED|INVALID_TITLE|INVALID_MATERIAL_TYPE`, `502 PPTX_CONVERSION_FAILED|PPTX_CONVERTER_UNAVAILABLE|DOCUMENT_STORAGE_FAILED`, `503 PPTX_CONVERTER_NOT_CONFIGURED|STORAGE_NOT_CONFIGURED`, `504 PPTX_CONVERSION_TIMEOUT`.
+- `POST /api/v1/teacher/documents` — multipart `{file,title,materialType,libraryId?,supportingFiles?}`, `materialType=SLIDE_PDF|REFERENCE_PDF`; nhận PDF/PPTX chính và 0–10 PDF hỗ trợ chỉ khi tải slide, tổng cả bộ tối đa 20 MiB → `201 TeacherDocument`. PDF phải có text layer. Java chuẩn hóa PPTX thành PDF qua Gotenberg, kiểm tra chữ ký/số trang/text layer rồi mới lưu. `SLIDE_PDF` và `SUPPORTING_PDF` đi qua pipeline index; `REFERENCE_PDF` sẵn sàng sau khi lưu và không gửi sang Python. Lỗi `413 FILE_TOO_LARGE|PPTX_OUTPUT_TOO_LARGE`, `415 UNSUPPORTED_MEDIA_TYPE|INVALID_PPTX`, `422 INVALID_PDF|PDF_TEXT_REQUIRED|INVALID_TITLE|INVALID_MATERIAL_TYPE|INVALID_SUPPORTING_FILES`, `502 PPTX_CONVERSION_FAILED|PPTX_CONVERTER_UNAVAILABLE|DOCUMENT_STORAGE_FAILED`, `503 PPTX_CONVERTER_NOT_CONFIGURED|STORAGE_NOT_CONFIGURED`, `504 PPTX_CONVERSION_TIMEOUT`.
 - `GET /api/v1/teacher/documents` — `{items,page,size,totalItems,totalPages}` theo owner; mỗi item có danh sách publication đang hiệu lực.
+- `POST /api/v1/teacher/documents/{id}/retry-index` — không body, `204`; Teacher owner yêu cầu xử lý lại PDF `FAILED` do `DOCUMENT_DOWNLOAD_FAILED`, giữ nguyên phiên bản và operation key. `401/403/404` theo quyền; `409 INDEX_RETRY_NOT_ALLOWED` nếu trạng thái/lỗi không cho phép; error envelope chuẩn. Không tạo lại PDF hoặc bỏ qua giới hạn retry của Python.
 - `GET /api/v1/teacher/documents/{id}/download` — stream PDF cho Teacher owner.
-- `DELETE /api/v1/teacher/documents/{id}` — xóa học liệu gốc thuộc Teacher; Java yêu cầu Python nhận deindex đối với `SLIDE_PDF`, thu hồi mọi publication, bỏ liên kết khỏi các kho, xóa mềm metadata và xóa object sau khi transaction thành công. Trả `204`; `404` cho tài nguyên thiếu/khác owner; `502|503` nếu chưa thể thu hồi vector hoặc object an toàn.
+- `DELETE /api/v1/teacher/documents/{id}` — xóa học liệu gốc thuộc Teacher; Java yêu cầu Python nhận deindex đối với `SLIDE_PDF|SUPPORTING_PDF`, thu hồi mọi publication, bỏ liên kết khỏi các kho, xóa mềm metadata và xóa object sau khi transaction thành công. Trả `204`; `404` cho tài nguyên thiếu/khác owner; `502|503` nếu chưa thể thu hồi vector hoặc object an toàn.
 - `POST /api/v1/teacher/documents/{id}/publications` — `{courseOfferingIds:[...]}`; chọn danh sách đồng nghĩa gỡ khỏi lớp đã bỏ chọn; lớp phải ACTIVE và thuộc Teacher.
 - `DELETE /api/v1/teacher/documents/{id}/publications?offeringId=...` — gỡ một publication, thao tác lặp idempotent.
 
-Teacher document response: `{id,title,fileName,fileType:"PDF",materialType:"SLIDE_PDF|REFERENCE_PDF",fileSize,status,totalPages,publishedOfferings:[{offeringId,offeringCode,offeringName,publishedAt}],createdAt}`. `SLIDE_PDF` đi qua `PENDING_PROCESSING → PROCESSING → READY|FAILED`; `REFERENCE_PDF` chuyển `READY` sau khi Java kiểm tra và lưu tệp. Student response dùng cùng metadata nhưng chỉ liệt kê publication nằm trong các lớp Student đã được duyệt. Download trả `application/pdf`; chỉ `SLIDE_PDF` được trả `inline`, còn `REFERENCE_PDF` luôn trả `attachment` kể cả client không truyền query.
+Teacher document response: `{id,title,fileName,fileType:"PDF",materialType:"SLIDE_PDF|SUPPORTING_PDF|REFERENCE_PDF",fileSize,status,totalPages,publishedOfferings:[{offeringId,offeringCode,offeringName,publishedAt}],createdAt}`. `SLIDE_PDF|SUPPORTING_PDF` đi qua `PENDING_PROCESSING → PROCESSING → READY|FAILED`; `REFERENCE_PDF` chuyển `READY` sau khi Java kiểm tra và lưu tệp. Student response chỉ liệt kê publication thuộc lớp đã được duyệt; `SUPPORTING_PDF|REFERENCE_PDF` tải dưới dạng attachment, `SLIDE_PDF` chỉ xem từng trang.
 
-Bản hiện tại trả toàn bộ học liệu trong một page metadata (`page=0`, `totalPages=0|1`). Frontend duyệt theo `totalPages` thay vì giả định chỉ có một trang, áp dụng cả danh sách lớp. Upload `SLIDE_PDF` trả `PENDING_PROCESSING`; worker Java gửi PDF sang Python để lập chỉ mục và chỉ cho phép Tutor khi `READY`. `REFERENCE_PDF` không có AI job. Cả hai loại chỉ được công bố khi `READY`; publish/revoke thành công trả `204` không body.
+Bản hiện tại trả toàn bộ học liệu trong một page metadata (`page=0`, `totalPages=0|1`). Frontend duyệt theo `totalPages`. Upload `SLIDE_PDF|SUPPORTING_PDF` trả `PENDING_PROCESSING`; worker Java gửi PDF sang Python để lập chỉ mục. `REFERENCE_PDF` không có AI job. Mọi loại tài liệu chỉ được công bố khi `READY`; publish/revoke thành công trả `204` không body.
 
 Chỉ nhận PDF có text layer. Hệ thống kiểm document owner và ownership/trạng thái của mọi lớp; publication được lưu theo lớp và re-public kích hoạt lại row cũ. Student `APPROVED` mới xem/tải được PDF. Upload thành công tạo thông báo kho riêng cho Teacher; chỉ lần công bố/re-public mới thông báo Student đã duyệt trong lớp, thao tác giữ nguyên selection không phát lại. Thu hồi phát thông báo mất quyền truy cập mới. Tệp nằm trong private Object Storage; object key không xuất hiện trong response. Storage chưa cấu hình trả `503`, không tạo fixture.
 
@@ -559,6 +563,7 @@ Quy tắc `signedUrl` của endpoint index:
 
 - Poll/job GET retry có backoff giới hạn.
 - Index/deindex key: `documentId:version:pipeline:operation`.
+- Java làm mới signed URL bằng `POST documents/index` với cùng key khi job còn `PENDING`. Python chỉ cập nhật URL tải, không tạo job/chunk trùng; source/owner/version/MIME vẫn phải khớp. Job `FAILED` do `DOCUMENT_DOWNLOAD_FAILED` có thể trở lại `PENDING` với URL mới khi chưa đủ 3 lần thử. Job đã thành công, bị thu hồi hoặc lỗi khác không được mở lại bằng cơ chế này.
 - Không retry mù LLM request sau timeout; Java dùng request/run identity để chống tạo duplicate Quiz/message.
 - Wire shape có image reference sử dụng `X-Schema-Version: 5`; Java/Python phải từ chối version khác và contract test hai phía phải kiểm cả image hợp lệ, image vượt scope và Quiz nhập văn bản không có image.
 - Job polling không trả signed URL/content; internal error chỉ có safe code + trace ID.

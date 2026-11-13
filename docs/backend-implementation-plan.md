@@ -1,5 +1,7 @@
 # StudyFlow — Kế hoạch triển khai Java Backend
 
+> Cập nhật 12/11/2026: [SPEC-11](specs/11-course-tutor-live-completion.md) bổ sung upload cả bộ slide + 0–10 giáo trình PDF (tổng 20 MiB), migration V30 giữ liên kết cũ, công bố bộ tài liệu khi tất cả READY và tái kiểm quyền sau Tutor. API sửa nguồn sau upload đã được bỏ; GET chỉ đọc.
+
 > Đợt đang triển khai: [Quiz Assignment và Trí tuệ tài liệu](quiz-assignment-document-intelligence-plan.md), mốc Q0–Q4. Source đã liên kết Quiz AI được Teacher công bố sang Quiz giao bài bằng cùng ID, giữ câu hỏi/citation, tách endpoint bắt đầu/nộp Quiz lớp, giữ Java làm nơi chấm điểm và trả báo cáo đúng/sai/tỷ lệ sai. Ca HTTP xuyên suốt và toàn bộ 25 kiểm thử HTTP đã đạt trên PostgreSQL Testcontainers; còn browser E2E.
 
 **Vai trò thực hiện:** `BACKEND_AGENT` theo `AGENTS.md`  

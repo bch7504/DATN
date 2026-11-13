@@ -9,4 +9,8 @@ public interface CourseMaterialTutorSourceLinkRepository
         extends JpaRepository<CourseMaterialTutorSourceLink, UUID> {
     List<CourseMaterialTutorSourceLink> findByCourseOfferingIdAndPrimaryDocumentIdOrderByCreatedAtAsc(
             UUID courseOfferingId, UUID primaryDocumentId);
+
+    /** Args: primary slide UUID. Returns: its upload-time private attachments. Errors: persistence failures. */
+    List<CourseMaterialTutorSourceLink> findByPrimaryDocumentIdAndCourseOfferingIdIsNullOrderByCreatedAtAsc(
+            UUID primaryDocumentId);
 }

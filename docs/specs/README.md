@@ -15,6 +15,7 @@ Thư mục này chứa specification có thể dùng trực tiếp cho implement
 9. [`08-traceability.md`](08-traceability.md)
 10. [`09-current-project-status.md`](09-current-project-status.md) — ảnh chụp hiện trạng dự án tại ngày 11/11/2026
 11. [`10-course-material-supporting-sources.md`](10-course-material-supporting-sources.md) — bảng chọn nhiều học liệu và luồng Slide Tutor dùng nguồn hỗ trợ
+12. [`11-course-tutor-live-completion.md`](11-course-tutor-live-completion.md) — hoàn thiện fallback tuần tự, kiểm quyền sau AI và nghiệm thu tài liệu Kỹ thuật số thật
 
 ## Quy ước sử dụng
 

@@ -338,7 +338,7 @@ export default function CourseMaterialViewerPage() {
             {tutorTimeline.length <= 1 && !tutorError && (
               <div className="rounded-2xl bg-slate-50 p-5 text-sm leading-6 text-slate-600">
                 <BookOpen className="mb-3 h-6 w-6 text-red-600" />
-                Chọn đúng slide đang xem rồi đặt câu hỏi. Nếu tài liệu không có đủ căn cứ, hệ thống sẽ thông báo không tìm thấy bằng chứng.
+                Đặt câu hỏi về slide đang xem. Khi slide chưa đủ căn cứ, AI Tutor tìm thêm trong giáo trình được giảng viên liên kết và ghi rõ nguồn trả lời.
               </div>
             )}
             {isTutorHistoryLoading && <LoadingSpinner size="sm" text="Đang tải lịch sử AI Tutor..." />}

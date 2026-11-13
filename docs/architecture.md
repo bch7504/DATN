@@ -13,8 +13,8 @@ Semester ┘          │
 ```
 
 - Admin quản lý account/role, Subject, Semester và giám sát; không phân công từng lớp trong MVP.
-- Teacher tạo Course Offering, quản lý join code, duyệt Student, upload PDF/PPTX làm Course Material theo loại `SLIDE_PDF|SUPPORTING_PDF|REFERENCE_PDF` và tạo Quiz AI từ slide mình sở hữu. Java chuyển PPTX thành PDF trước mọi bước lưu/index.
-- Student `APPROVED` xem `SLIDE_PDF` theo từng trang và dùng Course Material AI Tutor. Tutor có thể dùng `SUPPORTING_PDF` được Teacher liên kết trong cùng lớp; `REFERENCE_PDF` chỉ tải xuống.
+- Teacher tạo Course Offering, quản lý join code, duyệt Student, upload PDF/PPTX làm Course Material theo loại `SLIDE_PDF|REFERENCE_PDF`, kèm giáo trình PDF lúc tải slide lên và tạo Quiz AI từ slide mình sở hữu. Java chuyển PPTX thành PDF trước mọi bước lưu/index.
+- Student `APPROVED` xem `SLIDE_PDF` theo từng trang và dùng Course Material AI Tutor. Tutor có thể dùng `SUPPORTING_PDF` được Teacher đính kèm lúc tải slide lên và công bố cùng lớp; `REFERENCE_PDF` chỉ tải xuống.
 - Personal PDF thuộc Student, chỉ dùng trong Personal Document Assistant và Quiz cá nhân.
 
 ## 2. Kiến trúc hệ thống
@@ -61,12 +61,12 @@ Ranh giới bắt buộc:
 
 ### 5.1 Course Material PDF
 
-1. Teacher upload PDF hoặc PPTX và chọn `SLIDE_PDF`, `SUPPORTING_PDF` hoặc `REFERENCE_PDF`; Java kiểm owner, phần mở rộng/chữ ký/kích thước.
+1. Teacher upload PDF hoặc PPTX và chọn `SLIDE_PDF` hoặc `REFERENCE_PDF`; với slide có thể đính kèm tối đa 10 PDF giáo trình trong cùng lần tải (tổng 20 MiB); Java kiểm owner, phần mở rộng/chữ ký/kích thước.
 2. Với PPTX, Java gọi Gotenberg nội bộ bằng multipart có timeout; chỉ nhận PDF đầu ra trong giới hạn, kiểm tra chữ ký, số trang và text layer. Tệp gốc PPTX không được lưu và không gửi sang Python.
 3. Java lưu PDF chuẩn hóa vào Object Storage. `SLIDE_PDF` và `SUPPORTING_PDF` được gửi job index sang Python bằng signed URL và authorized source metadata; `REFERENCE_PDF` không rời Java/Object Storage để phục vụ AI.
 4. Python extract PDF theo trang, chunk, embed và activate index version; OCR/DOCX ngoài MVP.
 5. Teacher public tài liệu `READY` vào Course Offering mình sở hữu.
-6. Student `APPROVED` xem từng trang `SLIDE_PDF` và dùng Course Material AI Tutor; `SUPPORTING_PDF` chỉ tham gia retrieval khi Teacher liên kết với slide trong cùng lớp; `REFERENCE_PDF` chỉ tải xuống.
+6. Student `APPROVED` xem từng trang `SLIDE_PDF` và dùng Course Material AI Tutor; `SUPPORTING_PDF` chỉ tham gia retrieval khi Teacher đính kèm lúc tải slide lên và cả bộ còn công bố cùng lớp; `REFERENCE_PDF` chỉ tải xuống.
 7. Teacher không có chatbot hoặc AI Tutor; Teacher chỉ dùng `SLIDE_PDF` làm nguồn cho AI Quiz Generator.
 
 ### 5.2 Personal PDF
@@ -105,8 +105,8 @@ Conversation hỗ trợ Agent hiểu ngữ cảnh, nhưng không được mở r
 
 1. Java kiểm Student, enrollment `APPROVED`, publication, document/version và page scope.
 2. Java cấp slide chính và tối đa 10 `SUPPORTING_PDF` còn hiệu lực. Python ưu tiên trang hiện tại, các trang khác của slide, sau đó mới đến tài liệu hỗ trợ. `REFERENCE_PDF` không thể xuất hiện trong retrieval.
-3. Python trả `ANSWERED` kèm page citations có vai trò `PRIMARY` hoặc `SUPPORTING`, hoặc `NO_EVIDENCE` nếu toàn bộ phạm vi không đủ bằng chứng.
-4. Java đối chiếu document/version/page lần cuối rồi mới trả Browser.
+3. Mỗi bước retrieval/generation chỉ dùng phạm vi của bước đó. Nếu không tìm thấy evidence hoặc LLM trả `answer=null`, mới chuyển sang bước kế tiếp. Python trả `ANSWERED` với citation hoặc `NO_EVIDENCE` sau khi hết các bước; Java gắn vai trò nguồn `SLIDE|SUPPORTING`.
+4. Java kiểm quyền/publication ở transaction mới sau khi gọi AI, đối chiếu document/version/page lần cuối rồi mới lưu và trả Browser. Nguồn bị thu hồi trong lúc sinh câu trả lời bị chặn với `409 AI_SOURCE_SCOPE_CHANGED`.
 
 Tutor này chỉ dành cho Student. Teacher không có AI Tutor. Java lưu long-term history theo Student/document/version, gửi tối đa 12 lượt gần nhất làm short-term memory; Python dùng working memory trong request để viết lại câu hỏi nối tiếp. History không thay thế evidence từ PDF.
 

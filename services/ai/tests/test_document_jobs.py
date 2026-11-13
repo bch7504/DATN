@@ -10,6 +10,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.orm import Session
 
 from app.api.routes.documents import get_job_repository
+from app.core.errors import ServiceError
 from app.repositories.job_repository import JobRepository
 from app.repositories.models import IndexJob, JobOperation, JobStatus
 from app.schemas.jobs import ClaimedJob, DeindexRequest, IndexRequest, JobResponse
@@ -107,3 +108,93 @@ def test_worker_with_expired_or_replaced_claim_cannot_persist() -> None:
     assert all(
         "pg_advisory_xact_lock" in str(call.args[0]) for call in session.execute.call_args_list
     )
+
+
+@pytest.mark.parametrize(
+    "status,attempt,error_code,expected_status,renewed",
+    [
+        ("PENDING", 0, None, "PENDING", True),
+        ("FAILED", 1, "DOCUMENT_DOWNLOAD_FAILED", "PENDING", True),
+        ("FAILED", 3, "DOCUMENT_DOWNLOAD_FAILED", "FAILED", False),
+        ("FAILED", 1, "DOCUMENT_REVOKED", "FAILED", False),
+        ("SUCCEEDED", 1, None, "SUCCEEDED", False),
+        ("RUNNING", 1, None, "RUNNING", False),
+    ],
+)
+def test_url_renewal_preserves_job_identity_and_terminal_guards(
+    status: str, attempt: int, error_code: str | None, expected_status: str, renewed: bool
+) -> None:
+    """Renew queued/failed downloads without duplicating or reviving revoked jobs."""
+    document_id, owner_id, job_id = uuid4(), uuid4(), uuid4()
+    payload = IndexRequest(
+        document_id=document_id,
+        document_version=1,
+        pipeline_version="pdf-v1",
+        owner_id=owner_id,
+        source_type="COURSE_MATERIAL_PDF",
+        signed_url="https://storage.invalid/synthetic.pdf?signature=new-test-only",
+        mime_type="application/pdf",
+    )
+    job = IndexJob(
+        id=job_id,
+        operation="INDEX",
+        document_id=document_id,
+        document_version=1,
+        pipeline_version="pdf-v1",
+        owner_id=owner_id,
+        source_type="COURSE_MATERIAL_PDF",
+        mime_type="application/pdf",
+        status=status,
+        attempt=attempt,
+        error_code=error_code,
+        signed_url=None,
+    )
+    session = MagicMock(spec=Session)
+    session.scalar.side_effect = [None, job]
+
+    result = JobRepository(session).enqueue(
+        payload=payload, request_id="url-renewal-test", idempotency_key="synthetic-url-renewal-key"
+    )
+
+    assert result.job_id == job_id
+    assert result.status.value == expected_status
+    assert result.attempt == attempt
+    assert (job.signed_url is not None) is renewed
+    assert "signature" not in result.model_dump_json()
+
+
+def test_url_renewal_rejects_a_different_owner() -> None:
+    """A new signed URL never allows the caller to replace authorization identity."""
+    document_id = uuid4()
+    payload = IndexRequest(
+        document_id=document_id,
+        document_version=1,
+        pipeline_version="pdf-v1",
+        owner_id=uuid4(),
+        source_type="COURSE_MATERIAL_PDF",
+        signed_url="https://storage.invalid/synthetic.pdf?signature=test-only",
+        mime_type="application/pdf",
+    )
+    job = IndexJob(
+        id=uuid4(),
+        operation="INDEX",
+        document_id=document_id,
+        document_version=1,
+        pipeline_version="pdf-v1",
+        owner_id=uuid4(),
+        source_type="COURSE_MATERIAL_PDF",
+        mime_type="application/pdf",
+        status="PENDING",
+        attempt=0,
+    )
+    session = MagicMock(spec=Session)
+    session.scalar.side_effect = [None, job]
+
+    with pytest.raises(ServiceError) as caught:
+        JobRepository(session).enqueue(
+            payload=payload,
+            request_id="url-renewal-invalid",
+            idempotency_key="synthetic-url-renewal-key",
+        )
+
+    assert caught.value.code == "IDEMPOTENCY_CONFLICT"

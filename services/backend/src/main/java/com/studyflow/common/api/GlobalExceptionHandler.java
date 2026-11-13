@@ -21,6 +21,23 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 public final class GlobalExceptionHandler {
 
     /**
+     * Args: unsupported-method exception and request, both required.
+     * Input: HTTP method not mapped on an existing route, including retired Tutor source writes.
+     * Output: 405 METHOD_NOT_ALLOWED envelope with Allow header when methods are known.
+     * Errors/side effects: none; does not disclose internal exception details.
+     */
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ErrorEnvelope> handleMethodNotAllowed(
+            org.springframework.web.HttpRequestMethodNotSupportedException exception,
+            HttpServletRequest request) {
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        if (exception.getSupportedHttpMethods() != null) headers.setAllow(exception.getSupportedHttpMethods());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).headers(headers).body(new ErrorEnvelope(
+                "METHOD_NOT_ALLOWED", "Thao tác này không được hỗ trợ trên đường dẫn yêu cầu.",
+                List.of(), requestId(request)));
+    }
+
+    /**
      * Args: framework missing-route exception and HTTP context, both required.
      * Input: an authenticated request for an unmapped resource. Output: 404 standard error envelope.
      * Errors/side effects: none; does not disclose internal paths or exception messages.

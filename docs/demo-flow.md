@@ -7,7 +7,7 @@ Kịch bản trình diễn một luồng xuyên suốt, dùng cùng một lớp 
 ```text
 Admin chuẩn bị danh mục
   → Teacher mở lớp và duyệt Student
-  → Teacher tải Slide Chương 2 lên kho, công bố và tạo Quiz
+  → Teacher tải Slide Chương 2 kèm giáo trình hỗ trợ, công bố và tạo Quiz
   → Student xem slide, ghi chú, hỏi AI Tutor và nộp Quiz
   → Teacher xem kết quả, tỷ lệ sai
   → Student xem Dashboard, nội dung cần ôn và lập kế hoạch học
@@ -17,6 +17,7 @@ Luồng chính dùng:
 
 - Lớp học phần: **KTS-01 · Kỹ thuật số**.
 - Học liệu: **Slide Chương 2 – Cổng logic**.
+- Nguồn hỗ trợ Tutor: **Chương 2 – Cổng logic.pdf**, loại `SUPPORTING_PDF`, liên kết với slide trong KTS-01.
 - Loại học liệu: `SLIDE_PDF`; Student chỉ xem trên web, không tải tệp nguồn.
 - Quiz: `MCQ_SINGLE`, mỗi câu có đúng 4 lựa chọn và một đáp án đúng.
 
@@ -32,7 +33,7 @@ Dùng ba tài khoản local được công bố trong `README.md` ở thư mục
 - Teacher sở hữu lớp `KTS-01`.
 - Student đã gửi yêu cầu tham gia hoặc sẽ gửi trong lúc demo.
 - Kho **Tài liệu tải lên** mặc định của Teacher tồn tại.
-- Chỉ giữ học liệu **Slide Chương 2 – Cổng logic** cho luồng chính.
+- Chọn **Slide Chương 2 – Cổng logic** cùng giáo trình hỗ trợ cho luồng chính; có thể giữ đủ tài liệu bốn chương Kỹ thuật số trong kho.
 - Frontend, Java Backend, Python AI Service, PostgreSQL, pgvector và Object Storage đều sẵn sàng.
 
 ### 2.3 Kiểm tra nhanh
@@ -97,18 +98,20 @@ Dùng ba tài khoản local được công bố trong `README.md` ở thư mục
 
 ### B4. Tải và xử lý học liệu
 
-1. Trong kho, bấm **Thêm tài liệu**.
+1. Trong kho đã chọn để chứa bộ tài liệu, bấm **Thêm tài liệu**. Nếu slide/giáo trình đã có và `READY`, sử dụng lại bản đó để tránh tải trùng.
 2. Chọn PDF có text layer hoặc PPTX để Java chuyển sang PDF rồi kiểm tra text layer.
 3. Đặt tên **Slide Chương 2 – Cổng logic** và chọn `SLIDE_PDF`.
 4. Theo dõi `PENDING_PROCESSING → PROCESSING → READY`.
+5. Ngay trong form tải slide, chọn **Chương 2 – Cổng logic.pdf** tại **Giáo trình/tài liệu hỗ trợ đính kèm**, rồi gửi cả bộ trong một lần. Chờ cả slide và giáo trình `READY`; kho tự cập nhật trạng thái mỗi 10 giây. Không chọn giáo trình lại trong kho lớp.
 
 **Kết quả:** Python chỉ nhận PDF đã chuẩn hóa; Student không nhận PPTX gốc. Tệp mã hóa, lỗi hoặc không có text layer bị từ chối an toàn.
 
 ### B5. Sắp xếp và công bố học liệu
 
-1. Nếu cần, tạo kho **Kho Kỹ thuật số** và đưa Slide Chương 2 vào kho này.
-2. Trong chi tiết kho, chọn lớp `KTS-01` và bấm **Thêm vào lớp**.
-3. Mở kho của `KTS-01` để kiểm tra học liệu đã xuất hiện.
+1. Mở kho chứa học liệu cần công bố, ví dụ **Kho Kỹ thuật số** hoặc **Tài liệu tải lên**.
+2. Trong chi tiết kho, dùng checkbox chọn một hoặc nhiều slide; bảng có STT, tên và loại tài liệu.
+3. Chọn lớp `KTS-01` trên thanh công cụ và bấm **Thêm vào lớp**. Hệ thống tự công bố cả giáo trình đã đính kèm khi tải từng slide. Nếu một giáo trình còn xử lý hoặc lỗi, bộ đó chưa được công bố.
+4. Mở kho của `KTS-01` để kiểm tra slide và giáo trình đã xuất hiện. Kho lớp chỉ quản lý tài liệu đã công bố; không có cửa sổ chọn hoặc đổi giáo trình hỗ trợ.
 
 **Kết quả:** Tài liệu chỉ cấp quyền cho Student sau khi được công bố vào lớp; bản gốc vẫn thuộc Teacher.
 
@@ -133,13 +136,14 @@ Dùng ba tài khoản local được công bố trong `README.md` ở thư mục
 ### C3. Hỏi Course Material AI Tutor
 
 1. Bấm biểu tượng AI Tutor bên phải để mở; bấm lại để ẩn.
-2. Hỏi: **“Cổng NAND hoạt động như thế nào?”**
-3. Bấm citation để mở đúng trang và đoạn nguồn.
-4. Chuyển trang; kiểm tra chat giữ hội thoại cũ và có dòng nhỏ báo trang hiện tại.
-5. Hỏi nối tiếp: **“Vậy nó khác cổng AND ở điểm nào?”**
-6. Hỏi một câu ngoài tài liệu để minh họa `NO_EVIDENCE`.
+2. Tại trang 3, hỏi: **“Trong đại số Boole, định lý De Morgan biến đổi phần bù của một tổng như thế nào?”** Câu trả lời phải trích slide trang 3.
+3. Xem thẻ nguồn bên dưới câu trả lời; rê chuột để xem trích đoạn. Với Tutor, thẻ nguồn hiện hiển thị tên/loại/trang, chưa mở cửa sổ tài liệu riêng.
+4. Chuyển sang trang 1; chat vẫn giữ hội thoại cũ, không chèn dòng thông báo đổi trang.
+5. Hỏi: **“Theo giáo trình, đầu ra của cổng XOR nhiều đầu vào bằng 1 khi số bit 1 chẵn hay lẻ? So sánh với XNOR nhiều đầu vào và cách xây dựng XNOR từ XOR.”** Tutor cần mở rộng sang giáo trình đã liên kết; lần nghiệm thu trả nguồn `SUPPORTING`, trang 18–19 trong tệp PDF.
+6. Hỏi **“Cho tôi biết thời tiết Hà Nội ngày mai và giá vàng hôm nay.”** để minh họa `NO_EVIDENCE`.
+7. Rời Viewer rồi mở lại để kiểm tra lịch sử đã được Java lưu. Có thể hỏi nối tiếp để minh họa memory, nhưng nội dung lịch sử không thay thế nguồn PDF.
 
-**Kết quả:** AI dùng lịch sử, trang đang xem và phạm vi lớp được phép. Câu trả lời có citation `documentId + pageNumber`; thiếu nguồn thì không tự đoán.
+**Kết quả:** Tutor thử trang hiện tại → slide chính → slide cùng giáo trình hỗ trợ. Câu trả lời phân biệt nguồn slide/giáo trình theo tên và số trang; khi thiếu nguồn trả `NO_EVIDENCE`. Thu hồi giáo trình loại nguồn đó khỏi câu hỏi mới; một ca live đã được kiểm tra và khôi phục publication sau đó. Chi tiết nghiệm thu tại [SPEC-11](specs/11-course-tutor-live-completion.md).
 
 ## 6. Phần D — Teacher tạo, duyệt và giao Quiz
 

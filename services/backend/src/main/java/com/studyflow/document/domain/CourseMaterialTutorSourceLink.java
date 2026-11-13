@@ -7,12 +7,12 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Teacher-defined supporting PDF for one primary slide inside one Course Offering. */
+/** Supporting PDF attached at slide upload; nullable offering identifies the reusable private bundle. */
 @Entity
 @Table(name = "course_material_tutor_sources", schema = "app")
 public class CourseMaterialTutorSourceLink {
     @Id private UUID id;
-    @Column(name = "course_offering_id", nullable = false) private UUID courseOfferingId;
+    @Column(name = "course_offering_id") private UUID courseOfferingId;
     @Column(name = "primary_document_id", nullable = false) private UUID primaryDocumentId;
     @Column(name = "supporting_document_id", nullable = false) private UUID supportingDocumentId;
     @Column(name = "created_by", nullable = false) private UUID createdBy;
@@ -21,13 +21,13 @@ public class CourseMaterialTutorSourceLink {
     protected CourseMaterialTutorSourceLink() { }
 
     /**
-     * Args: generated ID, offering, primary slide, supporting PDF, Teacher and timestamp.
+     * Args: generated ID, nullable legacy offering, primary slide, supporting PDF, Teacher and timestamp.
      * Input: values already authorized and type-checked by the application service.
      * Output: one immutable link entity. Errors: IllegalArgumentException for null/self-link input.
      */
     public CourseMaterialTutorSourceLink(UUID id, UUID courseOfferingId, UUID primaryDocumentId,
                                          UUID supportingDocumentId, UUID createdBy, Instant createdAt) {
-        if (id == null || courseOfferingId == null || primaryDocumentId == null
+        if (id == null || primaryDocumentId == null
                 || supportingDocumentId == null || createdBy == null || createdAt == null) {
             throw new IllegalArgumentException("Tutor source link fields are required");
         }

@@ -1,5 +1,7 @@
 # StudyFlow — Kế hoạch triển khai Frontend
 
+> Cập nhật 12/11/2026: [SPEC-11](specs/11-course-tutor-live-completion.md) chốt giáo trình chỉ được đính kèm trong form tải slide lên. Kho chi tiết dùng bảng chọn nhiều để công bố; kho lớp không có nút chọn hoặc đổi nguồn hỗ trợ.
+
 > Đợt đang triển khai: [Quiz Assignment và Trí tuệ tài liệu](quiz-assignment-document-intelligence-plan.md). Source đã có luồng Teacher duyệt và giao Quiz thành Assignment, Student làm/nộp trong Bài tập, Teacher xem điểm/đúng-sai/tỷ lệ sai. KaTeX đã render an toàn nội dung Quiz; còn nghiệm thu E2E, image artifact và các mốc Document Intelligence.
 
 **Người phụ trách:** Chủ dự án, thực hiện theo boundary `FRONTEND_AGENT`.

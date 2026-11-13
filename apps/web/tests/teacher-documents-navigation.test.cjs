@@ -25,7 +25,7 @@ test("Teacher PDF library lists owned classes before class-specific materials", 
   });
 
   await t.test("A private PDF/PPTX is uploaded into a Teacher library before class publication", () => {
-    assert.match(upload, /teacherDocApi\.uploadDocument\(file, title\.trim\(\), materialType, libraryId \|\| undefined\)/);
+    assert.match(upload, /teacherDocApi\.uploadDocument\(file, title\.trim\(\), materialType, libraryId \|\| undefined, supportingFiles\)/);
     assert.match(upload, /value="REFERENCE_PDF"/);
     assert.match(upload, /application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation/);
     assert.match(upload, /PPTX:[\s\S]*?chuyển PDF tự động/);

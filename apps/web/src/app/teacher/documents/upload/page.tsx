@@ -14,6 +14,7 @@ export default function TeacherPrivateDocumentUploadPage(): React.JSX.Element {
   const [libraryId, setLibraryId] = useState("");
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [materialType, setMaterialType] = useState<CourseMaterialType>("SLIDE_PDF");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,8 @@ export default function TeacherPrivateDocumentUploadPage(): React.JSX.Element {
     }).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Không tải được danh sách kho."));
   }, []);
 
-  /** Args: form event. Input: title, PDF/PPTX, material type and optional owned library. Output: uploaded document filed in the selected library. Errors: shown inline. */
+  /** Args: form event. Input: primary PDF/PPTX with 0–10 supporting PDFs, <=20 MiB total and owned library.
+   * Output: uploads the private bundle then navigates to its library. Errors: validation/API errors shown inline. */
   async function upload(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!libraryId) {
@@ -41,7 +43,7 @@ export default function TeacherPrivateDocumentUploadPage(): React.JSX.Element {
     }
     setBusy(true); setError(null);
     try {
-      await teacherDocApi.uploadDocument(file, title.trim(), materialType, libraryId || undefined);
+      await teacherDocApi.uploadDocument(file, title.trim(), materialType, libraryId || undefined, supportingFiles);
       router.replace(libraryId ? `/teacher/documents/libraries/${encodeURIComponent(libraryId)}` : "/teacher/documents");
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : "Tải tài liệu thất bại.");
@@ -55,8 +57,15 @@ export default function TeacherPrivateDocumentUploadPage(): React.JSX.Element {
     <form onSubmit={(event) => void upload(event)} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <label className="block text-sm font-semibold">Kho giảng viên<select value={libraryId} onChange={(event) => setLibraryId(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 font-normal"><option value="">Tài liệu tải lên (mặc định)</option>{libraries.map((item) => <option key={item.id} value={item.id}>{item.name}{item.libraryType === "DEFAULT" ? " · Mặc định" : item.subjectName ? ` · ${item.subjectName}` : ""}</option>)}</select></label>
       <label className="block text-sm font-semibold">Tiêu đề<input required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 p-3 font-normal" /></label>
-      <label className="block text-sm font-semibold">Loại tài liệu<select value={materialType} onChange={(event) => setMaterialType(event.target.value as CourseMaterialType)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 font-normal"><option value="SLIDE_PDF">Slide PDF — nguồn chính của AI Tutor</option><option value="SUPPORTING_PDF">Giáo trình/PDF hỗ trợ — bổ sung kiến thức cho slide</option><option value="REFERENCE_PDF">Tài liệu tham khảo — chỉ tải xuống</option></select></label>
+      <label className="block text-sm font-semibold">Loại tài liệu<select value={materialType} onChange={(event) => { setMaterialType(event.target.value as CourseMaterialType); setSupportingFiles([]); }} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 font-normal"><option value="SLIDE_PDF">Slide PDF — nguồn chính của AI Tutor</option><option value="REFERENCE_PDF">Tài liệu tham khảo — chỉ tải xuống</option></select></label>
       <label className="block text-sm font-semibold">Tệp PDF có lớp văn bản hoặc PPTX<input required type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="mt-2 w-full text-sm" /></label>
+      {materialType === "SLIDE_PDF" && <section className="space-y-3 rounded-xl border border-slate-200 p-4">
+        <label className="block text-sm font-semibold">Giáo trình/tài liệu hỗ trợ đính kèm (không bắt buộc)
+          <input type="file" multiple accept="application/pdf,.pdf" onChange={(event) => setSupportingFiles(Array.from(event.target.files ?? []))} className="mt-2 w-full text-sm" />
+        </label>
+        <p className="text-xs leading-5 text-slate-500">Chọn tối đa 10 PDF có lớp văn bản. Tổng slide và giáo trình tối đa 20 MB. Khi công bố slide, các tài liệu đi kèm sẽ được công bố vào cùng lớp để AI Tutor giải thích khi slide chưa đủ thông tin.</p>
+        {supportingFiles.length > 0 && <ul className="space-y-1 text-sm text-slate-700">{supportingFiles.map((item, index) => <li key={`${item.name}-${index}`}>{item.name} · {(item.size / 1024 / 1024).toFixed(2)} MB</li>)}</ul>}
+      </section>}
       <p className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-800">Nếu chọn PPTX: tải lên → chuyển PDF tự động → kiểm tra lớp văn bản → lưu vào kho đã chọn. Hệ thống không giữ tệp PPTX gốc.</p>
       <div className="flex justify-end gap-2"><Link href="/teacher/documents" className="rounded-xl border border-slate-300 px-4 py-2 text-sm">Hủy</Link><button disabled={busy} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{busy ? "Đang tải và xử lý..." : "Tải lên và thêm vào kho"}</button></div>
     </form>

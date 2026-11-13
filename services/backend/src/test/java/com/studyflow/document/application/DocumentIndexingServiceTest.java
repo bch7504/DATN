@@ -120,6 +120,47 @@ class DocumentIndexingServiceTest {
         assertThat(document.getIndexedAt()).isEqualTo(now);
     }
 
+    /** Queued work receives a fresh short-lived URL using the exact existing operation key. */
+    @Test
+    void renewsPendingDownloadWithoutCreatingANewOperation() {
+        CourseMaterialDocument document = pendingDocument();
+        UUID jobId = UUID.randomUUID();
+        document.markProcessing(jobId, now.minusSeconds(500));
+        when(documents.findTop20ByProcessingStatusAndDeletedAtIsNullOrderByUpdatedAtAsc("PROCESSING"))
+                .thenReturn(List.of(document));
+        when(ai.getJob(jobId, "doc-poll-" + document.getId())).thenReturn(
+                new JobResponse("poll", jobId, JobStatus.PENDING, 0, null, null));
+        when(storage.presignGet(anyString(), any())).thenReturn(
+                URI.create("https://storage.example.test/renewed.pdf"));
+        String operationKey = document.getId() + ":1:pdf-v1:index";
+        when(ai.indexDocument(any(), anyString(), org.mockito.ArgumentMatchers.eq(operationKey)))
+                .thenReturn(new JobAcceptedResponse("renew", jobId, JobStatus.PENDING));
+
+        service.pollProcessing();
+
+        assertThat(document.getProcessingStatus()).isEqualTo("PROCESSING");
+        assertThat(document.getAiJobId()).isEqualTo(jobId);
+        verify(ai).indexDocument(any(), org.mockito.ArgumentMatchers.eq("doc-index-" + document.getId()),
+                org.mockito.ArgumentMatchers.eq(operationKey));
+    }
+
+    /** Exhausted download attempts remain terminal rather than retrying forever. */
+    @Test
+    void stopsDownloadRetryAfterThreeAttempts() {
+        CourseMaterialDocument document = pendingDocument();
+        UUID jobId = UUID.randomUUID();
+        document.markProcessing(jobId, now.minusSeconds(1));
+        when(documents.findTop20ByProcessingStatusAndDeletedAtIsNullOrderByUpdatedAtAsc("PROCESSING"))
+                .thenReturn(List.of(document));
+        when(ai.getJob(jobId, "doc-poll-" + document.getId())).thenReturn(
+                new JobResponse("poll", jobId, JobStatus.FAILED, 3, "DOCUMENT_DOWNLOAD_FAILED", null));
+
+        service.pollProcessing();
+
+        assertThat(document.getProcessingStatus()).isEqualTo("FAILED");
+        verify(ai, never()).indexDocument(any(), anyString(), anyString());
+    }
+
     private CourseMaterialDocument pendingDocument() {
         return new CourseMaterialDocument(
                 UUID.randomUUID(), UUID.randomUUID(), "synthetic.pdf", "Synthetic",

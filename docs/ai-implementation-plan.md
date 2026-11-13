@@ -5,13 +5,15 @@
 **Trạng thái cập nhật 03/11/2026:** Python AI Service đã có Hybrid RAG, bước xếp hạng lại bằng LLM với structured output, LangChain orchestration và guardrails; bộ kiểm thử hiện đạt 95 ca, một ca PostgreSQL/pgvector được bỏ qua khi không bật chế độ tích hợp. Bốn PDF môn Kỹ thuật số đã được lập chỉ mục thật. Kết quả 12 ca live ngày 23/10 (recall@8 = 100%, `NO_EVIDENCE` = 100%, citation location precision = 64,29%) là baseline **trước LLM reranker**, không được dùng làm điểm sau nâng cấp. Local AI Service tự nạp `.env` ở root, trong khi biến môi trường tiến trình vẫn có ưu tiên cao hơn.
 **Phạm vi:** Python AI Service và các contract Java ↔ Python liên quan đến Personal PDF Assistant, Course Material AI Tutor và AI Quiz Generator.
 
+**Bổ sung 12/11/2026:** Contract hiện dùng schema version 5. Course Tutor nhận slide chính và tối đa 10 `SUPPORTING_PDF` đã được giảng viên đính kèm lúc tải slide lên, còn công bố trong cùng lớp. Python thử trang hiện tại → phạm vi slide → slide cùng nguồn hỗ trợ; chỉ chuyển bước khi chưa đủ bằng chứng. Java kiểm quyền lại sau khi AI hoàn tất. Phạm vi triển khai và kết quả nghiệm thu của lần này nằm trong [SPEC-11](specs/11-course-tutor-live-completion.md); các số liệu cũ bên trên là kết quả lịch sử.
+
 ## 0. Trạng thái hiện tại và kế hoạch làm tiếp
 
 ### 0.1. Phần đã có
 
 | Nhóm | Trạng thái hiện tại |
 |---|---|
-| API nội bộ | Đã có health, index, deindex, job polling, Personal Assistant, Course Material Tutor và Quiz Generator theo schema version 3 |
+| API nội bộ | Đã có health, index, deindex, job polling, Personal Assistant, Course Material Tutor và Quiz Generator theo schema version 5 |
 | Xử lý PDF | Đã có kiểm tra PDF có lớp văn bản, tách nội dung theo trang, chunk, embedding 1024 chiều và lưu pgvector |
 | Personal Assistant | Đã có bộ điều phối một agent để chọn hỏi đáp, tóm tắt hoặc tạo Quiz; có hỏi lại khi thiếu thông tin |
 | Retrieval/Grounding | Đã có vector search + full-text search, RRF, LLM reranker có output schema, LangChain orchestration, giới hạn phạm vi tài liệu, `NO_EVIDENCE`, citation theo trang và kiểm tra lại nguồn |
