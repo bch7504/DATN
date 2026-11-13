@@ -163,28 +163,12 @@ class RealHttpApiTest {
 
     /**
      * Args: none.
-     * Input: isolated PostgreSQL schema created by Hibernate plus forward SQL resources V15, V23, V25 and V26.
-     * Output: void; installs AI Quiz/tutor/image tables and seeds only synthetic external adapter doubles.
+     * Input: isolated PostgreSQL schema initialized by the complete Flyway migration chain.
+     * Output: void; seeds synthetic external adapter doubles; Flyway alone owns migration execution.
      * Errors: missing or invalid migration resources abort the test setup before any HTTP scenario runs.
      */
     @BeforeAll
     void prepareIsolatedFixtures() throws Exception {
-        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
-                new org.springframework.core.io.ClassPathResource(
-                        "db/migration/V15__create_personal_assistant_and_ai_quiz_tables.sql"))
-                .execute(dataSource);
-        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
-                new org.springframework.core.io.ClassPathResource(
-                        "db/migration/V23__create_course_material_tutor_memory.sql"))
-                .execute(dataSource);
-        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
-                new org.springframework.core.io.ClassPathResource(
-                        "db/migration/V25__add_ai_quiz_question_images.sql"))
-                .execute(dataSource);
-        new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
-                new org.springframework.core.io.ClassPathResource(
-                        "db/migration/V26__allow_imported_text_student_quiz_mode.sql"))
-                .execute(dataSource);
         doAnswer(call -> { codes.put(call.getArgument(0), call.getArgument(2)); return null; })
                 .when(mail).send(any(), any(), any(), any());
         doAnswer(call -> {
@@ -1032,8 +1016,75 @@ class RealHttpApiTest {
 
     /** No args. Output: fresh class response created through HTTP; failures abort only current scenario. */
     private JsonNode createCourse() throws Exception {
-        return expect(send("POST", "/api/v1/teacher/course-offerings", teacher,
-                Map.of("subjectId", subjectId, "semesterId", semesterId, "code", "QA-" + UUID.randomUUID().toString().substring(0, 8), "name", "QA course")), 201);
+        JsonNode request = expect(send("POST", "/api/v1/teacher/course-opening-requests", teacher,
+                Map.of("subjectCode", "QA-HTTP", "subjectName", "Synthetic subject", "credits", 3,
+                        "semesterId", semesterId, "code", "QA-" + UUID.randomUUID().toString().substring(0, 8), "name", "QA course")), 201);
+        JsonNode approved = expect(send("POST", "/api/v1/admin/course-opening-requests/" + request.path("id").asText() + "/approve", admin,
+                Map.of("subjectId", subjectId)), 200);
+        return expect(send("POST", "/api/v1/teacher/course-offerings/" + approved.path("courseOfferingId").asText() + "/join-code/regenerate", teacher, null), 200);
+    }
+
+    /** Synthetic HTTP scenario: free subject proposal, role isolation, normalization, single approval/rejection. */
+    @Test
+    void adminApprovalIsRequiredBeforeACourseExists() throws Exception {
+        String code = "NEW-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
+        Map<String,Object> proposal = Map.of("subjectCode", code, "subjectName", "Proposed subject", "credits", 3,
+                "semesterId", semesterId, "code", code + "-01");
+        expect(send("POST", "/api/v1/teacher/course-opening-requests", student, proposal), 403);
+        expect(send("POST", "/api/v1/teacher/course-opening-requests", teacher, Map.of("subjectCode", code)), 422);
+        JsonNode request = expect(send("POST", "/api/v1/teacher/course-opening-requests", teacher, proposal), 201);
+        assertThat(request.path("status").asText()).isEqualTo("PENDING");
+        assertThat(request.path("courseOfferingId").isNull()).isTrue();
+        assertThat(request.has("rawJoinCode")).isFalse();
+        assertThat(subjects.findByCode(code)).isEmpty();
+        String id = request.path("id").asText();
+        expect(send("POST", "/api/v1/teacher/course-opening-requests", teacher, proposal), 409);
+        JsonNode foreignList = expect(send("GET", "/api/v1/teacher/course-opening-requests", otherTeacher, null), 200);
+        assertThat(foreignList.path("items").toString()).doesNotContain(id);
+        expect(send("POST", "/api/v1/admin/course-opening-requests/" + id + "/approve", teacher, Map.of()), 403);
+        JsonNode approved = expect(send("POST", "/api/v1/admin/course-opening-requests/" + id + "/approve", admin,
+                Map.of("subjectCode", code, "subjectName", "Normalized subject", "credits", 4)), 200);
+        assertThat(approved.path("status").asText()).isEqualTo("APPROVED");
+        assertThat(subjects.findByCode(code).orElseThrow().getName()).isEqualTo("Normalized subject");
+        expect(send("GET", "/api/v1/teacher/course-offerings/" + approved.path("courseOfferingId").asText(), teacher, null), 200);
+        expect(send("POST", "/api/v1/admin/course-opening-requests/" + id + "/approve", admin, Map.of()), 409);
+        expect(send("POST", "/api/v1/teacher/course-offerings", teacher,
+                Map.of("subjectId", subjectId, "semesterId", semesterId, "code", code + "-BYPASS")), 409);
+        JsonNode rejected = expect(send("POST", "/api/v1/teacher/course-opening-requests", teacher,
+                Map.of("subjectCode", "DECLINED", "subjectName", "Rejected proposal", "credits", 3,
+                        "semesterId", semesterId, "code", "REJECT-" + code)), 201);
+        String rejectPath = "/api/v1/admin/course-opening-requests/" + rejected.path("id").asText() + "/reject";
+        expect(send("POST", rejectPath, admin, Map.of("reason", " ")), 422);
+        assertThat(expect(send("POST", rejectPath, admin, Map.of("reason", "Need clarification")), 200).path("status").asText()).isEqualTo("REJECTED");
+        assertThat(subjects.findByCode("DECLINED")).isEmpty();
+    }
+
+    /** Synthetic PDF management preserves bytes/index identity and enforces owner-scoped atomic moves. */
+    @Test
+    void teacherCanRenameMoveAndDeleteDocuments() throws Exception {
+        JsonNode doc = expect(multipart("/api/v1/teacher/documents", teacher, "file", syntheticPdf(), "Original title", "REFERENCE_PDF"), 201);
+        String documentId = doc.path("id").asText();
+        JsonNode libraries = expect(send("GET", "/api/v1/teacher/resource-libraries", teacher, null), 200);
+        String source = "";
+        for (JsonNode library : libraries) if (library.path("libraryType").asText().equals("DEFAULT")) source = library.path("id").asText();
+        String target = expect(send("POST", "/api/v1/teacher/resource-libraries", teacher, Map.of("name", "Target subject folder", "subjectId", subjectId)), 201).path("id").asText();
+        String path = "/api/v1/teacher/resource-libraries/" + source + "/move-documents";
+        expect(send("PATCH", "/api/v1/teacher/documents/" + documentId, teacher, Map.of("title", " ")), 422);
+        expect(send("PATCH", "/api/v1/teacher/documents/" + documentId, otherTeacher, Map.of("title", "Foreign")), 403);
+        expect(send("PATCH", "/api/v1/teacher/documents/" + documentId, teacher, Map.of("title", "Renamed")), 204);
+        expect(send("POST", path, teacher, Map.of("targetLibraryId", target, "documentIds", List.of(documentId, MISSING_ID))), 404);
+        expect(send("POST", path, otherTeacher, Map.of("targetLibraryId", target, "documentIds", List.of(documentId))), 404);
+        expect(send("POST", path, teacher, Map.of("targetLibraryId", target, "documentIds", List.of(documentId))), 204);
+        JsonNode moved = expect(send("GET", "/api/v1/teacher/resource-libraries", teacher, null), 200);
+        for (JsonNode library : moved) {
+            if (library.path("id").asText().equals(source)) assertThat(library.path("items").toString()).doesNotContain(documentId);
+            if (library.path("id").asText().equals(target)) {
+                assertThat(library.path("items").toString()).contains(documentId).contains("Renamed");
+            }
+        }
+        assertThat(send("GET", "/api/v1/teacher/documents/" + documentId + "/download", teacher, null).statusCode()).isEqualTo(200);
+        expect(send("DELETE", "/api/v1/teacher/documents/" + documentId, teacher, null), 204);
+        expect(send("GET", "/api/v1/teacher/documents/" + documentId + "/download", teacher, null), 404);
     }
 
     /**

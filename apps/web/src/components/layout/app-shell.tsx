@@ -318,7 +318,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   } else if (pathname === "/teacher/dashboard") {
                     crumbs.push("Bảng điều khiển");
                   } else if (pathname === "/teacher/course-offerings/new") {
-                    crumbs.push("Lớp học phần", "Mở lớp mới");
+                    crumbs.push("Lớp học phần", "Yêu cầu mở lớp");
                   } else if (pathname?.startsWith("/teacher/course-offerings")) {
                     crumbs.push("Lớp học phần");
                   } else if (pathname === "/teacher/assignments/new") {

@@ -1,11 +1,13 @@
 # StudyFlow — Kế hoạch triển khai Frontend
 
+> SPEC-12 (13/11/2026): Teacher tự nhập môn và gửi yêu cầu mở lớp; trạng thái nằm trong Lớp học phần. Admin chuẩn hóa và duyệt/từ chối trong Lớp học phần của mình. Kho tài liệu bổ sung tìm kiếm, sửa tên, xóa và chuyển kho; form upload dùng khung kéo thả.
+
 > Cập nhật 12/11/2026: [SPEC-11](specs/11-course-tutor-live-completion.md) chốt giáo trình chỉ được đính kèm trong form tải slide lên. Kho chi tiết dùng bảng chọn nhiều để công bố; kho lớp không có nút chọn hoặc đổi nguồn hỗ trợ.
 
 > Đợt đang triển khai: [Quiz Assignment và Trí tuệ tài liệu](quiz-assignment-document-intelligence-plan.md). Source đã có luồng Teacher duyệt và giao Quiz thành Assignment, Student làm/nộp trong Bài tập, Teacher xem điểm/đúng-sai/tỷ lệ sai. KaTeX đã render an toàn nội dung Quiz; còn nghiệm thu E2E, image artifact và các mốc Document Intelligence.
 
 **Người phụ trách:** Chủ dự án, thực hiện theo boundary `FRONTEND_AGENT`.
-**Trạng thái cập nhật 03/11/2026:** Frontend đã bỏ hoàn toàn chế độ demo lúc chạy và chỉ gọi Java `/api/v1`. Typecheck, lint và 102 kiểm thử đạt. Luồng Quiz Assignment đã nối API Java, hiển thị công thức bằng KaTeX `trust: false` và Personal Assistant có lựa chọn nhập Quiz từ văn bản. Backend HTTP E2E và migration V22 đã đạt trên Testcontainers; browser E2E vẫn cần chạy lại. MVP hiện cố định một học kỳ hoạt động với 7 môn.
+**Trạng thái cập nhật 03/11/2026:** Frontend đã bỏ hoàn toàn chế độ demo lúc chạy và chỉ gọi Java `/api/v1`. Typecheck, lint và 102 kiểm thử đạt. Luồng Quiz Assignment đã nối API Java, hiển thị công thức bằng KaTeX `trust: false` và Personal Assistant có lựa chọn nhập Quiz từ văn bản. Backend HTTP E2E và migration V22 đã đạt trên Testcontainers; browser E2E vẫn cần chạy lại. Bảy môn là dữ liệu ban đầu; form yêu cầu mở lớp cho phép Teacher tự nhập môn mới, Admin chuẩn hóa và duyệt.
 
 ## 0. Trạng thái hiện tại và kế hoạch làm tiếp
 
@@ -15,7 +17,7 @@
 |---|---|---|
 | FE-M0 | Hoàn thành | Duy trì build/lint/test trong mọi thay đổi |
 | FE-M1 | Hoàn thành mức code | Auth/OTP, refresh cookie, role guard và forbidden đã dùng Java; còn kiểm tra accessibility/responsive bằng trình duyệt thật |
-| FE-M2 | Hoàn thành mức code | UI tạo/join/duyệt lớp và danh mục 1 học kỳ, 7 môn dùng dữ liệu Java |
+| FE-M2 | Hoàn thành mức code | UI yêu cầu mở lớp/Admin duyệt, join/duyệt enrollment và danh mục động từ Java |
 | FE-M3 | Một phần | Course Material và Personal PDF đã dùng API thật; Note theo trang còn chờ contract Java |
 | FE-M4 | Hoàn thành mức tích hợp | Personal Assistant và Course Material Tutor đã nối Java → Python và hiển thị citation/NO_EVIDENCE |
 | FE-M5 | Một phần | `/plan`, Dashboard và luồng sinh Quiz đã dùng API thật; Review/attempt còn phụ thuộc các endpoint Java chưa hoàn chỉnh |

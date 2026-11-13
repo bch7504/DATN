@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,6 +33,8 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 @RequestMapping("/api/v1/teacher/documents")
 @PreAuthorize("hasRole('TEACHER')")
 public class TeacherCourseMaterialController {
+    /** Input: required display title; output/error contract is enforced by application service. */
+    public record RenameRequest(String title) { }
     private final CourseMaterialLibraryService service;
     private final TeacherCourseMaterialDeletionService deletionService;
 
@@ -123,6 +126,15 @@ public class TeacherCourseMaterialController {
                                        @org.springframework.web.bind.annotation.RequestAttribute(
                                                name = RequestIdFilter.ATTRIBUTE) String requestId) {
         deletionService.delete(userId(jwt), documentId, requestId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Args: authenticated Teacher, active PDF UUID and title. Output: 204; metadata-only rename.
+     * Errors: 401/403/404/422. Does not change PDF version or trigger reindexing. */
+    @org.springframework.web.bind.annotation.PatchMapping("/{documentId}")
+    public ResponseEntity<Void> rename(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID documentId,
+                                       @RequestBody RenameRequest request) {
+        service.rename(userId(jwt), documentId, request.title());
         return ResponseEntity.noContent().build();
     }
 

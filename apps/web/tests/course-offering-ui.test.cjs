@@ -49,15 +49,16 @@ test("FE-M2: Course Offering & Enrollment business rules", async (t) => {
   });
 });
 
-test("Teacher create form prefills editable class code from the selected subject", () => {
+test("Teacher request form accepts free subject text and waits for Admin approval", () => {
   const page = fs.readFileSync(
     path.join(__dirname, "../src/app/teacher/course-offerings/new/page.tsx"),
     "utf8"
   );
 
-  assert.match(page, /setCode\(subjectList\[0\]\?\.code/);
-  assert.match(page, /selectSubject\(event\.target\.value\)/);
-  assert.match(page, /subjects\.find\(\(entry\) => entry\.id === nextId\)\?\.code/);
+  assert.match(page, /openingRequestApi\.submit/);
+  assert.match(page, /value=\{subjectName\}/);
+  assert.doesNotMatch(page, /catalogApi\.getSubjects|teacherApi\.createOffering/);
+  assert.match(page, /Chờ Admin duyệt/);
   assert.match(page, /value=\{code\}/);
 });
 

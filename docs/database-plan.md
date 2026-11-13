@@ -1,5 +1,7 @@
 # StudyFlow — Database Plan
 
+> Bổ sung SPEC-12 (13/11/2026): migration V31 thêm `app.course_opening_requests`. Yêu cầu PENDING lưu đề xuất môn/lớp của Teacher theo Semester, chưa tạo Subject/course/join code. APPROVED có `course_offering_id`, `decided_by`, `decided_at`; REJECTED có lý do và không có lớp. Unique partial `(teacher_id,semester_id,code) WHERE status='PENDING'` chống gửi trùng; duyệt dùng khóa dòng và một transaction. Lớp đã hoạt động không bị thay đổi. Sửa tên/chuyển kho chỉ đổi metadata/reference hiện có, không đổi schema ai.
+
 > Thay đổi đang triển khai: [Quiz Assignment và Trí tuệ tài liệu](quiz-assignment-document-intelligence-plan.md), mục 5. Migration V22 liên kết `course_assignments` với Quiz và submission với attempt/score. Migration V23 bổ sung metadata ảnh riêng tư cho câu hỏi Quiz và đã được áp dụng thành công lên PostgreSQL local ngày 04/11/2026. Migration V24 bổ sung mode `IMPORTED_TEXT_STUDENT` cho bản nháp Quiz được nhập từ chính văn bản Student cung cấp; không thay đổi Quiz có nguồn PDF.
 
 PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `app`; Python/Alembic sở hữu schema `ai` và pgvector. Hai service dùng database role riêng.

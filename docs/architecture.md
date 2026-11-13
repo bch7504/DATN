@@ -12,8 +12,8 @@ Semester ┘          │
                     └→ Document Publication → Course Material PDF
 ```
 
-- Admin quản lý account/role, Subject, Semester và giám sát; không phân công từng lớp trong MVP.
-- Teacher tạo Course Offering, quản lý join code, duyệt Student, upload PDF/PPTX làm Course Material theo loại `SLIDE_PDF|REFERENCE_PDF`, kèm giáo trình PDF lúc tải slide lên và tạo Quiz AI từ slide mình sở hữu. Java chuyển PPTX thành PDF trước mọi bước lưu/index.
+- Admin quản lý account/role, Subject, Semester; chuẩn hóa và duyệt yêu cầu mở lớp của Teacher, đồng thời giám sát lớp đã mở.
+- Teacher gửi yêu cầu mở Course Offering và nhận lớp sau khi Admin duyệt, sau đó quản lý join code, duyệt Student, upload PDF/PPTX làm Course Material theo loại `SLIDE_PDF|REFERENCE_PDF`, kèm giáo trình PDF lúc tải slide lên và tạo Quiz AI từ slide mình sở hữu. Java chuyển PPTX thành PDF trước mọi bước lưu/index.
 - Student `APPROVED` xem `SLIDE_PDF` theo từng trang và dùng Course Material AI Tutor. Tutor có thể dùng `SUPPORTING_PDF` được Teacher đính kèm lúc tải slide lên và công bố cùng lớp; `REFERENCE_PDF` chỉ tải xuống.
 - Personal PDF thuộc Student, chỉ dùng trong Personal Document Assistant và Quiz cá nhân.
 
@@ -51,7 +51,7 @@ Ranh giới bắt buộc:
 
 ## 4. Luồng Course Offering và quyền truy cập
 
-1. Teacher tạo Course Offering theo Subject + Semester và nhận join code.
+1. Teacher tự nhập môn và gửi yêu cầu theo Semester → Admin kiểm tra/chuẩn hóa môn, duyệt → Java tạo Course Offering cho Teacher. Teacher vào lớp để lấy/tạo lại join code. Yêu cầu chờ duyệt không có join code.
 2. Student gửi join request; Java tạo enrollment `PENDING`.
 3. Teacher owner approve/reject; chỉ `APPROVED` mở quyền học liệu.
 4. Archive giữ lịch sử; `LOCKED` chặn truy cập theo policy Java.

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { teacherApi } from "@/lib/api-client";
+import { OpeningRequestsPanel } from "@/components/features/opening-requests-panel";
 import {
   CourseEnrollment,
   CourseOffering,
@@ -138,7 +139,7 @@ export default function TeacherCourseOfferingsPage() {
             Lớp học phần
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Mở lớp mới theo Môn học và Học kỳ, quản lý mã tham gia và sinh viên
+            Gửi yêu cầu mở lớp để Admin duyệt, quản lý lớp đã được mở và sinh viên
           </p>
         </div>
 
@@ -146,13 +147,15 @@ export default function TeacherCourseOfferingsPage() {
           href="/teacher/course-offerings/new"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600  text-white rounded-xl text-xs font-bold shadow-md transition flex-shrink-0"
         >
-          Mở Lớp học phần mới
+          Yêu cầu mở lớp
         </Link>
       </div>
 
       {errorMsg && (
         <ErrorAlert message={errorMsg} onRetry={() => setErrorMsg(null)} />
       )}
+
+      <OpeningRequestsPanel />
 
       {isLoading ? (
         <div className="py-12 flex justify-center">
@@ -161,8 +164,8 @@ export default function TeacherCourseOfferingsPage() {
       ) : offerings.length === 0 ? (
         <EmptyState
           title="Chưa có Lớp học phần nào"
-          description="Hãy bấm vào nút 'Mở Lớp học phần mới' để bắt đầu giảng dạy học kỳ này."
-          actionLabel="Mở lớp mới"
+          description="Gửi yêu cầu mở lớp. Lớp sẽ xuất hiện tại đây sau khi Admin duyệt."
+          actionLabel="Yêu cầu mở lớp"
           onAction={() => router.push("/teacher/course-offerings/new")}
         />
       ) : (

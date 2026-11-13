@@ -30,6 +30,9 @@ apps/web/
 
 ## Quy ước giao diện
 
+- **Yêu cầu mở lớp:** Teacher tự nhập mã/tên môn và tín chỉ, chọn học kỳ rồi gửi Admin. Trạng thái và kết quả nằm trong Lớp học phần; Admin chuẩn hóa/duyệt/từ chối tại cùng chức năng của mình. Không giới hạn 7 môn, không có lớp hoặc join code trước khi duyệt.
+- **Quản lý tài liệu trong kho:** tìm kiếm theo tên/tệp, sửa tên, xóa có xác nhận và chọn nhiều tài liệu để chuyển sang kho khác. Chuyển kho chỉ đổi cách sắp xếp, giữ publication/index. Form tải slide/giáo trình có khung kéo thả và bấm chọn tệp.
+
 - **Hệ nhận diện PTIT:**
   - Typography: `Be Vietnam Pro` cho nội dung thường (body), `Manrope` cho tiêu đề và số liệu (display/heading).
   - Bảng màu: Đỏ thắm PTIT (`#d71920`, `#a80f18`, nền `#fff1f2`), Vàng PTIT (`#f4c300`, `#b89c0e`), Slate (`#0f172a`, `#475569`, `#f8fafc`).

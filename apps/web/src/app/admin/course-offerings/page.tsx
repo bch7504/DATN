@@ -8,6 +8,7 @@ import { AdminConfirmDialog, AdminHeader, AdminPagination, AdminStatus, adminErr
 import { ErrorAlert } from "@/components/ui/error-states";
 import { LoadingSpinner } from "@/components/ui/loading-states";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OpeningRequestsPanel } from "@/components/features/opening-requests-panel";
 
 type OfferingAction = { offering: AdminOffering; kind: "lock" | "archive" };
 const statuses: AdminOfferingStatus[] = ["ACTIVE", "LOCKED", "ARCHIVED"];
@@ -60,7 +61,8 @@ export default function AdminCourseOfferingsPage(): React.JSX.Element {
   }
 
   return <div className="space-y-5">
-    <AdminHeader title="Giám sát lớp học phần" description="Giảng viên sở hữu lớp và mã tham gia; quản trị viên xem metadata, khóa hoặc lưu trữ lớp đang mở." />
+    <OpeningRequestsPanel admin />
+    <AdminHeader title="Giám sát lớp học phần" description="Duyệt yêu cầu mở lớp và chuẩn hóa môn học; giám sát, khóa hoặc lưu trữ lớp đã hoạt động." />
     {success && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{success}</p>}
     {actionError && !action && <ErrorAlert message={actionError} />}
     <label className="block max-w-xs text-xs font-semibold text-slate-600">Trạng thái<select value={status} onChange={(event) => { setStatus(event.target.value as AdminOfferingStatus | "ALL"); setPage(0); setLoading(true); }} className={`mt-1 ${adminInput}`}><option value="ALL">Tất cả</option>{statuses.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>

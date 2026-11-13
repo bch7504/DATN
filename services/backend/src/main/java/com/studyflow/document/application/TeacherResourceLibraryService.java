@@ -142,6 +142,32 @@ public class TeacherResourceLibraryService {
         items.delete(item);
     }
 
+    /** Args: owner, source/target library UUIDs and 1..100 distinct document UUIDs.
+     * Input: both libraries owned/active, every owned document present in source.
+     * Output: void; atomically moves references, preserving bytes, index, attachments and publications.
+     * Errors: 404 missing/foreign resource, 409 same destination, 422 invalid selection. */
+    @Transactional
+    public void moveDocuments(UUID teacherId, UUID sourceId, UUID targetId, List<UUID> documentIds) {
+        requireOwned(teacherId, sourceId);
+        if (targetId == null || sourceId.equals(targetId)) throw new ApiException(HttpStatus.CONFLICT,
+                "INVALID_MOVE_DESTINATION", "Hãy chọn một kho đích khác kho hiện tại.");
+        requireOwned(teacherId, targetId);
+        if (documentIds == null || documentIds.isEmpty() || documentIds.size() > 100
+                || documentIds.stream().anyMatch(java.util.Objects::isNull)
+                || new java.util.HashSet<>(documentIds).size() != documentIds.size()) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "INVALID_DOCUMENT_SELECTION", "Chọn từ 1 đến 100 tài liệu không trùng.");
+        }
+        List<TeacherResourceLibraryItem> selected = documentIds.stream().map(id -> {
+            requireOwnedItem(teacherId, "DOCUMENT", id);
+            return items.findByLibraryIdAndItemTypeAndItemId(sourceId, "DOCUMENT", id)
+                    .orElseThrow(() -> notFound("Tài liệu không có trong kho nguồn."));
+        }).toList();
+        for (TeacherResourceLibraryItem item : selected) {
+            items.insertIgnore(UUID.randomUUID(), targetId, "DOCUMENT", item.getItemId(), clock.instant());
+            items.delete(item);
+        }
+    }
+
     private TeacherResourceLibrary requireOwned(UUID teacherId, UUID libraryId) {
         return libraries.findByIdAndTeacherIdAndDeletedAtIsNull(libraryId, teacherId)
                 .orElseThrow(() -> notFound("Không tìm thấy kho tài liệu."));

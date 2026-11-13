@@ -16,6 +16,7 @@ Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1
 - Không trả storage key, join-code hash, service token, prompt nội bộ hoặc provider payload.
 - Error envelope:
 - Phương thức HTTP không được hỗ trợ trên route đang có trả `405 METHOD_NOT_ALLOWED`, error envelope chuẩn và header `Allow`; gồm PUT sửa nguồn Tutor cũ đã loại bỏ.
+- Thiếu query parameter bắt buộc trả `422 VALIDATION_FAILED` với tên trường trong `details`, không trả 500.
 
 ```json
 {
@@ -25,6 +26,23 @@ Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1
   "traceId": "req_..."
 }
 ```
+
+### Bổ sung 13/11/2026 — Quản lý tài liệu trong kho giảng viên
+
+- `PATCH /api/v1/teacher/documents/{id}` nhận `{title:1..200 ký tự}` → `204`. Chỉ owner, tài liệu chưa xóa; đổi tên hiển thị ở mọi kho/lớp, không đổi tệp gốc, version hoặc index. Lỗi `401|403|404|422 INVALID_TITLE`.
+- `DELETE /api/v1/teacher/documents/{id}` giữ contract hiện có: xóa tài liệu gốc, thu hồi công bố, gỡ mọi kho và deindex an toàn; FE xác nhận rõ trước khi gọi. Phân biệt với **Bỏ khỏi kho** vốn chỉ xóa liên kết.
+- `POST /api/v1/teacher/resource-libraries/{sourceLibraryId}/move-documents` nhận `{targetLibraryId,documentIds:[1..100 UUID không trùng]}` → `204`. Source và target phải khác nhau, cùng owner và chưa bị xóa; mọi document phải thuộc owner và có trong source. Java kiểm toàn bộ rồi chuyển reference trong một transaction, không sao chép PDF, không đổi publication/index/Tutor attachment. Nếu target đã có reference thì giữ đúng một reference; source không còn document đã chuyển. Lỗi `404 RESOURCE_NOT_FOUND`, `409 INVALID_MOVE_DESTINATION`, `422 INVALID_DOCUMENT_SELECTION`, envelope auth chuẩn. Không tự chuyển giáo trình chưa được chọn.
+- Thanh tìm kiếm trong chi tiết kho lọc tên tài liệu và tên tệp trên dữ liệu Java đã trả; chọn tất cả chỉ chọn kết quả đang hiển thị, ẩn bớt kết quả không xóa dữ liệu.
+
+### Bổ sung 13/11/2026 — Yêu cầu mở lớp và Admin duyệt
+
+- `POST /api/v1/teacher/course-opening-requests`: `{subjectCode,subjectName,credits:1..30,semesterId,code,name?}` → `201 OpeningRequest`, trạng thái `PENDING`. Giảng viên tự nhập môn, không bị giới hạn 7 môn. Mã môn/mã lớp tối đa 50 ký tự chữ/số/dấu chấm/gạch nối/gạch dưới; tên tối đa 255 ký tự. Học kỳ phải ACTIVE và cho phép mở lớp. Không tạo Subject, lớp hoặc mã tham gia ở bước này.
+- `GET /api/v1/teacher/course-opening-requests?page=0&size=20`: chỉ yêu cầu của Teacher hiện tại; `200 {items,page,size,totalItems,totalPages}`.
+- `GET /api/v1/admin/course-opening-requests?status=PENDING&page=0&size=20`: Admin xem và lọc `PENDING|APPROVED|REJECTED`; bỏ status trả tất cả. Cùng page schema; size 1..100.
+- `POST /api/v1/admin/course-opening-requests/{id}/approve`: `{subjectId?,subjectCode?,subjectName?,credits?}`. Admin chọn môn ACTIVE có sẵn bằng subjectId hoặc chuẩn hóa thông tin đề xuất. Khi mã môn chưa có, tạo môn chuẩn; mã đã có phải khớp tên/tín chỉ hoặc Admin chọn subjectId rõ ràng. Trong một transaction: khóa yêu cầu PENDING, kiểm Teacher còn ACTIVE/TEACHER và học kỳ còn mở, tạo lớp cho đúng Teacher, ghi APPROVED và audit. Trả `200 OpeningRequest` có courseOfferingId; không trả mã tham gia cho Admin. Teacher vào lớp để tạo/lấy mã tham gia bằng chức năng hiện có.
+- `POST /api/v1/admin/course-opening-requests/{id}/reject`: `{reason:1..1000 ký tự}` → `200 OpeningRequest` REJECTED, không tạo môn/lớp/mã tham gia.
+- `OpeningRequest`: `{id,teacherId,teacherName,subjectCode,subjectName,credits,semesterId,semesterName,code,name,status,courseOfferingId:null|UUID,decisionReason:null|string,createdAt,decidedAt:null|ISO8601}`. Không có joinCode ở yêu cầu.
+- Lỗi envelope chuẩn: `401|403`, `404 OPENING_REQUEST_NOT_FOUND|SUBJECT_NOT_FOUND|SEMESTER_NOT_FOUND`, `409 OPENING_REQUEST_ALREADY_REVIEWED|DUPLICATE_OPENING_REQUEST|SUBJECT_DETAILS_CONFLICT|TEACHER_NOT_ACTIVE|SEMESTER_NOT_ACTIVE|COURSE_CODE_EXISTS`, `422 VALIDATION_FAILED|INVALID_OPENING_REQUEST|INVALID_PAGE|INVALID_FILTER`. Duyệt lặp/đồng thời chỉ tạo tối đa một lớp; yêu cầu chưa duyệt không xuất hiện trong API lớp/học liệu Student. Lớp đã hoạt động trước thay đổi được giữ nguyên.
 
 ## 2. Auth và profile
 
@@ -382,7 +400,7 @@ Plan item optional `courseOfferingId`. Java phát hiện conflict. Không có To
 
 | Method | Endpoint | Contract |
 |---|---|---|
-| POST | `/api/v1/teacher/course-offerings` | `{subjectId,semesterId,code?,name?}` → `201` + join code |
+| POST | `/api/v1/teacher/course-offerings` | Luồng mở trực tiếp đã đóng: trả `409 OPENING_APPROVAL_REQUIRED`; dùng yêu cầu mở lớp bên trên |
 | GET | `/api/v1/teacher/course-offerings` | Chỉ lớp current Teacher; filter semester/status |
 | GET/PATCH | `/api/v1/teacher/course-offerings/{id}` | Owner-only metadata update |
 | POST | `/api/v1/teacher/course-offerings/{id}/archive` | `ACTIVE → ARCHIVED` |

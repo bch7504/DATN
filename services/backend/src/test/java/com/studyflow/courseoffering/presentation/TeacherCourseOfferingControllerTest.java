@@ -112,64 +112,17 @@ class TeacherCourseOfferingControllerTest {
                 .build();
     }
 
+    /** Legacy valid creation cannot bypass Admin approval and never returns a join code. */
     @Test
-    @DisplayName("Teacher creates course offering and receives 201 Created with raw join code")
-    void teacherCanCreateOffering() throws Exception {
-        CourseOffering offering = new CourseOffering(
-                OFFERING_ID, SUBJECT_ID, SEMESTER_ID, TEACHER_ID,
-                "DBI-01", "Cơ sở dữ liệu", "hash123", "CD12"
-        );
-        CreatedCourseOfferingResult result = new CreatedCourseOfferingResult(offering, "INT1340-ABCD12");
-
-        Subject subject = new Subject(SUBJECT_ID, "INT1340", "Cơ sở dữ liệu", 3, "CSDL", "ACTIVE");
-        Semester semester = new Semester(SEMESTER_ID, "2026_1", "Học kỳ 1", "2026-2027",
-                LocalDate.of(2026, 9, 1), LocalDate.of(2027, 1, 15), SemesterStatus.ACTIVE, true);
-
-        when(offeringService.createCourseOffering(eq(TEACHER_ID), any(CreateCourseOfferingCommand.class)))
-                .thenReturn(result);
-        when(subjectRepository.findById(SUBJECT_ID)).thenReturn(Optional.of(subject));
-        when(semesterRepository.findById(SEMESTER_ID)).thenReturn(Optional.of(semester));
-
-        CreateCourseOfferingRequest req = new CreateCourseOfferingRequest(
-                SUBJECT_ID, SEMESTER_ID, "DBI-01", "Cơ sở dữ liệu"
-        );
-
+    void teacherCannotCreateWithoutApproval() throws Exception {
         mockMvc.perform(post("/api/v1/teacher/course-offerings")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.code").value("DBI-01"))
-                .andExpect(jsonPath("$.rawJoinCode").value("INT1340-ABCD12"))
-                .andExpect(jsonPath("$.joinCodeHint").value("CD12"));
-    }
-
-    /**
-     * Args: none; submits synthetic catalog IDs and omits the optional name.
-     * Input: valid authenticated POST body with a custom class code.
-     * Output: void; verifies HTTP 201 response schema and a null name passed to the service.
-     * Errors: fails on unexpected validation or response mismatch.
-     */
-    @Test
-    @DisplayName("Teacher can omit the optional class name and receive a created offering")
-    void teacherCanCreateOfferingWithoutName() throws Exception {
-        CourseOffering offering = new CourseOffering(
-                OFFERING_ID, SUBJECT_ID, SEMESTER_ID, TEACHER_ID,
-                "BAS1157", "Tiếng Anh (Course 1) (BAS1157)", "hash123", "CD12"
-        );
-        when(offeringService.createCourseOffering(eq(TEACHER_ID), any(CreateCourseOfferingCommand.class)))
-                .thenReturn(new CreatedCourseOfferingResult(offering, "BAS1157-ABCD12"));
-
-        mockMvc.perform(post("/api/v1/teacher/course-offerings")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"subjectId\":\"" + SUBJECT_ID + "\",\"semesterId\":\"" + SEMESTER_ID
-                                + "\",\"code\":\"BAS1157\"}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.code").value("BAS1157"))
-                .andExpect(jsonPath("$.name").value("Tiếng Anh (Course 1) (BAS1157)"))
-                .andExpect(jsonPath("$.rawJoinCode").value("BAS1157-ABCD12"));
-
-        verify(offeringService).createCourseOffering(eq(TEACHER_ID),
-                argThat(command -> "BAS1157".equals(command.code()) && command.name() == null));
+                        .content(objectMapper.writeValueAsString(new CreateCourseOfferingRequest(
+                                SUBJECT_ID, SEMESTER_ID, "DBI-01", "Synthetic class"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("OPENING_APPROVAL_REQUIRED"))
+                .andExpect(jsonPath("$.rawJoinCode").doesNotExist());
+        org.mockito.Mockito.verifyNoInteractions(offeringService);
     }
 
     /**

@@ -20,6 +20,16 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 @RestControllerAdvice
 public final class GlobalExceptionHandler {
 
+    /** Args: missing required query parameter and HTTP context. Input: rejected framework binding.
+     * Output: 422 standard field error. Errors/side effects: none; no controller mutation executes. */
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    ResponseEntity<ErrorEnvelope> handleMissingParameter(
+            org.springframework.web.bind.MissingServletRequestParameterException exception,
+            HttpServletRequest request) {
+        return ResponseEntity.unprocessableEntity().body(new ErrorEnvelope("VALIDATION_FAILED",
+                "Thiếu tham số bắt buộc.", List.of(new FieldViolation(exception.getParameterName(), "Không được để trống")), requestId(request)));
+    }
+
     /**
      * Args: unsupported-method exception and request, both required.
      * Input: HTTP method not mapped on an existing route, including retired Tutor source writes.

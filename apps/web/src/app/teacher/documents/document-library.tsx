@@ -41,6 +41,11 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [bulkTargetOfferingId, setBulkTargetOfferingId] = useState("");
   const [isBulkBusy, setIsBulkBusy] = useState(false);
+  const [search, setSearch] = useState("");
+  const [targetLibraryId, setTargetLibraryId] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [documentBusy, setDocumentBusy] = useState(false);
   const selectedOfferingId = offeringId ?? null;
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -196,6 +201,46 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
   };
 
   const selectedLibrary = libraryId ? libraries.find((item) => item.id === libraryId) ?? null : null;
+  const visibleItems = selectedLibrary?.items.filter((item) => {
+    const document = documents.find((entry) => entry.id === item.itemId);
+    return normalizeQuery(`${item.title} ${document?.fileName ?? ""}`).includes(normalizeQuery(search));
+  }) ?? [];
+
+  /** Args: search text. Output: lowercase unaccented text for Vietnamese name/filename matching. Errors: none. */
+  function normalizeQuery(value: string): string {
+    return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/đ/gi, "d").toLowerCase().trim();
+  }
+
+  /** Args: none. Input: currently edited owned PDF/title. Output: metadata rename and refresh.
+   * Errors: Java validation/ownership errors displayed inline, edit retained on failure. */
+  async function renameDocument(): Promise<void> {
+    if (!editingId || documentBusy) return;
+    if (!editingTitle.trim()) { setErrorMsg("Hãy nhập tên tài liệu."); return; }
+    setDocumentBusy(true); setErrorMsg(null);
+    try { await teacherDocApi.renameDocument(editingId, editingTitle.trim()); setEditingId(null); await loadData(); setSuccessMsg("Đã đổi tên tài liệu."); }
+    catch (cause: unknown) { setErrorMsg(cause instanceof Error ? cause.message : "Không đổi được tên tài liệu."); }
+    finally { setDocumentBusy(false); }
+  }
+
+  /** Args: owned PDF. Input: explicit confirmation of global deletion.
+   * Output: revokes/deletes through Java and refreshes metadata. Errors: shown inline; source stays until Java confirms. */
+  async function deleteDocument(document: TeacherDocument): Promise<void> {
+    if (documentBusy || !window.confirm(`Xóa tài liệu “${document.title}”? Tài liệu sẽ bị gỡ khỏi mọi kho và lớp đã công bố. Hành động này không thể hoàn tác.`)) return;
+    setDocumentBusy(true); setErrorMsg(null);
+    try { await teacherDocApi.deleteDocument(document.id); setSelectedDocumentIds((current) => current.filter((id) => id !== document.id)); await loadData(); setSuccessMsg("Đã xóa tài liệu và gỡ công bố."); }
+    catch (cause: unknown) { setErrorMsg(cause instanceof Error ? cause.message : "Không xóa được tài liệu."); }
+    finally { setDocumentBusy(false); }
+  }
+
+  /** Args: none. Input: source/target owned libraries and selected PDFs.
+   * Output: atomic Java move, clear selection and refresh. Errors: displayed without fabricating a successful move. */
+  async function moveDocuments(): Promise<void> {
+    if (!libraryId || !targetLibraryId || selectedDocumentIds.length === 0 || isBulkBusy) return;
+    setIsBulkBusy(true); setErrorMsg(null);
+    try { await teacherLibraryApi.moveDocuments(libraryId, targetLibraryId, selectedDocumentIds); setSelectedDocumentIds([]); await loadData(); setSuccessMsg("Đã chuyển tài liệu sang kho được chọn."); }
+    catch (cause: unknown) { setErrorMsg(cause instanceof Error ? cause.message : "Không chuyển được tài liệu."); }
+    finally { setIsBulkBusy(false); }
+  }
 
   return (
     <div className="space-y-6">
@@ -331,6 +376,11 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
               <p className="rounded-xl bg-slate-50 p-5 text-sm text-slate-500">Kho chưa có tài liệu, Quiz hoặc bài tập. Nhấn “Thêm tài liệu” để tải PDF/PPTX từ máy vào đúng kho này.</p>
             ) : (
               <div className="space-y-4">
+                <input type="search" aria-label="Tìm kiếm tài liệu" value={search} onChange={(event) => { setSearch(event.target.value); setSelectedDocumentIds([]); }} placeholder="Tìm theo tên tài liệu hoặc tên tệp..." className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm" />
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <select aria-label="Chọn kho để chuyển tài liệu" value={targetLibraryId} onChange={(event) => setTargetLibraryId(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Chọn kho đích</option>{libraries.filter((item) => item.id !== libraryId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+                  <button type="button" disabled={isBulkBusy || !targetLibraryId || selectedDocumentIds.length === 0} onClick={() => void moveDocuments()} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Chuyển sang kho</button>
+                </div>
                 <div className="flex flex-col gap-3 rounded-xl bg-slate-50 p-3 lg:flex-row lg:items-center lg:justify-between">
                   <p className="text-sm font-semibold text-slate-700">Đã chọn {selectedDocumentIds.length} tài liệu</p>
                   <div className="flex flex-col gap-2 sm:flex-row">
@@ -340,20 +390,22 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
                 </div>
                 <div className="overflow-x-auto rounded-xl border border-slate-200">
                   <table className="min-w-full text-sm">
-                    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3"><input type="checkbox" aria-label="Chọn tất cả tài liệu" checked={selectedLibrary.items.filter((item) => item.itemType === "DOCUMENT").length > 0 && selectedLibrary.items.filter((item) => item.itemType === "DOCUMENT").every((item) => selectedDocumentIds.includes(item.itemId))} onChange={(event) => setSelectedDocumentIds(event.target.checked ? selectedLibrary.items.filter((item) => item.itemType === "DOCUMENT").map((item) => item.itemId) : [])} /></th><th className="px-3 py-3">STT</th><th className="px-3 py-3">Tên tài liệu</th><th className="px-3 py-3">Loại tài liệu</th><th className="px-3 py-3">Số trang</th><th className="px-3 py-3">Trạng thái</th><th className="px-3 py-3 text-right">Thao tác</th></tr></thead>
+                    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3"><input type="checkbox" aria-label="Chọn tất cả tài liệu" checked={visibleItems.filter((item) => item.itemType === "DOCUMENT").length > 0 && visibleItems.filter((item) => item.itemType === "DOCUMENT").every((item) => selectedDocumentIds.includes(item.itemId))} onChange={(event) => setSelectedDocumentIds(event.target.checked ? visibleItems.filter((item) => item.itemType === "DOCUMENT").map((item) => item.itemId) : [])} /></th><th className="px-3 py-3">STT</th><th className="px-3 py-3">Tên tài liệu</th><th className="px-3 py-3">Loại tài liệu</th><th className="px-3 py-3">Số trang</th><th className="px-3 py-3">Trạng thái</th><th className="px-3 py-3 text-right">Thao tác</th></tr></thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
-                      {selectedLibrary.items.map((item, index) => {
+                      {visibleItems.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-slate-500">Không tìm thấy tài liệu phù hợp.</td></tr>}
+                      {visibleItems.map((item, index) => {
                         const sourceDocument = item.itemType === "DOCUMENT" ? documents.find((document) => document.id === item.itemId) : null;
                         const typeLabel = !sourceDocument ? (item.itemType === "QUIZ" ? "Quiz" : "Bài tập") : sourceDocument.materialType === "SLIDE_PDF" ? "Slide PDF" : sourceDocument.materialType === "SUPPORTING_PDF" ? "PDF hỗ trợ" : "PDF tải xuống";
                         return (
                           <tr key={item.id}>
                             <td className="px-3 py-3"><input type="checkbox" aria-label={`Chọn ${item.title}`} disabled={!sourceDocument} checked={selectedDocumentIds.includes(item.itemId)} onChange={(event) => setSelectedDocumentIds((current) => event.target.checked ? Array.from(new Set([...current, item.itemId])) : current.filter((id) => id !== item.itemId))} /></td>
                             <td className="px-3 py-3 text-slate-500">{index + 1}</td>
-                            <td className="px-3 py-3 font-semibold text-slate-800">{item.title}</td>
+                            <td className="px-3 py-3 font-semibold text-slate-800">{editingId === item.itemId ? <div className="min-w-48 space-y-2"><input autoFocus aria-label="Tên tài liệu mới" maxLength={200} value={editingTitle} onChange={(event) => setEditingTitle(event.target.value)} className="w-full rounded-lg border border-slate-300 p-2 text-sm" /><div className="flex gap-3 text-xs"><button type="button" disabled={documentBusy} onClick={() => void renameDocument()} className="font-bold text-red-700">Lưu</button><button type="button" disabled={documentBusy} onClick={() => setEditingId(null)}>Hủy</button></div></div> : item.title}</td>
                             <td className="px-3 py-3 text-slate-600">{typeLabel}</td>
                             <td className="px-3 py-3 text-slate-600">{sourceDocument?.totalPages ?? "—"}</td>
                             <td className="px-3 py-3"><StatusBadge status={item.status} size="sm" /></td>
                             <td className="px-3 py-3 text-right">
+                              {sourceDocument && <div className="mb-2 flex justify-end gap-3 whitespace-nowrap text-xs font-bold text-red-700"><button type="button" disabled={documentBusy} onClick={() => { setEditingId(sourceDocument.id); setEditingTitle(sourceDocument.title); }}>Sửa tên</button><button type="button" disabled={documentBusy} onClick={() => void deleteDocument(sourceDocument)}>Xóa tài liệu</button></div>}
                               {sourceDocument?.status === "FAILED" && <button type="button" onClick={() => void retryDocumentIndex(sourceDocument.id)} className="mr-2 rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white">Thử xử lý lại</button>}
                               {selectedLibrary.libraryType !== "DEFAULT" && <button type="button" onClick={() => void removeLibraryItem(item.id)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700">Bỏ khỏi kho</button>}
                             </td>

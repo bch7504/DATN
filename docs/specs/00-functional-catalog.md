@@ -106,8 +106,8 @@ Tài liệu này mô tả chức năng theo góc nhìn người dùng: bắt đ�
 
 ### F-15 — Tạo và quản lý lớp học phần
 
-- **Điểm vào:** Menu **Lớp học phần** → **Tạo lớp học phần** hoặc bấm thẻ lớp.
-- **Luồng chính:** Chọn Subject + Semester → tạo lớp/join code → mở chi tiết lớp.
+- **Điểm vào:** Menu **Lớp học phần** → **Yêu cầu mở lớp** hoặc bấm thẻ lớp đã duyệt.
+- **Luồng chính:** Teacher tự nhập môn + chọn Semester → gửi yêu cầu → chờ Admin chuẩn hóa/duyệt → mở chi tiết lớp đã duyệt và tạo/lấy join code.
 - **Màn hình chi tiết:** Chỉ hiển thị thông tin tóm tắt và bốn nút **Yêu cầu chờ duyệt**, **Danh sách sinh viên**, **Bài tập & kết quả**, **Kho tài liệu lớp**. Nội dung của từng chức năng chỉ tải và hiển thị sau khi Teacher bấm nút tương ứng.
 - **Luồng thay thế:** Lớp bị khóa/lưu trữ → hạn chế thao tác thay đổi.
 
@@ -122,7 +122,7 @@ Tài liệu này mô tả chức năng theo góc nhìn người dùng: bắt đ�
 - **Điểm vào:** Menu **Kho tài liệu**.
 - **Màn hình chung:** Chỉ hiển thị thẻ kho và thẻ lớp; không trải nội dung từng kho ra ngoài.
 - **Kho mặc định:** **Tài liệu tải lên** luôn tồn tại và không thể xóa; upload không chọn kho khác tự vào đây.
-- **Luồng chính:** Bấm một thẻ kho → route chi tiết riêng → xem tài liệu/Quiz/bài tập → thêm vào lớp hoặc bỏ khỏi kho.
+- **Luồng chính:** Bấm một thẻ kho → route chi tiết riêng → tìm tài liệu/Quiz/bài tập; tài liệu có sửa tên/xóa. Chọn nhiều tài liệu để chuyển kho hoặc công bố vào lớp; bỏ khỏi kho chỉ bỏ cách phân loại.
 - **Quy tắc:** Xóa kho chỉ xóa cách phân loại; xóa học liệu gốc là thao tác riêng có thu hồi publication/vector.
 
 ### F-18 — Tải PDF/PPTX và chuẩn hóa học liệu
@@ -174,9 +174,11 @@ Tài liệu này mô tả chức năng theo góc nhìn người dùng: bắt đ�
 
 - **Điểm vào:** Menu **Danh mục** → Môn học/Học kỳ.
 - **Luồng chính:** Danh sách → tạo/sửa/kích hoạt/ngừng hoạt động.
-- **Kết quả:** Teacher chỉ dùng danh mục đang hợp lệ để tạo lớp.
+- **Kết quả:** Teacher có thể đề xuất môn mới; Admin chuẩn hóa vào danh mục trước khi duyệt mở lớp.
 
 ### F-26 — Giám sát lớp học phần
+
+- **Duyệt mở lớp:** Ngay trong mục Lớp học phần, Admin xem yêu cầu → chuẩn hóa môn/chọn môn chuẩn → duyệt hoặc từ chối có lý do. Chỉ duyệt mới mở lớp cho Teacher gửi yêu cầu.
 
 - **Điểm vào:** Menu **Lớp học phần** của Admin → chọn lớp.
 - **Màn hình chi tiết:** Teacher owner, Subject, Semester, trạng thái và số liệu vận hành.

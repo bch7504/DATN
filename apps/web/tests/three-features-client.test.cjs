@@ -79,6 +79,36 @@ test("Teacher slide upload sends supporting PDFs together and rejects invalid bu
   assert.equal(calls, 1);
 });
 
+test("Opening proposals and Admin decisions use role-scoped Java contracts without direct course creation", async () => {
+  const calls = [];
+  const client = loadClient(async (url, options) => {
+    calls.push({ url, options });
+    return Response.json({ id: "request", status: "PENDING", courseOfferingId: null });
+  }, "http://java.test/api/v1");
+  const proposal = { subjectCode: "NEW", subjectName: "New subject", credits: 3, semesterId: "semester", code: "NEW-01" };
+  const result = await client.openingRequestApi.submit(proposal);
+  assert.equal(result.status, "PENDING"); assert.equal(result.courseOfferingId, null);
+  assert.equal(calls[0].url, "http://java.test/api/v1/teacher/course-opening-requests");
+  assert.deepEqual(JSON.parse(calls[0].options.body), proposal);
+  await client.openingRequestApi.approve("request", { subjectCode: "NORMAL", subjectName: "Normalized", credits: 4 });
+  await client.openingRequestApi.reject("request", "Need details");
+  assert.ok(calls[1].url.endsWith("/admin/course-opening-requests/request/approve"));
+  assert.deepEqual(JSON.parse(calls[2].options.body), { reason: "Need details" });
+});
+
+test("Document rename, deletion and folder move preserve the Java resource contract", async () => {
+  const calls = [];
+  const client = loadClient(async (url, options) => { calls.push({ url, options }); return new Response(null, { status: 204 }); }, "http://java.test/api/v1");
+  await client.teacherDocApi.renameDocument("doc", "Renamed");
+  await client.teacherLibraryApi.moveDocuments("source", "target", ["doc"]);
+  await client.teacherDocApi.deleteDocument("doc");
+  assert.equal(calls[0].options.method, "PATCH");
+  assert.deepEqual(JSON.parse(calls[0].options.body), { title: "Renamed" });
+  assert.ok(calls[1].url.endsWith("/teacher/resource-libraries/source/move-documents"));
+  assert.deepEqual(JSON.parse(calls[1].options.body), { targetLibraryId: "target", documentIds: ["doc"] });
+  assert.equal(calls[2].options.method, "DELETE");
+});
+
 test("failed persisted feature requests propagate Java error envelopes without demo success", async () => {
   const client = loadClient(async () => Response.json({ code: "FORBIDDEN", message: "No access", details: [], traceId: "test-trace" }, { status: 403 }), "http://java.test/api/v1");
   for (const operation of [() => client.studentApi.getOfferings(), () => client.materialApi.getMaterials(), () => client.notificationApi.list(), () => client.studyPlanApi.listPlans(), () => client.assignmentApi.listForStudent()]) {

@@ -20,6 +20,12 @@ Java S3 client đặt checksum request/response ở chế độ `WHEN_REQUIRED` 
 
 Java backend là system of record và public API duy nhất cho Web. Module dùng Spring Boot 3, Maven và Java 17 trở lên.
 
+### Yêu cầu mở lớp và quản lý kho (SPEC-12)
+
+Teacher gửi đề xuất môn/lớp tại `/teacher/course-opening-requests`; Admin chuẩn hóa và approve/reject tại `/admin/course-opening-requests`. V31 tách trạng thái yêu cầu khỏi lớp ACTIVE, không tạo lớp hoặc mã tham gia trước khi duyệt. Quyết định khóa dòng yêu cầu và tạo Subject/course/audit trong một transaction. POST tự mở lớp cũ trả 409. Đây là luồng trong chức năng Lớp học phần, không thêm module giao diện độc lập.
+
+`PATCH /teacher/documents/{id}` đổi tên hiển thị; `POST /teacher/resource-libraries/{source}/move-documents` chuyển một hoặc nhiều reference sang kho cùng owner trong một transaction. Không đổi bytes/index/publication; DELETE tài liệu gốc vẫn thu hồi/deindex qua luồng hiện có. Contract chi tiết tại `docs/api-plan.md`.
+
 ## Chạy local
 
 1. Chuẩn bị PostgreSQL và cấu hình `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`.
@@ -49,7 +55,7 @@ Các tài khoản có tên `Sinh viên mẫu …`, email `@example.invalid` (kh�
 |---|---|
 | `auth`, `user` | JWT/session, RBAC, account status |
 | `academic` | Subject và Semester |
-| `courseoffering` | Teacher tự tạo lớp, join-code lifecycle, lock/archive |
+| `courseoffering` | Teacher đề xuất/Admin duyệt mở lớp, join-code lifecycle, lock/archive |
 | `enrollment` | Student request, Teacher approve/reject, access policy |
 | `document`, `publication` | Teacher/Personal metadata, upload, public/revoke theo Course Offering |
 | `material` | Ghi chú trang PDF và view event đã xác thực |
@@ -92,7 +98,7 @@ Study Plan vẫn hoạt động độc lập khi không chọn lớp học phầ
 
 ## Quy tắc
 
-- Teacher hợp lệ tự tạo Course Offering từ Subject + Semester active; Admin quản lý catalog và giám sát, không phân công từng lớp.
+- Teacher gửi đề xuất môn/lớp; Admin chuẩn hóa và duyệt trước khi tạo Course Offering cho Teacher gửi yêu cầu. Học kỳ phải còn mở; quản lý lớp/enrollment giữ nguyên sau khi duyệt.
 - Teacher owner quản lý join code, duyệt Enrollment và public document vào lớp mình sở hữu.
 - Student chỉ truy cập materials/Tutor khi Enrollment `APPROVED` hoặc historical policy cho phép.
 - Course Material: Teacher upload PDF/PPTX theo loại `SLIDE_PDF|REFERENCE_PDF` và đính kèm giáo trình khi tải slide; Java chuẩn hóa thành PDF trước khi lưu/index. Student `APPROVED` mở Viewer/Note/Tutor từ slide; Tutor chỉ dùng thêm PDF hỗ trợ được liên kết trong cùng lớp. `REFERENCE_PDF` chỉ tải xuống. Java tái kiểm quyền sau AI để chặn nguồn bị thu hồi trong lúc sinh câu trả lời.

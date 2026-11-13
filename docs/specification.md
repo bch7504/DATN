@@ -19,7 +19,7 @@ Quiz → Attempt/Scoring → Wrong-answer Review → Dashboard/Plan
 
 Giá trị cốt lõi:
 
-1. Teacher tự tạo Course Offering và kiểm soát enrollment/học liệu.
+1. Teacher gửi yêu cầu mở lớp với môn tự nhập; Admin chuẩn hóa và duyệt trước khi lớp hoạt động. Teacher kiểm soát enrollment/học liệu sau khi duyệt.
 2. Student chỉ truy cập Course Material sau khi `APPROVED`.
 3. Toàn bộ nguồn AI trong MVP là PDF có text layer và citation theo trang.
 4. Personal Document Assistant dùng một Agent với ba tool; Teacher chỉ có AI Quiz Generator, không có chatbot/Tutor.

@@ -23,6 +23,9 @@ public final class TeacherResourceLibraryApi {
 
     public record Item(UUID id, String itemType, UUID itemId, String title, String status, Instant addedAt) { }
 
+    /** Input: target owned library and 1..100 distinct document UUIDs; service validates atomically. */
+    public record MoveDocumentsRequest(UUID targetLibraryId, List<UUID> documentIds) { }
+
     public record Library(
             UUID id,
             String name,

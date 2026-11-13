@@ -108,6 +108,14 @@ public class CourseMaterialDocument {
     public UUID getOwnerId() { return ownerId; }
     public String getFileName() { return fileName; }
     public String getDisplayName() { return displayName; }
+
+    /** Args: trimmed display title (1..200 chars) and timestamp. Input: owned active metadata.
+     * Output: void; changes display name/time only, preserves bytes/version/index. Errors: invalid title. */
+    public void renameDisplayName(String title, Instant now) {
+        if (title == null || title.isBlank() || title.length() > 200) throw new IllegalArgumentException("Invalid title");
+        this.displayName = title;
+        this.updatedAt = now;
+    }
     public String getMimeType() { return mimeType; }
     public long getFileSize() { return fileSize; }
     public String getStorageKey() { return storageKey; }

@@ -6,7 +6,7 @@ Kịch bản trình diễn một luồng xuyên suốt, dùng cùng một lớp 
 
 ```text
 Admin chuẩn bị danh mục
-  → Teacher mở lớp và duyệt Student
+  → Teacher gửi yêu cầu, Admin duyệt mở lớp, Teacher duyệt Student
   → Teacher tải Slide Chương 2 kèm giáo trình hỗ trợ, công bố và tạo Quiz
   → Student xem slide, ghi chú, hỏi AI Tutor và nộp Quiz
   → Teacher xem kết quả, tỷ lệ sai
@@ -59,7 +59,7 @@ Dùng ba tài khoản local được công bố trong `README.md` ở thư mục
 2. Mở **Danh mục → Môn học** và kiểm tra môn **Kỹ thuật số**.
 3. Mở danh sách lớp học phần và tìm `KTS-01`.
 
-**Kết quả:** Subject và Semester là dữ liệu chuẩn để Teacher tự tạo lớp; Admin không phân công từng lớp cho Teacher trong MVP.
+**Kết quả:** Admin chuẩn hóa môn Teacher đề xuất trước khi duyệt yêu cầu mở lớp; lớp được tạo cho đúng Teacher gửi yêu cầu.
 
 ### A3. Kiểm tra giám sát
 
@@ -75,7 +75,7 @@ Dùng ba tài khoản local được công bố trong `README.md` ở thư mục
 1. Đăng xuất Admin và đăng nhập Teacher local.
 2. Mở **Lớp học phần** và chọn `KTS-01 · Kỹ thuật số`.
 3. Giới thiệu thông tin lớp và bốn nút điều hướng: **Yêu cầu chờ duyệt**, **Danh sách sinh viên**, **Bài tập & kết quả**, **Kho tài liệu lớp**. Không trải toàn bộ dữ liệu trên trang chính của lớp.
-4. Nếu cần trình diễn tạo mới, chọn **Tạo lớp học phần**, chọn Subject + Semester và để hệ thống sinh join code.
+4. Nếu trình diễn mở lớp mới: chọn **Yêu cầu mở lớp**, tự nhập mã/tên môn, tín chỉ, chọn học kỳ, mã lớp → gửi. Đăng nhập Admin → Lớp học phần → Xem và duyệt → chọn môn chuẩn hoặc sửa đề xuất → Duyệt mở lớp. Quay lại Teacher để mở lớp đã duyệt và tạo/lấy mã tham gia.
 
 **Kết quả:** Teacher chỉ quản lý lớp mình sở hữu.
 
@@ -93,6 +93,8 @@ Dùng ba tài khoản local được công bố trong `README.md` ở thư mục
 2. Trang ngoài chỉ hiển thị các thẻ kho, không hiển thị lẫn nội dung của mọi kho.
 3. Mở kho mặc định **Tài liệu tải lên**.
 4. Giới thiệu **Thêm tài liệu**, **Tạo kho** và kho theo môn/kho riêng.
+5. Trong chi tiết kho, nhập từ khóa tìm tài liệu; dùng **Sửa tên** rồi Lưu/Hủy. Chọn một hoặc nhiều tài liệu → chọn kho đích → **Chuyển sang kho** và kiểm tra tài liệu không còn ở kho nguồn. Tên, công bố và chỉ mục được giữ theo document ID.
+6. Minh họa **Xóa tài liệu** bằng PDF tổng hợp riêng cho demo, xác nhận cảnh báo gỡ khỏi mọi kho/lớp; không xóa slide/giáo trình thật đang dùng trong buổi trình bày.
 
 **Kết quả:** Mỗi Teacher có một kho mặc định. Tài liệu không chọn kho khác tự vào **Tài liệu tải lên**.
 

@@ -4,7 +4,7 @@
 
 | ID | Requirement |
 |---|---|
-| TCH-FR-001 | Teacher tự tạo Course Offering từ Subject + Semester active. |
+| TCH-FR-001 | Teacher tự nhập môn muốn mở, gửi yêu cầu theo Semester; Admin chuẩn hóa/duyệt trước khi lớp được tạo. |
 | TCH-FR-002 | Hệ thống sinh join code; owner regenerate/enable/disable. |
 | TCH-FR-003 | Owner approve/reject enrollment `PENDING`. |
 | TCH-FR-004 | Mỗi Teacher có một kho `DEFAULT` tên **Tài liệu tải lên**; upload không chọn kho khác tự vào kho này. |
@@ -17,10 +17,11 @@
 | TCH-FR-011 | Teacher gắn Quiz `PUBLISHED` thành Assignment của đúng lớp, đặt hạn và công bố cho Student. |
 | TCH-FR-012 | Teacher xem số đã nộp/chưa nộp, đúng hạn/nộp muộn, điểm từng Student và tỷ lệ sai từng câu. |
 | TCH-BR-001 | Teacher không có Personal Chatbot hoặc Course Material AI Tutor. |
+| TCH-FR-013 | Teacher tìm kiếm tài liệu theo tên/tệp, sửa tên hiển thị, xóa tài liệu gốc sau xác nhận và chọn nhiều tài liệu để chuyển sang kho khác cùng owner. |
 
 ## 2. API Course Offering/content
 
-- `POST /api/v1/teacher/course-offerings`: `{subjectId,semesterId,code?,name?}` → lớp `ACTIVE` + join code.
+- `POST /api/v1/teacher/course-opening-requests`: đề xuất mã/tên môn, tín chỉ, Semester, mã/tên lớp → `PENDING`. Teacher xem trạng thái tại GET cùng route. POST tự mở lớp cũ trả 409; chi tiết ở `api-plan.md` và SPEC-12.
 - `GET/PATCH /api/v1/teacher/course-offerings/{id}`: owner-only.
 - `POST /api/v1/teacher/course-offerings/{id}/join-code/regenerate` và `PATCH .../join-code`.
 - `GET /api/v1/teacher/course-offerings/{id}/enrollments`.
@@ -32,6 +33,8 @@
 - `POST /api/v1/teacher/documents/{id}/publications`: `{courseOfferingIds}` owner-only.
 - `DELETE /api/v1/teacher/documents/{id}/publications?offeringId=...`: revoke idempotent.
 - `DELETE /api/v1/teacher/documents/{id}`: deindex `SLIDE_PDF`, thu hồi publication, bỏ liên kết kho, xóa mềm metadata rồi xóa object an toàn.
+- `PATCH /api/v1/teacher/documents/{id}`: `{title}` đổi tên hiển thị; không đổi PDF/version/index.
+- `POST /api/v1/teacher/resource-libraries/{source}/move-documents`: `{targetLibraryId,documentIds}` chuyển reference nguyên tử; giữ bytes/index/publication và không tự di chuyển giáo trình chưa chọn.
 
 ## 3. Teacher AI Quiz API
 

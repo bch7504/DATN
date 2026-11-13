@@ -76,4 +76,13 @@ public class TeacherResourceLibraryController {
         try { return UUID.fromString(jwt.getSubject()); }
         catch (IllegalArgumentException exception) { throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_SESSION", "Phiên đăng nhập không hợp lệ."); }
     }
+
+    /** Args: owner JWT, source UUID, target UUID and 1..100 document IDs.
+     * Input: owned library selection. Output: 204 after atomic move. Errors: 401/403/404/409/422. */
+    @PostMapping("/{libraryId}/move-documents")
+    public ResponseEntity<Void> moveDocuments(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID libraryId,
+            @RequestBody TeacherResourceLibraryApi.MoveDocumentsRequest request) {
+        service.moveDocuments(userId(jwt), libraryId, request.targetLibraryId(), request.documentIds());
+        return ResponseEntity.noContent().build();
+    }
 }

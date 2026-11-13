@@ -9,7 +9,8 @@
 | ADM-FR-003 | Giám sát Course Offering theo Teacher/Subject/Semester/status. |
 | ADM-FR-004 | Lock/archive Course Offering khi vi phạm hoặc kết thúc vận hành. |
 | ADM-FR-005 | Xem feedback, audit metadata và cấu hình an toàn. |
-| ADM-BR-001 | Admin không tạo/duyệt từng lớp hoặc phân công Teacher trong MVP. |
+| ADM-FR-006 | Trong Lớp học phần, chuẩn hóa môn đề xuất và duyệt mở lớp cho Teacher gửi yêu cầu; từ chối phải có lý do. |
+| ADM-BR-001 | Admin chuẩn hóa và duyệt/từ chối yêu cầu mở lớp; lớp được giao đúng Teacher gửi yêu cầu, không tự phân công sang người khác. |
 | ADM-PRI-001 | Admin không mặc định xem Personal Document/chat/Note/Quiz answer cá nhân. |
 
 ## 2. API chính

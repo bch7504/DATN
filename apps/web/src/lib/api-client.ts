@@ -1,4 +1,5 @@
 import { getApiUrl } from "./env";
+import type { OpeningRequest, SubmitOpeningRequest, ApproveOpeningRequest } from "@/types/course-opening";
 import { User, LoginRequest, RegisterRequest, RegistrationStatusResponse, VerifyRegistrationRequest, ResendVerificationRequest, } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
 import { Subject, Semester, CourseOffering, CourseEnrollment, CreateOfferingRequest, } from "@/types/course-offering";
@@ -732,7 +733,38 @@ export const personalDocApi = {
 /**
  * Teacher Course Offering & Enrollment Management API (docs/api-plan.md Section 5)
  */
+/** Proposal endpoints; Java enforces ownership, Admin decisions and course creation. */
+export const openingRequestApi = {
+    /** Args: validated proposal. Output: PENDING metadata without join code. Errors: Java auth/validation. */
+    submit(input: SubmitOpeningRequest): Promise<OpeningRequest> {
+        return apiFetch("/teacher/course-opening-requests", { method: "POST", body: JSON.stringify(input) });
+    },
+    /** Args: none. Output: current Teacher's proposals across all pages. Errors: Java auth/transport. */
+    own(): Promise<OpeningRequest[]> { return fetchAllPages<OpeningRequest>("/teacher/course-opening-requests"); },
+    /** Args: optional status and page>=0 default0. Output: Admin page (size20). Errors: Java auth/validation. */
+    adminList(status?: string, page = 0): Promise<PaginatedList<OpeningRequest>> {
+        const query = new URLSearchParams({ page: String(page), size: "20" });
+        if (status) query.set("status", status);
+        return apiFetch(`/admin/course-opening-requests?${query}`);
+    },
+    /** Args: request ID and canonical fields. Output: approved proposal/course ID. Errors: Java 404/409/422. */
+    approve(id: string, input: ApproveOpeningRequest): Promise<OpeningRequest> {
+        return apiFetch(`/admin/course-opening-requests/${encodeURIComponent(id)}/approve`, { method: "POST", body: JSON.stringify(input) });
+    },
+    /** Args: request ID, reason 1..1000. Output: rejected proposal. Errors: Java auth/validation/state. */
+    reject(id: string, reason: string): Promise<OpeningRequest> {
+        return apiFetch(`/admin/course-opening-requests/${encodeURIComponent(id)}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
+    },
+};
 export const teacherApi = {
+    /** Args: owned document/title (1..200). Output: void after metadata rename. Errors: Java 401/403/404/422. */
+    renameDocument(documentId: string, title: string): Promise<void> {
+        return apiFetch(`/teacher/documents/${encodeURIComponent(documentId)}`, { method: "PATCH", body: JSON.stringify({ title }) });
+    },
+    /** Args: confirmed owned PDF ID. Output: void after Java revokes/deletes/deindexes. Errors: Java failures. */
+    deleteDocument(documentId: string): Promise<void> {
+        return apiFetch(`/teacher/documents/${encodeURIComponent(documentId)}`, { method: "DELETE" });
+    },
     async getOfferings(): Promise<CourseOffering[]> {
         const items = await fetchAllPages<BackendTeacherCourseOffering>("/teacher/course-offerings");
         return items.map(mapTeacherCourseOffering);
@@ -875,6 +907,13 @@ export const teacherApi = {
 
 /** Teacher-owned subject/private collections. Source resources keep their Java-owned lifecycle. */
 export const teacherLibraryApi = {
+    /** Args: owned source/target and 1..100 PDF IDs. Output: void after atomic move of references.
+     * Errors: Java ownership/selection/state errors; bytes, index and publication unchanged. */
+    moveDocuments(sourceLibraryId: string, targetLibraryId: string, documentIds: string[]): Promise<void> {
+        return apiFetch(`/teacher/resource-libraries/${encodeURIComponent(sourceLibraryId)}/move-documents`, {
+            method: "POST", body: JSON.stringify({ targetLibraryId, documentIds }),
+        });
+    },
     /** Args: none. Input: authenticated Teacher. Output: active libraries and safe item summaries. Errors: Java API errors. */
     list(): Promise<TeacherResourceLibrary[]> {
         return apiFetch("/teacher/resource-libraries");

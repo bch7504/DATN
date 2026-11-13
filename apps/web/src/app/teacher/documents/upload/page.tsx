@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { teacherDocApi, teacherLibraryApi } from "@/lib/api-client";
 import type { CourseMaterialType, TeacherResourceLibrary } from "@/types/material";
 import { ErrorAlert } from "@/components/ui/error-states";
+import { FileDropzone } from "@/components/ui/file-dropzone";
 
 /** Uploads a private Teacher PDF/PPTX and optionally files it in one owned library. */
 export default function TeacherPrivateDocumentUploadPage(): React.JSX.Element {
@@ -58,14 +59,12 @@ export default function TeacherPrivateDocumentUploadPage(): React.JSX.Element {
       <label className="block text-sm font-semibold">Kho giảng viên<select value={libraryId} onChange={(event) => setLibraryId(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 font-normal"><option value="">Tài liệu tải lên (mặc định)</option>{libraries.map((item) => <option key={item.id} value={item.id}>{item.name}{item.libraryType === "DEFAULT" ? " · Mặc định" : item.subjectName ? ` · ${item.subjectName}` : ""}</option>)}</select></label>
       <label className="block text-sm font-semibold">Tiêu đề<input required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 p-3 font-normal" /></label>
       <label className="block text-sm font-semibold">Loại tài liệu<select value={materialType} onChange={(event) => { setMaterialType(event.target.value as CourseMaterialType); setSupportingFiles([]); }} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 font-normal"><option value="SLIDE_PDF">Slide PDF — nguồn chính của AI Tutor</option><option value="REFERENCE_PDF">Tài liệu tham khảo — chỉ tải xuống</option></select></label>
-      <label className="block text-sm font-semibold">Tệp PDF có lớp văn bản hoặc PPTX<input required type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="mt-2 w-full text-sm" /></label>
-      {materialType === "SLIDE_PDF" && <section className="space-y-3 rounded-xl border border-slate-200 p-4">
-        <label className="block text-sm font-semibold">Giáo trình/tài liệu hỗ trợ đính kèm (không bắt buộc)
-          <input type="file" multiple accept="application/pdf,.pdf" onChange={(event) => setSupportingFiles(Array.from(event.target.files ?? []))} className="mt-2 w-full text-sm" />
-        </label>
-        <p className="text-xs leading-5 text-slate-500">Chọn tối đa 10 PDF có lớp văn bản. Tổng slide và giáo trình tối đa 20 MB. Khi công bố slide, các tài liệu đi kèm sẽ được công bố vào cùng lớp để AI Tutor giải thích khi slide chưa đủ thông tin.</p>
-        {supportingFiles.length > 0 && <ul className="space-y-1 text-sm text-slate-700">{supportingFiles.map((item, index) => <li key={`${item.name}-${index}`}>{item.name} · {(item.size / 1024 / 1024).toFixed(2)} MB</li>)}</ul>}
-      </section>}
+      <FileDropzone label="Tài liệu chính — PDF hoặc PPTX" hint="Chọn 1 tệp PDF có lớp văn bản hoặc PPTX, tối đa 20 MB."
+        accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx"
+        extensions={[".pdf", ".pptx"]} files={file ? [file] : []} onChange={(items) => setFile(items[0] ?? null)} disabled={busy} />
+      {materialType === "SLIDE_PDF" && <FileDropzone label="Giáo trình/tài liệu hỗ trợ đính kèm (không bắt buộc)"
+        hint="Chọn tối đa 10 PDF có lớp văn bản. Tổng slide và giáo trình tối đa 20 MB. Khi công bố slide, giáo trình đi kèm được công bố vào cùng lớp để AI Tutor giải thích thêm."
+        accept="application/pdf,.pdf" extensions={[".pdf"]} files={supportingFiles} onChange={setSupportingFiles} maxFiles={10} disabled={busy} />}
       <p className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-5 text-blue-800">Nếu chọn PPTX: tải lên → chuyển PDF tự động → kiểm tra lớp văn bản → lưu vào kho đã chọn. Hệ thống không giữ tệp PPTX gốc.</p>
       <div className="flex justify-end gap-2"><Link href="/teacher/documents" className="rounded-xl border border-slate-300 px-4 py-2 text-sm">Hủy</Link><button disabled={busy} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{busy ? "Đang tải và xử lý..." : "Tải lên và thêm vào kho"}</button></div>
     </form>

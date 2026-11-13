@@ -438,6 +438,18 @@ public class CourseMaterialLibraryService {
         document.retryDownloadIndex(clock.instant());
     }
 
+    /** Args: authenticated owner, document UUID and title (1..200 chars after trimming).
+     * Input: active Teacher-owned document. Output: void; changes display title in all views.
+     * Errors: 403/404 ownership, 422 INVALID_TITLE. Bytes/version/index/publication stay unchanged. */
+    @Transactional
+    public void rename(UUID teacherId, UUID documentId, String title) {
+        CourseMaterialDocument document = requireOwned(teacherId, documentId);
+        if (title == null || title.isBlank() || title.strip().length() > 200) {
+            throw new ValidationException("INVALID_TITLE", "Tên tài liệu phải có từ 1 đến 200 ký tự.");
+        }
+        document.renameDisplayName(title.strip(), clock.instant());
+    }
+
     /**
      * Args: authenticated Teacher, primary slide and owned Course Offering.
      * Input: existing Teacher-owned slide configuration. Output: currently configured support PDFs.

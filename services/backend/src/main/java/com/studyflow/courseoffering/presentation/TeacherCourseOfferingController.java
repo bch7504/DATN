@@ -57,31 +57,15 @@ public class TeacherCourseOfferingController {
         }
     }
 
+    /** Legacy direct creation is disabled; all new classes require an Admin-reviewed proposal.
+     * Args: Teacher JWT and legacy validated body. Output: none. Errors: 409 OPENING_APPROVAL_REQUIRED. */
     @PostMapping
     public ResponseEntity<TeacherCourseOfferingResponse> createCourseOffering(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CreateCourseOfferingRequest req) {
-        UUID teacherId = userId(jwt);
-
-        CreateCourseOfferingCommand cmd = new CreateCourseOfferingCommand(
-                req.getSubjectId(),
-                req.getSemesterId(),
-                req.getCode(),
-                req.getName()
-        );
-
-        CreatedCourseOfferingResult result = offeringService.createCourseOffering(teacherId, cmd);
-        Subject subject = subjectRepository.findById(result.offering().getSubjectId()).orElse(null);
-        Semester semester = semesterRepository.findById(result.offering().getSemesterId()).orElse(null);
-
-        TeacherCourseOfferingResponse response = TeacherCourseOfferingResponse.fromEntity(
-                result.offering(),
-                subject,
-                semester,
-                result.rawJoinCode()
-        );
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        userId(jwt);
+        throw new ApiException(HttpStatus.CONFLICT, "OPENING_APPROVAL_REQUIRED",
+                "Hãy gửi yêu cầu mở lớp để Admin kiểm tra và duyệt.");
     }
 
     @GetMapping

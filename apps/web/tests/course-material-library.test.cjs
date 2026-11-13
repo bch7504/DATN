@@ -40,7 +40,7 @@ test("Course Material library uses persisted Java files without fixtures", async
     assert.doesNotMatch(teacherPage, /setTutorSources|getTutorSources|sourceEditor|<dialog/);
     assert.doesNotMatch(client, /setTutorSources/);
     assert.match(teacherUpload, /supportingFiles/);
-    assert.match(teacherUpload, /type="file" multiple accept="application\/pdf,\.pdf"/);
+    assert.match(teacherUpload, /accept="application\/pdf,\.pdf" extensions=\{\["\.pdf"\]\}/);
     assert.doesNotMatch(teacherUpload, /option value="SUPPORTING_PDF"/);
     assert.match(teacherPage, /Thêm vào lớp/);
     assert.match(teacherPage, /Mở kho giảng viên/);
