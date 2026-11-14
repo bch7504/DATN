@@ -18,6 +18,7 @@ Thư mục này chứa specification có thể dùng trực tiếp cho implement
 12. [`11-course-tutor-live-completion.md`](11-course-tutor-live-completion.md) — hoàn thiện fallback tuần tự, kiểm quyền sau AI và nghiệm thu tài liệu Kỹ thuật số thật
 13. [`12-course-opening-approval-and-library-management.md`](12-course-opening-approval-and-library-management.md) — lịch sử lần 13/11: duyệt mở lớp và quản lý tài liệu; quy tắc tự nhập môn được thay bởi SPEC-13
 14. [`13-admin-teacher-accounts-and-subject-assignment.md`](13-admin-teacher-accounts-and-subject-assignment.md) — Admin tạo Giảng viên, phân công một môn, bỏ đổi role; thay quy tắc nhập môn tự do của lần trước
+15. [`14-supabase-shared-data-plan.md`](14-supabase-shared-data-plan.md) — phương án PostgreSQL/pgvector và Storage dùng chung qua Supabase; chưa triển khai, để thực hiện lần sau
 
 ## Quy ước sử dụng
 
