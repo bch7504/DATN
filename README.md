@@ -28,10 +28,10 @@ Next.js Web → Java Spring Boot → Python FastAPI
 | Vai trò | Chức năng chính |
 |---|---|
 | Student | Tham gia lớp, xem PDF, ghi chú, AI Tutor, tài liệu cá nhân, Quiz, Dashboard và Kế hoạch & Lịch |
-| Teacher | Tạo lớp học phần, quản lý join code/enrollment, công bố PDF và sinh Quiz bằng AI |
+| Teacher | Yêu cầu mở nhóm lớp của môn được phân công, quản lý join code/enrollment, tải PDF/PPTX, công bố PDF và sinh Quiz bằng AI |
 | Admin | Quản lý tài khoản, danh mục, giám sát, phản hồi, nhật ký và thiết lập |
 
-MVP chỉ nhận PDF có lớp văn bản. Không hỗ trợ PPTX, DOCX, OCR, multi-agent, Topic Mastery, XP, badge hoặc leaderboard.
+Student chỉ tải PDF có lớp văn bản. Teacher nhận PDF hoặc PPTX; Java chuyển PPTX thành PDF qua dịch vụ nội bộ trước khi lưu và xử lý AI. Không hỗ trợ DOCX, OCR, multi-agent, Topic Mastery, XP, badge hoặc leaderboard.
 
 ## Cấu trúc repository
 
@@ -170,12 +170,24 @@ Các tài khoản dưới đây là bản ghi thật trong PostgreSQL local, dù
 | Vai trò | Tên đăng nhập | Email | Mật khẩu test local | Trạng thái |
 |---|---|---|---|---|
 | Student | `student.local` | `student.local@stu.ptit.edu.vn` | `StudyFlow@123` | `ACTIVE` |
-| Teacher | `teacher.local` | `teacher.local@studyflow.local` | `StudyFlow@123` | `ACTIVE` |
+| Teacher — Giải tích 2 | `teacher.gt2.local` | `teacher.gt2.local@studyflow.local` | `StudyFlow@123` | `ACTIVE` |
+| Teacher — Kinh tế chính trị | `teacher.ktct.local` | `teacher.ktct.local@studyflow.local` | `StudyFlow@123` | `ACTIVE` |
+| Teacher — Kỹ thuật số | `teacher.kts.local` | `teacher.kts.local@studyflow.local` | `StudyFlow@123` | `ACTIVE` |
+| Teacher — Tiếng Anh C1 | `teacher.engc1.local` | `teacher.engc1.local@studyflow.local` | `StudyFlow@123` | `ACTIVE` |
+| Teacher — Tin học cơ sở 2 | `teacher.thcs2.local` | `teacher.thcs2.local@studyflow.local` | `StudyFlow@123` | `ACTIVE` |
+| Teacher — Vật lí thí nghiệm 1 | `teacher.vltn1.local` | `teacher.vltn1.local@studyflow.local` | `StudyFlow@123` | `ACTIVE` |
+| Teacher — Xác suất thống kê | `teacher.xstk.local` | `teacher.xstk.local@studyflow.local` | `StudyFlow@123` | `ACTIVE` |
 | Admin | `admin.local` | `admin.local@studyflow.local` | `StudyFlow@123` | `ACTIVE` |
 
-Ba tài khoản và mật khẩu trên chỉ dành cho PostgreSQL local phục vụ phát triển/demo. Không dùng
+Các tài khoản và mật khẩu trên chỉ dành cho PostgreSQL local phục vụ phát triển/demo. Không dùng
 mật khẩu này trên môi trường public, staging hoặc production. Khi triển khai ra ngoài máy local,
 phải tạo tài khoản riêng và cấp mật khẩu bằng kênh bí mật, không lưu thông tin đăng nhập thật vào Git.
+
+Ngày 14/11/2026 đã kiểm tra đăng nhập cả bảy tài khoản Teacher và API môn phụ trách. Tài khoản
+`teacher.local` cũ được đổi thành `teacher.kts.local`, giữ UUID, mật khẩu và tài nguyên Kỹ thuật số.
+Admin tạo Giảng viên mới tại **Người dùng → Tạo tài khoản Giảng viên**, chọn một môn phụ trách;
+không dùng đổi vai trò tài khoản Student. Quy tắc và kết quả kiểm tra nằm trong
+[SPEC-13](docs/specs/13-admin-teacher-accounts-and-subject-assignment.md).
 
 ### 7. Cấu hình Frontend
 

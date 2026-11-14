@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BookOpen, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
-import { catalogApi } from "@/lib/api-client";
+import { catalogApi, openingRequestApi } from "@/lib/api-client";
 import type { Semester, Subject } from "@/types/course-offering";
 
 type LoadState = "loading" | "ready" | "error";
@@ -10,12 +10,12 @@ type LoadState = "loading" | "ready" | "error";
 /**
  * Shows the real active-semester catalog returned by Java on every authenticated page.
  *
- * Args: none.
- * Input: public Java catalog endpoints for ACTIVE subjects and semesters.
+ * Args: teacher defaults false.
+ * Input: assigned subject for Teacher; public Java catalog endpoints for ACTIVE subjects and semesters.
  * Output: a collapsible semester strip; no synthetic subject is rendered on API failure.
  * Errors: catalog failures are represented by a compact unavailable state.
  */
-export function SemesterScopeBar(): React.JSX.Element {
+export function SemesterScopeBar({ teacher = false }: { teacher?: boolean }): React.JSX.Element {
   const [semester, setSemester] = useState<Semester | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -34,7 +34,7 @@ export function SemesterScopeBar(): React.JSX.Element {
       try {
         const [semesterItems, subjectItems] = await Promise.all([
           catalogApi.getSemesters(),
-          catalogApi.getSubjects(),
+          teacher ? openingRequestApi.getAssignedSubject().then(subject => [subject]) : catalogApi.getSubjects(),
         ]);
         if (!active) return;
         setSemester(semesterItems.find((item) => item.status === "ACTIVE") ?? null);
@@ -53,7 +53,7 @@ export function SemesterScopeBar(): React.JSX.Element {
     return () => {
       active = false;
     };
-  }, []);
+  }, [teacher]);
 
   if (loadState === "loading") {
     return (
@@ -86,7 +86,7 @@ export function SemesterScopeBar(): React.JSX.Element {
             </span>
             <span className="min-w-0">
               <span className="block truncate text-sm font-extrabold text-slate-900">{semester.name}</span>
-              <span className="block text-xs text-slate-500">Học kỳ đang hoạt động · {subjects.length} môn học</span>
+              <span className="block text-xs text-slate-500">{teacher ? `Môn phụ trách: ${subjects[0]?.name ?? "Chưa phân công"}` : `Học kỳ đang hoạt động · ${subjects.length} môn học`}</span>
             </span>
           </span>
           {expanded ? <ChevronUp className="h-4 w-4 text-red-600" /> : <ChevronDown className="h-4 w-4 text-red-600" />}

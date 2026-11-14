@@ -42,17 +42,53 @@ public class AdminJdbcStore {
     public Page<AdminModels.User> users(String role, String status, int page, int size) {
         StringBuilder filter = new StringBuilder(" WHERE 1=1");
         List<Object> args = new ArrayList<>();
-        if (role != null) { filter.append(" AND role = ?"); args.add(role); }
-        if (status != null) { filter.append(" AND status = ?"); args.add(status); }
-        return page("SELECT id,email,username,full_name,role,status,created_at FROM app.users" + filter,
-                "SELECT COUNT(*) FROM app.users" + filter, args, "created_at DESC, id", page, size,
+        if (role != null) { filter.append(" AND u.role = ?"); args.add(role); }
+        if (status != null) { filter.append(" AND u.status = ?"); args.add(status); }
+        return page(userSelect() + filter,
+                "SELECT COUNT(*) FROM app.users u" + filter, args, "created_at DESC, id", page, size,
                 AdminJdbcStore::user);
     }
 
     /** Args: account UUID. Output: optional safe metadata. Errors: database failures. */
     public Optional<AdminModels.User> user(UUID id) {
-        return jdbc.query("SELECT id,email,username,full_name,role,status,created_at FROM app.users WHERE id = ?",
+        return jdbc.query(userSelect() + " WHERE u.id = ?",
                 AdminJdbcStore::user, id).stream().findFirst();
+    }
+
+    /** Args: none. Output: fixed metadata-only SELECT with nullable assigned subject; errors: none. */
+    private static String userSelect() {
+        return "SELECT u.id,u.email,u.username,u.full_name,u.role,u.status,u.created_at,"
+                + "s.id AS subject_id,s.code AS subject_code,s.name AS subject_name "
+                + "FROM app.users u LEFT JOIN app.subjects s ON s.id=u.teacher_subject_id";
+    }
+
+    /** Args: subject UUID. Output: locked optional subject; prevents deletion/deactivation during provisioning. Errors: database failure. */
+    public Optional<AdminModels.Subject> subjectForTeacherCreation(UUID id) {
+        return jdbc.query("SELECT id,code,name,credits,description,status FROM app.subjects WHERE id=? FOR SHARE",
+                AdminJdbcStore::subject,id).stream().findFirst();
+    }
+
+    /** Args: normalized email and username. Output: void; ordered transaction locks prevent cross-identifier races. Errors: database failure. */
+    public void lockAccountIdentifiers(String email,String username) {
+        for (String identifier : new java.util.TreeSet<>(List.of(email,username))) {
+            jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(?,1301))",(ResultSet rs)->null,identifier);
+        }
+    }
+
+    /** Args: normalized email/username. Output: whether either value conflicts with an existing login identifier. Errors: database failure. */
+    public boolean accountIdentifierExists(String email,String username) {
+        return count("SELECT COUNT(*) FROM app.users WHERE lower(email) IN (?,?) OR lower(username) IN (?,?)",
+                email,username,email,username)>0;
+    }
+
+    /** Args: identity, validated display/login, encoded password, ACTIVE subject and time.
+     * Output: void; inserts exactly one ACTIVE/TEACHER account. Errors: unique/FK/persistence failure. */
+    public void insertTeacher(UUID id,String email,String username,String fullName,String passwordHash,UUID subjectId,Instant now) {
+        jdbc.update("""
+                INSERT INTO app.users(id,email,username,password_hash,full_name,time_zone,role,status,
+                    email_verified_at,created_at,updated_at,teacher_subject_id)
+                VALUES(?,?,?,?,?,'Asia/Ho_Chi_Minh','TEACHER','ACTIVE',?,?,?,?)
+                """,id,email,username,passwordHash,fullName,Timestamp.from(now),Timestamp.from(now),Timestamp.from(now),subjectId);
     }
 
     /** Args: account UUID, validated role/status and time. Output: affected row count. Errors: database failures. */
@@ -290,7 +326,8 @@ public class AdminJdbcStore {
     private static AdminModels.User user(ResultSet rs, int row) throws SQLException {
         return new AdminModels.User((UUID) rs.getObject("id"), rs.getString("email"), rs.getString("username"),
                 rs.getString("full_name"), rs.getString("role"), rs.getString("status"),
-                rs.getTimestamp("created_at").toInstant());
+                rs.getTimestamp("created_at").toInstant(), (UUID) rs.getObject("subject_id"),
+                rs.getString("subject_code"),rs.getString("subject_name"));
     }
 
     /** Args: JDBC row. Output: Subject DTO. Errors: SQL read failure. */

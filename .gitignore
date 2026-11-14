@@ -9,6 +9,7 @@ target/
 .gradle/
 build/
 .maven/
+.codex-maven-output/
 
 # Python
 __pycache__/

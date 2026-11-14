@@ -21,10 +21,19 @@ export interface AdminUser {
   role: AdminUserRole;
   status: AdminUserStatus;
   createdAt: string;
+  subjectId?: string | null;
+  subjectCode?: string | null;
+  subjectName?: string | null;
 }
 export interface AdminUserUpdate {
-  role?: AdminUserRole;
   status?: AdminUserStatus;
+}
+export interface CreateTeacherInput {
+  fullName: string;
+  email: string;
+  username: string;
+  password: string;
+  subjectId: string;
 }
 
 export type AdminSubjectStatus = "ACTIVE" | "INACTIVE";

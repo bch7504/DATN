@@ -349,6 +349,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                     crumbs.push("AI Quiz Studio");
                   } else if (pathname === "/admin/dashboard") {
                     crumbs.push("Bảng điều khiển");
+                  } else if (pathname === "/admin/users/new") {
+                    crumbs.push("Quản lý người dùng", "Tạo tài khoản Giảng viên");
                   } else if (pathname?.startsWith("/admin/users/")) {
                     crumbs.push("Quản lý người dùng", "Chỉnh sửa tài khoản");
                   } else if (pathname?.startsWith("/admin/users")) {
@@ -410,7 +412,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          <SemesterScopeBar />
+          <SemesterScopeBar teacher={role === "TEACHER"} />
 
           {/* Page Body */}
           <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto">

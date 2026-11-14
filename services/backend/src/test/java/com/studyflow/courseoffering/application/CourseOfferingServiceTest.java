@@ -4,6 +4,7 @@ import com.studyflow.academic.domain.Semester;
 import com.studyflow.academic.domain.SemesterRepository;
 import com.studyflow.academic.domain.SemesterStatus;
 import com.studyflow.academic.domain.Subject;
+import com.studyflow.academic.application.TeacherSubjectService;
 import com.studyflow.academic.domain.SubjectRepository;
 import com.studyflow.common.exception.ConflictException;
 import com.studyflow.common.exception.ForbiddenException;
@@ -44,6 +45,7 @@ class CourseOfferingServiceTest {
     @Mock
     private SemesterRepository semesterRepository;
 
+    @Mock private TeacherSubjectService teacherSubjects;
     private CourseOfferingService offeringService;
 
     private Subject mockSubject;
@@ -51,7 +53,7 @@ class CourseOfferingServiceTest {
 
     @BeforeEach
     void setUp() {
-        offeringService = new CourseOfferingService(offeringRepository, subjectRepository, semesterRepository);
+        offeringService = new CourseOfferingService(offeringRepository, subjectRepository, semesterRepository, teacherSubjects);
 
         mockSubject = new Subject(SUBJECT_ID, "INT1340", "Cơ sở dữ liệu", 3, "Mô tả CSDL", "ACTIVE");
         mockSemester = new Semester(SEMESTER_ID, "2026_1", "Học kỳ 1 2026-2027", "2026-2027",
@@ -240,5 +242,11 @@ class CourseOfferingServiceTest {
 
         assertEquals("NO_FIELDS_TO_UPDATE", ex.getErrorCode());
         verifyNoInteractions(offeringRepository);
+    }
+    /** Subject restrictions are enforced even if the approved-class application service is called directly. */
+    @Test void rejectsOtherSubjectBeforeCreatingClass() {
+        doThrow(TeacherSubjectService.mismatch()).when(teacherSubjects).require(TEACHER_ID,SUBJECT_ID);
+        assertThrows(ForbiddenException.class,()->offeringService.createCourseOffering(TEACHER_ID,new CreateCourseOfferingCommand(SUBJECT_ID,SEMESTER_ID,"OTHER","Other")));
+        verify(offeringRepository,never()).save(any());
     }
 }

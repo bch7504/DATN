@@ -16,7 +16,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { catalogApi, teacherDocApi, teacherApi, teacherLibraryApi } from "@/lib/api-client";
+import { openingRequestApi, teacherDocApi, teacherApi, teacherLibraryApi } from "@/lib/api-client";
 import { TeacherDocument, TeacherResourceLibrary } from "@/types/material";
 import { CourseOffering, Subject } from "@/types/course-offering";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -34,9 +34,8 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
   const [documents, setDocuments] = useState<TeacherDocument[]>([]);
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
   const [libraries, setLibraries] = useState<TeacherResourceLibrary[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [assignedSubject, setAssignedSubject] = useState<Subject | null>(null);
   const [newLibraryName, setNewLibraryName] = useState("");
-  const [newLibrarySubjectId, setNewLibrarySubjectId] = useState("");
   const [showCreateLibrary, setShowCreateLibrary] = useState(false);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [bulkTargetOfferingId, setBulkTargetOfferingId] = useState("");
@@ -69,12 +68,12 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
         teacherDocApi.getDocuments(),
         teacherApi.getOfferings(),
         teacherLibraryApi.list(),
-        catalogApi.getSubjects(),
+        openingRequestApi.getAssignedSubject(),
       ]);
       setDocuments(documentData);
       setOfferings(offeringData);
       setLibraries(libraryData);
-      setSubjects(subjectData);
+      setAssignedSubject(subjectData);
       setErrorMsg(null);
     } catch (error: unknown) {
       setErrorMsg(error instanceof Error ? error.message : "Không thể tải kho học liệu PDF.");
@@ -133,12 +132,12 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
     }
   };
 
-  /** Args: none. Input: new name and optional subject. Output: created Teacher-owned library. Errors: shown inline. */
+  /** Args: none. Input: new folder name within the Teacher workspace. Output: created Teacher-owned library. Errors: shown inline. */
   const createLibrary = async (): Promise<void> => {
     if (!newLibraryName.trim()) { setErrorMsg("Hãy nhập tên kho tài liệu."); return; }
     try {
-      const created = await teacherLibraryApi.create(newLibraryName.trim(), newLibrarySubjectId || undefined);
-      setNewLibraryName(""); setNewLibrarySubjectId(""); setShowCreateLibrary(false);
+      const created = await teacherLibraryApi.create(newLibraryName.trim());
+      setNewLibraryName(""); setShowCreateLibrary(false);
       router.push(`/teacher/documents/libraries/${encodeURIComponent(created.id)}`);
     } catch (error: unknown) { setErrorMsg(error instanceof Error ? error.message : "Không thể tạo kho tài liệu."); }
   };
@@ -253,7 +252,7 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
               ? `Học liệu đã công bố cho lớp ${selectedOffering.code}.`
               : selectedLibrary
                 ? `Các tài liệu, Quiz và bài tập trong ${selectedLibrary.name}.`
-                : "Tạo kho theo môn hoặc kho riêng; lưu PDF, Quiz và bài tập của bạn."}
+                : "Sắp xếp PDF, Quiz và bài tập trong các kho riêng của bạn."}
           </p>
         </div>
         {selectedOffering && (
@@ -366,7 +365,7 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
                   <ArrowLeft className="h-3.5 w-3.5" /> Danh sách kho
                 </Link>
                 <h2 className="text-lg font-extrabold text-slate-900">{selectedLibrary.name}</h2>
-                <p className="mt-1 text-sm text-slate-500">{selectedLibrary.subjectName ?? "Kho riêng tư"}</p>
+                <p className="mt-1 text-sm text-slate-500">{assignedSubject?.name ?? "Kho riêng tư"}</p>
               </div>
               {!selectedLibrary.libraryType.startsWith("DEFAULT") && <button type="button" onClick={() => void deleteLibrary(selectedLibrary.id)} className="inline-flex items-center gap-1 rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-700">
                 <Trash2 className="h-4 w-4" /> Xóa kho
@@ -431,8 +430,8 @@ export default function TeacherDocumentLibrary({ offeringId, libraryId }: Teache
               <div><h2 className="text-base font-extrabold text-slate-900">Kho chung của giảng viên</h2><p className="mt-1 text-xs text-slate-500">Tài liệu chưa chọn kho sẽ vào “Tài liệu tải lên”; nhấn một kho để xem chi tiết.</p></div>
               <div className="flex gap-2"><Link href="/teacher/documents/upload" className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white"><PlusCircle className="h-4 w-4" />Thêm tài liệu</Link><button type="button" onClick={() => setShowCreateLibrary((value) => !value)} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-700"><FolderPlus className="h-4 w-4" />Tạo kho</button></div>
             </div>
-            {showCreateLibrary && <div className="grid gap-3 rounded-xl border border-red-100 bg-red-50 p-4 sm:grid-cols-[1fr_1fr_auto]"><input maxLength={120} value={newLibraryName} onChange={(event) => setNewLibraryName(event.target.value)} placeholder="Tên kho" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" /><select value={newLibrarySubjectId} onChange={(event) => setNewLibrarySubjectId(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Kho riêng, không gắn môn</option>{subjects.filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select><button type="button" onClick={() => void createLibrary()} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">Tạo kho</button></div>}
-            {libraries.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Đang tạo kho Tài liệu tải lên mặc định.</div> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{libraries.map((library) => <button key={library.id} type="button" onClick={() => router.push(`/teacher/documents/libraries/${encodeURIComponent(library.id)}`)} className="rounded-xl border border-slate-200 bg-white p-4 text-left"><div className="flex items-start justify-between gap-2"><p className="font-bold text-slate-900">{library.name}</p><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{library.libraryType === "DEFAULT" ? "MẶC ĐỊNH" : library.libraryType === "SUBJECT" ? "THEO MÔN" : "RIÊNG"}</span></div><p className="mt-1 text-xs text-slate-500">{library.libraryType === "DEFAULT" ? "Tài liệu chưa được sắp xếp" : library.subjectName ?? "Không gắn môn học"}</p><p className="mt-3 text-xs font-semibold text-red-700">{library.items.length} mục · Mở kho →</p></button>)}</div>}
+            {showCreateLibrary && <div className="grid gap-3 rounded-xl border border-red-100 bg-red-50 p-4 sm:grid-cols-[1fr_auto]"><input maxLength={120} value={newLibraryName} onChange={(event) => setNewLibraryName(event.target.value)} placeholder="Tên kho" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" /><button type="button" onClick={() => void createLibrary()} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">Tạo kho</button></div>}
+            {libraries.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Đang tạo kho Tài liệu tải lên mặc định.</div> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{libraries.map((library) => <button key={library.id} type="button" onClick={() => router.push(`/teacher/documents/libraries/${encodeURIComponent(library.id)}`)} className="rounded-xl border border-slate-200 bg-white p-4 text-left"><div className="flex items-start justify-between gap-2"><p className="font-bold text-slate-900">{library.name}</p><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{library.libraryType === "DEFAULT" ? "MẶC ĐỊNH" : "RIÊNG"}</span></div><p className="mt-1 text-xs text-slate-500">{library.libraryType === "DEFAULT" ? "Tài liệu chưa được sắp xếp" : assignedSubject?.name ?? "Kho riêng tư"}</p><p className="mt-3 text-xs font-semibold text-red-700">{library.items.length} mục · Mở kho →</p></button>)}</div>}
           </section>
 
           <div>

@@ -3,6 +3,7 @@ package com.studyflow.courseoffering.application;
 import com.studyflow.academic.domain.Semester;
 import com.studyflow.academic.domain.SemesterRepository;
 import com.studyflow.academic.domain.Subject;
+import com.studyflow.academic.application.TeacherSubjectService;
 import com.studyflow.academic.domain.SubjectRepository;
 import com.studyflow.common.exception.ConflictException;
 import com.studyflow.common.exception.ForbiddenException;
@@ -24,17 +25,22 @@ public class CourseOfferingService {
     private final CourseOfferingRepository offeringRepository;
     private final SubjectRepository subjectRepository;
     private final SemesterRepository semesterRepository;
+    private final TeacherSubjectService teacherSubjects;
 
     public CourseOfferingService(CourseOfferingRepository offeringRepository,
                                  SubjectRepository subjectRepository,
-                                 SemesterRepository semesterRepository) {
+                                 SemesterRepository semesterRepository, TeacherSubjectService teacherSubjects) {
         this.offeringRepository = offeringRepository;
         this.subjectRepository = subjectRepository;
         this.semesterRepository = semesterRepository;
+        this.teacherSubjects = teacherSubjects;
     }
 
     @Transactional
+    /** Args: Teacher UUID and subject/semester/class command. Input: assigned subject and open semester.
+     * Output: new owned class and join code. Errors: 403 subject mismatch, 404 missing catalog, 409 closed/duplicate. */
     public CreatedCourseOfferingResult createCourseOffering(UUID teacherId, CreateCourseOfferingCommand cmd) {
+        teacherSubjects.require(teacherId, cmd.subjectId());
         Subject subject = subjectRepository.findById(cmd.subjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("SUBJECT_NOT_FOUND", "Không tìm thấy Môn học được chỉ định."));
 

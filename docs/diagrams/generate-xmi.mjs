@@ -15,6 +15,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateSequenceContract } from "./sequence-contract.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const outputDirectory = path.join(root, "visual-paradigm");
@@ -232,6 +233,7 @@ function classXmi(source, name) {
  * is not closed. The caller must keep the previous XMI in that case.
  */
 function parseSequence(source) {
+  validateSequenceContract(source);
   const participants = [];
   const participantByAlias = new Map();
   const participantPattern = /^(actor|boundary|control|participant|entity|database|collections|queue)\s+(?:"([\s\S]*?)"\s+as\s+|)([A-Za-z_]\w*)\s*$/gm;
@@ -253,6 +255,25 @@ function parseSequence(source) {
   const frames = [];
   const frameStack = [];
   const activeActivationByAlias = new Map();
+  /** @param {string} alias Lifeline. @returns {{id: string, start: number, end: number|null, depth: number}|undefined} Innermost execution. */
+  const currentActivation = alias => activeActivationByAlias.get(alias)?.at(-1);
+  /** @param {string} alias Lifeline. @returns {{id: string, start: number, end: number|null, depth: number}} Newly opened execution at the next message. */
+  const openActivation = alias => {
+    const stack = activeActivationByAlias.get(alias) ?? [];
+    const activation = { id: id(`activation_${alias}_${messages.length}_${stack.length}`), start: messages.length, end: null, depth: stack.length };
+    participantByAlias.get(alias).activations.push(activation);
+    activeActivationByAlias.set(alias, [...stack, activation]);
+    return activation;
+  };
+  /** @param {string} alias Lifeline. @returns {void} Closes the innermost execution at the previous message. @throws {Error} Missing execution. */
+  const closeActivation = alias => {
+    const stack = activeActivationByAlias.get(alias) ?? [];
+    const activation = stack.at(-1);
+    if (!activation) throw new Error(`No open activation: ${alias}`);
+    activation.end = Math.max(messages.length - 1, activation.start);
+    if (stack.length === 1) activeActivationByAlias.delete(alias);
+    else activeActivationByAlias.set(alias, stack.slice(0, -1));
+  };
   const sourceLines = source.split(/\r?\n/);
   let inNote = false;
 
@@ -290,15 +311,14 @@ function parseSequence(source) {
       frame.operands.at(-1).end = messages.length;
       continue;
     }
-    const deactivateMatch = line.match(/^deactivate\s+([A-Za-z_]\w*)$/);
-    if (deactivateMatch) {
-      const activation = activeActivationByAlias.get(deactivateMatch[1]);
-      if (activation) activation.end = Math.max(messages.length - 1, activation.start);
-      activeActivationByAlias.delete(deactivateMatch[1]);
+    const executionMatch = line.match(/^(activate|deactivate)\s+([A-Za-z_]\w*)$/);
+    if (executionMatch) {
+      if (executionMatch[1] === "activate") openActivation(executionMatch[2]);
+      else closeActivation(executionMatch[2]);
       continue;
     }
 
-    const messageMatch = line.match(/^([A-Za-z_]\w*)\s*(-->|->|<--|<-)\s*([A-Za-z_]\w*)\s*(\+\+|--)?\s*:\s*(.+)$/);
+    const messageMatch = line.match(/^([A-Za-z_]\w*)\s*(->>|-->|->|<--|<-)\s*([A-Za-z_]\w*)\s*(\+\+|--)?\s*:\s*(.+)$/);
     if (!messageMatch) continue;
     let [, from, arrow, to, activationMarker = "", label] = messageMatch;
     if (arrow.startsWith("<")) {
@@ -314,30 +334,26 @@ function parseSequence(source) {
       to,
       label: label.trim(),
       reply: arrow === "-->",
-      fromActivation: activeActivationByAlias.get(from)?.id,
-      toActivation: activeActivationByAlias.get(to)?.id,
+      asynchronous: arrow === "->>",
+      fromActivation: currentActivation(from)?.id,
+      toActivation: currentActivation(to)?.id,
     };
     if (activationMarker === "++") {
-      const activation = {
-        id: id(`activation_${to}_${messages.length}`),
-        start: messages.length,
-        end: null,
-      };
-      participantByAlias.get(to).activations.push(activation);
-      activeActivationByAlias.set(to, activation);
+      const activation = openActivation(to);
       message.toActivation = activation.id;
     }
     messages.push(message);
     if (activationMarker === "--") {
-      const activation = activeActivationByAlias.get(from);
-      if (activation) activation.end = message.index;
-      activeActivationByAlias.delete(from);
+      closeActivation(from);
+      // Self returns must terminate on the enclosing execution, not the
+      // nested activation that has just finished.
+      message.toActivation = currentActivation(to)?.id;
     }
   }
   if (frameStack.length) throw new Error("Unclosed combined fragment in sequence source");
   for (const participant of participants) {
     for (const activation of participant.activations) {
-      if (activation.end == null) activation.end = Math.min(messages.length - 1, activation.start + 2);
+      if (activation.end == null) throw new Error(`Unclosed activation: ${participant.alias}`);
     }
   }
   return { participants, messages, frames };
@@ -410,6 +426,7 @@ function vpShapeProperties(zOrder, parentFrame, interactionId, options = {}) {
  */
 function sequenceXmi(source, name) {
   const { participants, messages, frames } = parseSequence(source);
+  const activationById = new Map(participants.flatMap(participant => participant.activations.map(activation => [activation.id, activation])));
   const modelId = vpId(`${name}_model`);
   const collaborationId = vpId(`${name}_collaboration`);
   const interactionId = vpId(`${name}_interaction`);
@@ -461,10 +478,11 @@ function sequenceXmi(source, name) {
   }
   for (const message of messages) {
     const currentMessageId = messageId(message);
-    model.push(`        <message name="${xml(message.label)}" receiveEvent="${currentMessageId}_receive" sendEvent="${currentMessageId}_send" xmi:id="${currentMessageId}" xmi:type="uml:Message">`);
+    const messageSort = message.reply ? "reply" : message.asynchronous ? "asynchCall" : "synchCall";
+    model.push(`        <message name="${xml(message.label)}" messageSort="${messageSort}" receiveEvent="${currentMessageId}_receive" sendEvent="${currentMessageId}_send" xmi:id="${currentMessageId}" xmi:type="uml:Message">`);
     if (message.reply) model.push(`          <signature name="Return" xmi:id="${currentMessageId}_type" xmi:type="uml:ReplyAction"><xmi:Extension extender="Visual Paradigm"><iteration xmi:value="false"/><asynshronous xmi:value="false"/><qualityScore value="-1"/></xmi:Extension></signature>`);
     else model.push(`          <signature xmi:id="${currentMessageId}_type" xmi:type="uml:Action"/>`);
-    model.push(`          <xmi:Extension extender="Visual Paradigm"><number xmi:value="${message.index + 1}"/><asynshronous xmi:value="false"/>`);
+    model.push(`          <xmi:Extension extender="Visual Paradigm"><number xmi:value="${message.index + 1}"/><asynshronous xmi:value="${message.asynchronous}"/>`);
     if (message.fromActivation) model.push(`            <fromActivation><activation xmi:value="${message.fromActivation}"/></fromActivation>`);
     if (message.toActivation) model.push(`            <toActivation><activation xmi:value="${message.toActivation}"/></toActivation>`);
     model.push(`            <qualityScore value="-1"/></xmi:Extension>`);
@@ -510,28 +528,34 @@ function sequenceXmi(source, name) {
     diagram.push(`      </uml:DiagramElement>`);
   }
   for (const participant of participants) {
-    const x = positionByAlias.get(participant.alias) - 4;
     for (const activation of participant.activations) {
+      const x = positionByAlias.get(participant.alias) - 4 + activation.depth * 4;
       const startY = messageY(activation.start);
-      // Visual Paradigm report convention: show a short execution segment at
-      // the receiving call, not one bar stretching through the whole diagram.
-      // The semantic message/return links remain unchanged in the XMI model.
-      const visualEndIndex = Math.min(activation.end, activation.start + 1);
-      const endY = messageY(visualEndIndex) + 18;
+      // Preserve the whole execution, including nested calls and their waits.
+      // Start/end match the PUML; re-entrant calls have a small horizontal offset.
+      const endY = messageY(activation.end);
       diagram.push(`      <uml:DiagramElement geometry="${x},${startY},8,${Math.max(28, endY - startY)}" preferredShapeType="Activation" subject="${activation.id}" xmi:id="${vpId(`view_${activation.id}`)}">`);
       diagram.push(`        <xmi:Extension extender="Visual Paradigm"><captionBounds value="0,0,8,12"/><captionVisible value="false"/><captionSide value="7"/>${vpShapeProperties(zOrder--, false, interactionId)}</xmi:Extension><elementFill color1="Cr:255,255,255,255" color2="" style="1" transparency="0" type="1"/><elementFont bold="false" color="Cr:0,0,0,255" italic="false" name="Arial" size="11" style="0"/><elementLine color="Cr:0,0,0,255" style="1" transparency="0" weight="1.0"/>`);
       diagram.push(`      </uml:DiagramElement>`);
     }
   }
   for (const message of messages) {
-    const fromX = positionByAlias.get(message.from);
-    const toX = positionByAlias.get(message.to);
+    const fromExecution = activationById.get(message.fromActivation);
+    const toExecution = activationById.get(message.toActivation);
+    const fromCenter = positionByAlias.get(message.from) + (fromExecution?.depth ?? 0) * 4;
+    const toCenter = positionByAlias.get(message.to) + (toExecution?.depth ?? 0) * 4;
+    const selfMessage = message.from === message.to;
+    const direction = selfMessage || fromCenter < toCenter ? 1 : -1;
+    const fromX = fromCenter + (fromExecution ? direction * 4 : 0);
+    const toX = toCenter + (toExecution ? (selfMessage ? 4 : -direction * 4) : 0);
     const y = messageY(message.index);
-    const geometry = fromX === toX
-      ? `${fromX},${y};${fromX + 38},${y};${fromX + 38},${y + 22};${fromX},${y + 22};`
+    const geometry = selfMessage
+      ? `${fromX},${y};${Math.max(fromX, toX) + 38},${y};${Math.max(fromX, toX) + 38},${y + 22};${toX},${y + 22};`
       : `${fromX},${y};${toX},${y};`;
-    const captionX = fromX === toX ? fromX + 40 : Math.min(fromX, toX) + Math.abs(toX - fromX) / 2 - 110;
-    diagram.push(`      <uml:DiagramElement fromDiagramElement="${lifelineViewId(message.from)}" geometry="${geometry}" preferredShapeType="Message" subject="${messageId(message)}" toDiagramElement="${lifelineViewId(message.to)}" xmi:id="${vpId(`view_${messageId(message)}`)}">`);
+    const captionX = selfMessage ? Math.max(fromX, toX) + 40 : Math.min(fromX, toX) + Math.abs(toX - fromX) / 2 - 110;
+    const fromView = fromExecution ? vpId(`view_${fromExecution.id}`) : lifelineViewId(message.from);
+    const toView = toExecution ? vpId(`view_${toExecution.id}`) : lifelineViewId(message.to);
+    diagram.push(`      <uml:DiagramElement fromDiagramElement="${fromView}" geometry="${geometry}" preferredShapeType="Message" subject="${messageId(message)}" toDiagramElement="${toView}" xmi:id="${vpId(`view_${messageId(message)}`)}">`);
     diagram.push(`        <xmi:Extension extender="Visual Paradigm"><captionBounds value="${Math.round(captionX)},${y - 20},220,18"/><captionInternalWidth value="-2147483648"/><captionInternalHeight value="-2147483648"/><captionVisible value="true"/><captionSide value="1"/><properties><azOrder value="${zOrder--}"/><abackground value="Cr:0,0,0,255"/><aforeground value="Cr:0,0,0,255"/><aselectable value="true"/><amodelElementNameAlignment value="9"/><aconnectorStyle value="3"/><aconnectorLineJumps value="0"/><aconnectorLabelOrientation value="4"/><auseFromShapeCenter value="true"/><auseToShapeCenter value="true"/><afromPinType value="1"/><atoPinType value="1"/><ashowConnectorName value="2"/><apaintThroughLabel value="2"/><ashowMessageName value="0"/></properties></xmi:Extension><elementFont bold="false" color="Cr:0,0,0,255" italic="false" name="Arial" size="11" style="0"/><elementLine color="Cr:0,0,0,255" style="1" transparency="0" weight="1.0"/>`);
     diagram.push(`      </uml:DiagramElement>`);
   }

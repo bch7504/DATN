@@ -258,6 +258,7 @@ class RealHttpApiTest {
         otherStudent = seedAndLogin("qa-student-other", UserRole.STUDENT);
         studentId = users.findByIdentifier("qa-student").orElseThrow().id();
         subjectId = subjects.save(new Subject(UUID.randomUUID(), "QA-HTTP", "Synthetic subject", 3, "QA only", "ACTIVE")).getId();
+        jdbc.update("UPDATE app.users SET teacher_subject_id=? WHERE username IN ('qa-teacher','qa-teacher-other')",subjectId);
         semesterId = semesters.save(new Semester(UUID.randomUUID(), "QA-HTTP", "Synthetic semester", "QA",
                 LocalDate.now().minusDays(10), LocalDate.now().plusDays(120), SemesterStatus.ACTIVE, true)).getId();
     }
@@ -1028,7 +1029,7 @@ class RealHttpApiTest {
     @Test
     void adminApprovalIsRequiredBeforeACourseExists() throws Exception {
         String code = "NEW-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
-        Map<String,Object> proposal = Map.of("subjectCode", code, "subjectName", "Proposed subject", "credits", 3,
+        Map<String,Object> proposal = Map.of("subjectCode", "QA-HTTP", "subjectName", "Synthetic subject", "credits", 3,
                 "semesterId", semesterId, "code", code + "-01");
         expect(send("POST", "/api/v1/teacher/course-opening-requests", student, proposal), 403);
         expect(send("POST", "/api/v1/teacher/course-opening-requests", teacher, Map.of("subjectCode", code)), 422);
@@ -1043,20 +1044,43 @@ class RealHttpApiTest {
         assertThat(foreignList.path("items").toString()).doesNotContain(id);
         expect(send("POST", "/api/v1/admin/course-opening-requests/" + id + "/approve", teacher, Map.of()), 403);
         JsonNode approved = expect(send("POST", "/api/v1/admin/course-opening-requests/" + id + "/approve", admin,
-                Map.of("subjectCode", code, "subjectName", "Normalized subject", "credits", 4)), 200);
+                Map.of("subjectId", subjectId)), 200);
         assertThat(approved.path("status").asText()).isEqualTo("APPROVED");
-        assertThat(subjects.findByCode(code).orElseThrow().getName()).isEqualTo("Normalized subject");
+        assertThat(subjects.findById(subjectId).orElseThrow().getName()).isEqualTo("Synthetic subject");
         expect(send("GET", "/api/v1/teacher/course-offerings/" + approved.path("courseOfferingId").asText(), teacher, null), 200);
         expect(send("POST", "/api/v1/admin/course-opening-requests/" + id + "/approve", admin, Map.of()), 409);
         expect(send("POST", "/api/v1/teacher/course-offerings", teacher,
                 Map.of("subjectId", subjectId, "semesterId", semesterId, "code", code + "-BYPASS")), 409);
         JsonNode rejected = expect(send("POST", "/api/v1/teacher/course-opening-requests", teacher,
-                Map.of("subjectCode", "DECLINED", "subjectName", "Rejected proposal", "credits", 3,
+                Map.of("subjectCode", "QA-HTTP", "subjectName", "Synthetic subject", "credits", 3,
                         "semesterId", semesterId, "code", "REJECT-" + code)), 201);
         String rejectPath = "/api/v1/admin/course-opening-requests/" + rejected.path("id").asText() + "/reject";
         expect(send("POST", rejectPath, admin, Map.of("reason", " ")), 422);
         assertThat(expect(send("POST", rejectPath, admin, Map.of("reason", "Need clarification")), 200).path("status").asText()).isEqualTo("REJECTED");
         assertThat(subjects.findByCode("DECLINED")).isEmpty();
+    }
+
+    /** Real isolated PostgreSQL + HTTP: provisioning, BCrypt login, RBAC, immutable role and subject scope. */
+    @Test void adminCreatesTeacherAndSubjectCannotBeBypassed() throws Exception {
+        String username="new-teacher-"+UUID.randomUUID().toString().substring(0,8);
+        Map<String,Object> input=Map.of("fullName","Synthetic Teacher","email",username+"@example.test","username",username,"password",PASSWORD,"subjectId",subjectId);
+        expect(send("POST","/api/v1/admin/teachers",null,input),401);
+        expect(send("POST","/api/v1/admin/teachers",student,input),403);
+        expect(send("POST","/api/v1/admin/teachers",teacher,input),403);
+        JsonNode created=expect(send("POST","/api/v1/admin/teachers",admin,input),201);
+        assertThat(created.path("role").asText()).isEqualTo("TEACHER");
+        assertThat(created.path("subjectId").asText()).isEqualTo(subjectId.toString());
+        assertThat(created.has("password")).isFalse();assertThat(created.has("passwordHash")).isFalse();
+        expect(send("POST","/api/v1/admin/teachers",admin,input),409);
+        expect(send("POST","/api/v1/admin/teachers",admin,Map.of("fullName","T","email","invalid","username","x","password","short","subjectId",subjectId)),422);
+        HttpResponse<byte[]> login=send("POST","/api/v1/auth/login",null,Map.of("identifier",username,"password",PASSWORD));
+        expect(login,204);String session=login.headers().allValues("set-cookie").stream().map(value->value.split(";",2)[0]).collect(java.util.stream.Collectors.joining("; "));
+        assertThat(expect(send("GET","/api/v1/teacher/subject",session,null),200).path("id").asText()).isEqualTo(subjectId.toString());
+        expect(send("PATCH","/api/v1/admin/users/"+created.path("id").asText(),admin,Map.of("role","ADMIN","status","ACTIVE")),422);
+        expect(send("POST","/api/v1/teacher/course-opening-requests",session,Map.of("subjectCode","OTHER","subjectName","Other","credits",3,"semesterId",semesterId,"code","OTHER-01")),403);
+        JsonNode proposal=expect(send("POST","/api/v1/teacher/course-opening-requests",session,Map.of("subjectCode","QA-HTTP","subjectName","Synthetic subject","credits",3,"semesterId",semesterId,"code",username.toUpperCase(Locale.ROOT))),201);
+        expect(send("POST","/api/v1/admin/course-opening-requests/"+proposal.path("id").asText()+"/approve",admin,Map.of("subjectId",UUID.randomUUID())),403);
+        expect(send("POST","/api/v1/admin/course-opening-requests/"+proposal.path("id").asText()+"/approve",admin,Map.of("subjectId",subjectId)),200);
     }
 
     /** Synthetic PDF management preserves bytes/index identity and enforces owner-scoped atomic moves. */
@@ -1067,7 +1091,8 @@ class RealHttpApiTest {
         JsonNode libraries = expect(send("GET", "/api/v1/teacher/resource-libraries", teacher, null), 200);
         String source = "";
         for (JsonNode library : libraries) if (library.path("libraryType").asText().equals("DEFAULT")) source = library.path("id").asText();
-        String target = expect(send("POST", "/api/v1/teacher/resource-libraries", teacher, Map.of("name", "Target subject folder", "subjectId", subjectId)), 201).path("id").asText();
+        expect(send("POST", "/api/v1/teacher/resource-libraries", teacher, Map.of("name", "Retired subject folder", "subjectId", subjectId)), 422);
+        String target = expect(send("POST", "/api/v1/teacher/resource-libraries", teacher, Map.of("name", "Target private folder")), 201).path("id").asText();
         String path = "/api/v1/teacher/resource-libraries/" + source + "/move-documents";
         expect(send("PATCH", "/api/v1/teacher/documents/" + documentId, teacher, Map.of("title", " ")), 422);
         expect(send("PATCH", "/api/v1/teacher/documents/" + documentId, otherTeacher, Map.of("title", "Foreign")), 403);

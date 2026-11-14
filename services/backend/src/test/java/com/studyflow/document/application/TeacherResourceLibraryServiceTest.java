@@ -52,18 +52,13 @@ class TeacherResourceLibraryServiceTest {
     }
 
     @Test
-    void createsSubjectLibraryAndReturnsTypedOutput() {
-        Subject subject = new Subject(SUBJECT_ID, "KTS", "Kỹ thuật số", 3, null, "ACTIVE");
-        when(subjects.findById(SUBJECT_ID)).thenReturn(Optional.of(subject));
+    void createsPrivateLibraryAndRejectsSubjectSelector() {
         when(libraries.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(items.findByLibraryIdOrderByAddedAtDesc(any())).thenReturn(List.of());
-
-        var result = service.create(TEACHER_ID, "Kho Kỹ thuật số", SUBJECT_ID);
-
-        assertThat(result.name()).isEqualTo("Kho Kỹ thuật số");
-        assertThat(result.libraryType()).isEqualTo("SUBJECT");
-        assertThat(result.subjectCode()).isEqualTo("KTS");
-        assertThat(result.items()).isEmpty();
+        var result=service.create(TEACHER_ID,"Kho bài giảng",null);
+        assertThat(result.libraryType()).isEqualTo("PRIVATE");
+        assertThat(result.subjectCode()).isNull();
+        assertThatThrownBy(()->service.create(TEACHER_ID,"Môn khác",SUBJECT_ID)).isInstanceOf(ApiException.class);
     }
 
     @Test

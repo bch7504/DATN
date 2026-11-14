@@ -4,11 +4,11 @@
 
 | ID | Requirement |
 |---|---|
-| TCH-FR-001 | Teacher tự nhập môn muốn mở, gửi yêu cầu theo Semester; Admin chuẩn hóa/duyệt trước khi lớp được tạo. |
+| TCH-FR-001 | Teacher gửi yêu cầu mở nhóm lớp theo Semester của đúng môn Admin đã phân công; Admin duyệt trước khi lớp được tạo. Không nhập/chọn môn khác. |
 | TCH-FR-002 | Hệ thống sinh join code; owner regenerate/enable/disable. |
 | TCH-FR-003 | Owner approve/reject enrollment `PENDING`. |
 | TCH-FR-004 | Mỗi Teacher có một kho `DEFAULT` tên **Tài liệu tải lên**; upload không chọn kho khác tự vào kho này. |
-| TCH-FR-005 | Teacher tạo kho theo môn/kho riêng và chỉ xem nội dung sau khi mở route chi tiết của kho. |
+| TCH-FR-005 | Teacher tạo kho riêng bằng tên tự đặt, không chọn môn; chỉ xem nội dung sau khi mở route chi tiết của kho. Kho SUBJECT cũ chuyển thành PRIVATE và giữ tài nguyên. |
 | TCH-FR-006 | Teacher upload PDF có text layer hoặc PPTX; Java chuyển PPTX thành PDF và kiểm tra text layer trước khi lưu/index. |
 | TCH-FR-007 | Owner public/revoke PDF vào Course Offering mình sở hữu mà không sao chép tệp gốc. |
 | TCH-FR-008 | Teacher xóa học liệu gốc bằng luồng thu hồi publication, deindex, bỏ liên kết kho và xóa object an toàn. |
@@ -18,16 +18,18 @@
 | TCH-FR-012 | Teacher xem số đã nộp/chưa nộp, đúng hạn/nộp muộn, điểm từng Student và tỷ lệ sai từng câu. |
 | TCH-BR-001 | Teacher không có Personal Chatbot hoặc Course Material AI Tutor. |
 | TCH-FR-013 | Teacher tìm kiếm tài liệu theo tên/tệp, sửa tên hiển thị, xóa tài liệu gốc sau xác nhận và chọn nhiều tài liệu để chuyển sang kho khác cùng owner. |
+| TCH-FR-014 | Thanh học kỳ Teacher chỉ hiển thị môn được phân công; không liệt kê bảy môn của dữ liệu local. Mỗi môn có thể có nhiều Teacher, mỗi Teacher có thể mở nhiều nhóm lớp của môn mình. |
 
 ## 2. API Course Offering/content
 
-- `POST /api/v1/teacher/course-opening-requests`: đề xuất mã/tên môn, tín chỉ, Semester, mã/tên lớp → `PENDING`. Teacher xem trạng thái tại GET cùng route. POST tự mở lớp cũ trả 409; chi tiết ở `api-plan.md` và SPEC-12.
+- `GET /api/v1/teacher/subject`: lấy môn được phân công để hiển thị cố định trên form mở lớp; không lấy toàn bộ danh mục cho Teacher tự chọn.
+- `POST /api/v1/teacher/course-opening-requests`: gửi thông tin đúng môn được phân công, Semester, mã/tên nhóm lớp → `PENDING`. Thông tin môn khác bị chặn với `403 TEACHER_SUBJECT_MISMATCH`. Teacher xem trạng thái tại GET cùng route. POST tự mở lớp cũ vẫn trả 409; [SPEC-13](13-admin-teacher-accounts-and-subject-assignment.md) thay quy tắc nhập môn tự do của SPEC-12.
 - `GET/PATCH /api/v1/teacher/course-offerings/{id}`: owner-only.
 - `POST /api/v1/teacher/course-offerings/{id}/join-code/regenerate` và `PATCH .../join-code`.
 - `GET /api/v1/teacher/course-offerings/{id}/enrollments`.
 - `POST /api/v1/teacher/enrollments/{id}/approve|reject`.
 - `GET /api/v1/teacher/resource-libraries`: trả các thẻ kho và bảo đảm đúng một kho `DEFAULT` tên **Tài liệu tải lên**.
-- `POST /api/v1/teacher/resource-libraries`: tạo kho theo môn hoặc kho riêng; nội dung chỉ hiện sau khi mở `/teacher/documents/libraries/{libraryId}`.
+- `POST /api/v1/teacher/resource-libraries`: `{name}` tạo kho riêng; gửi `subjectId` bị chặn với `422 SUBJECT_LIBRARY_REMOVED`. Nội dung chỉ hiện sau khi mở `/teacher/documents/libraries/{libraryId}`.
 - `DELETE /api/v1/teacher/resource-libraries/{libraryId}`: xóa cách phân loại, không xóa tài nguyên gốc; kho `DEFAULT` không thể xóa.
 - `POST /api/v1/teacher/documents`: multipart PDF/PPTX ≤20 MiB, nhận `libraryId?`; Java chuẩn hóa thành PDF → processing status. Bỏ `libraryId` thì tự vào kho `DEFAULT`.
 - `POST /api/v1/teacher/documents/{id}/publications`: `{courseOfferingIds}` owner-only.
@@ -67,6 +69,8 @@ Quiz Teacher không xuất hiện như Quiz tự luyện của Student. Student 
 ## 5. Acceptance
 
 - Teacher không sửa/public/tạo Quiz từ tài nguyên Teacher khác.
+- Teacher không gửi/duyệt được yêu cầu mở lớp môn khác kể cả sửa request trực tiếp; thiếu môn phụ trách phải hiện lỗi và không cho gửi form.
+- Teacher chỉ thấy môn được phân công trên thanh học kỳ, không có dropdown môn khi tạo kho; Student vẫn giữ cách hiển thị theo các lớp của mình.
 - Upload DOCX/PDF scan bị từ chối; PPTX lỗi, PDF mã hóa hoặc PDF đầu ra không có text layer trả safe error và không tạo object/metadata.
 - Upload không chỉ định kho luôn xuất hiện trong **Tài liệu tải lên**; kho mặc định không thể xóa.
 - Danh sách kho chỉ hiển thị thẻ; tài nguyên và hành động chỉ hiện trong route chi tiết của kho.

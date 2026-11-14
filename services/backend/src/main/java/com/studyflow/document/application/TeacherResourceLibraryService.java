@@ -24,7 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Java-owned rules for Teacher subject/private libraries and typed resource references. */
+/** Java-owned rules for Teacher default/private libraries and typed resource references. */
 @Service
 public class TeacherResourceLibraryService {
     private final TeacherResourceLibraryRepository libraries;
@@ -79,11 +79,8 @@ public class TeacherResourceLibraryService {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "INVALID_LIBRARY_NAME", "Tên kho phải có từ 1 đến 120 ký tự.");
         }
         if (subjectId != null) {
-            Subject subject = subjects.findById(subjectId).orElseThrow(() -> new ApiException(
-                    HttpStatus.NOT_FOUND, "SUBJECT_NOT_FOUND", "Không tìm thấy môn học."));
-            if (!"ACTIVE".equals(subject.getStatus())) {
-                throw new ApiException(HttpStatus.CONFLICT, "SUBJECT_INACTIVE", "Môn học không còn hoạt động.");
-            }
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,"SUBJECT_LIBRARY_REMOVED",
+                    "Giảng viên chỉ phụ trách một môn. Hãy tạo kho riêng, không chọn môn cho từng kho.");
         }
         TeacherResourceLibrary saved = libraries.save(new TeacherResourceLibrary(
                 UUID.randomUUID(), teacherId, name, subjectId, clock.instant()));

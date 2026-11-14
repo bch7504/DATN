@@ -1,6 +1,7 @@
 package com.studyflow.courseoffering.application;
 
 import com.studyflow.academic.domain.*;
+import com.studyflow.academic.application.TeacherSubjectService;
 import com.studyflow.admin.infrastructure.AdminJdbcStore;
 import com.studyflow.common.exception.*;
 import com.studyflow.courseoffering.domain.CourseOfferingRepository;
@@ -24,13 +25,14 @@ public class OpeningRequestService {
     private final CourseOfferingRepository courseRepository;
     private final AdminJdbcStore audit;
     private final Clock clock;
+    private final TeacherSubjectService teacherSubjects;
     /** Args: app-only repositories/services and clock. Output: service. Errors: none. */
     public OpeningRequestService(OpeningRequestStore store, SemesterRepository semesters, SubjectRepository subjects,
-            CourseOfferingService courses, CourseOfferingRepository courseRepository, AdminJdbcStore audit, Clock clock) {
+            CourseOfferingService courses, CourseOfferingRepository courseRepository, AdminJdbcStore audit, Clock clock, TeacherSubjectService teacherSubjects) {
         this.store=store;this.semesters=semesters;this.subjects=subjects;this.courses=courses;
-        this.courseRepository=courseRepository;this.audit=audit;this.clock=clock;
+        this.courseRepository=courseRepository;this.audit=audit;this.clock=clock;this.teacherSubjects=teacherSubjects;
     }
-    /** Args: authenticated Teacher and validated free-text proposal. Input: open semester.
+    /** Args: authenticated Teacher and validated proposal for the assigned subject. Input: open semester.
      * Output: PENDING request, no Subject/course/join code. Errors: 404 semester, 409 closed/duplicate, 422 invalid fields. */
     @Transactional
     public OpeningRequest submit(UUID teacherId, Submit input) {
@@ -38,6 +40,9 @@ public class OpeningRequestService {
         String subjectCode=code(input.subjectCode());
         String title=text(input.subjectName(),255);
         int credits=credits(input.credits());
+        Subject assigned=teacherSubjects.assigned(teacherId);
+        if (!assigned.getCode().equalsIgnoreCase(subjectCode) || !assigned.getName().equalsIgnoreCase(title) || assigned.getCredits()!=credits)
+            throw TeacherSubjectService.mismatch();
         String classCode=code(input.code());
         Submit normalized=new Submit(subjectCode,title,credits,input.semesterId(),classCode,
                 input.name()==null || input.name().isBlank() ? title : text(input.name(),255));
@@ -55,28 +60,20 @@ public class OpeningRequestService {
         return store.list(teacherId,status,page,size);
     }
     /** Args: Admin identity, request ID, canonical Subject selection/fields, trace ID.
-     * Input: locked PENDING request, active Teacher, open semester and active canonical subject.
-     * Output: APPROVED request with new course ID; atomically inserts canonical Subject if needed,
+     * Input: locked PENDING request, active Teacher, open semester and assigned ACTIVE canonical subject.
+     * Output: APPROVED request with new course ID; never creates or switches the assigned subject; atomically inserts
      * one Teacher-owned course and audit. Errors: 404 missing, 409 reviewed/catalog conflict/unavailable, 422 invalid fields. */
     @Transactional
     public OpeningRequest approve(UUID adminId,UUID id,Approve input,String traceId) {
         OpeningRequest request=pending(id);
         if(!store.activeTeacher(request.teacherId())) throw new ConflictException("TEACHER_NOT_ACTIVE","Giảng viên không còn hoạt động.");
         requireSemester(request.semesterId());
-        Subject subject;
-        if(input.subjectId()!=null) {
-            subject=subjects.findById(input.subjectId()).orElseThrow(()->new ResourceNotFoundException("SUBJECT_NOT_FOUND","Không tìm thấy môn chuẩn."));
-        } else {
-            String code=code(input.subjectCode()==null ? request.subjectCode() : input.subjectCode());
-            String name=text(input.subjectName()==null ? request.subjectName() : input.subjectName(),255);
-            int credits=credits(input.credits()==null ? request.credits() : input.credits());
-            var existing=subjects.findByCode(code);
-            if(existing.isPresent() && (!existing.get().getName().equalsIgnoreCase(name) || existing.get().getCredits()!=credits))
-                throw new ConflictException("SUBJECT_DETAILS_CONFLICT","Mã môn đã có thông tin khác. Hãy chọn môn chuẩn có sẵn hoặc sửa đề xuất.");
-            try { subject=existing.orElseGet(()->subjects.saveAndFlush(new Subject(UUID.randomUUID(),code,name,credits,null,"ACTIVE"))); }
-            catch(DataIntegrityViolationException exception) { throw new ConflictException("SUBJECT_DETAILS_CONFLICT","Danh mục môn vừa thay đổi. Hãy tải lại và chọn môn chuẩn."); }
-        }
-        if(!"ACTIVE".equals(subject.getStatus())) throw new ConflictException("SUBJECT_INACTIVE","Môn chuẩn không còn hoạt động.");
+        Subject subject=teacherSubjects.assigned(request.teacherId());
+        if ((input.subjectId()!=null && !input.subjectId().equals(subject.getId()))
+                || (input.subjectCode()!=null && !subject.getCode().equalsIgnoreCase(input.subjectCode().strip()))
+                || (input.subjectName()!=null && !subject.getName().equalsIgnoreCase(input.subjectName().strip()))
+                || (input.credits()!=null && input.credits()!=subject.getCredits())) throw TeacherSubjectService.mismatch();
+        if (!subject.getCode().equalsIgnoreCase(request.subjectCode())) throw TeacherSubjectService.mismatch();
         CreatedCourseOfferingResult created;
         try {
             created=courses.createCourseOffering(request.teacherId(),new CreateCourseOfferingCommand(subject.getId(),request.semesterId(),request.code(),request.name()));

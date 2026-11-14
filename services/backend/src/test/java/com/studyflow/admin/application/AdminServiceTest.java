@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /** Synthetic valid and invalid Admin business-contract cases. */
@@ -93,5 +94,11 @@ class AdminServiceTest {
                 new AdminModels.FeedbackUpdate(null, null), "req_test"))
                 .isInstanceOf(ValidationException.class);
         verify(store, never()).updateFeedback(any(), any(), any(), any(), any());
+    }
+    /** Role changes are rejected even when a caller bypasses the form and supplies a status. */
+    @Test void rejectsEveryRoleChangeBeforeWriting() {
+        assertThatThrownBy(()->service.updateUser(ADMIN,TARGET,new AdminModels.UserUpdate("TEACHER","ACTIVE"),"req"))
+                .isInstanceOf(ValidationException.class).hasMessageContaining("Không đổi vai trò");
+        verifyNoInteractions(store);
     }
 }

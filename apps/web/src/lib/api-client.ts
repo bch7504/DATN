@@ -1,4 +1,5 @@
 import { getApiUrl } from "./env";
+import type { CreateTeacherInput } from "@/types/admin";
 import type { OpeningRequest, SubmitOpeningRequest, ApproveOpeningRequest } from "@/types/course-opening";
 import { User, LoginRequest, RegisterRequest, RegistrationStatusResponse, VerifyRegistrationRequest, ResendVerificationRequest, } from "@/types/auth";
 import { ApiErrorEnvelope, PaginatedList } from "@/types/api";
@@ -735,6 +736,8 @@ export const personalDocApi = {
  */
 /** Proposal endpoints; Java enforces ownership, Admin decisions and course creation. */
 export const openingRequestApi = {
+    /** Args: none. Input: Teacher session. Output: assigned canonical subject. Errors: 401/403/409 or HTTP. */
+    getAssignedSubject(): Promise<Subject> { return apiFetch<Subject>("/teacher/subject"); },
     /** Args: validated proposal. Output: PENDING metadata without join code. Errors: Java auth/validation. */
     submit(input: SubmitOpeningRequest): Promise<OpeningRequest> {
         return apiFetch("/teacher/course-opening-requests", { method: "POST", body: JSON.stringify(input) });
@@ -977,8 +980,14 @@ export const adminApi = {
     },
     /** Args: User ID and nonempty role/status patch. Output: updated User. Errors: validation, self-change, active classes or HTTP. */
     updateUser(id: string, patch: AdminUserUpdate): Promise<AdminUser> {
-        if (!patch.role && !patch.status) throw new ApiClientError(422, { code: "INVALID_USER_UPDATE", message: "Chọn ít nhất một thay đổi." });
+        if ("role" in patch) throw new ApiClientError(422, { code: "ROLE_CHANGE_NOT_ALLOWED", message: "Không đổi vai trò tài khoản." });
+        if (!patch.status) throw new ApiClientError(422, { code: "INVALID_USER_UPDATE", message: "Chọn trạng thái tài khoản." });
         return apiFetch<AdminUser>(`/admin/users/${adminId(id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+    },
+    /** Args: name, email, username, initial password and one subjectId. Input: Admin session.
+     * Output: safe TEACHER metadata; errors: 401/403/404/409/422. Password is not persisted by the client. */
+    createTeacher(input: CreateTeacherInput): Promise<AdminUser> {
+        return apiFetch<AdminUser>("/admin/teachers", { method: "POST", body: JSON.stringify(input) });
     },
     /** Args: page and size. Output: Subject page. Errors: INVALID_PAGE or HTTP. */
     getSubjects(page = 0, size = 20): Promise<AdminPage<AdminSubject>> {

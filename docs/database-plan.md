@@ -29,12 +29,13 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 
 ### `users`
 
-`id`, `email`, `username`, `password_hash`, `full_name`, `time_zone`, `role (STUDENT|TEACHER|ADMIN)`, `status (ACTIVE|LOCKED)`, `email_verified_at`, timestamps.
+`id`, `email`, `username`, `password_hash`, `full_name`, `time_zone`, `role (STUDENT|TEACHER|ADMIN)`, `status (ACTIVE|LOCKED)`, `email_verified_at`, nullable `teacher_subject_id` (FK tới `subjects.id`), timestamps.
 
 - Unique `email`, `username`.
 - Public registration luôn tạo `STUDENT`.
 - `time_zone` là IANA zone hợp lệ, mặc định `Asia/Ho_Chi_Minh`; Java dùng để chốt local date cho Streak/Daily Goal.
-- Đổi/khóa role Teacher phải kiểm Course Offering đang active và thu hồi session theo policy.
+- Không đổi role qua API sửa tài khoản. Khóa Teacher phải kiểm Course Offering đang active và thu hồi session theo policy.
+- SPEC-13/V32: Admin tạo Teacher với đúng một môn ACTIVE; tài khoản không phải Teacher không được gán `teacher_subject_id`. Backfill tài khoản cũ khi xác định được môn, không suy đoán môn cho tài khoản có nhiều lớp khác môn. Java kiểm tra liên kết môn ở cả gửi/duyệt/tạo lớp.
 
 ### `email_verification_challenges`
 
@@ -269,12 +270,12 @@ Java validate structured output và chấm trong transaction. Python/LLM không 
 - `system_logs`: actor/action/target/status/trace/safe metadata/timestamp.
 - `system_settings`: allowlisted typed key/value; không chứa secret.
 
-Audit tối thiểu: auth, role/status, Semester/Subject, Course Offering create/archive/lock, join-code enable/regenerate, enrollment decision, publication/revoke và setting change.
+Audit tối thiểu: auth, tạo Teacher/phân công môn, trạng thái tài khoản, Semester/Subject, Course Offering create/archive/lock, join-code enable/regenerate, enrollment decision, publication/revoke và setting change.
 
 ## 10. Tính nhất quán và xóa
 
 - Revoke publication không xóa Teacher Document.
-- `teacher_resource_libraries` phân loại tài nguyên riêng của Teacher theo môn hoặc kho riêng; `teacher_resource_library_items` chỉ giữ tham chiếu có kiểu tới Document/Quiz/Assignment. Xóa kho hoặc bỏ mục không xóa tài nguyên gốc và không thay đổi publication/Quiz/Assignment lifecycle. Không tạo bảng kho lớp riêng: mỗi Course Offering có một kho logic được suy ra từ các `document_publications` đang `PUBLISHED`; thêm tài liệu vào kho lớp chỉ thêm/kích hoạt publication, gỡ khỏi lớp chỉ revoke publication.
+- `teacher_resource_libraries` phân loại tài nguyên riêng của Teacher thành kho DEFAULT hoặc PRIVATE; V32 chuyển kho SUBJECT cũ thành PRIVATE, giữ ID và items. `teacher_resource_library_items` chỉ giữ tham chiếu có kiểu tới Document/Quiz/Assignment. Xóa kho hoặc bỏ mục không xóa tài nguyên gốc và không thay đổi publication/Quiz/Assignment lifecycle. Không tạo bảng kho lớp riêng: mỗi Course Offering có một kho logic được suy ra từ các `document_publications` đang `PUBLISHED`; thêm tài liệu vào kho lớp chỉ thêm/kích hoạt publication, gỡ khỏi lớp chỉ revoke publication.
 - Xóa Teacher Document yêu cầu không còn publication active.
 - Xóa Personal Document: Java chuyển `DELETING`, loại ngay khỏi conversation/Quiz authorization, gọi deindex rồi xóa object/metadata.
 - Reindex ghi version mới, activate nguyên tử rồi dọn version cũ.

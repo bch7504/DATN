@@ -3,6 +3,8 @@
 ' Monochrome: true
 ' Interaction: Sinh và duyệt Quiz AI
 ' InteractionFrame: none
+' ActivationPolicy: full
+' Split PNG height: 7622
 skinparam defaultFontColor #000000
 skinparam ArrowColor #000000
 skinparam ActorBackgroundColor #FFFFFF
@@ -28,7 +30,7 @@ skinparam shadowing false
 skinparam linetype ortho
 skinparam backgroundColor white
 skinparam defaultFontName Arial
-skinparam defaultFontSize 14
+skinparam defaultFontSize 26
 skinparam roundcorner 0
 hide footbox
 autonumber
@@ -52,109 +54,163 @@ entity ":QuizQuestion" as Question
 entity ":QuizQuestionSource" as QuestionSource
 boundary "«external system»\nModel Provider" as Model
 
-User -> CreateForm : selectDocuments(ids)
-User -> CreateForm : setConstraints(count, difficulty, topic)
+activate User
+activate CreateForm
+User ->> CreateForm : selectDocuments(ids)
+User ->> CreateForm : setConstraints(count, difficulty, topic)
 CreateForm -> Controller ++ : generate(QuizRequest)
 Controller -> Service ++ : create(actorId, request)
 Service -> AccessPolicy ++ : authorizeGeneration(actorId, request)
 loop Mỗi tài liệu nguồn
-  AccessPolicy -> Document : kiểm owner/publication, READY và version
+AccessPolicy -> Document ++ : đọc owner, publication, READY và version
+Document --> AccessPolicy -- : DocumentSnapshot
 end
+AccessPolicy --> Service -- : AuthorizedScope hoặc lỗi validation/access
 alt Phạm vi hoặc cấu hình không hợp lệ
-  AccessPolicy --> Service -- : validation/access error
-  Service --> Controller -- : lỗi theo contract
-  Controller --> CreateForm -- : hiển thị lỗi
-else Hợp lệ
-  AccessPolicy --> Service -- : AuthorizedScope
-  Service -> Quiz : tạo GENERATING + runId
-  Service -> Source : lưu snapshot document/version/page range
-  Service -> Job ++ : execute(quizId, runId)
-  Service --> Controller -- : AcceptedQuiz(202)
-  Controller --> CreateForm -- : quizId + GENERATING
-
-  Job -> AiClient ++ : generate(InternalQuizRequest)
-  AiClient -> Generator ++ : generate(scope, constraints)
-  Generator -> Retriever ++ : search(scope, constraints)
-  Retriever -> Document : xác nhận source snapshot
-  Retriever -> Model : embedding/rerank query
-  Model --> Retriever : evidence ranking
-  Retriever --> Generator -- : EvidenceSet theo trang
-  alt Không đủ evidence
-    Generator --> AiClient -- : NO_EVIDENCE
-    AiClient --> Job -- : generation error
-    Job -> Quiz : status = GENERATION_FAILED
-  else Đủ evidence
-    Generator -> Model : JSON Schema MCQ_SINGLE + evidence
-    Model --> Generator : QuizDraft
-    Generator -> Validator : validate(draft, evidence)
-    alt Draft không đúng schema hoặc grounding
-      Validator --> Generator : invalid
-      Generator --> AiClient -- : validation error
-      AiClient --> Job -- : generation error
-      Job -> Quiz : status = GENERATION_FAILED
-    else Draft hợp lệ
-      Validator --> Generator : valid
-      Generator --> AiClient -- : QuizDraft
-      AiClient --> Job -- : QuizDraft
-      loop Mỗi câu trong draft
-        Job -> Question : tạo MCQ_SINGLE với đúng 4 options
-        Job -> QuestionSource : lưu documentId/pageNumber/excerpt
-      end
-      Job -> Quiz : status = REVIEW_REQUIRED
-    end
-  end
-  deactivate Job
-
-  loop Cho đến khi status khác GENERATING hoặc hết số lần poll
-    StatusView -> Controller ++ : getStatus(quizId)
-    Controller -> Quiz : đọc status và questions
-    Quiz --> Controller : QuizSummary
-    Controller --> StatusView -- : QuizSummary
-  end
-
-  alt status = GENERATION_FAILED
-    StatusView -> StatusView : showFailure(errorCode)
-  else status = REVIEW_REQUIRED và Student tạo Quiz cá nhân
-    StatusView -> ReviewView : showQuestions(quiz)
-    alt Student chấp nhận
-      User -> ReviewView : acceptStudent()
-      ReviewView -> Controller ++ : accept(quizId, AcceptQuizRequest)
-      Controller -> Service ++ : acceptStudent(studentId, quizId)
-      Service -> Quiz : status = READY
-      Service --> Controller -- : QuizSummary
-      Controller --> ReviewView -- : QuizSummary
-    else Student từ chối
-      User -> ReviewView : reject()
-      ReviewView -> Controller ++ : reject(quizId)
-      Controller -> Service ++ : reject(studentId, quizId)
-      Service -> Quiz : status = REJECTED
-      Service --> Controller -- : QuizSummary
-      Controller --> ReviewView -- : QuizSummary
-    end
-  else status = REVIEW_REQUIRED và Teacher tạo Quiz lớp
-    StatusView -> ReviewView : showQuestions(quiz)
-    alt Teacher công bố
-      User -> ReviewView : publishTeacher()
-      ReviewView -> Controller ++ : publish(quizId, PublishQuizRequest)
-      Controller -> Service ++ : publishTeacher(teacherId, quizId)
-      Service -> Quiz : status = PUBLISHED
-      Service --> Controller -- : QuizSummary
-      Controller --> ReviewView -- : QuizSummary
-    else Teacher từ chối
-      User -> ReviewView : reject()
-      ReviewView -> Controller ++ : reject(quizId)
-      Controller -> Service ++ : reject(teacherId, quizId)
-      Service -> Quiz : status = REJECTED
-      Service --> Controller -- : QuizSummary
-      Controller --> ReviewView -- : QuizSummary
-    end
-  else Vẫn GENERATING sau giới hạn poll
-    StatusView -> StatusView : showFailure("POLL_TIMEOUT")
-  end
-end
-
-note over Job,Question
-Python chỉ tạo QuizDraft. Java kiểm tra lần cuối và lưu entity.
-Mỗi câu có đúng bốn lựa chọn, một đáp án và citation theo trang.
+note right of Service
+Đặt kết quả lỗi; không tạo công việc AI.
 end note
+else Hợp lệ
+Service -> Quiz ++ : tạo GENERATING + runId
+Quiz --> Service -- : quizId + GENERATING
+Service -> Source ++ : lưu snapshot tài liệu/phiên bản/phạm vi trang
+Source --> Service -- : đã lưu QuizSource
+Service ->> Job ++ : execute(quizId, runId)
+deactivate Job
+end
+Service --> Controller -- : AcceptedQuiz(202) hoặc lỗi theo contract
+Controller --> CreateForm -- : quizId + GENERATING hoặc lỗi
+CreateForm ->> User : hiển thị tiếp nhận hoặc lỗi
+opt Yêu cầu được tiếp nhận (202)
+CreateForm ->> StatusView ++ : mở theo dõi quizId
+opt Có công việc sinh Quiz được tiếp nhận
+note right of Job
+Worker chạy độc lập với HTTP ban đầu.
+Polling có thể diễn ra trong lúc worker xử lý.
+end note
+activate Job
+Job -> AiClient ++ : generate(InternalQuizRequest)
+AiClient -> Generator ++ : generate(scope, constraints)
+Generator -> Retriever ++ : search(scope, constraints)
+Retriever -> Model ++ : embedding(query)
+Model --> Retriever -- : QueryVector
+note right of Retriever
+Tìm trên chỉ mục AI, đúng document/version/scope.
+Kết hợp từ khóa và vector; không đọc bảng Java.
+end note
+Retriever -> Model ++ : rerank(query, CandidateChunks)
+Model --> Retriever -- : RankedEvidence
+Retriever --> Generator -- : EvidenceSet theo trang
+alt Không đủ bằng chứng
+note right of Generator
+Đặt kết quả NO_EVIDENCE; không sinh câu hỏi.
+end note
+else Có bằng chứng
+Generator -> Model ++ : sinh MCQ_SINGLE theo JSON Schema + evidence
+Model --> Generator -- : QuizDraft
+Generator -> Validator ++ : validate(draft, evidence)
+Validator --> Generator -- : ValidationResult
+note right of Generator
+Bản nháp đạt: QuizDraft.
+Không đạt: lỗi validation.
+end note
+end
+Generator --> AiClient -- : QuizDraft hoặc lỗi sinh nội dung
+AiClient --> Job -- : QuizDraft hoặc lỗi sinh nội dung
+note right of Job
+Java kiểm tra lại quyền, cấu trúc và nguồn trước khi lưu.
+end note
+alt Lỗi sinh nội dung hoặc Java không chấp nhận
+Job -> Quiz ++ : cập nhật GENERATION_FAILED
+Quiz --> Job -- : đã lưu trạng thái thất bại
+else Bản nháp hợp lệ và quyền còn hiệu lực
+loop Mỗi câu trong draft
+Job -> Question ++ : lưu MCQ_SINGLE: 4 options, 1 đáp án
+Question --> Job -- : questionId
+Job -> QuestionSource ++ : lưu documentId/pageNumber/excerpt
+QuestionSource --> Job -- : đã lưu nguồn câu hỏi
+end
+Job -> Quiz ++ : cập nhật REVIEW_REQUIRED
+Quiz --> Job -- : đã lưu trạng thái chờ duyệt
+end
+note right of Job
+Kết thúc công việc nền, lưu JobResult.
+Không trả kết quả vào HTTP 202 đã đóng.
+end note
+deactivate Job
+end
+opt Có quizId hợp lệ
+loop Định kỳ đến khi không còn GENERATING hoặc hết lượt chờ
+StatusView ->> StatusView : poll(quizId)
+StatusView -> Controller ++ : getStatus(quizId)
+Controller -> Quiz ++ : đọc trạng thái và câu hỏi được phép
+Quiz --> Controller -- : QuizSummary
+Controller --> StatusView -- : QuizSummary
+end
+alt GENERATION_FAILED hoặc hết lượt chờ
+StatusView -> StatusView ++ : showFailure(errorCode)
+StatusView --> StatusView -- : void - đã hiển thị thông báo
+else REVIEW_REQUIRED
+StatusView -> ReviewView ++ : showQuestions(quiz)
+ReviewView --> StatusView -- : void - đã hiển thị bản nháp
+alt Student chấp nhận Quiz cá nhân
+User ->> ReviewView ++ : acceptStudent()
+ReviewView -> Controller ++ : accept(quizId, AcceptQuizRequest)
+Controller -> Service ++ : acceptStudent(studentId, quizId)
+alt Được phép và Quiz còn chờ duyệt
+Service -> Quiz ++ : cập nhật READY
+Quiz --> Service -- : QuizSummary
+else Không còn quyền hoặc trạng thái đã thay đổi
+note right of Service
+Trả lỗi; giữ nguyên Quiz.
+end note
+end
+Service --> Controller -- : QuizSummary hoặc lỗi quyền/trạng thái
+Controller --> ReviewView -- : QuizSummary hoặc lỗi quyền/trạng thái
+ReviewView ->> User : hiển thị kết quả quyết định
+deactivate ReviewView
+else Teacher công bố Quiz lớp
+User ->> ReviewView ++ : publishTeacher()
+ReviewView -> Controller ++ : publish(quizId, PublishQuizRequest)
+Controller -> Service ++ : publishTeacher(teacherId, quizId)
+alt Được phép và Quiz còn chờ duyệt
+Service -> Quiz ++ : cập nhật PUBLISHED
+Quiz --> Service -- : QuizSummary
+else Không còn quyền hoặc trạng thái đã thay đổi
+note right of Service
+Trả lỗi; giữ nguyên Quiz.
+end note
+end
+Service --> Controller -- : QuizSummary hoặc lỗi quyền/trạng thái
+Controller --> ReviewView -- : QuizSummary hoặc lỗi quyền/trạng thái
+ReviewView ->> User : hiển thị kết quả quyết định
+deactivate ReviewView
+else Người tạo từ chối bản nháp
+User ->> ReviewView ++ : reject()
+ReviewView -> Controller ++ : reject(quizId)
+Controller -> Service ++ : reject(actorId, quizId)
+alt Được phép và Quiz còn chờ duyệt
+Service -> Quiz ++ : cập nhật REJECTED
+Quiz --> Service -- : QuizSummary
+else Không còn quyền hoặc trạng thái đã thay đổi
+note right of Service
+Trả lỗi; giữ nguyên Quiz.
+end note
+end
+Service --> Controller -- : QuizSummary hoặc lỗi quyền/trạng thái
+Controller --> ReviewView -- : QuizSummary hoặc lỗi quyền/trạng thái
+ReviewView ->> User : hiển thị kết quả quyết định
+deactivate ReviewView
+end
+end
+end
+deactivate StatusView
+end
+note right of Job
+Python chỉ trả bản nháp; Java sở hữu vòng đời Quiz.
+Student không sinh Quiz trực tiếp từ học liệu lớp.
+Teacher công bố Quiz trước khi giao thành bài tập.
+end note
+deactivate CreateForm
+deactivate User
 @enduml

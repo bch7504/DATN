@@ -10,7 +10,7 @@ Mở [inventory UML](uml-inventory.md) để xem danh sách và vị trí chèn 
 - Trước mỗi ảnh có câu dẫn; dưới ảnh có số hình/tên; sau ảnh có đoạn giải thích. Không lấy số hình của bản PDF cũ làm số hình hiện hành.
 - Màu sắc theo mẫu tham khảo của từng loại biểu đồ Visual Paradigm; không bắt buộc màu xám hay một palette duy nhất cho mọi hình. Phân biệt trạng thái/nhánh bằng ký hiệu và nhãn, không chỉ bằng màu.
 - Hai biểu đồ kiến trúc/phạm vi, Use Case tổng quát, ba Sequence và ba Class chức năng dùng nền trắng, khối trắng, chữ/viền/mũi tên màu đen theo ảnh mẫu báo cáo. Class Diagram đặt toàn bộ lớp trên một canvas, không chia bằng package hoặc khung khu vực: `view` ở trên, `DAO` ở giữa và `entity` ở dưới. Dependency dùng nét đứt có mũi tên mở; association dùng nét liền; aggregation/composition dùng hình thoi rỗng/đặc theo ký pháp Visual Paradigm.
-- Mỗi ảnh xuất có nền trắng được nhúng trực tiếp vào file, với lề trái 100 px, lề phải 150 px, lề trên 80 px và lề dưới 80 px; khung hệ thống, package và swimlane không được nằm sát mép ảnh. Đường nối dùng đoạn thẳng hoặc vuông góc, không dùng đường cong.
+- Ảnh có nền trắng được nhúng trực tiếp vào file. Theo yêu cầu mới, ba Sequence và các ảnh nửa được đo sát nội dung, chỉ chừa mép 4 px mỗi phía ở hệ tọa độ render (8 px trong PNG 2x) để tránh cắt nét. Các loại biểu đồ khác giữ lề trái 100 px, phải 150 px, trên/dưới 80 px. Đường nối dùng đoạn thẳng hoặc vuông góc, không dùng đường cong.
 - Activity Diagram có khung ngoài khép kín bốn cạnh, hàng tiêu đề riêng và các đường phân chia swimlane nối đúng từ cạnh trên tới cạnh dưới của khung; khung này được nhúng trong PNG, không phải viền của trình xem.
 
 ### Bảng màu đang sử dụng
@@ -34,6 +34,8 @@ Use Case dùng actor ngoài system boundary, mục tiêu người dùng trong el
 Activity dùng nút bắt đầu/kết thúc, action, decision, nhãn điều kiện và swimlane để phân trách nhiệm Student/Frontend/Java/Python/Teacher khi có nhiều bên tham gia. [Hướng dẫn Activity](https://www.visual-paradigm.com/guide/uml-unified-modeling-language/what-is-activity-diagram/).
 
 Sequence dùng lifeline, lời gọi/phản hồi và các khung `alt`, `opt`, `loop`; thứ tự dọc là thời gian, không xoay toàn bộ biểu đồ để ép ngang. [Hướng dẫn Sequence](https://www.visual-paradigm.com/guide/uml-unified-modeling-language/what-is-sequence-diagram/).
+
+Ba Sequence AI dùng `->` cho lời gọi đồng bộ, `-->` cho kết quả trả về đúng bên gọi và `->>` cho sự kiện giao diện/công việc bất đồng bộ. Khi A gọi B, B có thể gọi C; C phải trả về B trước khi B tiếp tục rồi trả về A. Không nối máy móc mọi bước từ đối tượng nhận của bước ngay trước. Mỗi đầu mũi tên gọi và trả về phải chạm một activation. Activation kéo dài từ lúc nhận lời gọi đến lúc trả kết quả, kể cả khi đang chờ lời gọi con. Tác nhân, giao diện và worker có activation cho lượt tương tác; lời gọi vào chính đối tượng dùng activation lồng. PNG và XMI cùng giữ thời điểm bắt đầu/kết thúc, không cắt ngắn thanh bằng tọa độ giả. Quiz trả HTTP `202` trước khi công việc nền hoàn tất, giao diện hỏi trạng thái bằng các lượt gọi riêng. Các số bước trong Chương 3 khớp từng thông điệp của hình; các nhánh `alt` là thay thế nhau.
 
 Class dùng tên lớp, thuộc tính/phương thức có kiểu, bội số và dependency; lớp miền không đồng nhất với bảng vật lý. Ba biểu đồ lớp chức năng Chương 3 dùng form View–DAO–Entity: View thể hiện giao diện, DAO thể hiện điểm truy cập hoặc trao đổi dữ liệu và Entity thể hiện dữ liệu miền. Biểu đồ lớp thực thể tổng quan ở Hình 3.2 chỉ mô tả miền dữ liệu nên không lặp lại View và DAO. [Hướng dẫn Class](https://www.visual-paradigm.com/guide/uml-unified-modeling-language/what-is-class-diagram/).
 
@@ -85,8 +87,16 @@ Tooling chỉ phục vụ tài liệu, không thêm dependency production. Cần
 
 ```powershell
 node docs/diagrams/render-plantuml.mjs "<dependency-prefix>"
+node docs/diagrams/render-plantuml.mjs "<dependency-prefix>" chuong-3/sequence-10-personal-rag --split
 node docs/diagrams/generate-xmi.mjs
+node --test docs/diagrams/tests/sequence-contract.test.mjs
 node docs/diagrams/validate-diagrams.mjs
 ```
 
 Renderer đọc nguồn PlantUML local và chỉ ghi PNG cùng tên, không gửi tài liệu tới máy chủ PlantUML. Công cụ XMI đọc đúng bảy nguồn PUML được cho phép và ghi bản trao đổi vào `visual-paradigm/`. Công cụ kiểm tra yêu cầu mỗi PNG có đúng một nguồn PUML cùng tên, đủ bảy file XMI và không cho phép SVG/MMD/PDF xuất hiện trong thư mục sơ đồ.
+
+Khi chỉ sửa Sequence, dùng `node docs/diagrams/generate-xmi.mjs --sequence-only` rồi render riêng ba nguồn `sequence-10-personal-rag`, `sequence-11-slide-tutor`, `sequence-12-quiz`. Kiểm tra phát hiện lời gọi thiếu return, trả nhầm bên, bên gọi tiếp tục khi bên nhận chưa trả, nhánh chưa kết thúc và activation lệch. Đồng thời đối chiếu lớp/phương thức, số bước báo cáo và loại thông điệp trong XMI. Các file XMI mẫu sếp tự export được giữ nguyên, không tính vào bảy bản xuất chuẩn. Việc kiểm tra cấu trúc XMI không thay thế nghiệm thu trực tiếp bằng phiên bản Visual Paradigm đang dùng.
+
+Thêm `--split` khi render Sequence để tạo hai PNG `-part-1.png` và `-part-2.png` bên cạnh ảnh toàn bộ. **Hai nửa của mỗi sequence có cùng kích thước canvas**. Chiều cao từng ảnh nửa được khóa theo mốc ảnh gốc ban đầu bằng comment `' Split PNG height: ...` trong PUML: RAG **7638 px**, Tutor **3932 px**, Quiz **7622 px**. Không lấy chiều cao ảnh toàn bộ sau khi tăng font làm mốc mới, nên ảnh nửa không tự dài thêm qua mỗi lần render. Renderer chọn điểm cắt cân đối theo chiều cao, không cắt chữ, rồi giãn bước trong chiều cao đã chốt; không thu nhỏ hoặc kéo méo chữ để ép vừa khung.
+
+Nguồn PUML, PNG toàn bộ và các PNG nửa nay cùng dùng chữ **26**, biểu tượng đầu cột **1,8 lần**, nét mũi tên dày hơn. Tên lớp/nhãn dài xuống dòng để chữ lớn vẫn đủ nội dung. Giữ nguyên thông điệp, số bước, activation và quan hệ; phần hai không lặp tên cột. Không cần PUML riêng cho từng nửa. PNG được xuất sát nội dung, không giữ khoảng trắng lớn quanh hình. Ba cặp ảnh hiện có ở `chuong-3/`: `sequence-10-personal-rag-part-1/2.png`, `sequence-11-slide-tutor-part-1/2.png`, `sequence-12-quiz-part-1/2.png`.

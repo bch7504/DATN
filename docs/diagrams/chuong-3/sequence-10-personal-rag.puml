@@ -3,6 +3,8 @@
 ' Monochrome: true
 ' Interaction: Trợ lý tài liệu cá nhân
 ' InteractionFrame: none
+' ActivationPolicy: full
+' Split PNG height: 7638
 skinparam defaultFontColor #000000
 skinparam ArrowColor #000000
 skinparam ActorBackgroundColor #FFFFFF
@@ -28,7 +30,7 @@ skinparam shadowing false
 skinparam linetype ortho
 skinparam backgroundColor white
 skinparam defaultFontName Arial
-skinparam defaultFontSize 14
+skinparam defaultFontSize 26
 skinparam roundcorner 0
 hide footbox
 autonumber
@@ -56,76 +58,153 @@ entity ":ChatMessage" as Message
 entity ":AgentRun" as Run
 boundary "«external system»\nModel Provider" as Model
 
-Student -> DocumentsPage : selectDocuments(ids)
-Student -> DocumentsPage : openAssistant()
-DocumentsPage -> AssistantPanel : open(ids)
-Student -> AssistantPanel : submitPrompt(message)
+activate Student
+activate DocumentsPage
+Student ->> DocumentsPage : selectDocuments(ids)
+Student ->> DocumentsPage : openAssistant()
+DocumentsPage -> AssistantPanel ++ : open(ids)
+AssistantPanel --> DocumentsPage -- : void - đã mở hội thoại
+deactivate DocumentsPage
+Student ->> AssistantPanel ++ : submitPrompt(message)
 AssistantPanel -> Controller ++ : postMessage(conversationId, MessageRequest)
 Controller -> Service ++ : run(studentId, conversationId, request)
 Service -> ScopeService ++ : loadAuthorizedSnapshot(studentId, conversationId)
-ScopeService -> Conversation : load conversation owned by Student
+ScopeService -> Conversation ++ : đọc hội thoại thuộc Student
+Conversation --> ScopeService -- : ConversationSnapshot
 loop Mỗi tài liệu đã chọn
-  ScopeService -> Document : kiểm owner, READY và version
+ScopeService -> Document ++ : đọc owner, READY và version
+Document --> ScopeService -- : DocumentSnapshot
 end
+ScopeService --> Service -- : AuthorizedScope hoặc lỗi truy cập
 alt Phạm vi không hợp lệ
-  ScopeService --> Service -- : ACCESS_DENIED / invalid scope
-  Service --> Controller -- : lỗi theo contract
-  Controller --> AssistantPanel -- : hiển thị lỗi truy cập
+note right of Service
+Đặt kết quả lỗi; không gọi AI.
+end note
 else Phạm vi hợp lệ
-  ScopeService --> Service -- : AuthorizedScope
-  Service -> AiClient ++ : runAssistant(InternalAssistantRequest)
-  AiClient -> Agent ++ : run(request)
-  Agent -> Agent : selectTool(message)
-  Agent -> Run : ghi selectedTool và trạng thái RUNNING
-  alt Thiếu tham số bắt buộc
-    Agent --> AiClient : NEEDS_CLARIFICATION
-  else Tool hỏi đáp
-    Agent -> AskTool ++ : execute(AskArgs, scope)
-    AskTool -> Retriever ++ : search(scope, query)
-    Retriever -> Index : kiểm document/version/index status
-    Retriever -> Chunk : hybrid retrieval trong authorized scope
-    Retriever -> Model : embedding/rerank query
-    Model --> Retriever : vector/rerank scores
-    Retriever --> AskTool -- : EvidenceSet theo trang
-    AskTool -> Model : sinh câu trả lời từ evidence
-    Model --> AskTool : AnswerResult
-    AskTool -> Validator : validate(answer, evidence)
-    AskTool --> Agent -- : ANSWERED hoặc NO_EVIDENCE
-  else Tool tóm tắt
-    Agent -> SummaryTool ++ : execute(SummaryArgs, scope)
-    SummaryTool -> Retriever ++ : search(scope, summary query)
-    Retriever -> Index : kiểm document/version/index status
-    Retriever -> Chunk : lấy evidence theo trang
-    Retriever --> SummaryTool -- : EvidenceSet
-    SummaryTool -> Model : sinh tóm tắt có căn cứ
-    Model --> SummaryTool : SummaryResult
-    SummaryTool -> Validator : validate(summary, evidence)
-    SummaryTool --> Agent -- : SUMMARIZED hoặc NO_EVIDENCE
-  else Tool tạo Quiz
-    Agent -> QuizTool ++ : execute(QuizArgs, scope)
-    QuizTool -> Retriever ++ : search(scope, quiz constraints)
-    Retriever -> Index : kiểm document/version/index status
-    Retriever -> Chunk : lấy evidence theo trang
-    Retriever --> QuizTool -- : EvidenceSet
-    QuizTool -> Model : sinh QuizDraft theo JSON Schema
-    Model --> QuizTool : QuizDraft
-    QuizTool -> Validator : validate(draft, evidence)
-    QuizTool --> Agent -- : QUIZ_CREATED hoặc NO_EVIDENCE
-  end
-  Agent --> AiClient -- : AssistantResponse
-  AiClient --> Service -- : AssistantResponse
-  Service -> ScopeService ++ : validateResult(scope, response)
-  ScopeService --> Service -- : citation/scope hợp lệ
-  Service -> Message : lưu message hoặc Quiz REVIEW_REQUIRED
-  Service --> Controller -- : AssistantResponse
-  Controller --> AssistantPanel -- : showAnswer(response)
-  opt Có citation
-    Student -> AssistantPanel : chọn citation
-    AssistantPanel -> CitationPanel : open(citation)
-    CitationPanel --> Student : hiển thị nguồn theo pageNumber
-  end
-  opt Có QuizDraft
-    AssistantPanel -> QuizReview : showDraft(response.quizDraft)
-  end
+Service -> AiClient ++ : runAssistant(InternalAssistantRequest)
+AiClient -> Agent ++ : run(request)
+Agent -> Agent ++ : selectTool(message)
+Agent --> Agent -- : ToolName
+Agent -> Run ++ : ghi selectedTool và RUNNING
+Run --> Agent -- : đã lưu AgentRun
+alt Ý định chưa rõ
+note right of Agent
+Đặt kết quả NEEDS_CLARIFICATION
+và câu hỏi làm rõ ý định.
+end note
+else Tool hỏi đáp
+Agent -> AskTool ++ : execute(AskArgs, scope)
+AskTool -> Retriever ++ : search(scope, query)
+Retriever -> Index ++ : đọc chỉ mục theo document/version
+Index --> Retriever -- : IndexSnapshot
+Retriever -> Model ++ : embedding(query)
+Model --> Retriever -- : QueryVector
+Retriever -> Chunk ++ : tìm từ khóa + vector trong scope
+Chunk --> Retriever -- : CandidateChunks
+Retriever -> Model ++ : rerank(query, CandidateChunks)
+Model --> Retriever -- : RankedEvidence
+Retriever --> AskTool -- : EvidenceSet theo trang
+alt Không đủ bằng chứng
+note right of AskTool
+Đặt kết quả NO_EVIDENCE.
+Không gọi model sinh nội dung.
+end note
+else Có bằng chứng
+AskTool -> Model ++ : sinh nội dung từ EvidenceSet
+Model --> AskTool -- : AnswerResult
+AskTool -> Validator ++ : validate(result, evidence)
+Validator --> AskTool -- : ValidationResult
+note right of AskTool
+Nguồn hoặc cấu trúc không đạt: NO_EVIDENCE.
+end note
 end
+AskTool --> Agent -- : ANSWERED hoặc NO_EVIDENCE
+else Tool tóm tắt
+Agent -> SummaryTool ++ : execute(SummaryArgs, scope)
+SummaryTool -> Retriever ++ : search(scope, query)
+Retriever -> Index ++ : đọc chỉ mục theo document/version
+Index --> Retriever -- : IndexSnapshot
+Retriever -> Model ++ : embedding(query)
+Model --> Retriever -- : QueryVector
+Retriever -> Chunk ++ : tìm từ khóa + vector trong scope
+Chunk --> Retriever -- : CandidateChunks
+Retriever -> Model ++ : rerank(query, CandidateChunks)
+Model --> Retriever -- : RankedEvidence
+Retriever --> SummaryTool -- : EvidenceSet theo trang
+alt Không đủ bằng chứng
+note right of SummaryTool
+Đặt kết quả NO_EVIDENCE.
+Không gọi model sinh nội dung.
+end note
+else Có bằng chứng
+SummaryTool -> Model ++ : sinh nội dung từ EvidenceSet
+Model --> SummaryTool -- : SummaryResult
+SummaryTool -> Validator ++ : validate(result, evidence)
+Validator --> SummaryTool -- : ValidationResult
+note right of SummaryTool
+Nguồn hoặc cấu trúc không đạt: NO_EVIDENCE.
+end note
+end
+SummaryTool --> Agent -- : SUMMARIZED hoặc NO_EVIDENCE
+else Tool tạo Quiz có nguồn
+Agent -> QuizTool ++ : execute(QuizArgs, scope)
+QuizTool -> Retriever ++ : search(scope, query)
+Retriever -> Index ++ : đọc chỉ mục theo document/version
+Index --> Retriever -- : IndexSnapshot
+Retriever -> Model ++ : embedding(query)
+Model --> Retriever -- : QueryVector
+Retriever -> Chunk ++ : tìm từ khóa + vector trong scope
+Chunk --> Retriever -- : CandidateChunks
+Retriever -> Model ++ : rerank(query, CandidateChunks)
+Model --> Retriever -- : RankedEvidence
+Retriever --> QuizTool -- : EvidenceSet theo trang
+alt Không đủ bằng chứng
+note right of QuizTool
+Đặt kết quả NO_EVIDENCE.
+Không gọi model sinh nội dung.
+end note
+else Có bằng chứng
+QuizTool -> Model ++ : sinh nội dung từ EvidenceSet
+Model --> QuizTool -- : QuizDraft
+QuizTool -> Validator ++ : validate(result, evidence)
+Validator --> QuizTool -- : ValidationResult
+note right of QuizTool
+Nguồn hoặc cấu trúc không đạt: NO_EVIDENCE.
+end note
+end
+QuizTool --> Agent -- : QUIZ_CREATED hoặc NO_EVIDENCE
+end
+Agent -> Run ++ : ghi kết quả thực hiện
+Run --> Agent -- : đã lưu AgentRun
+Agent --> AiClient -- : AssistantResponse
+AiClient --> Service -- : AssistantResponse
+Service -> ScopeService ++ : validateResult(scope, response)
+ScopeService --> Service -- : void hoặc lỗi quyền/nguồn
+alt Kết quả được Java chấp nhận
+Service -> Message ++ : lưu hội thoại và liên kết Quiz nháp
+Message --> Service -- : đã lưu ChatMessage
+else Quyền hoặc nguồn không còn hợp lệ
+note right of Service
+Đặt kết quả lỗi; không lưu nội dung không hợp lệ.
+end note
+end
+end
+Service --> Controller -- : AssistantResponse hoặc lỗi theo contract
+Controller --> AssistantPanel -- : AssistantResponse hoặc lỗi theo contract
+AssistantPanel ->> Student : hiển thị kết quả hoặc câu hỏi làm rõ
+opt Có citation và Student chọn xem nguồn
+Student ->> AssistantPanel : chọn citation
+AssistantPanel -> CitationPanel ++ : open(citation)
+CitationPanel --> AssistantPanel -- : void - đã mở nguồn
+end
+opt Có QuizDraft hợp lệ
+AssistantPanel -> QuizReview ++ : showDraft(response.quizDraft)
+QuizReview --> AssistantPanel -- : void - đã hiển thị bản nháp
+end
+note right of Agent
+Sơ đồ mô tả ba công cụ dùng PDF.
+Nhập Quiz từ văn bản là luồng riêng, không truy xuất PDF.
+end note
+deactivate AssistantPanel
+deactivate Student
 @enduml

@@ -2,6 +2,8 @@
 
 Frontend Next.js là giao diện thật cho ba vai trò và chỉ lấy dữ liệu qua Java `/api/v1`; không có chế độ demo lúc chạy. Route/chức năng được mô tả tại [`../../docs/frontend-implementation-plan.md`](../../docs/frontend-implementation-plan.md).
 
+SPEC-13: Admin tạo Giảng viên tại `/admin/users/new`, chọn một môn phụ trách; màn sửa tài khoản chỉ đổi trạng thái, không đổi vai trò. Teacher chỉ thấy môn phụ trách trên thanh học kỳ và form yêu cầu mở lớp; kho Teacher gồm kho mặc định và kho riêng theo tên, không còn tạo kho theo môn. Student giữ nguyên. Xem luồng, contract và kết quả kiểm tra tại [`../../docs/specs/13-admin-teacher-accounts-and-subject-assignment.md`](../../docs/specs/13-admin-teacher-accounts-and-subject-assignment.md).
+
 ## Chạy local
 
 Từ thư mục `apps/web`, chạy:
@@ -30,7 +32,7 @@ apps/web/
 
 ## Quy ước giao diện
 
-- **Yêu cầu mở lớp:** Teacher tự nhập mã/tên môn và tín chỉ, chọn học kỳ rồi gửi Admin. Trạng thái và kết quả nằm trong Lớp học phần; Admin chuẩn hóa/duyệt/từ chối tại cùng chức năng của mình. Không giới hạn 7 môn, không có lớp hoặc join code trước khi duyệt.
+- **Yêu cầu mở lớp:** Hệ thống hiện môn Admin đã phân công; Teacher chọn học kỳ, nhập mã/tên nhóm lớp rồi gửi Admin duyệt/từ chối. Không nhập môn khác và không có lớp hoặc join code trước khi duyệt. Bảy môn local là dữ liệu thử, không phải giới hạn danh mục.
 - **Quản lý tài liệu trong kho:** tìm kiếm theo tên/tệp, sửa tên, xóa có xác nhận và chọn nhiều tài liệu để chuyển sang kho khác. Chuyển kho chỉ đổi cách sắp xếp, giữ publication/index. Form tải slide/giáo trình có khung kéo thả và bấm chọn tệp.
 
 - **Hệ nhận diện PTIT:**

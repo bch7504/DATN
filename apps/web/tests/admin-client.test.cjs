@@ -6,6 +6,20 @@ const base = "http://java.test/api/v1";
 const page = (items) => ({ items, page: 0, size: 20, totalItems: items.length, totalPages: items.length ? 1 : 0 });
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
 
+test("Admin provisions one subject-bound Teacher through Java and cannot change account roles", async () => {
+  const calls=[];
+  const input={fullName:"Synthetic Teacher",email:"teacher@example.test",username:"teacher.test",password:"Synthetic123!",subjectId:"subject-1"};
+  const client=loadApiClient(async(url,options)=>{
+    calls.push({url,method:options.method,body:JSON.parse(options.body)});
+    return json({id:"teacher-1",fullName:input.fullName,email:input.email,username:input.username,role:"TEACHER",status:"ACTIVE",subjectId:"subject-1",subjectCode:"KTS",subjectName:"Kỹ thuật số"},201);
+  },base);
+  const result=await client.adminApi.createTeacher(input);
+  assert.equal(result.role,"TEACHER");assert.equal(result.subjectId,"subject-1");assert.equal(result.password,undefined);
+  assert.deepEqual(calls,[{url:base+"/admin/teachers",method:"POST",body:input}]);
+  assert.throws(()=>client.adminApi.updateUser("student-1",{role:"TEACHER",status:"ACTIVE"}),error=>error.code==="ROLE_CHANGE_NOT_ALLOWED");
+  assert.equal(calls.length,1);
+});
+
 test("Admin client reads the Java dashboard and typed paginated metadata", async () => {
   const calls = [];
   const dashboard = { users: 4, students: 2, teachers: 1, activeOfferings: 3, pendingEnrollments: 1, publishedDocuments: 5, openFeedbackReports: 2 };

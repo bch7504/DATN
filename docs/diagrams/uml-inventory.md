@@ -15,16 +15,15 @@ Tài liệu này ghi nhận các sơ đồ được giữ lại cho phần tổn
 | `chuong-3/activity-07-personal-rag.puml` | Activity/Swimlane | Initial, activity, decision, final, lane frame | Đã sửa nhánh kết thúc, connector và khung kín |
 | `chuong-3/activity-08-slide-tutor.puml` | Activity/Swimlane Course Material Tutor | Như trên | PDF/page scope; connector và khung kín |
 | `chuong-3/activity-09-quiz-generation.puml` | Activity/Swimlane | Như trên | Đã sửa nhánh kết thúc, connector và khung kín |
-| `chuong-3/sequence-10-personal-rag.puml` | Sequence | `sd`, participant, lifeline, activation, `alt` | Đã thêm interaction frame chuẩn |
-| `chuong-3/sequence-11-slide-tutor.puml` | Sequence Course Material Tutor | `sd`, participant, lifeline, activation, `alt` | PDF/page contract và interaction frame chuẩn |
-| `chuong-3/sequence-12-quiz.puml` | Sequence | `sd`, activation, `alt`, `loop`, `opt` | Đã thêm interaction frame chuẩn |
-| `chuong-3/sequence-14-document-indexing.puml` | Sequence | `sd`, activation, `loop`, `opt` | Đã thêm interaction frame chuẩn |
+| `chuong-3/sequence-10-personal-rag.puml` | Sequence | View/DAO/Entity, call/return, activation đủ thời gian xử lý, `alt/opt/loop`; không khung ngoài | Đủ phản hồi kiểm quyền, retrieval, provider và validator; không trả kết quả hai lần; PUML/PNG/XMI và diễn giải Hình 3.10 đồng bộ |
+| `chuong-3/sequence-11-slide-tutor.puml` | Sequence Course Material Tutor | Call/return theo stack, `alt`, activation đủ thời gian xử lý; không khung ngoài | Đủ phản hồi enrollment/publication/material và kiểm quyền lần cuối; PUML/PNG/XMI và diễn giải Hình 3.11 đồng bộ |
+| `chuong-3/sequence-12-quiz.puml` | Sequence | Call/return, async worker, polling, `alt/loop/opt`; không khung ngoài | Tách HTTP 202 với công việc nền, bổ sung mở trang theo dõi và phản hồi lưu dữ liệu; PUML/PNG/XMI và diễn giải Hình 3.12 đồng bộ |
 | `chuong-3/state-machine-15-quiz-lifecycle.puml` | State Machine | Initial/final, state, transition, composite state | Đạt form; không dùng notation Activity |
 
 ## Thống kê
 
 - Use Case Diagram: **1**.
-- Sequence Diagram: **4**.
+- Sequence Diagram hiện có: **3**. Luồng lập chỉ mục trước đây được liệt kê ở đây nhưng hiện không còn cặp nguồn/ảnh riêng trong project.
 - Activity Diagram/Swimlane: **3**.
 - State Machine Diagram: **1**.
 - Class Diagram: **4**.

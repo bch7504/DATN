@@ -36,10 +36,10 @@ Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1
 
 ### Bổ sung 13/11/2026 — Yêu cầu mở lớp và Admin duyệt
 
-- `POST /api/v1/teacher/course-opening-requests`: `{subjectCode,subjectName,credits:1..30,semesterId,code,name?}` → `201 OpeningRequest`, trạng thái `PENDING`. Giảng viên tự nhập môn, không bị giới hạn 7 môn. Mã môn/mã lớp tối đa 50 ký tự chữ/số/dấu chấm/gạch nối/gạch dưới; tên tối đa 255 ký tự. Học kỳ phải ACTIVE và cho phép mở lớp. Không tạo Subject, lớp hoặc mã tham gia ở bước này.
+- `POST /api/v1/teacher/course-opening-requests`: `{subjectCode,subjectName,credits:1..30,semesterId,code,name?}` → `201 OpeningRequest`, trạng thái `PENDING`. Thông tin môn phải đúng môn Admin đã phân công theo SPEC-13; không tự nhập môn khác, không giới hạn danh mục hệ thống ở bảy môn local. Mã môn/mã lớp tối đa 50 ký tự chữ/số/dấu chấm/gạch nối/gạch dưới; tên tối đa 255 ký tự. Học kỳ phải ACTIVE và cho phép mở lớp. Không tạo Subject, lớp hoặc mã tham gia ở bước này.
 - `GET /api/v1/teacher/course-opening-requests?page=0&size=20`: chỉ yêu cầu của Teacher hiện tại; `200 {items,page,size,totalItems,totalPages}`.
 - `GET /api/v1/admin/course-opening-requests?status=PENDING&page=0&size=20`: Admin xem và lọc `PENDING|APPROVED|REJECTED`; bỏ status trả tất cả. Cùng page schema; size 1..100.
-- `POST /api/v1/admin/course-opening-requests/{id}/approve`: `{subjectId?,subjectCode?,subjectName?,credits?}`. Admin chọn môn ACTIVE có sẵn bằng subjectId hoặc chuẩn hóa thông tin đề xuất. Khi mã môn chưa có, tạo môn chuẩn; mã đã có phải khớp tên/tín chỉ hoặc Admin chọn subjectId rõ ràng. Trong một transaction: khóa yêu cầu PENDING, kiểm Teacher còn ACTIVE/TEACHER và học kỳ còn mở, tạo lớp cho đúng Teacher, ghi APPROVED và audit. Trả `200 OpeningRequest` có courseOfferingId; không trả mã tham gia cho Admin. Teacher vào lớp để tạo/lấy mã tham gia bằng chức năng hiện có.
+- `POST /api/v1/admin/course-opening-requests/{id}/approve`: `{subjectId?,subjectCode?,subjectName?,credits?}`. Admin duyệt đúng môn ACTIVE đã phân công cho Teacher; mọi trường môn nếu gửi phải khớp môn này, khác môn trả `403 TEACHER_SUBJECT_MISMATCH`. Không tạo/chuyển môn trong bước duyệt. Trong một transaction: khóa yêu cầu PENDING, kiểm Teacher còn ACTIVE/TEACHER và học kỳ còn mở, tạo lớp cho đúng Teacher, ghi APPROVED và audit. Trả `200 OpeningRequest` có courseOfferingId; không trả mã tham gia cho Admin. Teacher vào lớp để tạo/lấy mã tham gia bằng chức năng hiện có.
 - `POST /api/v1/admin/course-opening-requests/{id}/reject`: `{reason:1..1000 ký tự}` → `200 OpeningRequest` REJECTED, không tạo môn/lớp/mã tham gia.
 - `OpeningRequest`: `{id,teacherId,teacherName,subjectCode,subjectName,credits,semesterId,semesterName,code,name,status,courseOfferingId:null|UUID,decisionReason:null|string,createdAt,decidedAt:null|ISO8601}`. Không có joinCode ở yêu cầu.
 - Lỗi envelope chuẩn: `401|403`, `404 OPENING_REQUEST_NOT_FOUND|SUBJECT_NOT_FOUND|SEMESTER_NOT_FOUND`, `409 OPENING_REQUEST_ALREADY_REVIEWED|DUPLICATE_OPENING_REQUEST|SUBJECT_DETAILS_CONFLICT|TEACHER_NOT_ACTIVE|SEMESTER_NOT_ACTIVE|COURSE_CODE_EXISTS`, `422 VALIDATION_FAILED|INVALID_OPENING_REQUEST|INVALID_PAGE|INVALID_FILTER`. Duyệt lặp/đồng thời chỉ tạo tối đa một lớp; yêu cầu chưa duyệt không xuất hiện trong API lớp/học liệu Student. Lớp đã hoạt động trước thay đổi được giữ nguyên.
@@ -446,7 +446,7 @@ Kho là lớp phân loại riêng của Teacher, không thay thế vòng đời 
 | Method | Endpoint | Contract |
 |---|---|---|
 | GET | `/api/v1/teacher/resource-libraries` | `200` danh sách kho thuộc Teacher, gồm thông tin môn tùy chọn và các mục `DOCUMENT|QUIZ|ASSIGNMENT` |
-| POST | `/api/v1/teacher/resource-libraries` | `{name,subjectId?}` → `201`; có `subjectId` tạo kho theo môn, không có tạo kho riêng |
+| POST | `/api/v1/teacher/resource-libraries` | `{name}` → `201` kho riêng; gửi `subjectId` trả `422 SUBJECT_LIBRARY_REMOVED` |
 | DELETE | `/api/v1/teacher/resource-libraries/{libraryId}` | `204`; xóa mềm kho và không xóa PDF/Quiz/Assignment gốc; kho `DEFAULT` không thể xóa |
 | POST | `/api/v1/teacher/resource-libraries/{libraryId}/items` | `{itemType,itemId}` → `200`; Java xác minh tài nguyên thuộc Teacher; thêm lặp là idempotent |
 | DELETE | `/api/v1/teacher/resource-libraries/{libraryId}/items/{itemReferenceId}` | `204`; chỉ bỏ liên kết khỏi kho |
@@ -454,7 +454,7 @@ Kho là lớp phân loại riêng của Teacher, không thay thế vòng đời 
 - `GET /api/v1/teacher/resource-libraries` bảo đảm mỗi Teacher có đúng một kho `DEFAULT` tên **Tài liệu tải lên**.
 - Upload Course Material nhận thêm multipart field tùy chọn `libraryId`. Nếu bỏ trống, Java tự liên kết tài liệu vào kho `DEFAULT`; nếu có giá trị, Java kiểm tra quyền sở hữu và lưu thẳng vào kho được chọn.
 
-`Library` trả `{id,name,libraryType:"DEFAULT|SUBJECT|PRIVATE",subjectId,subjectCode,subjectName,items,createdAt}`. Mỗi item trả `{id,itemType,itemId,title,status,addedAt}`. `404` che giấu tài nguyên không tồn tại hoặc không thuộc Teacher; `409` khi môn ngừng hoạt động hoặc cố xóa kho mặc định; `422` cho tên/loại tài nguyên không hợp lệ. Tài liệu tải vào kho vẫn là Course Material riêng của Teacher và chỉ Student thấy sau khi Teacher công bố vào lớp. Kho lớp được đọc qua danh sách publication của tài liệu và quản lý bằng `POST/DELETE /teacher/documents/{documentId}/publications`; Quiz/Bài tập đưa vào kho cá nhân không tự duyệt, không tự giao và không thay đổi trạng thái gốc.
+`Library` trả `{id,name,libraryType:"DEFAULT|PRIVATE",subjectId,subjectCode,subjectName,items,createdAt}`; ba trường môn giữ để tương thích DTO, trả null sau khi chuyển kho SUBJECT cũ thành PRIVATE. Mỗi item trả `{id,itemType,itemId,title,status,addedAt}`. `404` che giấu tài nguyên không tồn tại hoặc không thuộc Teacher; `409` khi cố xóa kho mặc định; `422` cho tên/loại tài nguyên không hợp lệ hoặc `SUBJECT_LIBRARY_REMOVED`. Tài liệu tải vào kho vẫn là Course Material riêng của Teacher và chỉ Student thấy sau khi Teacher công bố vào lớp. Kho lớp được đọc qua danh sách publication của tài liệu và quản lý bằng `POST/DELETE /teacher/documents/{documentId}/publications`; Quiz/Bài tập đưa vào kho cá nhân không tự duyệt, không tự giao và không thay đổi trạng thái gốc.
 
 ### 5.4 Teacher AI Quiz Generator
 
@@ -506,13 +506,23 @@ Kho là lớp phân loại riêng của Teacher, không thay thế vòng đời 
 
 ## 6. Admin API
 
+### SPEC-13 — Tạo Giảng viên và phân công một môn (14/11/2026)
+
+- `POST /api/v1/admin/teachers`: chỉ Admin; body `{fullName,email,username,password,subjectId}`. Họ tên 1–100 ký tự, email hợp lệ tối đa 254 ký tự, username 3–100 ký tự gồm chữ/số/`.`/`_`/`-`, password ít nhất 8 ký tự, tối đa 72 byte UTF-8 và không được ghi log; subjectId là UUID của môn ACTIVE. Role luôn là TEACHER, trạng thái ACTIVE; không nhận role từ client. Trả `201 User`, không trả mật khẩu/hash. Tạo tài khoản, gắn đúng một môn và ghi audit trong một transaction. Lỗi `401|403`, `404 SUBJECT_NOT_FOUND`, `409 ACCOUNT_IDENTIFIER_EXISTS|SUBJECT_INACTIVE`, `422 INVALID_TEACHER_ACCOUNT`.
+- `User` bổ sung `subjectId`, `subjectCode`, `subjectName` (nullable với tài khoản không được phân công). Một Giảng viên có đúng một môn phụ trách; có thể mở nhiều nhóm lớp của môn đó. Không giới hạn danh mục hệ thống ở bảy môn và không ép một môn chỉ có một giảng viên.
+- `PATCH /api/v1/admin/users/{id}` chỉ cập nhật `{status}`; gửi role bị từ chối `422 ROLE_CHANGE_NOT_ALLOWED`, kể cả gọi trực tiếp API. Không nâng tài khoản Student thành Teacher qua màn Chỉnh sửa.
+- `GET /api/v1/teacher/subject`: chỉ Teacher ACTIVE; trả `200 Subject` được phân công; `409 TEACHER_SUBJECT_NOT_ASSIGNED` nếu tài khoản cũ chưa được gắn môn. Không nhận teacherId từ client.
+- Yêu cầu mở lớp chỉ được gửi/duyệt cho môn đã phân công. Java kiểm tra ở cả submit, approve và tạo lớp; ngoài môn trả `403 TEACHER_SUBJECT_MISMATCH`. Form Teacher hiển thị môn phụ trách cố định theo API, vẫn chọn học kỳ và đề xuất mã/tên nhóm lớp; Admin tiếp tục duyệt yêu cầu mở lớp.
+- Thay đổi này thay quy tắc nhập môn tự do của SPEC-12 và luồng đổi role cũ. Các internal AI API không thay đổi.
+- Teacher Library chỉ tạo kho riêng bằng `{name}`. Truyền subjectId trả `422 SUBJECT_LIBRARY_REMOVED`; các kho SUBJECT cũ được chuyển thành PRIVATE, giữ ID/items. Kho DEFAULT và luồng chuyển/công bố tài liệu không thay đổi.
+
 Mọi route dưới `/api/v1/admin/**` yêu cầu JWT role `ADMIN`, trả `401 UNAUTHENTICATED` hoặc `403 FORBIDDEN` qua error envelope chung. Danh sách dùng `{items,page,size,totalItems,totalPages}`, `page >= 0`, `1 <= size <= 100`; input sai trả `422 INVALID_PAGE`. Mutations chỉ nhận các trường đã ghi, không nhận map tùy ý; Admin không xem Personal Document/chat/Note/plan/Quiz result.
 
 | Method | Endpoint | Input và output thành công | Lỗi nghiệp vụ |
 |---|---|---|---|
 | GET | `/api/v1/admin/dashboard` | `200 {users,students,teachers,activeOfferings,pendingEnrollments,publishedDocuments,openFeedbackReports}` | — |
-| GET | `/api/v1/admin/users?role=&status=&page=&size=` | `200` page `{id,email,username,fullName,role,status,createdAt}`; lọc tùy chọn `STUDENT|TEACHER|ADMIN`, `ACTIVE|LOCKED` | `422 INVALID_FILTER` |
-| PATCH | `/api/v1/admin/users/{id}` | `{role?,status?}` với ít nhất một trường; `200` User; đổi role/status thu hồi refresh token và access JWT cũ bị từ chối từ request kế tiếp | `404 USER_NOT_FOUND`, `409 SELF_ACCOUNT_CHANGE|TEACHER_HAS_ACTIVE_CLASSES`, `422 INVALID_USER_UPDATE` |
+| GET | `/api/v1/admin/users?role=&status=&page=&size=` | `200` page User `{id,email,username,fullName,role,status,createdAt,subjectId,subjectCode,subjectName}`; lọc tùy chọn `STUDENT|TEACHER|ADMIN`, `ACTIVE|LOCKED` | `422 INVALID_FILTER` |
+| PATCH | `/api/v1/admin/users/{id}` | `{status}`; `200` User; đổi trạng thái thu hồi refresh token và access JWT cũ bị từ chối từ request kế tiếp; role chỉ đọc | `404 USER_NOT_FOUND`, `409 SELF_ACCOUNT_CHANGE|TEACHER_HAS_ACTIVE_CLASSES`, `422 INVALID_USER_UPDATE|ROLE_CHANGE_NOT_ALLOWED` |
 | GET | `/api/v1/admin/subjects?page=&size=` | `200` page Subject `{id,code,name,credits,description,status}` | — |
 | POST | `/api/v1/admin/subjects` | `{code,name,credits,description?,status?}`; `201` Subject, status mặc định `ACTIVE` | `409 SUBJECT_CODE_EXISTS`, `422 INVALID_SUBJECT` |
 | PATCH | `/api/v1/admin/subjects/{id}` | `{code?,name?,credits?,description?,status?}`; `200` Subject | `404 SUBJECT_NOT_FOUND`, `409 SUBJECT_CODE_EXISTS`, `422 INVALID_SUBJECT` |

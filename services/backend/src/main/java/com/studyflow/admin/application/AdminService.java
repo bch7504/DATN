@@ -51,8 +51,11 @@ public class AdminService {
      * 422 INVALID_USER_UPDATE, database failure.
      */
     public AdminModels.User updateUser(UUID actor, UUID id, AdminModels.UserUpdate input, String traceId) {
+        if (input != null && input.role() != null) {
+            throw new ValidationException("ROLE_CHANGE_NOT_ALLOWED", "Không đổi vai trò tài khoản. Hãy dùng chức năng Tạo tài khoản Giảng viên.");
+        }
         if (input == null || (input.role() == null && input.status() == null)) {
-            throw new ValidationException("INVALID_USER_UPDATE", "Cần chọn vai trò hoặc trạng thái tài khoản.");
+            throw new ValidationException("INVALID_USER_UPDATE", "Cần chọn trạng thái tài khoản.");
         }
         AdminModels.User previous = store.user(id).orElseThrow(() -> missing("USER_NOT_FOUND", "Không tìm thấy tài khoản."));
         String role = input.role() == null ? previous.role() : input.role();

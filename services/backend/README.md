@@ -26,6 +26,12 @@ Teacher gửi đề xuất môn/lớp tại `/teacher/course-opening-requests`; 
 
 `PATCH /teacher/documents/{id}` đổi tên hiển thị; `POST /teacher/resource-libraries/{source}/move-documents` chuyển một hoặc nhiều reference sang kho cùng owner trong một transaction. Không đổi bytes/index/publication; DELETE tài liệu gốc vẫn thu hồi/deindex qua luồng hiện có. Contract chi tiết tại `docs/api-plan.md`.
 
+### Admin tạo Giảng viên và một môn phụ trách (SPEC-13)
+
+SPEC-13 thay quy tắc nhập môn tự do của SPEC-12: Admin tạo Teacher tại `POST /api/v1/admin/teachers` và chọn đúng một môn ACTIVE. Teacher đọc môn phụ trách qua `GET /api/v1/teacher/subject`, chỉ gửi yêu cầu mở nhóm lớp của môn này; Java kiểm cả submit, approve và tạo lớp. API sửa người dùng chỉ cập nhật trạng thái, gửi role trả `422 ROLE_CHANGE_NOT_ALLOWED`. Kho Teacher chỉ có DEFAULT/PRIVATE; tạo kho gửi subjectId trả `422 SUBJECT_LIBRARY_REMOVED`.
+
+Migration V32 thêm `users.teacher_subject_id` và chuyển kho SUBJECT cũ thành PRIVATE, giữ ID/items. Bộ nạp bảy Teacher local chỉ chạy với profile `local` và tham số `--studyflow.local-teacher-accounts.enabled=true`; không bật mặc định, không đặt lại mật khẩu đã có. Dữ liệu và kết quả nghiệm thu tại `docs/specs/13-admin-teacher-accounts-and-subject-assignment.md`.
+
 ## Chạy local
 
 1. Chuẩn bị PostgreSQL và cấu hình `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`.

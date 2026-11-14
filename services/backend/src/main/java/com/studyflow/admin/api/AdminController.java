@@ -1,6 +1,8 @@
 package com.studyflow.admin.api;
 
 import com.studyflow.admin.application.AdminService;
+import com.studyflow.admin.application.TeacherAccountService;
+import jakarta.validation.Valid;
 import com.studyflow.common.api.RequestIdFilter;
 import com.studyflow.common.exception.ApiException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,9 +28,18 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
     private final AdminService service;
+    private final TeacherAccountService teacherAccounts;
 
     /** Args: managed Admin service. Input: Spring dependency. Output: controller. Errors: none. */
-    public AdminController(AdminService service) { this.service = service; }
+    public AdminController(AdminService service, TeacherAccountService teacherAccounts) { this.service = service; this.teacherAccounts=teacherAccounts; }
+
+    /** Args: Admin JWT, validated teacher account and request trace. Input: one ACTIVE subject.
+     * Output: 201 safe User with fixed TEACHER role; errors: 401/403/404/409/422. */
+    @PostMapping("/teachers")
+    public ResponseEntity<AdminModels.User> createTeacher(@AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody AdminModels.CreateTeacher input,HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(teacherAccounts.create(actor(jwt),input,trace(request)));
+    }
 
     /** Args: authenticated Admin. Input: aggregate app metadata. Output: 200 dashboard. Errors: 401/403. */
     @GetMapping("/dashboard")

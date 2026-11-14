@@ -2,7 +2,7 @@
 
 | Requirement | Public UI/API | System of record | Test chính |
 |---|---|---|---|
-| AUT-FR-001..005 | auth, `/me` | Java auth/user | role guard, token rotation, internal auth |
+| AUT-FR-001..006 | auth, `/me`, Admin tạo Teacher | Java auth/user | role guard, token rotation, internal auth, chặn đổi role |
 | STU-FR-001..003 | join, Student offerings, chi tiết lớp | `course_offerings`, `course_enrollments` | invalid code, pending denied, approved allowed |
 | STU-FR-004..007 | PDF materials/viewer/page-note/tutor | publication/page/note + AI result | approved access, loại học liệu, `NO_EVIDENCE`, page citation scope |
 | STU-FR-008 | Quiz Assignment | Java Assignment/attempt/submission | đúng Student/lớp/Quiz, Java scoring, on-time/late |
@@ -11,7 +11,8 @@
 | TCH-FR-001..003 | Teacher offerings/join/enrollments | Java offering/enrollment | owner-only, rotation, transition idempotency |
 | TCH-FR-004..008 | kho mặc định, PDF/PPTX, publication và xóa an toàn | Java library/document/publication | default library, conversion, owner scope, revoke/deindex/delete |
 | TCH-FR-009..012 | AI Quiz nhiều nguồn, Assignment và báo cáo | Java Quiz/Assignment/submission | 1–10 nguồn, review/publish, đúng lớp, thống kê không đếm lặp |
-| ADM-FR-001..005 | Admin users/catalog/monitoring | Java app/audit | no assignment UI, lock/archive audited |
+| TCH-FR-013..014 | tìm/sửa/xóa/chuyển kho, môn Teacher và mở lớp | Java document/library/user subject | owner scope, chuyển kho nguyên tử, chặn môn khác, không tạo kho SUBJECT |
+| ADM-FR-001..008 | Admin users/teachers/catalog/duyệt lớp/monitoring | Java app/audit | chỉ Admin tạo Teacher, một môn, không đổi role, lock/archive audited |
 | DASH-FR-001..006 | Dashboard gồm aggregate và progress từng Course Offering, Streak, Daily Goal | Java `learning_events`, `daily_goals`, viewing progress | đúng lớp/quyền/event/ngày/múi giờ, idempotency, goal độc lập streak |
 | Plan/Quiz review | plan, subject/personal review workspace, attempts | Java plans/quizzes/answers/sources | Java scoring, wrong-answer citation, attempt history, manual plan |
 | AI evaluation | AI eval runner/report | synthetic versioned dataset | production path, 3 runs, scope violation 0 |
@@ -22,6 +23,8 @@
 |---|---|---|
 | Browser chỉ gọi Java | FE API client/CSP/config | không có Python/OpenRouter URL hoặc key trong bundle |
 | Teacher sở hữu Course Offering | Java application service/repository | Teacher A sửa/public lớp B bị từ chối |
+| Teacher chỉ mở lớp môn được phân công | tài khoản Teacher + policy mở/duyệt lớp | sửa môn trong request hoặc chọn môn khác khi duyệt trả 403 |
+| Chỉ Admin tạo Teacher, không đổi role | POST admin/teachers + PATCH user status | Student/Teacher gọi create bị chặn; PATCH có role trả 422 |
 | Student cần Enrollment approved | Java authorization trước URL/AI | pending/rejected không có artifact/chunk |
 | Python chỉ dùng authorized scope | request schema + retrieval filter | chunk ngoài document/version/owner/offering không xuất hiện |
 | Single Agent chỉ dùng tool registry | router + JSON Schema args | intent mơ hồ hỏi lại; không gọi tool ngoài scope |

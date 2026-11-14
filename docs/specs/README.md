@@ -16,7 +16,8 @@ Thư mục này chứa specification có thể dùng trực tiếp cho implement
 10. [`09-current-project-status.md`](09-current-project-status.md) — ảnh chụp hiện trạng dự án tại ngày 11/11/2026
 11. [`10-course-material-supporting-sources.md`](10-course-material-supporting-sources.md) — bảng chọn nhiều học liệu và luồng Slide Tutor dùng nguồn hỗ trợ
 12. [`11-course-tutor-live-completion.md`](11-course-tutor-live-completion.md) — hoàn thiện fallback tuần tự, kiểm quyền sau AI và nghiệm thu tài liệu Kỹ thuật số thật
-13. [`12-course-opening-approval-and-library-management.md`](12-course-opening-approval-and-library-management.md) — Teacher tự nhập môn, Admin duyệt mở lớp; tìm kiếm, đổi tên, xóa và chuyển kho tài liệu
+13. [`12-course-opening-approval-and-library-management.md`](12-course-opening-approval-and-library-management.md) — lịch sử lần 13/11: duyệt mở lớp và quản lý tài liệu; quy tắc tự nhập môn được thay bởi SPEC-13
+14. [`13-admin-teacher-accounts-and-subject-assignment.md`](13-admin-teacher-accounts-and-subject-assignment.md) — Admin tạo Giảng viên, phân công một môn, bỏ đổi role; thay quy tắc nhập môn tự do của lần trước
 
 ## Quy ước sử dụng
 
@@ -34,3 +35,4 @@ Thư mục này chứa specification có thể dùng trực tiếp cho implement
 - Mỗi spec theo lần thực hiện phải ghi ngày chốt, mục tiêu, hiện trạng ban đầu, phạm vi thay đổi, kết quả kiểm tra, phần chưa hoàn thành và việc bàn giao tiếp theo.
 - Trạng thái `Đã có mã` không đồng nghĩa với `Đã nghiệm thu`. Chỉ ghi `Đã kiểm tra` khi có lệnh, endpoint hoặc kịch bản kiểm thử cụ thể trong chính lần thực hiện đó.
 - Khi bắt đầu một lần thay đổi mới, tạo spec số tiếp theo thay vì sửa lịch sử của lần trước; chỉ sửa spec cũ để đính chính sai sót thực tế.
+- Quyết định hiện hành về tài khoản Teacher, môn phụ trách và kho riêng nằm trong SPEC-13; các spec nền `00`, `01`, `05`, `06`, `08` đã đồng bộ theo quyết định này. Kết quả kiểm tra và việc còn lại được ghi riêng trong SPEC-13.

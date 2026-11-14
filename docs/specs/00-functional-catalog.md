@@ -107,7 +107,7 @@ Tài liệu này mô tả chức năng theo góc nhìn người dùng: bắt đ�
 ### F-15 — Tạo và quản lý lớp học phần
 
 - **Điểm vào:** Menu **Lớp học phần** → **Yêu cầu mở lớp** hoặc bấm thẻ lớp đã duyệt.
-- **Luồng chính:** Teacher tự nhập môn + chọn Semester → gửi yêu cầu → chờ Admin chuẩn hóa/duyệt → mở chi tiết lớp đã duyệt và tạo/lấy join code.
+- **Luồng chính:** Hệ thống hiện môn Admin đã phân công → Teacher chọn học kỳ, nhập mã/tên nhóm lớp → gửi yêu cầu → chờ Admin duyệt → mở chi tiết lớp đã duyệt và tạo/lấy join code. Teacher không tự chọn hoặc nhập môn khác.
 - **Màn hình chi tiết:** Chỉ hiển thị thông tin tóm tắt và bốn nút **Yêu cầu chờ duyệt**, **Danh sách sinh viên**, **Bài tập & kết quả**, **Kho tài liệu lớp**. Nội dung của từng chức năng chỉ tải và hiển thị sau khi Teacher bấm nút tương ứng.
 - **Luồng thay thế:** Lớp bị khóa/lưu trữ → hạn chế thao tác thay đổi.
 
@@ -122,12 +122,13 @@ Tài liệu này mô tả chức năng theo góc nhìn người dùng: bắt đ�
 - **Điểm vào:** Menu **Kho tài liệu**.
 - **Màn hình chung:** Chỉ hiển thị thẻ kho và thẻ lớp; không trải nội dung từng kho ra ngoài.
 - **Kho mặc định:** **Tài liệu tải lên** luôn tồn tại và không thể xóa; upload không chọn kho khác tự vào đây.
+- **Phân loại kho:** Teacher chỉ tạo kho riêng bằng tên tự đặt; không có lựa chọn tạo kho theo môn. Các kho theo môn cũ được giữ nội dung và chuyển thành kho riêng.
 - **Luồng chính:** Bấm một thẻ kho → route chi tiết riêng → tìm tài liệu/Quiz/bài tập; tài liệu có sửa tên/xóa. Chọn nhiều tài liệu để chuyển kho hoặc công bố vào lớp; bỏ khỏi kho chỉ bỏ cách phân loại.
 - **Quy tắc:** Xóa kho chỉ xóa cách phân loại; xóa học liệu gốc là thao tác riêng có thu hồi publication/vector.
 
 ### F-18 — Tải PDF/PPTX và chuẩn hóa học liệu
 
-- **Điểm vào:** Kho chi tiết hoặc kho lớp → **Thêm tài liệu/Tải từ máy**.
+- **Điểm vào:** Kho riêng của Teacher → **Thêm tài liệu/Tải từ máy**. Kho lớp chỉ nhận tài liệu công bố từ kho Teacher, không tải tệp trực tiếp.
 - **Luồng chính:** Chọn kho, tệp, tiêu đề và `SLIDE_PDF|REFERENCE_PDF` → Java kiểm tra; PPTX được chuyển thành PDF → lưu/index → theo dõi đến `READY`.
 - **Luồng thay thế:** Tệp lỗi, mã hóa, quá dung lượng hoặc không có text layer → không tạo học liệu.
 
@@ -164,21 +165,22 @@ Tài liệu này mô tả chức năng theo góc nhìn người dùng: bắt đ�
 - **Nội dung:** Tổng quan user, danh mục, lớp học phần, feedback, audit và trạng thái hệ thống.
 - **Kết quả:** Số liệu thật; không có dữ liệu giả để lấp màn hình trống.
 
-### F-24 — Quản lý người dùng và vai trò
+### F-24 — Quản lý tài khoản và tạo Giảng viên
 
-- **Điểm vào:** Menu **Người dùng** → chọn tài khoản.
-- **Luồng chính:** Tìm/lọc → mở chi tiết → cập nhật role hoặc trạng thái theo quyền.
-- **Quy tắc:** Không hiển thị mật khẩu, token hoặc nội dung học riêng tư.
+- **Điểm vào:** Menu **Người dùng** → **Tạo tài khoản Giảng viên**, hoặc chọn tài khoản để xem/sửa trạng thái.
+- **Tạo Giảng viên:** Nhập họ tên, email, tên đăng nhập, mật khẩu ban đầu và chọn một môn đang hoạt động → xác nhận → tài khoản Giảng viên được tạo và hiển thị môn phụ trách.
+- **Quản lý tài khoản có sẵn:** Tìm/lọc → mở chi tiết → khóa/mở theo quyền. Không có thao tác đổi vai trò hoặc nâng Student thành Teacher.
+- **Quy tắc:** Mỗi Teacher phụ trách đúng một môn, có thể có nhiều nhóm lớp của môn đó. Mật khẩu chỉ nhập lúc tạo, không hiển thị lại sau khi lưu; không trả hash, token hoặc nội dung học riêng tư.
 
 ### F-25 — Quản lý Subject và Semester
 
 - **Điểm vào:** Menu **Danh mục** → Môn học/Học kỳ.
 - **Luồng chính:** Danh sách → tạo/sửa/kích hoạt/ngừng hoạt động.
-- **Kết quả:** Teacher có thể đề xuất môn mới; Admin chuẩn hóa vào danh mục trước khi duyệt mở lớp.
+- **Kết quả:** Admin duy trì danh mục môn/học kỳ để phân công môn khi tạo Giảng viên và kiểm tra yêu cầu mở lớp; không giới hạn danh mục vào bảy môn local.
 
 ### F-26 — Giám sát lớp học phần
 
-- **Duyệt mở lớp:** Ngay trong mục Lớp học phần, Admin xem yêu cầu → chuẩn hóa môn/chọn môn chuẩn → duyệt hoặc từ chối có lý do. Chỉ duyệt mới mở lớp cho Teacher gửi yêu cầu.
+- **Duyệt mở lớp:** Ngay trong mục Lớp học phần, Admin xem yêu cầu của đúng môn đã phân công → duyệt hoặc từ chối có lý do. Chỉ duyệt mới mở lớp cho Teacher gửi yêu cầu; không đổi sang môn khác trong lúc duyệt.
 
 - **Điểm vào:** Menu **Lớp học phần** của Admin → chọn lớp.
 - **Màn hình chi tiết:** Teacher owner, Subject, Semester, trạng thái và số liệu vận hành.

@@ -3,6 +3,8 @@
 ' Monochrome: true
 ' Interaction: Course Material AI Tutor
 ' InteractionFrame: none
+' ActivationPolicy: full
+' Split PNG height: 3932
 skinparam defaultFontColor #000000
 skinparam ArrowColor #000000
 skinparam ActorBackgroundColor #FFFFFF
@@ -28,7 +30,7 @@ skinparam shadowing false
 skinparam linetype ortho
 skinparam backgroundColor white
 skinparam defaultFontName Arial
-skinparam defaultFontSize 14
+skinparam defaultFontSize 26
 skinparam roundcorner 0
 hide footbox
 autonumber
@@ -50,59 +52,78 @@ entity ":DocumentIndex" as Index
 entity ":DocumentChunk" as Chunk
 boundary "«external system»\nModel Provider" as Model
 
-Student -> Viewer : showPage(pageNumber)
-Student -> Viewer : toggleTutor()
-Viewer -> TutorPanel : open(documentId, pageNumber)
-Student -> TutorPanel : ask(question)
+activate Student
+activate Viewer
+Student ->> Viewer : showPage(pageNumber)
+Student ->> Viewer : toggleTutor()
+Viewer -> TutorPanel ++ : open(documentId, pageNumber)
+TutorPanel --> Viewer -- : void - đã mở Tutor
+deactivate Viewer
+Student ->> TutorPanel ++ : ask(question)
 TutorPanel -> Controller ++ : ask(documentId, pageNumber, PageQuestion)
 Controller -> Service ++ : ask(studentId, documentId, pageNumber, question)
 Service -> AccessPolicy ++ : authorizeTutor(studentId, documentId, pageNumber)
-AccessPolicy -> Enrollment : kiểm status = APPROVED
-AccessPolicy -> Publication : kiểm status = PUBLISHED
-AccessPolicy -> Material : kiểm SLIDE_PDF, READY và version
-alt Không còn quyền hoặc tài liệu không hỗ trợ Tutor
-  AccessPolicy --> Service -- : ACCESS_DENIED / MATERIAL_NOT_TUTORABLE
-  Service --> Controller -- : lỗi theo contract
-  Controller --> TutorPanel -- : hiển thị lỗi; không gọi AI
+AccessPolicy -> Enrollment ++ : đọc trạng thái APPROVED
+Enrollment --> AccessPolicy -- : EnrollmentSnapshot
+AccessPolicy -> Publication ++ : đọc trạng thái công bố
+Publication --> AccessPolicy -- : PublicationSnapshot
+AccessPolicy -> Material ++ : đọc SLIDE_PDF, READY và version
+Material --> AccessPolicy -- : MaterialSnapshot
+AccessPolicy --> Service -- : PageScope hoặc lỗi quyền/loại tài liệu
+alt Không có quyền hoặc tài liệu không hỗ trợ Tutor
+note right of Service
+Đặt kết quả ACCESS_DENIED hoặc
+MATERIAL_NOT_TUTORABLE; không gọi AI.
+end note
 else Phạm vi hợp lệ
-  AccessPolicy --> Service -- : PageScope
-  Service -> AiClient ++ : askCourseMaterial(scope, question)
-  AiClient -> Pipeline ++ : run(scope, question)
-  Pipeline -> Retriever ++ : search(scope, question)
-  Retriever -> Index : kiểm document/version/index status
-  Retriever -> Chunk : hybrid retrieval trong allowedPageNumbers
-  Retriever -> Model : embedding/rerank query
-  Model --> Retriever : vector/rerank scores
-  Retriever --> Pipeline -- : EvidenceSet theo trang
-  alt Không đủ bằng chứng
-    Pipeline --> AiClient -- : NO_EVIDENCE
-  else Có bằng chứng
-    Pipeline -> Model : sinh answer từ evidence
-    Model --> Pipeline : GeneratedAnswer + citations
-    Pipeline -> Validator : validate(answer, evidence)
-    alt Citation hoặc grounding không hợp lệ
-      Validator --> Pipeline : invalid
-      Pipeline --> AiClient -- : NO_EVIDENCE
-    else Hợp lệ
-      Validator --> Pipeline : valid
-      Pipeline --> AiClient -- : AnswerResponse(ANSWERED)
-    end
-  end
-  AiClient --> Service -- : AnswerResponse
-  Service -> AccessPolicy ++ : authorizeTutor(...) lần cuối
-  AccessPolicy -> Publication : kiểm chưa bị revoke
-  AccessPolicy --> Service -- : quyền hiện tại hợp lệ
-  Service --> Controller -- : AnswerResponse
-  Controller --> TutorPanel -- : showAnswer(response)
-  TutorPanel --> Student : hiển thị answer + page citations
-  opt Student mở citation
-    Student -> TutorPanel : openCitation(citation)
-    TutorPanel --> Student : hiển thị nguồn theo pageNumber
-  end
+Service -> AiClient ++ : askCourseMaterial(scope, question)
+AiClient -> Pipeline ++ : run(scope, question)
+Pipeline -> Retriever ++ : search(scope, question)
+Retriever -> Index ++ : đọc chỉ mục theo document/version
+Index --> Retriever -- : IndexSnapshot
+Retriever -> Model ++ : embedding(question)
+Model --> Retriever -- : QueryVector
+Retriever -> Chunk ++ : tìm từ khóa + vector trong scope
+Chunk --> Retriever -- : CandidateChunks
+Retriever -> Model ++ : rerank(question, CandidateChunks)
+Model --> Retriever -- : RankedEvidence
+Retriever --> Pipeline -- : EvidenceSet theo trang
+alt Không đủ bằng chứng
+note right of Pipeline
+Đặt kết quả NO_EVIDENCE; không sinh câu trả lời.
+end note
+else Có bằng chứng
+Pipeline -> Model ++ : sinh answer từ evidence
+Model --> Pipeline -- : GeneratedAnswer + citations
+Pipeline -> Validator ++ : validate(answer, evidence)
+Validator --> Pipeline -- : ValidationResult
+note right of Pipeline
+Hợp lệ: ANSWERED.
+Không hợp lệ: NO_EVIDENCE.
+end note
 end
-
-note over Service,Material
-ASK_AI không cập nhật LearningProgress hoặc Study Streak.
+Pipeline --> AiClient -- : AnswerResponse
+AiClient --> Service -- : AnswerResponse
+Service -> AccessPolicy ++ : authorizeTutor(studentId, documentId, pageNumber)
+AccessPolicy -> Enrollment ++ : kiểm tra enrollment hiện tại
+Enrollment --> AccessPolicy -- : trạng thái enrollment
+AccessPolicy -> Publication ++ : kiểm tra chưa bị thu hồi
+Publication --> AccessPolicy -- : trạng thái publication
+AccessPolicy -> Material ++ : kiểm tra phiên bản và trạng thái hiện tại
+Material --> AccessPolicy -- : trạng thái tài liệu
+AccessPolicy --> Service -- : PageScope hiện tại hoặc lỗi quyền
+note right of Service
+Chỉ trả nội dung khi quyền vẫn hợp lệ.
+Quyền đã thu hồi: trả lỗi, không lộ câu trả lời.
+end note
+end
+Service --> Controller -- : AnswerResponse hoặc lỗi theo contract
+Controller --> TutorPanel -- : AnswerResponse hoặc lỗi theo contract
+TutorPanel ->> Student : hiển thị kết quả
+note right of Service
+ASK_AI không cập nhật tiến độ hoặc Study Streak.
 Teacher không có Course Material Tutor.
 end note
+deactivate TutorPanel
+deactivate Student
 @enduml

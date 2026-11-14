@@ -220,66 +220,91 @@ Hệ thống phân biệt rõ bốn trường hợp: người dùng không có q
 
 #### Diễn giải trình tự Hình 3.10
 
-Tại trang Tài liệu cá nhân sau khi đăng nhập, Sinh viên chọn các PDF cần sử dụng rồi mở trợ lý. Trình tự dưới đây ghi rõ View, DAO, Entity hoặc dịch vụ nào thực hiện từng thông điệp. Các nhánh hỏi đáp, tóm tắt và tạo Quiz là các lựa chọn thay thế.
+Mũi tên nét liền là lời gọi đồng bộ; nét đứt trả kết quả về đúng bên gọi. Mũi tên đầu mở (`->>`) biểu diễn sự kiện giao diện hoặc công việc bất đồng bộ. Bên gọi chỉ tiếp tục sau khi nhận phản hồi của lời gọi đồng bộ. Một đối tượng đã nhận lại kết quả có thể gọi tiếp đối tượng khác; không bắt buộc mỗi bước phải xuất phát từ đối tượng nhận của bước ngay trước. Mỗi đầu mũi tên gọi và trả về đều gắn với thanh thực thi của bên gửi/nhận. Thanh của một lời gọi kéo dài từ lúc nhận yêu cầu đến lúc trả kết quả, kể cả thời gian chờ lời gọi con; lời gọi lồng vào chính đối tượng được vẽ bằng thanh thực thi lồng. Giao diện, tác nhân và công việc nền có thanh thực thi cho lượt tương tác tương ứng. Chỉ một nhánh `alt` được chạy; số bước liên tục giúp đối chiếu hình, không có nghĩa mọi nhánh đều chạy. Thao tác với Entity là thiết kế trao đổi dữ liệu, không bổ sung phương thức mới cho lớp thực thể.
 
-1. Tại `PersonalDocumentsView`, Sinh viên gọi `selectDocuments(ids)` để chọn các tài liệu cá nhân được phép sử dụng.
-2. Sinh viên gọi `openAssistant()` trên `PersonalDocumentsView` để mở chức năng trợ lý tài liệu cá nhân.
-3. `PersonalDocumentsView` gọi `open(ids)` của `PersonalAssistantView` để mở khu vực trợ lý với danh sách tài liệu đã chọn.
-4. Tại `PersonalAssistantView`, Sinh viên gọi `submitPrompt(message)` để gửi yêu cầu hỏi đáp, tóm tắt hoặc tạo Quiz.
-5. `PersonalAssistantView` gọi `postMessage(conversationId, MessageRequest)` của `PersonalAssistantDAO` để chuyển yêu cầu vào hệ thống chính.
-6. `PersonalAssistantDAO` gọi `run(studentId, conversationId, request)` của `ConversationDAO` để bắt đầu xử lý yêu cầu.
-7. `ConversationDAO` gọi `loadAuthorizedSnapshot(studentId, conversationId)` của `ConversationScopeDAO` để dựng phạm vi tài liệu được phép sử dụng.
-8. `ConversationScopeDAO` đọc thực thể `ChatConversation` để kiểm tra cuộc trò chuyện thuộc đúng Sinh viên đang yêu cầu.
-9. Với từng tài liệu đã chọn, `ConversationScopeDAO` đọc `PersonalDocument` để kiểm tra `owner`, trạng thái `READY` và phiên bản.
-10. Nếu phạm vi không hợp lệ, `ConversationScopeDAO` trả `ACCESS_DENIED/invalid scope` về `ConversationDAO`.
-11. `ConversationDAO` trả lỗi theo hợp đồng về `PersonalAssistantDAO`.
-12. `PersonalAssistantDAO` gọi phần hiển thị lỗi của `PersonalAssistantView`; giao diện thông báo lỗi và không gọi AI.
-13. Nếu phạm vi hợp lệ, `ConversationScopeDAO` trả `AuthorizedScope` về `ConversationDAO`.
-14. `ConversationDAO` gọi `runAssistant(InternalAssistantRequest)` của `AiGatewayDAO` để gửi yêu cầu đã có phạm vi sang dịch vụ AI.
-15. `AiGatewayDAO` gọi `run(request)` của `OrchestratorDAO` để bộ điều phối duy nhất tiếp nhận yêu cầu.
-16. `OrchestratorDAO` gọi nội bộ `selectTool(message)` để xác định công cụ hỏi đáp, tóm tắt hoặc tạo Quiz.
-17. `OrchestratorDAO` ghi `selectedTool` và trạng thái `RUNNING` vào thực thể `AgentRun`.
-18. Nếu yêu cầu thiếu tham số bắt buộc, `OrchestratorDAO` trả `NEEDS_CLARIFICATION` về `AiGatewayDAO` để yêu cầu Sinh viên bổ sung thông tin.
-19. Trong nhánh hỏi đáp, `OrchestratorDAO` gọi `execute(AskArgs, scope)` của `AskDocumentDAO`.
-20. `AskDocumentDAO` gọi `search(scope, query)` của `DocumentIndexDAO` để tìm bằng chứng cho câu hỏi.
-21. `DocumentIndexDAO` đọc `DocumentIndex` để kiểm tra đúng tài liệu, đúng phiên bản và chỉ mục đã sẵn sàng.
-22. `DocumentIndexDAO` tìm trong `DocumentChunk` bằng phương pháp kết hợp từ khóa và độ tương đồng, chỉ trong phạm vi được cấp.
-23. `DocumentIndexDAO` gửi truy vấn sang `Model Provider` để tạo biểu diễn tìm kiếm và xếp hạng lại kết quả.
-24. `Model Provider` trả điểm tương đồng và thứ tự xếp hạng về `DocumentIndexDAO`.
-25. `DocumentIndexDAO` trả `EvidenceSet` kèm số trang về `AskDocumentDAO`.
-26. `AskDocumentDAO` yêu cầu `Model Provider` sinh câu trả lời chỉ từ `EvidenceSet`.
-27. `Model Provider` trả `AnswerResult` về `AskDocumentDAO`.
-28. `AskDocumentDAO` gọi `validate(answer, evidence)` của `GroundingValidationDAO` để kiểm tra câu trả lời và nguồn.
-29. `AskDocumentDAO` trả `ANSWERED` hoặc `NO_EVIDENCE` về `OrchestratorDAO`.
-30. Trong nhánh tóm tắt, `OrchestratorDAO` gọi `execute(SummaryArgs, scope)` của `SummarizeDocumentDAO`.
-31. `SummarizeDocumentDAO` gọi `search(scope, summary query)` của `DocumentIndexDAO` để lấy nội dung cần tóm tắt.
-32. `DocumentIndexDAO` đọc `DocumentIndex` để kiểm tra tài liệu, phiên bản và trạng thái chỉ mục.
-33. `DocumentIndexDAO` đọc các `DocumentChunk` theo trang trong phạm vi tài liệu đã chọn.
-34. `DocumentIndexDAO` trả `EvidenceSet` về `SummarizeDocumentDAO`.
-35. `SummarizeDocumentDAO` yêu cầu `Model Provider` sinh bản tóm tắt có căn cứ.
-36. `Model Provider` trả `SummaryResult` về `SummarizeDocumentDAO`.
-37. `SummarizeDocumentDAO` gọi `validate(summary, evidence)` của `GroundingValidationDAO` để kiểm tra bản tóm tắt và nguồn.
-38. `SummarizeDocumentDAO` trả `SUMMARIZED` hoặc `NO_EVIDENCE` về `OrchestratorDAO`.
-39. Trong nhánh tạo Quiz, `OrchestratorDAO` gọi `execute(QuizArgs, scope)` của `GenerateQuizDAO`.
-40. `GenerateQuizDAO` gọi `search(scope, quiz constraints)` của `DocumentIndexDAO` để tìm nội dung theo điều kiện tạo Quiz.
-41. `DocumentIndexDAO` đọc `DocumentIndex` để kiểm tra đúng tài liệu, phiên bản và trạng thái chỉ mục.
-42. `DocumentIndexDAO` đọc các `DocumentChunk` phù hợp theo từng trang.
-43. `DocumentIndexDAO` trả `EvidenceSet` về `GenerateQuizDAO`.
-44. `GenerateQuizDAO` yêu cầu `Model Provider` sinh `QuizDraft` theo cấu trúc JSON đã quy định.
-45. `Model Provider` trả `QuizDraft` về `GenerateQuizDAO`.
-46. `GenerateQuizDAO` gọi `validate(draft, evidence)` của `GroundingValidationDAO` để kiểm tra cấu trúc, đáp án và nguồn.
-47. `GenerateQuizDAO` trả `QUIZ_CREATED` hoặc `NO_EVIDENCE` về `OrchestratorDAO`.
-48. `OrchestratorDAO` đóng gói kết quả thành `AssistantResponse` và trả về `AiGatewayDAO`.
-49. `AiGatewayDAO` trả `AssistantResponse` về `ConversationDAO` của hệ thống chính.
-50. `ConversationDAO` gọi `validateResult(scope, response)` của `ConversationScopeDAO` để kiểm tra lại phạm vi và trích dẫn.
-51. `ConversationScopeDAO` xác nhận citation và phạm vi hợp lệ rồi trả kết quả về `ConversationDAO`.
-52. `ConversationDAO` lưu phản hồi vào `ChatMessage`; nếu có Quiz thì ghi trạng thái `REVIEW_REQUIRED`.
-53. `ConversationDAO` trả `AssistantResponse` về `PersonalAssistantDAO`.
-54. `PersonalAssistantDAO` gọi `showAnswer(response)` của `PersonalAssistantView` để hiển thị kết quả.
-55. Nếu có trích dẫn, Sinh viên chọn citation trên `PersonalAssistantView`.
-56. `PersonalAssistantView` gọi `open(citation)` của `CitationView`.
-57. `CitationView` hiển thị `documentId`, `pageNumber` và đoạn trích nguồn cho Sinh viên.
-58. Nếu phản hồi chứa `QuizDraft`, `PersonalAssistantView` gọi `showDraft(response.quizDraft)` của `QuizDraftReviewView` để Sinh viên xem lại.
+1. Tại `PersonalDocumentsView`, người dùng thực hiện `selectDocuments(ids)`.
+2. Tại `PersonalDocumentsView`, người dùng thực hiện `openAssistant()`.
+3. `PersonalDocumentsView` gọi `open(ids)` của `PersonalAssistantView` và chờ bên nhận xử lý.
+4. `PersonalAssistantView` trả `void - đã mở hội thoại` về đúng bên gọi là `PersonalDocumentsView`.
+5. Tại `PersonalAssistantView`, người dùng thực hiện `submitPrompt(message)`.
+6. `PersonalAssistantView` gọi `postMessage(conversationId, MessageRequest)` của `PersonalAssistantDAO` và chờ bên nhận xử lý.
+7. `PersonalAssistantDAO` gọi `run(studentId, conversationId, request)` của `ConversationDAO` và chờ bên nhận xử lý.
+8. `ConversationDAO` gọi `loadAuthorizedSnapshot(studentId, conversationId)` của `ConversationScopeDAO` và chờ bên nhận xử lý.
+9. `ConversationScopeDAO` thực hiện thao tác `đọc hội thoại thuộc Student` với dữ liệu thực thể `ChatConversation` qua tầng lưu trữ.
+10. `ChatConversation` trả `ConversationSnapshot` về đúng bên gọi là `ConversationScopeDAO`.
+11. Với mỗi lượt trong vòng lặp, `ConversationScopeDAO` thực hiện thao tác `đọc owner, READY và version` với dữ liệu thực thể `PersonalDocument` qua tầng lưu trữ.
+12. Với mỗi lượt trong vòng lặp, `PersonalDocument` trả `DocumentSnapshot` về đúng bên gọi là `ConversationScopeDAO`.
+13. `ConversationScopeDAO` trả `AuthorizedScope hoặc lỗi truy cập` về đúng bên gọi là `ConversationDAO`.
+14. Trong trường hợp phạm vi hợp lệ, `ConversationDAO` gọi `runAssistant(InternalAssistantRequest)` của `AiGatewayDAO` và chờ bên nhận xử lý.
+15. Trong trường hợp phạm vi hợp lệ, `AiGatewayDAO` gọi `run(request)` của `OrchestratorDAO` và chờ bên nhận xử lý.
+16. Trong trường hợp phạm vi hợp lệ, `OrchestratorDAO` tự thực hiện `selectTool(message)` trước khi tiếp tục.
+17. Trong trường hợp phạm vi hợp lệ, `OrchestratorDAO` trả `ToolName` về đúng bên gọi là `OrchestratorDAO`.
+18. Trong trường hợp phạm vi hợp lệ, `OrchestratorDAO` thực hiện thao tác `ghi selectedTool và RUNNING` với dữ liệu thực thể `AgentRun` qua tầng lưu trữ.
+19. Trong trường hợp phạm vi hợp lệ, `AgentRun` trả `đã lưu AgentRun` về đúng bên gọi là `OrchestratorDAO`.
+20. Trong trường hợp tool hỏi đáp, `OrchestratorDAO` gọi `execute(AskArgs, scope)` của `AskDocumentDAO` và chờ bên nhận xử lý.
+21. Trong trường hợp tool hỏi đáp, `AskDocumentDAO` gọi `search(scope, query)` của `DocumentIndexDAO` và chờ bên nhận xử lý.
+22. Trong trường hợp tool hỏi đáp, `DocumentIndexDAO` thực hiện thao tác `đọc chỉ mục theo document/version` với dữ liệu thực thể `DocumentIndex` qua tầng lưu trữ.
+23. Trong trường hợp tool hỏi đáp, `DocumentIndex` trả `IndexSnapshot` về đúng bên gọi là `DocumentIndexDAO`.
+24. Trong trường hợp tool hỏi đáp, `DocumentIndexDAO` gửi yêu cầu `embedding(query)` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+25. Trong trường hợp tool hỏi đáp, `Model Provider` trả `QueryVector` về đúng bên gọi là `DocumentIndexDAO`.
+26. Trong trường hợp tool hỏi đáp, `DocumentIndexDAO` thực hiện thao tác `tìm từ khóa + vector trong scope` với dữ liệu thực thể `DocumentChunk` qua tầng lưu trữ.
+27. Trong trường hợp tool hỏi đáp, `DocumentChunk` trả `CandidateChunks` về đúng bên gọi là `DocumentIndexDAO`.
+28. Trong trường hợp tool hỏi đáp, `DocumentIndexDAO` gửi yêu cầu `rerank(query, CandidateChunks)` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+29. Trong trường hợp tool hỏi đáp, `Model Provider` trả `RankedEvidence` về đúng bên gọi là `DocumentIndexDAO`.
+30. Trong trường hợp tool hỏi đáp, `DocumentIndexDAO` trả `EvidenceSet theo trang` về đúng bên gọi là `AskDocumentDAO`.
+31. Trong trường hợp có bằng chứng, `AskDocumentDAO` gửi yêu cầu `sinh nội dung từ EvidenceSet` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+32. Trong trường hợp có bằng chứng, `Model Provider` trả `AnswerResult` về đúng bên gọi là `AskDocumentDAO`.
+33. Trong trường hợp có bằng chứng, `AskDocumentDAO` gọi `validate(result, evidence)` của `GroundingValidationDAO` và chờ bên nhận xử lý.
+34. Trong trường hợp có bằng chứng, `GroundingValidationDAO` trả `ValidationResult` về đúng bên gọi là `AskDocumentDAO`.
+35. Trong trường hợp tool hỏi đáp, `AskDocumentDAO` trả `ANSWERED hoặc NO_EVIDENCE` về đúng bên gọi là `OrchestratorDAO`.
+36. Trong trường hợp tool tóm tắt, `OrchestratorDAO` gọi `execute(SummaryArgs, scope)` của `SummarizeDocumentDAO` và chờ bên nhận xử lý.
+37. Trong trường hợp tool tóm tắt, `SummarizeDocumentDAO` gọi `search(scope, query)` của `DocumentIndexDAO` và chờ bên nhận xử lý.
+38. Trong trường hợp tool tóm tắt, `DocumentIndexDAO` thực hiện thao tác `đọc chỉ mục theo document/version` với dữ liệu thực thể `DocumentIndex` qua tầng lưu trữ.
+39. Trong trường hợp tool tóm tắt, `DocumentIndex` trả `IndexSnapshot` về đúng bên gọi là `DocumentIndexDAO`.
+40. Trong trường hợp tool tóm tắt, `DocumentIndexDAO` gửi yêu cầu `embedding(query)` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+41. Trong trường hợp tool tóm tắt, `Model Provider` trả `QueryVector` về đúng bên gọi là `DocumentIndexDAO`.
+42. Trong trường hợp tool tóm tắt, `DocumentIndexDAO` thực hiện thao tác `tìm từ khóa + vector trong scope` với dữ liệu thực thể `DocumentChunk` qua tầng lưu trữ.
+43. Trong trường hợp tool tóm tắt, `DocumentChunk` trả `CandidateChunks` về đúng bên gọi là `DocumentIndexDAO`.
+44. Trong trường hợp tool tóm tắt, `DocumentIndexDAO` gửi yêu cầu `rerank(query, CandidateChunks)` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+45. Trong trường hợp tool tóm tắt, `Model Provider` trả `RankedEvidence` về đúng bên gọi là `DocumentIndexDAO`.
+46. Trong trường hợp tool tóm tắt, `DocumentIndexDAO` trả `EvidenceSet theo trang` về đúng bên gọi là `SummarizeDocumentDAO`.
+47. Trong trường hợp có bằng chứng, `SummarizeDocumentDAO` gửi yêu cầu `sinh nội dung từ EvidenceSet` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+48. Trong trường hợp có bằng chứng, `Model Provider` trả `SummaryResult` về đúng bên gọi là `SummarizeDocumentDAO`.
+49. Trong trường hợp có bằng chứng, `SummarizeDocumentDAO` gọi `validate(result, evidence)` của `GroundingValidationDAO` và chờ bên nhận xử lý.
+50. Trong trường hợp có bằng chứng, `GroundingValidationDAO` trả `ValidationResult` về đúng bên gọi là `SummarizeDocumentDAO`.
+51. Trong trường hợp tool tóm tắt, `SummarizeDocumentDAO` trả `SUMMARIZED hoặc NO_EVIDENCE` về đúng bên gọi là `OrchestratorDAO`.
+52. Trong trường hợp tool tạo quiz có nguồn, `OrchestratorDAO` gọi `execute(QuizArgs, scope)` của `GenerateQuizDAO` và chờ bên nhận xử lý.
+53. Trong trường hợp tool tạo quiz có nguồn, `GenerateQuizDAO` gọi `search(scope, query)` của `DocumentIndexDAO` và chờ bên nhận xử lý.
+54. Trong trường hợp tool tạo quiz có nguồn, `DocumentIndexDAO` thực hiện thao tác `đọc chỉ mục theo document/version` với dữ liệu thực thể `DocumentIndex` qua tầng lưu trữ.
+55. Trong trường hợp tool tạo quiz có nguồn, `DocumentIndex` trả `IndexSnapshot` về đúng bên gọi là `DocumentIndexDAO`.
+56. Trong trường hợp tool tạo quiz có nguồn, `DocumentIndexDAO` gửi yêu cầu `embedding(query)` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+57. Trong trường hợp tool tạo quiz có nguồn, `Model Provider` trả `QueryVector` về đúng bên gọi là `DocumentIndexDAO`.
+58. Trong trường hợp tool tạo quiz có nguồn, `DocumentIndexDAO` thực hiện thao tác `tìm từ khóa + vector trong scope` với dữ liệu thực thể `DocumentChunk` qua tầng lưu trữ.
+59. Trong trường hợp tool tạo quiz có nguồn, `DocumentChunk` trả `CandidateChunks` về đúng bên gọi là `DocumentIndexDAO`.
+60. Trong trường hợp tool tạo quiz có nguồn, `DocumentIndexDAO` gửi yêu cầu `rerank(query, CandidateChunks)` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+61. Trong trường hợp tool tạo quiz có nguồn, `Model Provider` trả `RankedEvidence` về đúng bên gọi là `DocumentIndexDAO`.
+62. Trong trường hợp tool tạo quiz có nguồn, `DocumentIndexDAO` trả `EvidenceSet theo trang` về đúng bên gọi là `GenerateQuizDAO`.
+63. Trong trường hợp có bằng chứng, `GenerateQuizDAO` gửi yêu cầu `sinh nội dung từ EvidenceSet` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+64. Trong trường hợp có bằng chứng, `Model Provider` trả `QuizDraft` về đúng bên gọi là `GenerateQuizDAO`.
+65. Trong trường hợp có bằng chứng, `GenerateQuizDAO` gọi `validate(result, evidence)` của `GroundingValidationDAO` và chờ bên nhận xử lý.
+66. Trong trường hợp có bằng chứng, `GroundingValidationDAO` trả `ValidationResult` về đúng bên gọi là `GenerateQuizDAO`.
+67. Trong trường hợp tool tạo quiz có nguồn, `GenerateQuizDAO` trả `QUIZ_CREATED hoặc NO_EVIDENCE` về đúng bên gọi là `OrchestratorDAO`.
+68. Trong trường hợp phạm vi hợp lệ, `OrchestratorDAO` thực hiện thao tác `ghi kết quả thực hiện` với dữ liệu thực thể `AgentRun` qua tầng lưu trữ.
+69. Trong trường hợp phạm vi hợp lệ, `AgentRun` trả `đã lưu AgentRun` về đúng bên gọi là `OrchestratorDAO`.
+70. Trong trường hợp phạm vi hợp lệ, `OrchestratorDAO` trả `AssistantResponse` về đúng bên gọi là `AiGatewayDAO`.
+71. Trong trường hợp phạm vi hợp lệ, `AiGatewayDAO` trả `AssistantResponse` về đúng bên gọi là `ConversationDAO`.
+72. Trong trường hợp phạm vi hợp lệ, `ConversationDAO` gọi `validateResult(scope, response)` của `ConversationScopeDAO` và chờ bên nhận xử lý.
+73. Trong trường hợp phạm vi hợp lệ, `ConversationScopeDAO` trả `void hoặc lỗi quyền/nguồn` về đúng bên gọi là `ConversationDAO`.
+74. Trong trường hợp kết quả được java chấp nhận, `ConversationDAO` thực hiện thao tác `lưu hội thoại và liên kết Quiz nháp` với dữ liệu thực thể `ChatMessage` qua tầng lưu trữ.
+75. Trong trường hợp kết quả được java chấp nhận, `ChatMessage` trả `đã lưu ChatMessage` về đúng bên gọi là `ConversationDAO`.
+76. `ConversationDAO` trả `AssistantResponse hoặc lỗi theo contract` về đúng bên gọi là `PersonalAssistantDAO`.
+77. `PersonalAssistantDAO` trả `AssistantResponse hoặc lỗi theo contract` về đúng bên gọi là `PersonalAssistantView`.
+78. `PersonalAssistantView` hiển thị kết quả hoặc câu hỏi làm rõ cho người dùng.
+79. Trong trường hợp có citation và student chọn xem nguồn, Tại `PersonalAssistantView`, người dùng thực hiện `chọn citation`.
+80. Trong trường hợp có citation và student chọn xem nguồn, `PersonalAssistantView` gọi `open(citation)` của `CitationView` và chờ bên nhận xử lý.
+81. Trong trường hợp có citation và student chọn xem nguồn, `CitationView` trả `void - đã mở nguồn` về đúng bên gọi là `PersonalAssistantView`.
+82. Trong trường hợp có quizdraft hợp lệ, `PersonalAssistantView` gọi `showDraft(response.quizDraft)` của `QuizDraftReviewView` và chờ bên nhận xử lý.
+83. Trong trường hợp có quizdraft hợp lệ, `QuizDraftReviewView` trả `void - đã hiển thị bản nháp` về đúng bên gọi là `PersonalAssistantView`.
 
 ### 3.5.5. Thứ tự xử lý câu hỏi về tài liệu bài giảng
 
@@ -293,47 +318,52 @@ Mỗi lần hỏi đều phải kiểm tra quyền hiện tại, kể cả khi S
 
 #### Diễn giải trình tự Hình 3.11
 
-Tại trình xem tài liệu bài giảng sau khi đăng nhập và vào lớp học phần, Sinh viên mở một trang PDF rồi bật AI Tutor. Trình tự dưới đây ghi rõ View, DAO, Entity và dịch vụ tham gia. Nhánh từ chối quyền và nhánh xử lý hợp lệ là hai trường hợp thay thế.
+Mũi tên nét liền là lời gọi đồng bộ; nét đứt trả kết quả về đúng bên gọi. Mũi tên đầu mở (`->>`) biểu diễn sự kiện giao diện hoặc công việc bất đồng bộ. Bên gọi chỉ tiếp tục sau khi nhận phản hồi của lời gọi đồng bộ. Một đối tượng đã nhận lại kết quả có thể gọi tiếp đối tượng khác; không bắt buộc mỗi bước phải xuất phát từ đối tượng nhận của bước ngay trước. Mỗi đầu mũi tên gọi và trả về đều gắn với thanh thực thi của bên gửi/nhận. Thanh của một lời gọi kéo dài từ lúc nhận yêu cầu đến lúc trả kết quả, kể cả thời gian chờ lời gọi con; lời gọi lồng vào chính đối tượng được vẽ bằng thanh thực thi lồng. Giao diện, tác nhân và công việc nền có thanh thực thi cho lượt tương tác tương ứng. Chỉ một nhánh `alt` được chạy; số bước liên tục giúp đối chiếu hình, không có nghĩa mọi nhánh đều chạy. Thao tác với Entity là thiết kế trao đổi dữ liệu, không bổ sung phương thức mới cho lớp thực thể.
 
-1. Tại `SlideViewerView`, Sinh viên gọi `showPage(pageNumber)` để mở trang PDF muốn học.
-2. Sinh viên gọi `toggleTutor()` trên `SlideViewerView` để hiện khu vực AI Tutor.
-3. `SlideViewerView` gọi `open(documentId, pageNumber)` của `AiTutorView` để mở Tutor với đúng tài liệu và trang hiện tại.
-4. Tại `AiTutorView`, Sinh viên gọi `ask(question)` để gửi câu hỏi.
-5. `AiTutorView` gọi `ask(documentId, pageNumber, PageQuestion)` của `CourseMaterialTutorDAO` để chuyển câu hỏi vào hệ thống chính.
-6. `CourseMaterialTutorDAO` gọi `ask(studentId, documentId, pageNumber, question)` của `TutorConversationDAO` để bắt đầu xử lý.
-7. `TutorConversationDAO` gọi `authorizeTutor(studentId, documentId, pageNumber)` của `MaterialAccessDAO` để kiểm tra quyền.
-8. `MaterialAccessDAO` đọc `CourseEnrollment` để kiểm tra trạng thái tham gia lớp là `APPROVED`.
-9. `MaterialAccessDAO` đọc `DocumentPublication` để kiểm tra tài liệu vẫn ở trạng thái `PUBLISHED`.
-10. `MaterialAccessDAO` đọc `CourseMaterial` để kiểm tra loại `SLIDE_PDF`, trạng thái `READY` và đúng phiên bản.
-11. Nếu không còn quyền hoặc tài liệu không hỗ trợ Tutor, `MaterialAccessDAO` trả `ACCESS_DENIED/MATERIAL_NOT_TUTORABLE` về `TutorConversationDAO`.
-12. `TutorConversationDAO` trả lỗi theo hợp đồng về `CourseMaterialTutorDAO`.
-13. `CourseMaterialTutorDAO` yêu cầu `AiTutorView` hiển thị lỗi; luồng dừng và không gọi dịch vụ AI.
-14. Nếu hợp lệ, `MaterialAccessDAO` tạo `PageScope` và trả về `TutorConversationDAO`.
-15. `TutorConversationDAO` gọi `askCourseMaterial(scope, question)` của `AiGatewayDAO` để gửi câu hỏi cùng phạm vi sang dịch vụ AI.
-16. `AiGatewayDAO` gọi `run(scope, question)` của `TutorPipelineDAO` để khởi chạy quy trình hỏi đáp.
-17. `TutorPipelineDAO` gọi `search(scope, question)` của `DocumentIndexDAO` để tìm nội dung liên quan.
-18. `DocumentIndexDAO` đọc `DocumentIndex` để kiểm tra đúng tài liệu, phiên bản và trạng thái chỉ mục.
-19. `DocumentIndexDAO` tìm các `DocumentChunk` trong `allowedPageNumbers` bằng tìm kiếm kết hợp.
-20. `DocumentIndexDAO` gửi câu hỏi tới `Model Provider` để tạo biểu diễn tìm kiếm và xếp hạng lại.
-21. `Model Provider` trả điểm và thứ tự xếp hạng về `DocumentIndexDAO`.
-22. `DocumentIndexDAO` trả `EvidenceSet` kèm số trang về `TutorPipelineDAO`.
-23. Nếu bằng chứng không đủ, `TutorPipelineDAO` trả `NO_EVIDENCE` về `AiGatewayDAO`.
-24. Nếu có bằng chứng, `TutorPipelineDAO` yêu cầu `Model Provider` sinh câu trả lời chỉ từ bằng chứng.
-25. `Model Provider` trả `GeneratedAnswer` và danh sách citation về `TutorPipelineDAO`.
-26. `TutorPipelineDAO` gọi `validate(answer, evidence)` của `GroundingValidationDAO`.
-27. Nếu citation hoặc mức độ bám nguồn không hợp lệ, `GroundingValidationDAO` trả `invalid` về `TutorPipelineDAO`.
-28. `TutorPipelineDAO` chuyển kết quả không hợp lệ thành `NO_EVIDENCE` và trả về `AiGatewayDAO`.
-29. Nếu kết quả hợp lệ, `GroundingValidationDAO` trả `valid` về `TutorPipelineDAO`.
-30. `TutorPipelineDAO` tạo `AnswerResponse(ANSWERED)` và trả về `AiGatewayDAO`.
-31. `AiGatewayDAO` trả `AnswerResponse` về `TutorConversationDAO`.
-32. `TutorConversationDAO` gọi lại `authorizeTutor(...)` của `MaterialAccessDAO` để kiểm tra quyền ngay trước khi trả kết quả.
-33. `MaterialAccessDAO` đọc `DocumentPublication` để xác nhận tài liệu chưa bị thu hồi.
-34. `MaterialAccessDAO` xác nhận quyền hiện tại hợp lệ và trả kết quả về `TutorConversationDAO`.
-35. `TutorConversationDAO` trả `AnswerResponse` về `CourseMaterialTutorDAO`.
-36. `CourseMaterialTutorDAO` gọi `showAnswer(response)` của `AiTutorView`.
-37. `AiTutorView` hiển thị câu trả lời và citation theo trang cho Sinh viên.
-38. Khi Sinh viên chọn một citation, Sinh viên gọi `openCitation(citation)` trên `AiTutorView`.
-39. `AiTutorView` mở đúng trang và hiển thị đoạn nội dung đã được dùng làm nguồn.
+1. Tại `SlideViewerView`, người dùng thực hiện `showPage(pageNumber)`.
+2. Tại `SlideViewerView`, người dùng thực hiện `toggleTutor()`.
+3. `SlideViewerView` gọi `open(documentId, pageNumber)` của `AiTutorView` và chờ bên nhận xử lý.
+4. `AiTutorView` trả `void - đã mở Tutor` về đúng bên gọi là `SlideViewerView`.
+5. Tại `AiTutorView`, người dùng thực hiện `ask(question)`.
+6. `AiTutorView` gọi `ask(documentId, pageNumber, PageQuestion)` của `CourseMaterialTutorDAO` và chờ bên nhận xử lý.
+7. `CourseMaterialTutorDAO` gọi `ask(studentId, documentId, pageNumber, question)` của `TutorConversationDAO` và chờ bên nhận xử lý.
+8. `TutorConversationDAO` gọi `authorizeTutor(studentId, documentId, pageNumber)` của `MaterialAccessDAO` và chờ bên nhận xử lý.
+9. `MaterialAccessDAO` thực hiện thao tác `đọc trạng thái APPROVED` với dữ liệu thực thể `CourseEnrollment` qua tầng lưu trữ.
+10. `CourseEnrollment` trả `EnrollmentSnapshot` về đúng bên gọi là `MaterialAccessDAO`.
+11. `MaterialAccessDAO` thực hiện thao tác `đọc trạng thái công bố` với dữ liệu thực thể `DocumentPublication` qua tầng lưu trữ.
+12. `DocumentPublication` trả `PublicationSnapshot` về đúng bên gọi là `MaterialAccessDAO`.
+13. `MaterialAccessDAO` thực hiện thao tác `đọc SLIDE_PDF, READY và version` với dữ liệu thực thể `CourseMaterial` qua tầng lưu trữ.
+14. `CourseMaterial` trả `MaterialSnapshot` về đúng bên gọi là `MaterialAccessDAO`.
+15. `MaterialAccessDAO` trả `PageScope hoặc lỗi quyền/loại tài liệu` về đúng bên gọi là `TutorConversationDAO`.
+16. Trong trường hợp phạm vi hợp lệ, `TutorConversationDAO` gọi `askCourseMaterial(scope, question)` của `AiGatewayDAO` và chờ bên nhận xử lý.
+17. Trong trường hợp phạm vi hợp lệ, `AiGatewayDAO` gọi `run(scope, question)` của `TutorPipelineDAO` và chờ bên nhận xử lý.
+18. Trong trường hợp phạm vi hợp lệ, `TutorPipelineDAO` gọi `search(scope, question)` của `DocumentIndexDAO` và chờ bên nhận xử lý.
+19. Trong trường hợp phạm vi hợp lệ, `DocumentIndexDAO` thực hiện thao tác `đọc chỉ mục theo document/version` với dữ liệu thực thể `DocumentIndex` qua tầng lưu trữ.
+20. Trong trường hợp phạm vi hợp lệ, `DocumentIndex` trả `IndexSnapshot` về đúng bên gọi là `DocumentIndexDAO`.
+21. Trong trường hợp phạm vi hợp lệ, `DocumentIndexDAO` gửi yêu cầu `embedding(question)` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+22. Trong trường hợp phạm vi hợp lệ, `Model Provider` trả `QueryVector` về đúng bên gọi là `DocumentIndexDAO`.
+23. Trong trường hợp phạm vi hợp lệ, `DocumentIndexDAO` thực hiện thao tác `tìm từ khóa + vector trong scope` với dữ liệu thực thể `DocumentChunk` qua tầng lưu trữ.
+24. Trong trường hợp phạm vi hợp lệ, `DocumentChunk` trả `CandidateChunks` về đúng bên gọi là `DocumentIndexDAO`.
+25. Trong trường hợp phạm vi hợp lệ, `DocumentIndexDAO` gửi yêu cầu `rerank(question, CandidateChunks)` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+26. Trong trường hợp phạm vi hợp lệ, `Model Provider` trả `RankedEvidence` về đúng bên gọi là `DocumentIndexDAO`.
+27. Trong trường hợp phạm vi hợp lệ, `DocumentIndexDAO` trả `EvidenceSet theo trang` về đúng bên gọi là `TutorPipelineDAO`.
+28. Trong trường hợp có bằng chứng, `TutorPipelineDAO` gửi yêu cầu `sinh answer từ evidence` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+29. Trong trường hợp có bằng chứng, `Model Provider` trả `GeneratedAnswer + citations` về đúng bên gọi là `TutorPipelineDAO`.
+30. Trong trường hợp có bằng chứng, `TutorPipelineDAO` gọi `validate(answer, evidence)` của `GroundingValidationDAO` và chờ bên nhận xử lý.
+31. Trong trường hợp có bằng chứng, `GroundingValidationDAO` trả `ValidationResult` về đúng bên gọi là `TutorPipelineDAO`.
+32. Trong trường hợp phạm vi hợp lệ, `TutorPipelineDAO` trả `AnswerResponse` về đúng bên gọi là `AiGatewayDAO`.
+33. Trong trường hợp phạm vi hợp lệ, `AiGatewayDAO` trả `AnswerResponse` về đúng bên gọi là `TutorConversationDAO`.
+34. Trong trường hợp phạm vi hợp lệ, `TutorConversationDAO` gọi `authorizeTutor(studentId, documentId, pageNumber)` của `MaterialAccessDAO` và chờ bên nhận xử lý.
+35. Trong trường hợp phạm vi hợp lệ, `MaterialAccessDAO` thực hiện thao tác `kiểm tra enrollment hiện tại` với dữ liệu thực thể `CourseEnrollment` qua tầng lưu trữ.
+36. Trong trường hợp phạm vi hợp lệ, `CourseEnrollment` trả `trạng thái enrollment` về đúng bên gọi là `MaterialAccessDAO`.
+37. Trong trường hợp phạm vi hợp lệ, `MaterialAccessDAO` thực hiện thao tác `kiểm tra chưa bị thu hồi` với dữ liệu thực thể `DocumentPublication` qua tầng lưu trữ.
+38. Trong trường hợp phạm vi hợp lệ, `DocumentPublication` trả `trạng thái publication` về đúng bên gọi là `MaterialAccessDAO`.
+39. Trong trường hợp phạm vi hợp lệ, `MaterialAccessDAO` thực hiện thao tác `kiểm tra phiên bản và trạng thái hiện tại` với dữ liệu thực thể `CourseMaterial` qua tầng lưu trữ.
+40. Trong trường hợp phạm vi hợp lệ, `CourseMaterial` trả `trạng thái tài liệu` về đúng bên gọi là `MaterialAccessDAO`.
+41. Trong trường hợp phạm vi hợp lệ, `MaterialAccessDAO` trả `PageScope hiện tại hoặc lỗi quyền` về đúng bên gọi là `TutorConversationDAO`.
+42. `TutorConversationDAO` trả `AnswerResponse hoặc lỗi theo contract` về đúng bên gọi là `CourseMaterialTutorDAO`.
+43. `CourseMaterialTutorDAO` trả `AnswerResponse hoặc lỗi theo contract` về đúng bên gọi là `AiTutorView`.
+44. `AiTutorView` hiển thị kết quả cho người dùng.
 
 ### 3.5.6. Thứ tự tạo và duyệt bộ câu hỏi
 
@@ -347,78 +377,82 @@ Trang web chỉ hỏi tình trạng từ hệ thống chính. Mỗi yêu cầu c
 
 #### Diễn giải trình tự Hình 3.12
 
-Tại giao diện tạo Quiz sau khi đăng nhập, Sinh viên hoặc Giảng viên chọn tài liệu nguồn và cấu hình bộ câu hỏi. Trình tự dưới đây ghi rõ View, DAO, Entity và dịch vụ thực hiện từng bước. Các nhánh lỗi, Sinh viên duyệt, Giảng viên duyệt và hết thời gian chờ là các trường hợp thay thế.
+Mũi tên nét liền là lời gọi đồng bộ; nét đứt trả kết quả về đúng bên gọi. Mũi tên đầu mở (`->>`) biểu diễn sự kiện giao diện hoặc công việc bất đồng bộ. Bên gọi chỉ tiếp tục sau khi nhận phản hồi của lời gọi đồng bộ. Một đối tượng đã nhận lại kết quả có thể gọi tiếp đối tượng khác; không bắt buộc mỗi bước phải xuất phát từ đối tượng nhận của bước ngay trước. Mỗi đầu mũi tên gọi và trả về đều gắn với thanh thực thi của bên gửi/nhận. Thanh của một lời gọi kéo dài từ lúc nhận yêu cầu đến lúc trả kết quả, kể cả thời gian chờ lời gọi con; lời gọi lồng vào chính đối tượng được vẽ bằng thanh thực thi lồng. Giao diện, tác nhân và công việc nền có thanh thực thi cho lượt tương tác tương ứng. Chỉ một nhánh `alt` được chạy; số bước liên tục giúp đối chiếu hình, không có nghĩa mọi nhánh đều chạy. Thao tác với Entity là thiết kế trao đổi dữ liệu, không bổ sung phương thức mới cho lớp thực thể.
 
-1. Tại `QuizCreateView`, Sinh viên hoặc Giảng viên gọi `selectDocuments(ids)` để chọn các PDF làm nguồn.
-2. Người dùng gọi `setConstraints(count, difficulty, topic)` trên `QuizCreateView` để đặt số câu, độ khó và chủ đề.
-3. `QuizCreateView` gọi `generate(QuizRequest)` của `QuizDAO` để gửi yêu cầu tạo Quiz.
-4. `QuizDAO` gọi `create(actorId, request)` của `QuizLifecycleDAO` để tạo một yêu cầu sinh Quiz mới.
-5. `QuizLifecycleDAO` gọi `authorizeGeneration(actorId, request)` của `QuizAccessDAO` để kiểm tra quyền và cấu hình.
-6. Với từng nguồn, `QuizAccessDAO` đọc `Document` để kiểm tra chủ sở hữu hoặc trạng thái công bố, trạng thái `READY` và phiên bản.
-7. Nếu quyền hoặc cấu hình không hợp lệ, `QuizAccessDAO` trả lỗi validation/access về `QuizLifecycleDAO`.
-8. `QuizLifecycleDAO` trả lỗi theo hợp đồng về `QuizDAO`.
-9. `QuizDAO` yêu cầu `QuizCreateView` hiển thị lỗi và không tạo công việc AI.
-10. Nếu hợp lệ, `QuizAccessDAO` tạo `AuthorizedScope` và trả về `QuizLifecycleDAO`.
-11. `QuizLifecycleDAO` tạo thực thể `Quiz` với trạng thái `GENERATING` và gắn `runId`.
-12. `QuizLifecycleDAO` tạo `QuizSource` để lưu `documentId`, phiên bản và khoảng trang tại thời điểm yêu cầu.
-13. `QuizLifecycleDAO` gọi `execute(quizId, runId)` của `QuizGenerationJobDAO` để đưa việc sinh Quiz sang xử lý nền.
-14. `QuizLifecycleDAO` trả `AcceptedQuiz(202)` về `QuizDAO`.
-15. `QuizDAO` trả `quizId` và trạng thái `GENERATING` về `QuizCreateView`.
-16. `QuizGenerationJobDAO` gọi `generate(InternalQuizRequest)` của `AiGatewayDAO`.
-17. `AiGatewayDAO` gọi `generate(scope, constraints)` của `QuizGeneratorDAO`.
-18. `QuizGeneratorDAO` gọi `search(scope, constraints)` của `DocumentIndexDAO` để tìm bằng chứng.
-19. `DocumentIndexDAO` đọc `Document` để xác nhận đúng ảnh chụp nguồn đã lưu ở bước 12.
-20. `DocumentIndexDAO` gửi truy vấn tới `Model Provider` để tạo biểu diễn tìm kiếm và xếp hạng lại.
-21. `Model Provider` trả thứ tự các đoạn bằng chứng về `DocumentIndexDAO`.
-22. `DocumentIndexDAO` trả `EvidenceSet` kèm số trang về `QuizGeneratorDAO`.
-23. Nếu bằng chứng không đủ, `QuizGeneratorDAO` trả `NO_EVIDENCE` về `AiGatewayDAO`.
-24. `AiGatewayDAO` trả lỗi sinh nội dung về `QuizGenerationJobDAO`.
-25. `QuizGenerationJobDAO` cập nhật thực thể `Quiz` sang `GENERATION_FAILED`.
-26. Nếu đủ bằng chứng, `QuizGeneratorDAO` yêu cầu `Model Provider` sinh `MCQ_SINGLE` theo JSON Schema và bằng chứng.
-27. `Model Provider` trả `QuizDraft` về `QuizGeneratorDAO`.
-28. `QuizGeneratorDAO` gọi `validate(draft, evidence)` của `QuizValidationDAO`.
-29. Nếu bản nháp sai cấu trúc hoặc không bám nguồn, `QuizValidationDAO` trả `invalid` về `QuizGeneratorDAO`.
-30. `QuizGeneratorDAO` trả lỗi validation về `AiGatewayDAO`.
-31. `AiGatewayDAO` trả lỗi sinh nội dung về `QuizGenerationJobDAO`.
-32. `QuizGenerationJobDAO` cập nhật `Quiz` sang `GENERATION_FAILED`.
-33. Nếu bản nháp hợp lệ, `QuizValidationDAO` trả `valid` về `QuizGeneratorDAO`.
-34. `QuizGeneratorDAO` trả `QuizDraft` về `AiGatewayDAO`.
-35. `AiGatewayDAO` trả `QuizDraft` về `QuizGenerationJobDAO`.
-36. Với từng câu trong bản nháp, `QuizGenerationJobDAO` tạo `QuizQuestion` loại `MCQ_SINGLE` có đúng bốn lựa chọn.
-37. `QuizGenerationJobDAO` tạo `QuizQuestionSource` để lưu `documentId`, `pageNumber` và đoạn trích.
-38. `QuizGenerationJobDAO` cập nhật `Quiz` sang `REVIEW_REQUIRED` sau khi lưu đầy đủ câu hỏi.
-39. `QuizStatusView` gọi `getStatus(quizId)` của `QuizDAO` theo chu kỳ có giới hạn.
-40. `QuizDAO` đọc `Quiz` để lấy trạng thái và danh sách câu hỏi.
-41. Thực thể `Quiz` trả `QuizSummary` về `QuizDAO`.
-42. `QuizDAO` trả `QuizSummary` về `QuizStatusView`.
-43. Nếu trạng thái là `GENERATION_FAILED`, `QuizStatusView` gọi `showFailure(errorCode)` để hiển thị lỗi.
-44. Nếu đây là Quiz cá nhân ở trạng thái `REVIEW_REQUIRED`, `QuizStatusView` gọi `showQuestions(quiz)` của `QuizReviewView`.
-45. Tại `QuizReviewView`, Sinh viên gọi `acceptStudent()` khi đồng ý với bản nháp.
-46. `QuizReviewView` gọi `accept(quizId, AcceptQuizRequest)` của `QuizDAO`.
-47. `QuizDAO` gọi `acceptStudent(studentId, quizId)` của `QuizLifecycleDAO`.
-48. `QuizLifecycleDAO` cập nhật thực thể `Quiz` sang `READY`.
-49. `QuizLifecycleDAO` trả `QuizSummary` về `QuizDAO`.
-50. `QuizDAO` trả trạng thái mới về `QuizReviewView`.
-51. Nếu không sử dụng bản nháp, Sinh viên gọi `reject()` trên `QuizReviewView`.
-52. `QuizReviewView` gọi `reject(quizId)` của `QuizDAO`.
-53. `QuizDAO` gọi `reject(studentId, quizId)` của `QuizLifecycleDAO`.
-54. `QuizLifecycleDAO` cập nhật thực thể `Quiz` sang `REJECTED`.
-55. `QuizLifecycleDAO` trả `QuizSummary` về `QuizDAO`.
-56. `QuizDAO` trả trạng thái đã từ chối về `QuizReviewView`.
-57. Nếu đây là Quiz lớp ở trạng thái `REVIEW_REQUIRED`, `QuizStatusView` gọi `showQuestions(quiz)` của `QuizReviewView` cho Giảng viên.
-58. Tại `QuizReviewView`, Giảng viên gọi `publishTeacher()` khi đồng ý công bố.
-59. `QuizReviewView` gọi `publish(quizId, PublishQuizRequest)` của `QuizDAO`.
-60. `QuizDAO` gọi `publishTeacher(teacherId, quizId)` của `QuizLifecycleDAO`.
-61. `QuizLifecycleDAO` cập nhật thực thể `Quiz` sang `PUBLISHED`.
-62. `QuizLifecycleDAO` trả `QuizSummary` về `QuizDAO`.
-63. `QuizDAO` trả trạng thái đã công bố về `QuizReviewView`.
-64. Nếu không sử dụng bản nháp, Giảng viên gọi `reject()` trên `QuizReviewView`.
-65. `QuizReviewView` gọi `reject(quizId)` của `QuizDAO`.
-66. `QuizDAO` gọi `reject(teacherId, quizId)` của `QuizLifecycleDAO`.
-67. `QuizLifecycleDAO` cập nhật thực thể `Quiz` sang `REJECTED`.
-68. `QuizLifecycleDAO` trả `QuizSummary` về `QuizDAO`.
-69. `QuizDAO` trả trạng thái đã từ chối về `QuizReviewView`.
-70. Nếu vẫn là `GENERATING` sau số lần hỏi giới hạn, `QuizStatusView` gọi `showFailure("POLL_TIMEOUT")`; giao diện chỉ báo hết thời gian chờ và không tạo yêu cầu mới.
+HTTP `202` chỉ xác nhận tiếp nhận. Công việc nền và polling độc lập; khối worker đặt trước khối polling để dễ đọc, không bắt giao diện đợi worker hoàn thành.
+
+1. Tại `QuizCreateView`, người dùng thực hiện `selectDocuments(ids)`.
+2. Tại `QuizCreateView`, người dùng thực hiện `setConstraints(count, difficulty, topic)`.
+3. `QuizCreateView` gọi `generate(QuizRequest)` của `QuizDAO` và chờ bên nhận xử lý.
+4. `QuizDAO` gọi `create(actorId, request)` của `QuizLifecycleDAO` và chờ bên nhận xử lý.
+5. `QuizLifecycleDAO` gọi `authorizeGeneration(actorId, request)` của `QuizAccessDAO` và chờ bên nhận xử lý.
+6. Với mỗi lượt trong vòng lặp, `QuizAccessDAO` thực hiện thao tác `đọc owner, publication, READY và version` với dữ liệu thực thể `Document` qua tầng lưu trữ.
+7. Với mỗi lượt trong vòng lặp, `Document` trả `DocumentSnapshot` về đúng bên gọi là `QuizAccessDAO`.
+8. `QuizAccessDAO` trả `AuthorizedScope hoặc lỗi validation/access` về đúng bên gọi là `QuizLifecycleDAO`.
+9. Trong trường hợp hợp lệ, `QuizLifecycleDAO` thực hiện thao tác `tạo GENERATING + runId` với dữ liệu thực thể `Quiz` qua tầng lưu trữ.
+10. Trong trường hợp hợp lệ, `Quiz` trả `quizId + GENERATING` về đúng bên gọi là `QuizLifecycleDAO`.
+11. Trong trường hợp hợp lệ, `QuizLifecycleDAO` thực hiện thao tác `lưu snapshot tài liệu/phiên bản/phạm vi trang` với dữ liệu thực thể `QuizSource` qua tầng lưu trữ.
+12. Trong trường hợp hợp lệ, `QuizSource` trả `đã lưu QuizSource` về đúng bên gọi là `QuizLifecycleDAO`.
+13. Trong trường hợp hợp lệ, `QuizLifecycleDAO` gửi công việc `execute(quizId, runId)` tới `QuizGenerationJobDAO` theo kiểu bất đồng bộ, không chờ AI sinh xong.
+14. `QuizLifecycleDAO` trả `AcceptedQuiz(202) hoặc lỗi theo contract` về đúng bên gọi là `QuizDAO`.
+15. `QuizDAO` trả `quizId + GENERATING hoặc lỗi` về đúng bên gọi là `QuizCreateView`.
+16. `QuizCreateView` hiển thị tiếp nhận hoặc lỗi cho người dùng.
+17. Trong trường hợp yêu cầu được tiếp nhận (202), `QuizCreateView` chuyển tới `QuizStatusView` để mở theo dõi quizId.
+18. Trong trường hợp có công việc sinh quiz được tiếp nhận, `QuizGenerationJobDAO` gọi `generate(InternalQuizRequest)` của `AiGatewayDAO` và chờ bên nhận xử lý.
+19. Trong trường hợp có công việc sinh quiz được tiếp nhận, `AiGatewayDAO` gọi `generate(scope, constraints)` của `QuizGeneratorDAO` và chờ bên nhận xử lý.
+20. Trong trường hợp có công việc sinh quiz được tiếp nhận, `QuizGeneratorDAO` gọi `search(scope, constraints)` của `DocumentIndexDAO` và chờ bên nhận xử lý.
+21. Trong trường hợp có công việc sinh quiz được tiếp nhận, `DocumentIndexDAO` gửi yêu cầu `embedding(query)` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+22. Trong trường hợp có công việc sinh quiz được tiếp nhận, `Model Provider` trả `QueryVector` về đúng bên gọi là `DocumentIndexDAO`.
+23. Trong trường hợp có công việc sinh quiz được tiếp nhận, `DocumentIndexDAO` gửi yêu cầu `rerank(query, CandidateChunks)` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+24. Trong trường hợp có công việc sinh quiz được tiếp nhận, `Model Provider` trả `RankedEvidence` về đúng bên gọi là `DocumentIndexDAO`.
+25. Trong trường hợp có công việc sinh quiz được tiếp nhận, `DocumentIndexDAO` trả `EvidenceSet theo trang` về đúng bên gọi là `QuizGeneratorDAO`.
+26. Trong trường hợp có bằng chứng, `QuizGeneratorDAO` gửi yêu cầu `sinh MCQ_SINGLE theo JSON Schema + evidence` tới dịch vụ ngoài `Model Provider` và chờ kết quả.
+27. Trong trường hợp có bằng chứng, `Model Provider` trả `QuizDraft` về đúng bên gọi là `QuizGeneratorDAO`.
+28. Trong trường hợp có bằng chứng, `QuizGeneratorDAO` gọi `validate(draft, evidence)` của `QuizValidationDAO` và chờ bên nhận xử lý.
+29. Trong trường hợp có bằng chứng, `QuizValidationDAO` trả `ValidationResult` về đúng bên gọi là `QuizGeneratorDAO`.
+30. Trong trường hợp có công việc sinh quiz được tiếp nhận, `QuizGeneratorDAO` trả `QuizDraft hoặc lỗi sinh nội dung` về đúng bên gọi là `AiGatewayDAO`.
+31. Trong trường hợp có công việc sinh quiz được tiếp nhận, `AiGatewayDAO` trả `QuizDraft hoặc lỗi sinh nội dung` về đúng bên gọi là `QuizGenerationJobDAO`.
+32. Trong trường hợp lỗi sinh nội dung hoặc java không chấp nhận, `QuizGenerationJobDAO` thực hiện thao tác `cập nhật GENERATION_FAILED` với dữ liệu thực thể `Quiz` qua tầng lưu trữ.
+33. Trong trường hợp lỗi sinh nội dung hoặc java không chấp nhận, `Quiz` trả `đã lưu trạng thái thất bại` về đúng bên gọi là `QuizGenerationJobDAO`.
+34. Với mỗi lượt trong vòng lặp, `QuizGenerationJobDAO` thực hiện thao tác `lưu MCQ_SINGLE: 4 options, 1 đáp án` với dữ liệu thực thể `QuizQuestion` qua tầng lưu trữ.
+35. Với mỗi lượt trong vòng lặp, `QuizQuestion` trả `questionId` về đúng bên gọi là `QuizGenerationJobDAO`.
+36. Với mỗi lượt trong vòng lặp, `QuizGenerationJobDAO` thực hiện thao tác `lưu documentId/pageNumber/excerpt` với dữ liệu thực thể `QuizQuestionSource` qua tầng lưu trữ.
+37. Với mỗi lượt trong vòng lặp, `QuizQuestionSource` trả `đã lưu nguồn câu hỏi` về đúng bên gọi là `QuizGenerationJobDAO`.
+38. Trong trường hợp bản nháp hợp lệ và quyền còn hiệu lực, `QuizGenerationJobDAO` thực hiện thao tác `cập nhật REVIEW_REQUIRED` với dữ liệu thực thể `Quiz` qua tầng lưu trữ.
+39. Trong trường hợp bản nháp hợp lệ và quyền còn hiệu lực, `Quiz` trả `đã lưu trạng thái chờ duyệt` về đúng bên gọi là `QuizGenerationJobDAO`.
+40. Với mỗi lượt trong vòng lặp, Bộ hẹn giờ của `QuizStatusView` kích hoạt `poll(quizId)`; chỉ bắt đầu lượt mới khi lượt hỏi trước đã kết thúc.
+41. Với mỗi lượt trong vòng lặp, `QuizStatusView` gọi `getStatus(quizId)` của `QuizDAO` và chờ bên nhận xử lý.
+42. Với mỗi lượt trong vòng lặp, `QuizDAO` thực hiện thao tác `đọc trạng thái và câu hỏi được phép` với dữ liệu thực thể `Quiz` qua tầng lưu trữ.
+43. Với mỗi lượt trong vòng lặp, `Quiz` trả `QuizSummary` về đúng bên gọi là `QuizDAO`.
+44. Với mỗi lượt trong vòng lặp, `QuizDAO` trả `QuizSummary` về đúng bên gọi là `QuizStatusView`.
+45. Trong trường hợp generation_failed hoặc hết lượt chờ, `QuizStatusView` tự thực hiện `showFailure(errorCode)` trước khi tiếp tục.
+46. Trong trường hợp generation_failed hoặc hết lượt chờ, `QuizStatusView` trả `void - đã hiển thị thông báo` về đúng bên gọi là `QuizStatusView`.
+47. Trong trường hợp review_required, `QuizStatusView` gọi `showQuestions(quiz)` của `QuizReviewView` và chờ bên nhận xử lý.
+48. Trong trường hợp review_required, `QuizReviewView` trả `void - đã hiển thị bản nháp` về đúng bên gọi là `QuizStatusView`.
+49. Trong trường hợp student chấp nhận quiz cá nhân, Tại `QuizReviewView`, người dùng thực hiện `acceptStudent()`.
+50. Trong trường hợp student chấp nhận quiz cá nhân, `QuizReviewView` gọi `accept(quizId, AcceptQuizRequest)` của `QuizDAO` và chờ bên nhận xử lý.
+51. Trong trường hợp student chấp nhận quiz cá nhân, `QuizDAO` gọi `acceptStudent(studentId, quizId)` của `QuizLifecycleDAO` và chờ bên nhận xử lý.
+52. Trong trường hợp được phép và quiz còn chờ duyệt, `QuizLifecycleDAO` thực hiện thao tác `cập nhật READY` với dữ liệu thực thể `Quiz` qua tầng lưu trữ.
+53. Trong trường hợp được phép và quiz còn chờ duyệt, `Quiz` trả `QuizSummary` về đúng bên gọi là `QuizLifecycleDAO`.
+54. Trong trường hợp student chấp nhận quiz cá nhân, `QuizLifecycleDAO` trả `QuizSummary hoặc lỗi quyền/trạng thái` về đúng bên gọi là `QuizDAO`.
+55. Trong trường hợp student chấp nhận quiz cá nhân, `QuizDAO` trả `QuizSummary hoặc lỗi quyền/trạng thái` về đúng bên gọi là `QuizReviewView`.
+56. Trong trường hợp student chấp nhận quiz cá nhân, `QuizReviewView` hiển thị kết quả quyết định cho người dùng.
+57. Trong trường hợp teacher công bố quiz lớp, Tại `QuizReviewView`, người dùng thực hiện `publishTeacher()`.
+58. Trong trường hợp teacher công bố quiz lớp, `QuizReviewView` gọi `publish(quizId, PublishQuizRequest)` của `QuizDAO` và chờ bên nhận xử lý.
+59. Trong trường hợp teacher công bố quiz lớp, `QuizDAO` gọi `publishTeacher(teacherId, quizId)` của `QuizLifecycleDAO` và chờ bên nhận xử lý.
+60. Trong trường hợp được phép và quiz còn chờ duyệt, `QuizLifecycleDAO` thực hiện thao tác `cập nhật PUBLISHED` với dữ liệu thực thể `Quiz` qua tầng lưu trữ.
+61. Trong trường hợp được phép và quiz còn chờ duyệt, `Quiz` trả `QuizSummary` về đúng bên gọi là `QuizLifecycleDAO`.
+62. Trong trường hợp teacher công bố quiz lớp, `QuizLifecycleDAO` trả `QuizSummary hoặc lỗi quyền/trạng thái` về đúng bên gọi là `QuizDAO`.
+63. Trong trường hợp teacher công bố quiz lớp, `QuizDAO` trả `QuizSummary hoặc lỗi quyền/trạng thái` về đúng bên gọi là `QuizReviewView`.
+64. Trong trường hợp teacher công bố quiz lớp, `QuizReviewView` hiển thị kết quả quyết định cho người dùng.
+65. Trong trường hợp người tạo từ chối bản nháp, Tại `QuizReviewView`, người dùng thực hiện `reject()`.
+66. Trong trường hợp người tạo từ chối bản nháp, `QuizReviewView` gọi `reject(quizId)` của `QuizDAO` và chờ bên nhận xử lý.
+67. Trong trường hợp người tạo từ chối bản nháp, `QuizDAO` gọi `reject(actorId, quizId)` của `QuizLifecycleDAO` và chờ bên nhận xử lý.
+68. Trong trường hợp được phép và quiz còn chờ duyệt, `QuizLifecycleDAO` thực hiện thao tác `cập nhật REJECTED` với dữ liệu thực thể `Quiz` qua tầng lưu trữ.
+69. Trong trường hợp được phép và quiz còn chờ duyệt, `Quiz` trả `QuizSummary` về đúng bên gọi là `QuizLifecycleDAO`.
+70. Trong trường hợp người tạo từ chối bản nháp, `QuizLifecycleDAO` trả `QuizSummary hoặc lỗi quyền/trạng thái` về đúng bên gọi là `QuizDAO`.
+71. Trong trường hợp người tạo từ chối bản nháp, `QuizDAO` trả `QuizSummary hoặc lỗi quyền/trạng thái` về đúng bên gọi là `QuizReviewView`.
+72. Trong trường hợp người tạo từ chối bản nháp, `QuizReviewView` hiển thị kết quả quyết định cho người dùng.
 
 ### 3.5.7. Luồng chuẩn bị tài liệu
 

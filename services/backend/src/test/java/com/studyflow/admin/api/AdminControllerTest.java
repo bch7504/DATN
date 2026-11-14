@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.studyflow.admin.application.AdminService;
+import com.studyflow.admin.application.TeacherAccountService;
 import com.studyflow.common.api.GlobalExceptionHandler;
 import com.studyflow.common.exception.ValidationException;
 import java.time.Instant;
@@ -38,12 +39,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AdminControllerTest {
     private static final UUID ADMIN = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private AdminService service;
+    private TeacherAccountService teacherAccounts;
     private MockMvc mvc;
 
     /** Args: none. Input: synthetic Admin principal and mocked application service. Output: MVC. Errors: setup failure. */
     @BeforeEach
     void setUp() {
         service = mock(AdminService.class);
+        teacherAccounts=mock(TeacherAccountService.class);
         Jwt jwt = Jwt.withTokenValue("synthetic").header("alg", "none").subject(ADMIN.toString()).build();
         HandlerMethodArgumentResolver resolver = new HandlerMethodArgumentResolver() {
             /** Args: method parameter. Output: true for JWT principal. Errors: none. */
@@ -57,7 +60,7 @@ class AdminControllerTest {
         };
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mvc = MockMvcBuilders.standaloneSetup(new AdminController(service))
+        mvc = MockMvcBuilders.standaloneSetup(new AdminController(service,teacherAccounts))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(mapper))
                 .setCustomArgumentResolvers(resolver).build();
@@ -73,6 +76,17 @@ class AdminControllerTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(1))
                 .andExpect(jsonPath("$.items[0].role").value("ADMIN"))
                 .andExpect(jsonPath("$.items[0].passwordHash").doesNotExist());
+    }
+
+    /** Synthetic valid request returns a safe fixed-role account; invalid input is rejected before persistence. */
+    @Test void createsTeacherWithAssignedSubjectAndNoPasswordInResponse() throws Exception {
+        UUID subject=UUID.randomUUID(),id=UUID.randomUUID();
+        when(teacherAccounts.create(eq(ADMIN),any(),any())).thenReturn(new AdminModels.User(id,"teacher@example.test","teacher.test","Teacher","TEACHER","ACTIVE",Instant.EPOCH,subject,"KTS","Kỹ thuật số"));
+        mvc.perform(post("/api/v1/admin/teachers").contentType(MediaType.APPLICATION_JSON).content("{\"fullName\":\"Teacher\",\"email\":\"teacher@example.test\",\"username\":\"teacher.test\",\"password\":\"Synthetic123!\",\"subjectId\":\""+subject+"\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("TEACHER"))
+                .andExpect(jsonPath("$.subjectId").value(subject.toString())).andExpect(jsonPath("$.password").doesNotExist()).andExpect(jsonPath("$.passwordHash").doesNotExist());
+        mvc.perform(post("/api/v1/admin/teachers").contentType(MediaType.APPLICATION_JSON).content("{\"fullName\":\"Teacher\",\"email\":\"bad\",\"username\":\"x\",\"password\":\"short\"}"))
+                .andExpect(status().isUnprocessableEntity());
     }
 
     /** Args: none. Input: valid Subject body. Output: 201 typed Subject; authenticated actor passed. Errors: assertion failure. */

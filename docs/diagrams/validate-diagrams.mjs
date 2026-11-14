@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateSequenceContract } from "./sequence-contract.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const chapters = ["chuong-1", "chuong-2", "chuong-3"];
@@ -63,12 +64,21 @@ for (const chapter of chapters) {
   }
 
   for (const imageName of images) {
+    const split = imageName.match(/^(sequence-.*)-part-([12])\.png$/);
+    if(split) {
+      assert(sources.includes(`${split[1]}.puml`), `Missing canonical source for ${imageName}`);
+      const png=await fs.readFile(path.join(directory,imageName));
+      assert(png.subarray(1,4).toString()==="PNG" && png.readUInt32BE(16)>100 && png.readUInt32BE(20)>100, `Invalid split image: ${imageName}`);
+      continue;
+    }
     const sourceName = `${imageName.slice(0, -4)}.puml`;
     assert(sources.includes(sourceName), `Missing PUML source for ${imageName}`);
   }
 }
 
-const xmiFiles = allFiles.filter(file => path.extname(file).toLowerCase() === ".xmi");
+// Manually exported reference files belong to the user. Validate the seven
+// canonical exchange outputs without deleting or counting those references.
+const xmiFiles = allFiles.filter(file => path.extname(file).toLowerCase() === ".xmi" && /^chuong-[23]-/.test(path.basename(file)));
 assert.equal(xmiFiles.length, 7, "Expected seven Visual Paradigm XMI exchange files");
 for (const file of xmiFiles) {
   const content = await fs.readFile(file, "utf8");
@@ -112,6 +122,42 @@ for (const [name, minimumMessages] of [
   const content = xmiByName.get(name);
   assert(count(content, /<lifeline /g) > 10, `${name} is missing lifelines`);
   assert(count(content, /<message /g) >= minimumMessages, `${name} is missing sequence messages`);
+}
+
+const report = (await fs.readFile(path.join(root, "../bao-cao/chuong-3-thiet-ke-chi-tiet-va-cai-dat.md"), "utf8")).replaceAll("\r\n", "\n");
+for (const [stem, classStem, xmiName, figure] of [
+  ["sequence-10-personal-rag", "class-04-personal-rag", "chuong-3-sequence-personal-rag.xmi", 10],
+  ["sequence-11-slide-tutor", "class-05-slide-tutor", "chuong-3-sequence-course-material-tutor.xmi", 11],
+  ["sequence-12-quiz", "class-06-quiz", "chuong-3-sequence-quiz.xmi", 12],
+]) {
+  const source = await fs.readFile(path.join(root, "chuong-3", `${stem}.puml`), "utf8");
+  const contract = validateSequenceContract(source);
+  const xmi = xmiByName.get(xmiName);
+  assert(source.includes("' ActivationPolicy: full"), `${stem}: missing full endpoint activation policy`);
+  for (const [message] of xmi.matchAll(/<message\b[\s\S]*?<\/message>/g)) {
+    assert(message.includes("<fromActivation>") && message.includes("<toActivation>"), `${stem}: message endpoint has no execution in XMI`);
+  }
+  assert.equal(count(xmi, /<message [^>]*messageSort="synchCall"/g), contract.calls, `${stem}: synchronous calls lost in XMI`);
+  assert.equal(count(xmi, /<message [^>]*messageSort="reply"/g), contract.replies, `${stem}: replies lost in XMI`);
+  assert.equal(count(xmi, /<message [^>]*messageSort="asynchCall"/g), contract.events, `${stem}: asynchronous messages lost in XMI`);
+  const classSource = await fs.readFile(path.join(root, "chuong-3", `${classStem}.puml`), "utf8");
+  const classes = new Map([...classSource.matchAll(/^class (\w+)[^\n]*\{\r?\n([\s\S]*?)^}/gm)].map(match => [match[1], match[2]]));
+  const participants = new Map([...source.matchAll(/^(boundary|control|entity)\s+"(.*?)"\s+as\s+(\w+)$/gm)].map(match => [match[3], match[2].replace(/^«.*?»\\n/, "").replace(/^:/, "")]));
+  for (const [alias, name] of participants) {
+    if (alias !== "Model") assert(classes.has(name), `${stem}: ${name} is absent from the class diagram`);
+  }
+  for (const match of source.matchAll(/^\w+\s*(?:->>|->)\s*(\w+)\s*(?:\+\+)?\s*:\s*(\w+)\(/gm)) {
+    const [, target, operation] = match;
+    if (!participants.has(target) || target === "Model") continue;
+    const body = classes.get(participants.get(target));
+    assert(new RegExp(`[+\\-#]${operation}\\(`).test(body), `${stem}: ${participants.get(target)}.${operation} is absent from the class diagram`);
+  }
+  const narrative = report.split(`#### Diễn giải trình tự Hình 3.${figure}\n`)[1]?.split(/\n### /)[0];
+  assert(narrative, `${stem}: missing report narrative`);
+  const numbers = [...narrative.matchAll(/^(\d+)\. /gm)].map(match => Number(match[1]));
+  assert.equal(numbers.length, contract.calls + contract.replies + contract.events, `${stem}: report message count differs`);
+  assert(numbers.every((number, index) => number === index + 1), `${stem}: report numbering is not continuous`);
+  console.log(`PASS ${stem}: ${contract.calls} paired calls/returns, ${contract.events} events; class/XMI/report aligned.`);
 }
 
 console.log(`PASS: ${pairs} PUML/PNG pairs and ${xmiFiles.length} XMI exchange files; no SVG, MMD or PDF artifacts.`);
