@@ -27,8 +27,8 @@ public class LocalTeacherAccountsBootstrap implements CommandLineRunner {
             @Value("${studyflow.local-teacher-accounts.password:StudyFlow@123}") String initialPassword) {
         this.jdbc=jdbc;this.store=store;this.accounts=accounts;this.initialPassword=initialPassword;
     }
-    /** Args: ignored startup arguments. Input: existing local Admin, seven seeded subjects and optional teacher.local.
-     * Output: void; atomically creates missing local Teachers, renames the KTS identity preserving UUID/password,
+    /** Args: ignored startup arguments. Input: existing local Admin, seven seeded subjects and optional legacy local Teachers.
+     * Output: void; provisions teacher.a@ptit.edu.vn..teacher.g@ptit.edu.vn as email/username, preserving UUID/password,
      * and transfers only empty classes of other subjects. Existing passwords/resources are never reset/deleted.
      * Errors: missing Admin/catalog, identity conflict, nonempty cross-subject class or persistence failure.
      * Retry: idempotent by username/subject; enable explicitly with --studyflow.local-teacher-accounts.enabled=true. */
@@ -36,25 +36,33 @@ public class LocalTeacherAccountsBootstrap implements CommandLineRunner {
     public void run(String... args) {
         UUID admin=jdbc.query("SELECT id FROM app.users WHERE username='admin.local' AND role='ADMIN' AND status='ACTIVE'",
                 (rs,row)->(UUID)rs.getObject(1)).stream().findFirst().orElseThrow(()->new IllegalStateException("Local Admin is required."));
-        UUID legacy=jdbc.query("SELECT id FROM app.users WHERE username IN ('teacher.local','teacher.kts.local') AND role='TEACHER' AND lower(email) LIKE '%@studyflow.local' ORDER BY username",
+        UUID legacy=jdbc.query("SELECT id FROM app.users WHERE username IN ('teacher.local','teacher.kts.local','teacher.c','teacher.c@ptit.edu.vn','teacher.local@studyflow.local','teacher.kts.local@studyflow.local') AND role='TEACHER' ORDER BY username",
                 (rs,row)->(UUID)rs.getObject(1)).stream().findFirst().orElse(null);
-        for(String[] seed:List.of(new String[]{"GT2","gt2"},new String[]{"KTCT","ktct"},new String[]{"KTS","kts"},
-                new String[]{"ENG-C1","engc1"},new String[]{"THCS2","thcs2"},new String[]{"VL-TN1","vltn1"},new String[]{"XSTK","xstk"})) {
+        for(String[] seed:List.of(new String[]{"GT2","gt2","a"},new String[]{"KTCT","ktct","b"},new String[]{"KTS","kts","c"},
+                new String[]{"ENG-C1","engc1","d"},new String[]{"THCS2","thcs2","e"},new String[]{"VL-TN1","vltn1","f"},new String[]{"XSTK","xstk","g"})) {
             UUID subject=jdbc.query("SELECT id FROM app.subjects WHERE code=? AND status='ACTIVE'",(rs,row)->(UUID)rs.getObject(1),seed[0]).stream().findFirst().orElseThrow();
-            String username="teacher."+seed[1]+".local";
-            UUID id=jdbc.query("SELECT id FROM app.users WHERE username=? AND role='TEACHER'",(rs,row)->(UUID)rs.getObject(1),username).stream().findFirst().orElse(null);
+            String legacyUsername="teacher."+seed[2];
+            String email=legacyUsername+"@ptit.edu.vn";
+            String username=email;
+            String fullName="Giảng viên "+seed[2].toUpperCase(java.util.Locale.ROOT);
+            List<UUID> matches=jdbc.query("SELECT id FROM app.users WHERE username IN (?,?,?,?) AND role='TEACHER'",
+                    (rs,row)->(UUID)rs.getObject(1),username,legacyUsername,"teacher."+seed[1]+".local","teacher."+seed[1]+".local@studyflow.local");
+            if(matches.size()>1) throw new IllegalStateException("Multiple local Teacher identities exist for one subject.");
+            UUID id=matches.stream().findFirst().orElse(null);
             if("KTS".equals(seed[0]) && id==null && legacy!=null) {
-                if(store.accountIdentifierExists(username+"@studyflow.local",username)) throw new IllegalStateException("KTS local identity is already used.");
-                jdbc.update("UPDATE app.users SET username=?,email=?,full_name='Giảng viên Kỹ thuật số',teacher_subject_id=?,updated_at=NOW() WHERE id=?",username,username+"@studyflow.local",subject,legacy);
-                jdbc.update("UPDATE app.refresh_tokens SET revoked_at=NOW() WHERE user_id=? AND revoked_at IS NULL",legacy);
                 id=legacy;
             }
             if(id==null) {
-                String title=store.subject(subject).orElseThrow().name();
-                id=accounts.create(admin,new AdminModels.CreateTeacher("Giảng viên "+title,username+"@studyflow.local",username,initialPassword,subject),"local-teacher-setup").id();
+                id=accounts.create(admin,new AdminModels.CreateTeacher(fullName,email,username,initialPassword,subject),"local-teacher-setup").id();
             } else {
                 jdbc.update("UPDATE app.users SET teacher_subject_id=? WHERE id=? AND (teacher_subject_id IS NULL OR teacher_subject_id=?)",subject,id,subject);
                 if(!subject.equals(store.user(id).orElseThrow().subjectId())) throw new IllegalStateException("Existing local Teacher has another subject.");
+                Long conflicts=jdbc.queryForObject("SELECT COUNT(*) FROM app.users WHERE id<>? AND (lower(username) IN (?,?) OR lower(email) IN (?,?))",
+                        Long.class,id,username,email,username,email);
+                if(conflicts!=null && conflicts>0) throw new IllegalStateException("Local Teacher identity is already used.");
+                int renamed=jdbc.update("UPDATE app.users SET username=?,email=?,full_name=?,updated_at=NOW() WHERE id=? AND (username<>? OR email<>? OR full_name<>?)",
+                        username,email,fullName,id,username,email,fullName);
+                if(renamed>0) jdbc.update("UPDATE app.refresh_tokens SET revoked_at=NOW() WHERE user_id=? AND revoked_at IS NULL",id);
             }
             if(legacy!=null && !legacy.equals(id)) {
                 jdbc.update("""

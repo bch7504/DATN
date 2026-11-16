@@ -1,5 +1,45 @@
 # StudyFlow Spring Boot Backend
 
+## Tài khoản Giảng viên demo — cập nhật 16/11/2026
+
+Bộ nạp opt-in `--studyflow.local-teacher-accounts.enabled=true` dùng các định danh sau.
+Đây là email mẫu cho dữ liệu local, không khẳng định các hộp thư có thật tại PTIT.
+
+| Tên hiển thị | Username | Email | Môn phụ trách |
+|---|---|---|---|
+| Giảng viên A | `teacher.a@ptit.edu.vn` | `teacher.a@ptit.edu.vn` | Giải tích 2 |
+| Giảng viên B | `teacher.b@ptit.edu.vn` | `teacher.b@ptit.edu.vn` | Kinh tế chính trị |
+| Giảng viên C | `teacher.c@ptit.edu.vn` | `teacher.c@ptit.edu.vn` | Kỹ thuật số |
+| Giảng viên D | `teacher.d@ptit.edu.vn` | `teacher.d@ptit.edu.vn` | Tiếng Anh C1 |
+| Giảng viên E | `teacher.e@ptit.edu.vn` | `teacher.e@ptit.edu.vn` | Tin học cơ sở 2 |
+| Giảng viên F | `teacher.f@ptit.edu.vn` | `teacher.f@ptit.edu.vn` | Vật lí thí nghiệm 1 |
+| Giảng viên G | `teacher.g@ptit.edu.vn` | `teacher.g@ptit.edu.vn` | Xác suất thống kê |
+
+Bộ nạp nhận cả username local cũ theo môn để đổi tên tại chỗ, giữ UUID, mật khẩu,
+môn và tài nguyên. Gặp định danh trùng hoặc sai môn sẽ hủy transaction; chạy lại không
+tạo bản sao hoặc đặt lại mật khẩu. Mật khẩu demo hiện có vẫn là `StudyFlow@123`.
+Chỉ chạy trong profile local; không dùng các tài khoản này trên môi trường public.
+
+Mười tài khoản Sinh viên demo: bật riêng `--studyflow.local-student-accounts.enabled=true`
+trong profile local để tạo username và email đầy đủ `student.a@stu.ptit.edu.vn` đến
+`student.j@stu.ptit.edu.vn`, tên **Sinh viên A** đến **Sinh viên J**. Mật khẩu khởi tạo mặc định
+là `StudyFlow@123`. Đây là dữ liệu demo, không gửi OTP hoặc khẳng định hộp thư có thật.
+Bộ nạp yêu cầu `admin.local` đang hoạt động; chỉ tạo tài khoản còn thiếu, không đặt lại
+mật khẩu, không tự tham gia lớp và hủy toàn bộ transaction nếu có định danh trùng.
+
+V33 chuẩn hóa username của Student/Teacher hiện có bằng chính email, giữ UUID/mật khẩu/tài nguyên;
+chỉ thu hồi refresh token của tài khoản đổi tên. Tài khoản đăng ký mới sau OTP cũng dùng
+email đầy đủ làm username. Backend kiểm miền chính xác `stu.ptit.edu.vn` khi đăng ký,
+verify và gửi lại OTP; đăng nhập vẫn tra cứu email hoặc username đã lưu, không áp quy tắc
+miền sinh viên cho Teacher/Admin. Username cột DB hỗ trợ đủ 254 ký tự như email.
+Teacher mới do Admin tạo cũng dùng email chuẩn hóa làm username; trường username nhận
+email trùng tài khoản hoặc tên ngắn kiểu cũ để tương thích form, nhưng giá trị lưu luôn là email.
+
+Sau lần dọn Supabase ngày 16/11 ([SPEC-17](../../docs/specs/17-cleanup-unused-demo-accounts.md)),
+còn 19 tài khoản: 7 Teacher A–G, 10 Student A–J, `student.local@stu.ptit.edu.vn` giữ lịch sử
+học/demo và `admin.local`. Đã bỏ 8 tài khoản E2E và 3 StudyFlow cũ không có dữ liệu cần giữ;
+không bật lại seeder trên database chung để tạo tài khoản thử nghiệm.
+
 ### Kho tệp PDF local (S3-compatible)
 
 Backend chỉ bật upload khi `STORAGE_ENABLED=true` và có đủ `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`. Có thể dùng SeaweedFS S3 API trên Docker cho môi trường local (endpoint `http://127.0.0.1:8333`, bucket `studyflow-documents`) để thử upload/download qua Java. Chạy `./scripts/storage.ps1 start`, sau đó bật `AI_ALLOW_INSECURE_LOCAL_STORAGE_URL=true` cho cả Java và Python để cho phép signed URL HTTP chỉ trên loopback. Production vẫn bắt buộc HTTPS và phải giữ cờ này ở `false`. Tạo access key và secret key ngẫu nhiên, giữ ngoài repository; đặt cùng giá trị vào container (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) và môi trường chạy backend (`STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`). Đặt `S3_BUCKET=studyflow-documents` cho container để tạo bucket. Khởi động lại backend sau khi thêm biến môi trường; terminal đã mở trước đó có thể cần mở lại để nhận biến mới. Không bật cấu hình local này cho production.

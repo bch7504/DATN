@@ -1,6 +1,6 @@
 """Bounded HTTP downloader for short-lived document URLs."""
 
-from urllib.parse import ParseResult, urlparse
+from urllib.parse import ParseResult, unquote, urlparse
 
 import httpx
 
@@ -19,15 +19,15 @@ def validate_storage_url(
 
     Args:
         url: Absolute signed object URL supplied by Java.
-        allowed_origin: Deployment-owned Object Storage origin.
+        allowed_origin: Deployment-owned Object Storage endpoint, optionally with a path prefix.
         allow_insecure_local_http: Development opt-in for loopback HTTP only.
 
     Returns:
-        None when scheme, host and port are allowed.
+        None when scheme, host, port and configured path prefix are allowed.
 
     Raises:
         ValueError: If either URL is malformed, crosses origin, uses userinfo,
-            or attempts non-loopback HTTP.
+            attempts path traversal, leaves the endpoint prefix or uses non-loopback HTTP.
     """
 
     origin = urlparse(allowed_origin)
@@ -56,6 +56,9 @@ def validate_storage_url(
         origin_port,
     ):
         raise ValueError("signed URL is outside the configured Object Storage origin")
+    prefix = origin.path.rstrip("/")
+    if prefix and candidate.path != prefix and not candidate.path.startswith(prefix + "/"):
+        raise ValueError("signed URL is outside the configured Object Storage path")
 
 
 def _validate_absolute_storage_url(
@@ -71,7 +74,7 @@ def _validate_absolute_storage_url(
         parsed: urllib ParseResult produced from a configured or signed URL.
         label: Safe field label used in validation errors.
         allow_insecure_local_http: Development opt-in for loopback HTTP only.
-        require_origin_path: Whether path/query/fragment must be empty like an origin.
+        require_origin_path: Whether this is the configured endpoint; its query must be empty.
 
     Returns:
         None for an allowed URL.
@@ -88,8 +91,11 @@ def _validate_absolute_storage_url(
         raise ValueError(f"{label} cannot include userinfo or a fragment")
     if scheme == "http" and not (allow_insecure_local_http and hostname in _LOOPBACK_HOSTS):
         raise ValueError(f"{label} must use HTTPS unless loopback HTTP is explicitly enabled")
-    if require_origin_path and (parsed.path not in {"", "/"} or parsed.query):
-        raise ValueError("Object Storage origin cannot include a path or query")
+    if require_origin_path and parsed.query:
+        raise ValueError("Object Storage endpoint cannot include a query")
+    decoded_path = unquote(parsed.path)
+    if "\\" in decoded_path or any(segment in {".", ".."} for segment in decoded_path.split("/")):
+        raise ValueError("Object Storage path cannot include traversal segments")
 
 
 class HttpDocumentDownloadClient(DocumentDownloadClient):

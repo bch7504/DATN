@@ -30,8 +30,10 @@ public class TeacherAccountService {
 
     /**
      * Args: authenticated Admin UUID, full account input and safe request trace.
-     * Input: valid unique email/username, password 8..72 UTF-8 bytes, existing ACTIVE subject.
-     * Output: safe ACTIVE/TEACHER User with one subject; inserts account and audit atomically.
+     * Input: valid unique email, matching-email username or legacy short username for compatibility,
+     * password 8..72 UTF-8 bytes and existing ACTIVE subject.
+     * Output: safe ACTIVE/TEACHER User with username equal to normalized email and one subject;
+     * inserts account and audit atomically. A different email in username is rejected.
      * Errors: 422 INVALID_TEACHER_ACCOUNT, 404 SUBJECT_NOT_FOUND,
      * 409 SUBJECT_INACTIVE/ACCOUNT_IDENTIFIER_EXISTS; no plaintext password in output/audit.
      */
@@ -43,7 +45,11 @@ public class TeacherAccountService {
             throw new ValidationException("INVALID_TEACHER_ACCOUNT", "Kiểm tra họ tên, email, tên đăng nhập, mật khẩu và môn phụ trách.");
         }
         String email=input.email().strip().toLowerCase(Locale.ROOT);
-        String username=input.username().strip().toLowerCase(Locale.ROOT);
+        String suppliedUsername=input.username().strip().toLowerCase(Locale.ROOT);
+        if(suppliedUsername.contains("@") && !suppliedUsername.equals(email)) {
+            throw new ValidationException("INVALID_TEACHER_ACCOUNT", "Tên đăng nhập phải khớp email tài khoản.");
+        }
+        String username=email;
         AdminModels.Subject subject=store.subjectForTeacherCreation(input.subjectId()).orElseThrow(
                 ()->new ApiException(HttpStatus.NOT_FOUND,"SUBJECT_NOT_FOUND","Không tìm thấy môn học."));
         if (!"ACTIVE".equals(subject.status())) throw new ApiException(HttpStatus.CONFLICT,"SUBJECT_INACTIVE","Môn học không còn hoạt động.");

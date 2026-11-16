@@ -35,10 +35,11 @@ class TeacherAccountServiceTest {
     private AdminModels.CreateTeacher input(String password) {return new AdminModels.CreateTeacher("Synthetic teacher","Teacher@Example.test","Teacher.Test",password,subjectId);}
     @Test void createsFixedRoleHashedPasswordAndOneSubjectWithSafeAudit() {
         when(hasher.hash("Synthetic123!")).thenReturn("encoded-test");
-        when(store.user(any())).thenAnswer(call->Optional.of(new AdminModels.User(call.getArgument(0),"teacher@example.test","teacher.test","Synthetic teacher","TEACHER","ACTIVE",Instant.EPOCH,subjectId,"KTS","Kỹ thuật số")));
+        when(store.user(any())).thenAnswer(call->Optional.of(new AdminModels.User(call.getArgument(0),"teacher@example.test","teacher@example.test","Synthetic teacher","TEACHER","ACTIVE",Instant.EPOCH,subjectId,"KTS","Kỹ thuật số")));
         var result=service.create(actor,input("Synthetic123!"),"req-test");
         assertThat(result.role()).isEqualTo("TEACHER");assertThat(result.subjectId()).isEqualTo(subjectId);
-        verify(store).insertTeacher(eq(result.id()),eq("teacher@example.test"),eq("teacher.test"),eq("Synthetic teacher"),eq("encoded-test"),eq(subjectId),eq(Instant.EPOCH));
+        assertThat(result.username()).isEqualTo(result.email());
+        verify(store).insertTeacher(eq(result.id()),eq("teacher@example.test"),eq("teacher@example.test"),eq("Synthetic teacher"),eq("encoded-test"),eq(subjectId),eq(Instant.EPOCH));
         verify(store).audit(actor,"TEACHER_CREATED","USER",result.id(),"SUCCESS","req-test",Instant.EPOCH);
         assertThat(input("Synthetic123!").toString()).doesNotContain("Synthetic123!");
     }
@@ -54,5 +55,19 @@ class TeacherAccountServiceTest {
         when(store.subjectForTeacherCreation(subjectId)).thenReturn(Optional.of(new AdminModels.Subject(subjectId,"KTS","Kỹ thuật số",3,null,"INACTIVE")));
         assertThatThrownBy(()->service.create(actor,input("Synthetic123!"),"req")).isInstanceOf(ApiException.class).hasMessageContaining("không còn hoạt động");
         verifyNoInteractions(hasher);
+    }
+    /** Args: none. Output: void; mismatched full-email username is rejected before persistence. */
+    @Test void rejectsUsernameEmailDifferentFromAccountEmail() {
+        var input=new AdminModels.CreateTeacher("Synthetic teacher","teacher@example.test","other@example.test","Synthetic123!",subjectId);
+        assertThatThrownBy(()->service.create(actor,input,"req")).isInstanceOf(ApiException.class);
+        verifyNoInteractions(hasher);
+        verify(store,never()).insertTeacher(any(),any(),any(),any(),any(),any(),any());
+    }
+    /** Args: none. Output: void; matching full-email input is normalized and accepted. */
+    @Test void acceptsMatchingFullEmailUsername() {
+        var input=new AdminModels.CreateTeacher("Synthetic teacher","Teacher@Example.test","Teacher@Example.test","Synthetic123!",subjectId);
+        when(hasher.hash("Synthetic123!")).thenReturn("encoded-test");
+        when(store.user(any())).thenAnswer(call->Optional.of(new AdminModels.User(call.getArgument(0),"teacher@example.test","teacher@example.test","Synthetic teacher","TEACHER","ACTIVE",Instant.EPOCH,subjectId,"KTS","Kỹ thuật số")));
+        assertThat(service.create(actor,input,"req").username()).isEqualTo("teacher@example.test");
     }
 }

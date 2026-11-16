@@ -14,6 +14,7 @@
 | ADM-FR-008 | Danh sách/chi tiết người dùng hiển thị môn phụ trách của Teacher; Student/Admin không có môn phụ trách Teacher. |
 | ADM-BR-001 | Admin duyệt/từ chối yêu cầu mở lớp; lớp được giao đúng Teacher gửi yêu cầu và đúng môn đã phân công, không đổi sang Teacher/môn khác lúc duyệt. |
 | ADM-BR-002 | Tài khoản tạo từ chức năng Giảng viên luôn là TEACHER/ACTIVE. Không nâng Student lên Teacher qua sửa role; mỗi Teacher chỉ phụ trách một môn. |
+| ADM-BR-003 | Teacher mới dùng email chuẩn hóa làm username; field username nhận email trùng tài khoản hoặc tên ngắn cũ để tương thích form. Nếu gửi một email khác trong username thì từ chối. Xem SPEC-16. |
 | ADM-PRI-001 | Admin không mặc định xem Personal Document/chat/Note/Quiz answer cá nhân. |
 
 ## 2. API chính

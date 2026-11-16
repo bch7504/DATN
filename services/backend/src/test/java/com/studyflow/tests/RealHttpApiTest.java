@@ -1069,11 +1069,12 @@ class RealHttpApiTest {
         expect(send("POST","/api/v1/admin/teachers",teacher,input),403);
         JsonNode created=expect(send("POST","/api/v1/admin/teachers",admin,input),201);
         assertThat(created.path("role").asText()).isEqualTo("TEACHER");
+        assertThat(created.path("username").asText()).isEqualTo(username+"@example.test");
         assertThat(created.path("subjectId").asText()).isEqualTo(subjectId.toString());
         assertThat(created.has("password")).isFalse();assertThat(created.has("passwordHash")).isFalse();
         expect(send("POST","/api/v1/admin/teachers",admin,input),409);
         expect(send("POST","/api/v1/admin/teachers",admin,Map.of("fullName","T","email","invalid","username","x","password","short","subjectId",subjectId)),422);
-        HttpResponse<byte[]> login=send("POST","/api/v1/auth/login",null,Map.of("identifier",username,"password",PASSWORD));
+        HttpResponse<byte[]> login=send("POST","/api/v1/auth/login",null,Map.of("identifier",username+"@example.test","password",PASSWORD));
         expect(login,204);String session=login.headers().allValues("set-cookie").stream().map(value->value.split(";",2)[0]).collect(java.util.stream.Collectors.joining("; "));
         assertThat(expect(send("GET","/api/v1/teacher/subject",session,null),200).path("id").asText()).isEqualTo(subjectId.toString());
         expect(send("PATCH","/api/v1/admin/users/"+created.path("id").asText(),admin,Map.of("role","ADMIN","status","ACTIVE")),422);

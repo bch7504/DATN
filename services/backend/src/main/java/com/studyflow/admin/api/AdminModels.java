@@ -25,11 +25,13 @@ public final class AdminModels {
     }
     /** Only status may change. Legacy role field is explicitly rejected by the service. */
     public record UserUpdate(String role, String status) { }
-    /** Admin-only account input; password is never rendered by toString or returned in a response. */
+    /** Admin-only account input; username accepts the matching full email or a legacy short name.
+     * The service stores normalized email as username; password is never rendered or returned. */
     public record CreateTeacher(
             @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max=100) String fullName,
             @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Email @jakarta.validation.constraints.Size(max=254) String email,
-            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Pattern(regexp="[A-Za-z0-9][A-Za-z0-9._-]{2,99}") String username,
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max=254)
+            @jakarta.validation.constraints.Pattern(regexp="(?:[A-Za-z0-9][A-Za-z0-9._-]{2,99}|[^\\s@]+@[^\\s@]+)") String username,
             @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(min=8,max=72) String password,
             @jakarta.validation.constraints.NotNull UUID subjectId) {
         /** Args: none. Output: fixed redacted description; errors: none. */

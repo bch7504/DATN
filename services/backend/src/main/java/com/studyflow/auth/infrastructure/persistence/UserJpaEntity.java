@@ -22,7 +22,7 @@ class UserJpaEntity {
     @Column(nullable = false, length = 254)
     private String email;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 254)
     private String username;
 
     @Column(name = "password_hash", nullable = false, length = 100)

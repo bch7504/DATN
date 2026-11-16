@@ -3,7 +3,34 @@
 import httpx
 import pytest
 
-from app.clients.http_document_download import HttpDocumentDownloadClient
+from app.clients.http_document_download import HttpDocumentDownloadClient, validate_storage_url
+
+
+@pytest.mark.anyio
+async def test_downloader_accepts_supabase_endpoint_prefix() -> None:
+    """Args: none. Output: void; valid endpoint prefix preserves synthetic PDF bytes."""
+    async with httpx.AsyncClient(transport=httpx.MockTransport(_response)) as client:
+        downloader = HttpDocumentDownloadClient(
+            allowed_origin="https://project.storage.supabase.co/storage/v1/s3", client=client
+        )
+        content = await downloader.download(
+            signed_url="https://project.storage.supabase.co/storage/v1/s3/bucket/test.pdf?signature=fake",
+            max_bytes=1024,
+        )
+    assert content == b"%PDF-synthetic"
+
+
+@pytest.mark.parametrize("path", [
+    "/storage/v1/other/file.pdf", "/storage/v1/s3-other/file.pdf",
+    "/storage/v1/s3/%2e%2e/private.pdf", "/storage/v1/s3/a%5c..%5cfile.pdf",
+])
+def test_storage_endpoint_rejects_namespace_escape(path: str) -> None:
+    """Args: unsafe synthetic path. Output: void; namespace/traversal escapes fail before I/O."""
+    with pytest.raises(ValueError):
+        validate_storage_url(
+            url="https://project.storage.supabase.co" + path,
+            allowed_origin="https://project.storage.supabase.co/storage/v1/s3",
+        )
 
 
 def _response(request: httpx.Request) -> httpx.Response:

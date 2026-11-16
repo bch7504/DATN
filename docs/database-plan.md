@@ -32,6 +32,7 @@ PostgreSQL là nguồn dữ liệu trung tâm. Java/Flyway sở hữu schema `ap
 `id`, `email`, `username`, `password_hash`, `full_name`, `time_zone`, `role (STUDENT|TEACHER|ADMIN)`, `status (ACTIVE|LOCKED)`, `email_verified_at`, nullable `teacher_subject_id` (FK tới `subjects.id`), timestamps.
 
 - Unique `email`, `username`.
+- V33: `username VARCHAR(254)`; Student/Teacher dùng chính email đầy đủ làm username, Admin giữ username hiện có. Migration không sửa ID/email/password/role hoặc quan hệ tài nguyên; xung đột định danh với tài khoản khác làm rollback và chỉ refresh token của tài khoản đổi tên bị thu hồi.
 - Public registration luôn tạo `STUDENT`.
 - `time_zone` là IANA zone hợp lệ, mặc định `Asia/Ho_Chi_Minh`; Java dùng để chốt local date cho Streak/Daily Goal.
 - Không đổi role qua API sửa tài khoản. Khóa Teacher phải kiểm Course Offering đang active và thu hồi session theo policy.

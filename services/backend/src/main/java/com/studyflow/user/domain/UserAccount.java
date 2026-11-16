@@ -23,7 +23,9 @@ public record UserAccount(
      * @param passwordHash BCrypt password hash
      * @param fullName non-blank display name
      * @param now creation and verification instant
-     * @return a new active Student account with the default time zone
+     * @return a new active Student account whose username is the full normalized email,
+     *         with the default time zone; no persistence or email delivery side effects
+     * @throws IllegalArgumentException if an email is missing; caller validates its institutional domain
      */
     public static UserAccount verifiedStudent(
             String email,
@@ -31,7 +33,10 @@ public record UserAccount(
             String fullName,
             Instant now
     ) {
-        String username = email.substring(0, email.indexOf('@'));
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("A normalized Student email is required.");
+        }
+        String username = email;
         return new UserAccount(
                 UUID.randomUUID(),
                 email,

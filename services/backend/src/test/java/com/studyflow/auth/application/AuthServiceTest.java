@@ -176,6 +176,7 @@ class AuthServiceTest {
         ArgumentCaptor<UserAccount> account = ArgumentCaptor.forClass(UserAccount.class);
         verify(users).save(account.capture());
         assertThat(account.getValue().email()).isEqualTo(challenge.email());
+        assertThat(account.getValue().username()).isEqualTo(challenge.email());
         assertThat(account.getValue().role().name()).isEqualTo("STUDENT");
         assertThat(account.getValue().status().name()).isEqualTo("ACTIVE");
 

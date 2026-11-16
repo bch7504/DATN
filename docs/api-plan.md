@@ -6,6 +6,14 @@ Kho Ôn tập theo lớp chỉ trả Quiz `creatorRole=STUDENT`, `createdBy` b�
 
 Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1`; Python chỉ mở `/internal/v1` cho Java.
 
+### Cấu hình triển khai Supabase — 16/11/2026
+
+Không đổi schema request/response public hoặc internal. `STORAGE_ENDPOINT` phía server hỗ trợ HTTPS
+có path prefix như `/storage/v1/s3`. `signedUrl` trong request index vẫn phải cùng scheme/host/port,
+nằm trong prefix cấu hình và không chứa traversal; redirect vẫn bị chặn. Sai URL trả
+`422 INVALID_SIGNED_URL` theo envelope hiện có. Java giữ nguyên kiểm quyền, ký URL ngắn hạn;
+không đưa database/S3 credentials xuống Next.js. Runtime dùng role riêng cho `app` và `ai`.
+
 ## 1. Quy ước chung
 
 - Role: `STUDENT|TEACHER|ADMIN`.
@@ -45,6 +53,19 @@ Contract mục tiêu theo Flow MVP v1.0. Browser chỉ gọi Java tại `/api/v1
 - Lỗi envelope chuẩn: `401|403`, `404 OPENING_REQUEST_NOT_FOUND|SUBJECT_NOT_FOUND|SEMESTER_NOT_FOUND`, `409 OPENING_REQUEST_ALREADY_REVIEWED|DUPLICATE_OPENING_REQUEST|SUBJECT_DETAILS_CONFLICT|TEACHER_NOT_ACTIVE|SEMESTER_NOT_ACTIVE|COURSE_CODE_EXISTS`, `422 VALIDATION_FAILED|INVALID_OPENING_REQUEST|INVALID_PAGE|INVALID_FILTER`. Duyệt lặp/đồng thời chỉ tạo tối đa một lớp; yêu cầu chưa duyệt không xuất hiện trong API lớp/học liệu Student. Lớp đã hoạt động trước thay đổi được giữ nguyên.
 
 ## 2. Auth và profile
+
+### Định danh đầy đủ — SPEC-16, 16/11/2026
+
+`username` lưu cho `STUDENT` và `TEACHER` bằng email đầy đủ của tài khoản, tối đa 254 ký tự.
+Student đăng ký sau OTP và Teacher do Admin tạo mới đều theo quy tắc này; V33 chuẩn hóa tài khoản
+hiện có, giữ ID/email/password/role và mọi tham chiếu, thu hồi refresh token của tài khoản đổi tên.
+Admin giữ username cũ. Login vẫn nhận `{identifier,password}` và tra email/username đã lưu,
+không tự nối đuôi vào tên ngắn. Không đổi HTTP status/error envelope của login.
+
+Đăng ký Student kiểm chính xác miền `stu.ptit.edu.vn` (hoặc miền được cấu hình), kể cả verify/resend;
+sai miền trả `422 EMAIL_DOMAIN_NOT_ALLOWED`. Không áp miền Student này cho Teacher/Admin khi login.
+Email Teacher do Admin cung cấp được kiểm định dạng, độ dài và trùng định danh; không thêm chính sách
+bắt buộc miền Teacher mới trong lần này. Các tài khoản demo Teacher A–G có email `@ptit.edu.vn`.
 
 | Method | Endpoint | Contract |
 |---|---|---|
@@ -508,7 +529,7 @@ Kho là lớp phân loại riêng của Teacher, không thay thế vòng đời 
 
 ### SPEC-13 — Tạo Giảng viên và phân công một môn (14/11/2026)
 
-- `POST /api/v1/admin/teachers`: chỉ Admin; body `{fullName,email,username,password,subjectId}`. Họ tên 1–100 ký tự, email hợp lệ tối đa 254 ký tự, username 3–100 ký tự gồm chữ/số/`.`/`_`/`-`, password ít nhất 8 ký tự, tối đa 72 byte UTF-8 và không được ghi log; subjectId là UUID của môn ACTIVE. Role luôn là TEACHER, trạng thái ACTIVE; không nhận role từ client. Trả `201 User`, không trả mật khẩu/hash. Tạo tài khoản, gắn đúng một môn và ghi audit trong một transaction. Lỗi `401|403`, `404 SUBJECT_NOT_FOUND`, `409 ACCOUNT_IDENTIFIER_EXISTS|SUBJECT_INACTIVE`, `422 INVALID_TEACHER_ACCOUNT`.
+- `POST /api/v1/admin/teachers`: chỉ Admin; body `{fullName,email,username,password,subjectId}`. Họ tên 1–100 ký tự, email hợp lệ tối đa 254 ký tự. Username input nhận email trùng email tài khoản (tối đa 254 ký tự) hoặc tên ngắn cũ 3–100 ký tự gồm chữ/số/`.`/`_`/`-` để tương thích form; username lưu/trả về luôn bằng email chuẩn hóa. Gửi username dạng email khác email tài khoản trả `422 INVALID_TEACHER_ACCOUNT`. Password ít nhất 8 ký tự, tối đa 72 byte UTF-8 và không được ghi log; subjectId là UUID của môn ACTIVE. Role luôn là TEACHER, trạng thái ACTIVE; không nhận role từ client. Trả `201 User`, không trả mật khẩu/hash. Tạo tài khoản, gắn đúng một môn và ghi audit trong một transaction. Lỗi `401|403`, `404 SUBJECT_NOT_FOUND`, `409 ACCOUNT_IDENTIFIER_EXISTS|SUBJECT_INACTIVE`, `422 INVALID_TEACHER_ACCOUNT`.
 - `User` bổ sung `subjectId`, `subjectCode`, `subjectName` (nullable với tài khoản không được phân công). Một Giảng viên có đúng một môn phụ trách; có thể mở nhiều nhóm lớp của môn đó. Không giới hạn danh mục hệ thống ở bảy môn và không ép một môn chỉ có một giảng viên.
 - `PATCH /api/v1/admin/users/{id}` chỉ cập nhật `{status}`; gửi role bị từ chối `422 ROLE_CHANGE_NOT_ALLOWED`, kể cả gọi trực tiếp API. Không nâng tài khoản Student thành Teacher qua màn Chỉnh sửa.
 - `GET /api/v1/teacher/subject`: chỉ Teacher ACTIVE; trả `200 Subject` được phân công; `409 TEACHER_SUBJECT_NOT_ASSIGNED` nếu tài khoản cũ chưa được gắn môn. Không nhận teacherId từ client.

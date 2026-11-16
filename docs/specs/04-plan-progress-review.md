@@ -1,5 +1,7 @@
 # Feature Specification — Dashboard, Streak, Daily Goal, Plan và Quiz Review
 
+Kế hoạch mở rộng đã được ghi riêng trong [SPEC-18 — Google Calendar](18-google-calendar-integration-plan.md): Student chủ động kết nối và đồng bộ một chiều StudyFlow → Google Calendar. Chức năng này chưa triển khai; các API và hành vi lịch nội bộ bên dưới vẫn là hiện trạng.
+
 ## 1. Requirements
 
 | ID | Requirement |

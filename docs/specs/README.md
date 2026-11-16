@@ -19,6 +19,10 @@ Thư mục này chứa specification có thể dùng trực tiếp cho implement
 13. [`12-course-opening-approval-and-library-management.md`](12-course-opening-approval-and-library-management.md) — lịch sử lần 13/11: duyệt mở lớp và quản lý tài liệu; quy tắc tự nhập môn được thay bởi SPEC-13
 14. [`13-admin-teacher-accounts-and-subject-assignment.md`](13-admin-teacher-accounts-and-subject-assignment.md) — Admin tạo Giảng viên, phân công một môn, bỏ đổi role; thay quy tắc nhập môn tự do của lần trước
 15. [`14-supabase-shared-data-plan.md`](14-supabase-shared-data-plan.md) — phương án PostgreSQL/pgvector và Storage dùng chung qua Supabase; chưa triển khai, để thực hiện lần sau
+16. [`15-supabase-shared-data-implementation.md`](15-supabase-shared-data-implementation.md) — triển khai ngày 16/11: đã chuyển dữ liệu/tệp, tách role và chạy local với Supabase; kết quả kiểm tra và phần còn lại
+17. [`16-full-email-account-usernames.md`](16-full-email-account-usernames.md) — Student/Teacher dùng email đầy đủ làm username, V33 và kiểm tra xác thực Backend
+18. [`17-cleanup-unused-demo-accounts.md`](17-cleanup-unused-demo-accounts.md) — xóa 11 tài khoản cũ/kiểm thử không cần, giữ 17 demo mới, sinh viên Local có dữ liệu và Admin hiện dùng
+19. [`18-google-calendar-integration-plan.md`](18-google-calendar-integration-plan.md) — phương án Student kết nối Google Calendar và đồng bộ lịch một chiều; chưa triển khai
 
 ## Quy ước sử dụng
 
